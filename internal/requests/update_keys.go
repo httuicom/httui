@@ -5,8 +5,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gandarfh/httui/internal/repositories/offline"
 	"github.com/gandarfh/httui/internal/requests/details"
+	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/pkg/common"
 	"github.com/gandarfh/httui/pkg/terminal"
 	"github.com/gandarfh/httui/pkg/topointer"
@@ -74,11 +74,11 @@ func (m Model) KeyActions(msg tea.KeyMsg) (Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Create):
 		parentId := m.Requests.Current.ParentID
 
-		if m.Requests.Current.Type == offline.GROUP {
+		if m.Requests.Current.Type == storage.GROUP {
 			parentId = &m.Requests.Current.ID
 		}
 
-		term := terminal.NewPreview(&offline.Request{
+		term := terminal.NewPreview(&storage.Request{
 			ParentID: parentId,
 		})
 
@@ -93,11 +93,11 @@ func (m Model) KeyActions(msg tea.KeyMsg) (Model, tea.Cmd) {
 		m = m.OpenRequest()
 
 		if m.Requests.Current.Type == "group" {
-			requests, _ := offline.NewRequest().ListByparent(&m.Requests.Current.ID)
+			requests, _ := storage.NewRequest().ListByparent(&m.Requests.Current.ID)
 
 			group := struct {
-				Group    offline.Request
-				Requests []offline.Request
+				Group    storage.Request
+				Requests []storage.Request
 			}{
 				Group:    m.Requests.Current,
 				Requests: requests,
@@ -113,7 +113,7 @@ func (m Model) KeyActions(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m, tea.Batch(term.OpenVim("Edit"))
 
 	case key.Matches(msg, m.keys.Envs):
-		envs, _ := offline.NewWorkspace().Environments(m.Workspace.ID)
+		envs, _ := storage.NewWorkspace().Environments(m.Workspace.ID)
 		term := terminal.NewPreview(&envs)
 		return m, tea.Batch(term.OpenVim("Envs"))
 
@@ -133,7 +133,7 @@ func (m Model) KeyActions(msg tea.KeyMsg) (Model, tea.Cmd) {
 			name := m.Detail.InputName.Value()
 			if name != "" {
 				m.Requests.Current.Name = name
-				offline.NewRequest().Update(&m.Requests.Current)
+				storage.NewRequest().Update(&m.Requests.Current)
 				m.Detail.InputName.Blur()
 				m.Detail.Cursor = details.CursorTree
 				m.keys.DisableKeysForInputs(true)
@@ -146,7 +146,7 @@ func (m Model) KeyActions(msg tea.KeyMsg) (Model, tea.Cmd) {
 			endpoint := m.Detail.InputPreview.Value()
 			if endpoint != "" {
 				m.Requests.Current.Endpoint = endpoint
-				offline.NewRequest().Update(&m.Requests.Current)
+				storage.NewRequest().Update(&m.Requests.Current)
 				m.Detail.InputPreview.Blur()
 				m.Detail.Cursor = details.CursorTree
 				m.keys.DisableKeysForInputs(true)
@@ -185,12 +185,12 @@ func (m Model) ShowRequestDetails(direction string) Model {
 
 	m.Requests.Current = m.List.GetNodeByIndex(index).Data
 
-	d, _ := offline.NewDefault().First()
+	d, _ := storage.NewDefault().First()
 	d.RequestTree = datatypes.NewJSONType(m.List.Nodes())
 	d.Cursor = topointer.New(cursor)
 	d.Page = topointer.New(m.List.Paginator.Page)
 	d.RequestId = m.Requests.Current.ID
-	offline.NewDefault().Update(*d)
+	storage.NewDefault().Update(*d)
 
 	if m.Requests.Current.Type == "request" {
 		m.parentId = m.Requests.Current.ParentID
@@ -217,12 +217,12 @@ func (m Model) OpenRequest() Model {
 		m.parentId = m.Requests.Current.ParentID
 	}
 
-	d, _ := offline.NewDefault().First()
+	d, _ := storage.NewDefault().First()
 	d.RequestTree = datatypes.NewJSONType(m.List.Nodes())
 	d.Cursor = topointer.New(m.List.Cursor())
 	d.Page = topointer.New(m.List.Paginator.Page)
 	d.RequestId = m.Requests.Current.ID
-	offline.NewDefault().Update(*d)
+	storage.NewDefault().Update(*d)
 
 	return m
 }

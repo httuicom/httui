@@ -4,7 +4,7 @@ import (
 	"reflect"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gandarfh/httui/internal/repositories/offline"
+	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/pkg/terminal"
 	"gorm.io/datatypes"
 )
@@ -12,7 +12,7 @@ import (
 func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 	switch msg.Category {
 	case "Create":
-		request := offline.Request{}
+		request := storage.Request{}
 		if err := msg.Preview.Execute(&request); err != nil {
 			return m, nil
 		}
@@ -22,10 +22,10 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 		}
 
 		if request.Type == "" {
-			request.Type = offline.REQUEST
+			request.Type = storage.REQUEST
 		}
 
-		offline.NewRequest().Create(&request)
+		storage.NewRequest().Create(&request)
 
 		m.Requests.Current = request
 		m.parentId = m.Requests.Current.ParentID
@@ -35,8 +35,8 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 	case "Edit":
 		if m.Requests.Current.Type == "group" {
 			var group = struct {
-				Group    offline.Request
-				Requests []offline.Request
+				Group    storage.Request
+				Requests []storage.Request
 			}{}
 
 			if err := msg.Preview.Execute(&group); err != nil {
@@ -45,18 +45,18 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 
 			for _, request := range group.Requests {
 				if request.ID == 0 {
-					offline.NewRequest().Create(&request)
+					storage.NewRequest().Create(&request)
 				}
 
 				equal := reflect.DeepEqual(request, m.Requests.Current)
 				if !equal {
-					offline.NewRequest().Update(&request)
+					storage.NewRequest().Update(&request)
 				}
 			}
 
 			equal := reflect.DeepEqual(group.Group, m.Requests.Current)
 			if !equal {
-				offline.NewRequest().Update(&group.Group)
+				storage.NewRequest().Update(&group.Group)
 				m.parentId = group.Group.ParentID
 
 				return m, tea.Batch(LoadRequestsByParentId(m.parentId))
@@ -65,7 +65,7 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		request := offline.Request{}
+		request := storage.Request{}
 
 		if err := msg.Preview.Execute(&request); err != nil {
 			return m, nil
@@ -73,7 +73,7 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 
 		request.ID = m.Requests.Current.ID
 
-		offline.NewRequest().Update(&request)
+		storage.NewRequest().Update(&request)
 		m.parentId = request.ParentID
 
 		return m, tea.Batch(LoadRequestsByParentId(m.parentId))
@@ -85,7 +85,7 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 		}
 
 		m.Workspace.Environments = datatypes.NewJSONType(data)
-		offline.NewWorkspace().Update(&m.Workspace)
+		storage.NewWorkspace().Update(&m.Workspace)
 	}
 
 	defer msg.Preview.Close()

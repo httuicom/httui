@@ -121,7 +121,7 @@ func (c Client) Do() (*Response, error) {
 	return &Response{Response: response}, nil
 }
 
-func (r *Response) Decode(decode interface{}) error {
+func (r *Response) Decode(decode any) error {
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/gandarfh/httui/pkg/utils"
+	"github.com/gandarfh/httui/pkg/truncate"
 )
 
 func (m Model) Title() string {
@@ -13,7 +13,7 @@ func (m Model) Title() string {
 	id := lipgloss.NewStyle().
 		Width(titleWidth / 3).
 		Bold(true).
-		Render(utils.Truncate(fmt.Sprintf(" ID: %d", m.Request.ID), titleWidth/4))
+		Render(truncate.String(fmt.Sprintf(" ID: %d", m.Request.ID), titleWidth/4))
 
 	name := " Name: " + m.Request.Name
 

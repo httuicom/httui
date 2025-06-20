@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gandarfh/httui/internal/repositories/offline"
+	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/pkg/common"
 )
 
@@ -12,7 +12,7 @@ func (m Model) CommandsActions(msg common.CommandClose) (Model, tea.Cmd) {
 	switch msg.Category {
 	case "DELETE":
 		if strings.ToUpper(msg.Value) == "Y" {
-			offline.NewRequest().Delete(m.Requests.Current.ID)
+			storage.NewRequest().Delete(m.Requests.Current.ID)
 		}
 
 		return m, tea.Batch(LoadRequestsByParentId(m.Requests.Current.ParentID))
@@ -27,11 +27,11 @@ func (m Model) CommandsActions(msg common.CommandClose) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		workspace := offline.Workspace{Name: msg.Value}
-		offline.NewWorkspace().Create(&workspace)
+		workspace := storage.Workspace{Name: msg.Value}
+		storage.NewWorkspace().Create(&workspace)
 		m.Workspace = workspace
 
-		offline.NewDefault().Update(offline.Default{
+		storage.NewDefault().Update(storage.Default{
 			WorkspaceId: workspace.ID,
 		})
 
@@ -42,11 +42,11 @@ func (m Model) CommandsActions(msg common.CommandClose) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		workspace := offline.Workspace{}
-		offline.NewWorkspace().Sql.Model(&workspace).Where("name LIKE ?", "%"+msg.Value+"%").First(&workspace)
+		workspace := storage.Workspace{}
+		storage.NewWorkspace().Sql.Model(&workspace).Where("name LIKE ?", "%"+msg.Value+"%").First(&workspace)
 		m.Workspace = workspace
 
-		offline.NewDefault().Update(offline.Default{
+		storage.NewDefault().Update(storage.Default{
 			WorkspaceId: workspace.ID,
 		})
 

@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gandarfh/httui/internal/config"
-	"github.com/gandarfh/httui/internal/repositories/offline"
+	"github.com/gandarfh/httui/pkg/config"
+	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/internal/requests"
 )
 
 func init() {
-	if err := offline.SqliteConnection(); err != nil {
+	if err := storage.SqliteConnection(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
@@ -25,7 +25,7 @@ var (
 
 func App() {
 	configDir, _ := os.UserHomeDir()
-	path := filepath.Join(configDir, config.AppDir, "debug.log")
+	path := filepath.Join(configDir, config.APP_DIR, "debug.log")
 
 	f, err := tea.LogToFile(path, "debug")
 	if err != nil {

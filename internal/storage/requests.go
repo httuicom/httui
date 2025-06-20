@@ -1,4 +1,4 @@
-package offline
+package storage
 
 import (
 	"fmt"

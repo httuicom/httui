@@ -80,13 +80,13 @@ func (parser ConfigParser) getConfigFileOrCreateIfMissing() (*string, error) {
 		return nil, configError{parser: parser, configDir: configDir, err: err}
 	}
 
-	prsConfigDir := filepath.Join(configDir, AppDir)
+	prsConfigDir := filepath.Join(configDir, APP_DIR)
 	err = os.MkdirAll(prsConfigDir, os.ModePerm)
 	if err != nil {
 		return nil, configError{parser: parser, configDir: configDir, err: err}
 	}
 
-	configFilePath := filepath.Join(prsConfigDir, ConfigFileName)
+	configFilePath := filepath.Join(prsConfigDir, CONFIG_FILE_NAME)
 	err = parser.createConfigFileIfMissing(configFilePath)
 	if err != nil {
 		return nil, configError{parser: parser, configDir: configDir, err: err}

@@ -4,36 +4,36 @@ import (
 	"log"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gandarfh/httui/internal/repositories/offline"
+	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/pkg/tree/v2"
 )
 
 func LoadDefault() tea.Msg {
-	config, _ := offline.NewDefault().First()
+	config, _ := storage.NewDefault().First()
 	return *config
 }
 
 func LoadWorspace() tea.Msg {
-	config, _ := offline.NewDefault().First()
-	workspace, _ := offline.NewWorkspace().FindOne(config.WorkspaceId)
+	config, _ := storage.NewDefault().First()
+	workspace, _ := storage.NewWorkspace().FindOne(config.WorkspaceId)
 	log.Println(workspace.ID, workspace.Name)
 
 	return workspace
 }
 
 type RequestsData struct {
-	List        []offline.Request
-	Current     offline.Request
-	RequestTree []tree.Node[offline.Request]
+	List        []storage.Request
+	Current     storage.Request
+	RequestTree []tree.Node[storage.Request]
 	ParentID    *uint
 	Cursor      int
 	Page        int
 }
 
 func LoadRequests() tea.Msg {
-	config, _ := offline.NewDefault().First()
-	request, _ := offline.NewRequest().FindOne(config.RequestId)
-	requests, _ := offline.NewRequest().List(request.ParentID, "")
+	config, _ := storage.NewDefault().First()
+	request, _ := storage.NewRequest().FindOne(config.RequestId)
+	requests, _ := storage.NewRequest().List(request.ParentID, "")
 
 	cursor := 0
 	page := 0
@@ -58,9 +58,9 @@ func LoadRequests() tea.Msg {
 
 func LoadRequestsByParentId(parentId *uint) tea.Cmd {
 	return func() tea.Msg {
-		config, _ := offline.NewDefault().First()
-		request, _ := offline.NewRequest().FindOne(config.RequestId)
-		requests, _ := offline.NewRequest().List(parentId, "")
+		config, _ := storage.NewDefault().First()
+		request, _ := storage.NewRequest().FindOne(config.RequestId)
+		requests, _ := storage.NewRequest().List(parentId, "")
 
 		return RequestsData{
 			List:        requests,
@@ -75,9 +75,9 @@ func LoadRequestsByParentId(parentId *uint) tea.Cmd {
 
 func LoadRequestsByFilter(filter string) tea.Cmd {
 	return func() tea.Msg {
-		config, _ := offline.NewDefault().First()
-		request, _ := offline.NewRequest().FindOne(config.RequestId)
-		requests, _ := offline.NewRequest().List(nil, filter)
+		config, _ := storage.NewDefault().First()
+		request, _ := storage.NewRequest().FindOne(config.RequestId)
+		requests, _ := storage.NewRequest().List(nil, filter)
 
 		return RequestsData{
 			RequestTree: config.RequestTree.Data(),

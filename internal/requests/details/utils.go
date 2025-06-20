@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/gandarfh/httui/pkg/utils"
+	"github.com/gandarfh/httui/pkg/truncate"
 )
 
 func DataToString(data interface{}, elementSize, elementsCount int) string {
@@ -18,7 +18,7 @@ func DataToString(data interface{}, elementSize, elementsCount int) string {
 
 	summariseProperties := func(s string) string {
 		// s = utils.ReplaceByOperator(s, workspaceId)
-		return utils.Truncate(s, elementSize)
+		return truncate.String(s, elementSize)
 	}
 
 	value, _ := replaceStringsInJSON(

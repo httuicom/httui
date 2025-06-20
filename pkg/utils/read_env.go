@@ -7,7 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gandarfh/httui/internal/repositories/offline"
+	"github.com/gandarfh/httui/internal/storage"
+	"github.com/gandarfh/httui/pkg/convert"
 )
 
 var re_env = regexp.MustCompile(`{{ _.\w* }}`)
@@ -55,11 +56,11 @@ func ReadResponse(key string, workspaceId uint) (string, error) {
 
 	fields := strings.Split(infos[0], ".")
 
-	repo := offline.NewResponse()
+	repo := storage.NewResponse()
 	response, err := repo.FindOne(uint(reqId), workspaceId)
 
 	data := map[string]interface{}{}
-	Convert(response, &data)
+	convert.ToSource(response, &data)
 
 	value, _ := getField(data, fields)
 

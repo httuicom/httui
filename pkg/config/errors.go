@@ -21,7 +21,7 @@ Example of a config.yml file:
 %s
 press q to exit.
 Original error: %v`,
-		path.Join(e.configDir, AppDir, ConfigFileName),
+		path.Join(e.configDir, APP_DIR, CONFIG_FILE_NAME),
 		e.parser.getDefaultConfigYamlContents(),
 		e.err,
 	)

@@ -3,8 +3,8 @@ package cmd
 import (
 	"log"
 
-	"github.com/gandarfh/httui/internal/config"
 	"github.com/gandarfh/httui/internal/tui"
+	"github.com/gandarfh/httui/pkg/config"
 	"github.com/spf13/cobra"
 )
 

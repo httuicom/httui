@@ -5,15 +5,15 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gandarfh/httui/internal/repositories/offline"
+	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/pkg/common"
+	"github.com/gandarfh/httui/pkg/convert"
 	"github.com/gandarfh/httui/pkg/terminal"
 	"github.com/gandarfh/httui/pkg/tree/v2"
-	"github.com/gandarfh/httui/pkg/utils"
 	"gorm.io/gorm"
 )
 
-type UpdateRequestDefault offline.Request
+type UpdateRequestDefault storage.Request
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
@@ -25,31 +25,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case common.Sync:
 		switch msg.Action {
 		case "request":
-			request := offline.Request{}
-			if err := utils.Convert(msg.Data, &request); err != nil {
+			request := storage.Request{}
+			if err := convert.ToSource(msg.Data, &request); err != nil {
 				return m, nil
 			}
 
 			sync := true
 			request.Sync = &sync
 
-			if offline.NewRequest().Sql.Model(&request).Session(&gorm.Session{FullSaveAssociations: true}).Where("external_id = ?", request.ExternalId).Updates(&request).RowsAffected == 0 {
-				offline.NewRequest().Sql.Model(&request).Create(&request)
+			if storage.NewRequest().Sql.Model(&request).Session(&gorm.Session{FullSaveAssociations: true}).Where("external_id = ?", request.ExternalId).Updates(&request).RowsAffected == 0 {
+				storage.NewRequest().Sql.Model(&request).Create(&request)
 			}
 
 			return m, LoadRequestsByParentId(m.parentId)
 
 		case "workspace":
-			workspace := offline.Workspace{}
-			if err := utils.Convert(msg.Data, &workspace); err != nil {
+			workspace := storage.Workspace{}
+			if err := convert.ToSource(msg.Data, &workspace); err != nil {
 				return m, nil
 			}
 
 			sync := true
 			workspace.Sync = &sync
 
-			if offline.NewWorkspace().Sql.Model(&workspace).Session(&gorm.Session{FullSaveAssociations: true}).Where("external_id = ?", workspace.ExternalId).Updates(&workspace).RowsAffected == 0 {
-				offline.NewWorkspace().Sql.Model(&workspace).Create(&workspace)
+			if storage.NewWorkspace().Sql.Model(&workspace).Session(&gorm.Session{FullSaveAssociations: true}).Where("external_id = ?", workspace.ExternalId).Updates(&workspace).RowsAffected == 0 {
+				storage.NewWorkspace().Sql.Model(&workspace).Create(&workspace)
 			}
 		}
 
@@ -70,16 +70,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, func() tea.Msg { return UpdateRequestDefault(m.Requests.Current) })
 		}
 
-	case offline.Workspace:
+	case storage.Workspace:
 		m.Workspace = msg
 		m.List.Title = fmt.Sprintf("[%s]", msg.Name)
 
-	case offline.Default:
+	case storage.Default:
 		m.Configs = msg
 
 	case UpdateRequestDefault:
 		if m.Requests.Current.ID == msg.ID {
-			offline.NewDefault().Update(offline.Default{
+			storage.NewDefault().Update(storage.Default{
 				RequestId: m.Requests.Current.ID,
 			})
 		}
@@ -112,7 +112,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.List.Title = fmt.Sprintf("[%s]", msg.Workspace.Name)
 		}
 
-		cmd = m.Detail.SetWorkspace(offline.Workspace(m.Workspace))
+		cmd = m.Detail.SetWorkspace(storage.Workspace(m.Workspace))
 		cmds = append(cmds, cmd)
 
 	case spinner.TickMsg:
@@ -173,13 +173,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func buildTree(requests []offline.Request, parentID *uint) []tree.Node[offline.Request] {
-	var nodes []tree.Node[offline.Request]
+func buildTree(requests []storage.Request, parentID *uint) []tree.Node[storage.Request] {
+	var nodes []tree.Node[storage.Request]
 	for _, req := range requests {
 		if (req.ParentID == nil && parentID == nil) || (req.ParentID != nil && parentID != nil && *req.ParentID == *parentID) {
 
 			children := buildTree(requests, &req.ID)
-			node := tree.Node[offline.Request]{
+			node := tree.Node[storage.Request]{
 				Value:    req.Name,
 				Data:     req,
 				Children: children,

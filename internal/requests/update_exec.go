@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gandarfh/httui/internal/repositories/offline"
+	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/pkg/client"
 	"github.com/gandarfh/httui/pkg/utils"
 	"gorm.io/datatypes"
@@ -62,8 +62,9 @@ func (m Model) Exec() tea.Cmd {
 		data, err := res.Exec()
 		if err != nil {
 			return Result{
-				Err:     err,
-				Loading: false,
+				Response: datatypes.NewJSONType(err.Error()),
+				Err:      err,
+				Loading:  false,
 			}
 		}
 
@@ -71,7 +72,7 @@ func (m Model) Exec() tea.Cmd {
 		readbody, _ := io.ReadAll(data.Body)
 		json.Unmarshal(readbody, &response)
 
-		result := offline.Response{
+		result := storage.Response{
 			WorkspaceId:       m.Workspace.ID,
 			Status:            data.Status,
 			RequestId:         request.ID,
@@ -80,7 +81,7 @@ func (m Model) Exec() tea.Cmd {
 			Response:          datatypes.NewJSONType(response),
 		}
 
-		offline.NewResponse().Create(&result)
+		storage.NewResponse().Create(&result)
 
 		return Result{
 			Response: result,

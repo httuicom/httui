@@ -6,7 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gandarfh/httui/internal/command"
-	"github.com/gandarfh/httui/internal/repositories/offline"
+	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/internal/requests/details"
 	"github.com/gandarfh/httui/pkg/common"
 	"github.com/gandarfh/httui/pkg/styles"
@@ -21,7 +21,7 @@ type Model struct {
 	command_active   bool
 	keys             KeyMap
 	help             help.Model
-	List             tree.Model[offline.Request]
+	List             tree.Model[storage.Request]
 	spinner          spinner.Model
 	command_bar      common.Component
 	loading          common.Loading
@@ -29,8 +29,8 @@ type Model struct {
 	Width            int
 	Height           int
 	Requests         RequestsData
-	Configs          offline.Default
-	Workspace        offline.Workspace
+	Configs          storage.Default
+	Workspace        storage.Workspace
 	workers          []tea.Cmd
 }
 
@@ -47,7 +47,7 @@ func New(workers ...tea.Cmd) tea.Model {
 		Width:          0,
 		Height:         0,
 		state:          common.Start_state,
-		List:           tree.New([]tree.Node[offline.Request]{}, 0, 0),
+		List:           tree.New([]tree.Node[storage.Request]{}, 0, 0),
 		Detail:         details.New(),
 		help:           help.New(),
 		keys:           keys,

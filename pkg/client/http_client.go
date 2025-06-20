@@ -66,10 +66,10 @@ func (c *client) Exec() (*http.Response, error) {
 
 	request.URL.RawQuery = q.Encode()
 
-	request.Header.Add("access-control-allow-headers", "*")
-	request.Header.Add("access-control-allow-origin", "*")
-	request.Header.Add("accept", "application/json, text/plain, */*")
-	request.Header.Add("Content-Type", "application/json; charset=utf-8")
+	// request.Header.Add("access-control-allow-headers", "*")
+	// request.Header.Add("access-control-allow-origin", "*")
+	// request.Header.Add("accept", "application/json, text/plain, */*")
+	// request.Header.Add("Content-Type", "application/json; charset=utf-8")
 
 	for _, item := range c.headers {
 		request.Header.Add(item.key, item.value)

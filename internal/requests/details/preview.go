@@ -5,12 +5,12 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/gandarfh/httui/pkg/utils"
+	"github.com/gandarfh/httui/pkg/truncate"
 )
 
 func (m Model) Preview() string {
 	maxPreviewTextSize := m.Width - m.Width/6
-	preview := utils.Truncate(fmt.Sprintf("%s - %s", strings.ToUpper(string(m.Request.Method)), string(m.Request.Endpoint)), maxPreviewTextSize)
+	preview := truncate.String(fmt.Sprintf("%s - %s", strings.ToUpper(string(m.Request.Method)), string(m.Request.Endpoint)), maxPreviewTextSize)
 
 	if m.Cursor == CursorPreview {
 		m.InputPreview.Prompt = fmt.Sprintf("%s - ", strings.ToUpper(string(m.Request.Method)))
