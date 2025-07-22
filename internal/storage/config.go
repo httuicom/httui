@@ -24,15 +24,15 @@ type Default struct {
 	RequestTree       datatypes.JSONType[[]tree.Node[Request]] `json:"requestTree"`
 }
 
-func NewDefault() *DefaultsRepo {
+func NewDefault(db *gorm.DB) *DefaultsRepo {
 	items := []Default{}
-	Database.Find(&items)
+	db.Find(&items)
 
 	if len(items) == 0 {
-		Database.Create(&Default{})
+		db.Create(&Default{})
 	}
 
-	return &DefaultsRepo{Database}
+	return &DefaultsRepo{db}
 }
 
 func (repo *DefaultsRepo) Update(value Default) error {

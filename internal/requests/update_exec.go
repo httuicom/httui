@@ -24,11 +24,11 @@ func (m Model) Exec() tea.Cmd {
 	return func() tea.Msg {
 		request := m.Requests.Current
 
-		url := utils.ReplaceByOperator(request.Endpoint, m.Workspace.ID, m.Workspace.Environments.Data())
+		url := utils.ReplaceByOperator(m.ResponsesRepo, request.Endpoint, m.Workspace.ID, m.Workspace.Environments.Data())
 		res := client.Request(url, strings.ToUpper(string(request.Method)))
 
 		rawbody, _ := request.Body.MarshalJSON()
-		bodystring := utils.ReplaceByOperator(string(rawbody), m.Workspace.ID, m.Workspace.Environments.Data())
+		bodystring := utils.ReplaceByOperator(m.ResponsesRepo, string(rawbody), m.Workspace.ID, m.Workspace.Environments.Data())
 
 		var body any
 		if err := json.Unmarshal([]byte(bodystring), &body); err != nil {
@@ -41,8 +41,8 @@ func (m Model) Exec() tea.Cmd {
 			res.Body(nil)
 		}
 
-		headers := utils.GetAllParentsHeaders(request.ParentID, request.Headers.Data())
-		headers = utils.ProcessParamsOperators(headers, m.Workspace.ID, m.Workspace.Environments.Data())
+		headers := utils.GetAllParentsHeaders(m.RequestsRepo, request.ParentID, request.Headers.Data())
+		headers = utils.ProcessParamsOperators(m.ResponsesRepo, headers, m.Workspace.ID, m.Workspace.Environments.Data())
 
 		for _, item := range headers {
 			for k, v := range item {
@@ -50,8 +50,8 @@ func (m Model) Exec() tea.Cmd {
 			}
 		}
 
-		params := utils.GetAllParentsParams(request.ParentID, request.QueryParams.Data())
-		params = utils.ProcessParamsOperators(params, m.Workspace.ID, m.Workspace.Environments.Data())
+		params := utils.GetAllParentsParams(m.RequestsRepo, request.ParentID, request.QueryParams.Data())
+		params = utils.ProcessParamsOperators(m.ResponsesRepo, params, m.Workspace.ID, m.Workspace.Environments.Data())
 
 		for _, item := range params {
 			for k, v := range item {
@@ -81,7 +81,7 @@ func (m Model) Exec() tea.Cmd {
 			Response:          datatypes.NewJSONType(response),
 		}
 
-		storage.NewResponse().Create(&result)
+		m.ResponsesRepo.Create(&result)
 
 		return Result{
 			Response: result,

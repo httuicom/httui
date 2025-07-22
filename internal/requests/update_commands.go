@@ -12,15 +12,15 @@ func (m Model) CommandsActions(msg common.CommandClose) (Model, tea.Cmd) {
 	switch msg.Category {
 	case "DELETE":
 		if strings.ToUpper(msg.Value) == "Y" {
-			storage.NewRequest().Delete(m.Requests.Current.ID)
+			m.RequestsRepo.Delete(m.Requests.Current.ID)
 		}
 
-		return m, tea.Batch(LoadRequestsByParentId(m.Requests.Current.ParentID))
+		return m, tea.Batch(m.LoadRequestsByParentId(m.Requests.Current.ParentID))
 
 	case "FILTER":
 		m.filter = msg.Value
 		m.List.CursorTop()
-		return m, tea.Batch(LoadRequestsByFilter(m.filter))
+		return m, tea.Batch(m.LoadRequestsByFilter(m.filter))
 
 	case "CREATE_WORKSPACE":
 		if msg.Value == "" {
@@ -28,14 +28,14 @@ func (m Model) CommandsActions(msg common.CommandClose) (Model, tea.Cmd) {
 		}
 
 		workspace := storage.Workspace{Name: msg.Value}
-		storage.NewWorkspace().Create(&workspace)
+		m.WorkspacesRepo.Create(&workspace)
 		m.Workspace = workspace
 
-		storage.NewDefault().Update(storage.Default{
+		m.DefaultsRepo.Update(storage.Default{
 			WorkspaceId: workspace.ID,
 		})
 
-		return m, common.SetWorkspace(workspace.ID)
+		return m, common.SetWorkspace(m.WorkspacesRepo, workspace.ID)
 
 	case "SET_WORKSPACE":
 		if msg.Value == "" {
@@ -43,14 +43,14 @@ func (m Model) CommandsActions(msg common.CommandClose) (Model, tea.Cmd) {
 		}
 
 		workspace := storage.Workspace{}
-		storage.NewWorkspace().Sql.Model(&workspace).Where("name LIKE ?", "%"+msg.Value+"%").First(&workspace)
+		m.WorkspacesRepo.Sql.Model(&workspace).Where("name LIKE ?", "%"+msg.Value+"%").First(&workspace)
 		m.Workspace = workspace
 
-		storage.NewDefault().Update(storage.Default{
+		m.DefaultsRepo.Update(storage.Default{
 			WorkspaceId: workspace.ID,
 		})
 
-		return m, common.SetWorkspace(workspace.ID)
+		return m, common.SetWorkspace(m.WorkspacesRepo, workspace.ID)
 	}
 
 	return m, nil

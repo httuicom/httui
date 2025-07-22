@@ -17,7 +17,7 @@ func (m Model) Headers() string {
 		glamour.WithWordWrap(headerWidth),
 	)
 
-	rawheader := utils.GetAllParentsHeaders(m.Request.ParentID, m.Request.Headers.Data())
+	rawheader := utils.GetAllParentsHeaders(m.RequestsRepo, m.Request.ParentID, m.Request.Headers.Data())
 	jsonString := DataToString(rawheader, maxTextValueSize, m.Height/3-2)
 
 	header, _ := paramrenderer.Render("```json\n" + jsonString + "\n  ```")

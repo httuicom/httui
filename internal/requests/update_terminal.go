@@ -25,12 +25,12 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 			request.Type = storage.REQUEST
 		}
 
-		storage.NewRequest().Create(&request)
+		m.RequestsRepo.Create(&request)
 
 		m.Requests.Current = request
 		m.parentId = m.Requests.Current.ParentID
 
-		return m, tea.Batch(LoadRequestsByParentId(m.parentId))
+		return m, tea.Batch(m.LoadRequestsByParentId(m.parentId))
 
 	case "Edit":
 		if m.Requests.Current.Type == "group" {
@@ -45,21 +45,21 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 
 			for _, request := range group.Requests {
 				if request.ID == 0 {
-					storage.NewRequest().Create(&request)
+					m.RequestsRepo.Create(&request)
 				}
 
 				equal := reflect.DeepEqual(request, m.Requests.Current)
 				if !equal {
-					storage.NewRequest().Update(&request)
+					m.RequestsRepo.Update(&request)
 				}
 			}
 
 			equal := reflect.DeepEqual(group.Group, m.Requests.Current)
 			if !equal {
-				storage.NewRequest().Update(&group.Group)
+				m.RequestsRepo.Update(&group.Group)
 				m.parentId = group.Group.ParentID
 
-				return m, tea.Batch(LoadRequestsByParentId(m.parentId))
+				return m, tea.Batch(m.LoadRequestsByParentId(m.parentId))
 			}
 
 			return m, nil
@@ -73,10 +73,10 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 
 		request.ID = m.Requests.Current.ID
 
-		storage.NewRequest().Update(&request)
+		m.RequestsRepo.Update(&request)
 		m.parentId = request.ParentID
 
-		return m, tea.Batch(LoadRequestsByParentId(m.parentId))
+		return m, tea.Batch(m.LoadRequestsByParentId(m.parentId))
 
 	case "Envs":
 		data := map[string]string{}
@@ -85,7 +85,7 @@ func (m Model) TerminalActions(msg terminal.Finish) (Model, tea.Cmd) {
 		}
 
 		m.Workspace.Environments = datatypes.NewJSONType(data)
-		storage.NewWorkspace().Update(&m.Workspace)
+		m.WorkspacesRepo.Update(&m.Workspace)
 	}
 
 	defer msg.Preview.Close()

@@ -24,9 +24,7 @@ var newLogger = logger.New(
 	},
 )
 
-var Database *gorm.DB
-
-func SqliteConnection() error {
+func SqliteConnection() (*gorm.DB, error) {
 	home, _ := os.UserHomeDir()
 	db, err := gorm.Open(sqlite.Open(filepath.Join(home, "httui.v3.db")), &gorm.Config{
 		Logger: newLogger,
@@ -36,20 +34,19 @@ func SqliteConnection() error {
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	sqldb, _ := db.DB()
 
 	if err := sqldb.Ping(); err != nil {
 		defer sqldb.Close()
-		return err
+		return nil, err
 	}
 
 	db.AutoMigrate(&Default{})
 	db.AutoMigrate(&Request{}, &Response{})
 	db.AutoMigrate(&Workspace{})
 
-	Database = db
-	return nil
+	return db, nil
 }

@@ -93,7 +93,7 @@ func (m Model) KeyActions(msg tea.KeyMsg) (Model, tea.Cmd) {
 		m = m.OpenRequest()
 
 		if m.Requests.Current.Type == "group" {
-			requests, _ := storage.NewRequest().ListByparent(&m.Requests.Current.ID)
+			requests, _ := m.RequestsRepo.ListByparent(&m.Requests.Current.ID)
 
 			group := struct {
 				Group    storage.Request
@@ -113,7 +113,7 @@ func (m Model) KeyActions(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m, tea.Batch(term.OpenVim("Edit"))
 
 	case key.Matches(msg, m.keys.Envs):
-		envs, _ := storage.NewWorkspace().Environments(m.Workspace.ID)
+		envs, _ := m.WorkspacesRepo.Environments(m.Workspace.ID)
 		term := terminal.NewPreview(&envs)
 		return m, tea.Batch(term.OpenVim("Envs"))
 
@@ -133,26 +133,26 @@ func (m Model) KeyActions(msg tea.KeyMsg) (Model, tea.Cmd) {
 			name := m.Detail.InputName.Value()
 			if name != "" {
 				m.Requests.Current.Name = name
-				storage.NewRequest().Update(&m.Requests.Current)
+				m.RequestsRepo.Update(&m.Requests.Current)
 				m.Detail.InputName.Blur()
 				m.Detail.Cursor = details.CursorTree
 				m.keys.DisableKeysForInputs(true)
 				m.List.EnableKeyMap(true)
 
-				return m, tea.Batch(LoadRequestsByParentId(m.parentId))
+				return m, tea.Batch(m.LoadRequestsByParentId(m.parentId))
 			}
 
 		case details.CursorPreview:
 			endpoint := m.Detail.InputPreview.Value()
 			if endpoint != "" {
 				m.Requests.Current.Endpoint = endpoint
-				storage.NewRequest().Update(&m.Requests.Current)
+				m.RequestsRepo.Update(&m.Requests.Current)
 				m.Detail.InputPreview.Blur()
 				m.Detail.Cursor = details.CursorTree
 				m.keys.DisableKeysForInputs(true)
 				m.List.EnableKeyMap(true)
 
-				return m, tea.Batch(LoadRequestsByParentId(m.parentId))
+				return m, tea.Batch(m.LoadRequestsByParentId(m.parentId))
 			}
 		}
 	}
@@ -185,12 +185,12 @@ func (m Model) ShowRequestDetails(direction string) Model {
 
 	m.Requests.Current = m.List.GetNodeByIndex(index).Data
 
-	d, _ := storage.NewDefault().First()
+	d, _ := m.DefaultsRepo.First()
 	d.RequestTree = datatypes.NewJSONType(m.List.Nodes())
 	d.Cursor = topointer.New(cursor)
 	d.Page = topointer.New(m.List.Paginator.Page)
 	d.RequestId = m.Requests.Current.ID
-	storage.NewDefault().Update(*d)
+	m.DefaultsRepo.Update(*d)
 
 	if m.Requests.Current.Type == "request" {
 		m.parentId = m.Requests.Current.ParentID
@@ -217,12 +217,12 @@ func (m Model) OpenRequest() Model {
 		m.parentId = m.Requests.Current.ParentID
 	}
 
-	d, _ := storage.NewDefault().First()
+	d, _ := m.DefaultsRepo.First()
 	d.RequestTree = datatypes.NewJSONType(m.List.Nodes())
 	d.Cursor = topointer.New(m.List.Cursor())
 	d.Page = topointer.New(m.List.Paginator.Page)
 	d.RequestId = m.Requests.Current.ID
-	storage.NewDefault().Update(*d)
+	m.DefaultsRepo.Update(*d)
 
 	return m
 }

@@ -13,7 +13,7 @@ import (
 type section uint
 
 const (
-	CursorTree   section = 0
+	CursorTree    section = 0
 	CursorName    section = 1
 	CursorPreview section = 2
 )
@@ -25,19 +25,30 @@ var (
 )
 
 type Model struct {
-	Width        int
-	Height       int
-	Cursor       section
-	InputName    textinput.Model
-	InputPreview textinput.Model
-	bodyVP       viewport.Model
-	headerVP     viewport.Model
-	paramsVP     viewport.Model
-	Request      storage.Request
-	Workspace    storage.Workspace
+	Width          int
+	Height         int
+	Cursor         section
+	InputName      textinput.Model
+	InputPreview   textinput.Model
+	bodyVP         viewport.Model
+	headerVP       viewport.Model
+	paramsVP       viewport.Model
+	Request        storage.Request
+	Workspace      storage.Workspace
+	WorkspacesRepo *storage.WorkspacesRepo
+	RequestsRepo   *storage.RequestsRepo
+	ResponsesRepo  *storage.ResponsesRepo
+	DefaultsRepo   *storage.DefaultsRepo
+	EnvsRepo       *storage.EnvsRepo
 }
 
-func New() Model {
+func New(
+	workspacesRepo *storage.WorkspacesRepo,
+	requestsRepo *storage.RequestsRepo,
+	responsesRepo *storage.ResponsesRepo,
+	defaultsRepo *storage.DefaultsRepo,
+	envsRepo *storage.EnvsRepo,
+) Model {
 	tn := textinput.New()
 	tn.Prompt = ""
 	tn.CharLimit = 156
@@ -49,9 +60,14 @@ func New() Model {
 	tp.Blur()
 
 	return Model{
-		Cursor:       CursorTree,
-		InputName:    tn,
-		InputPreview: tp,
+		Cursor:         CursorTree,
+		InputName:      tn,
+		InputPreview:   tp,
+		WorkspacesRepo: workspacesRepo,
+		RequestsRepo:   requestsRepo,
+		ResponsesRepo:  responsesRepo,
+		DefaultsRepo:   defaultsRepo,
+		EnvsRepo:       envsRepo,
 	}
 }
 

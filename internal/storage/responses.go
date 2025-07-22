@@ -36,9 +36,7 @@ type ResponsesRepo struct {
 	Sql *gorm.DB
 }
 
-func NewResponse() *ResponsesRepo {
-	db := Database
-
+func NewResponse(db *gorm.DB) *ResponsesRepo {
 	return &ResponsesRepo{db}
 }
 

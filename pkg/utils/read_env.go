@@ -48,7 +48,7 @@ func getField(payload map[string]interface{}, fields []string) (interface{}, err
 	return value, nil
 }
 
-func ReadResponse(key string, workspaceId uint) (string, error) {
+func ReadResponse(responsesRepo *storage.ResponsesRepo, key string, workspaceId uint) (string, error) {
 	infos := re_response_fields.FindAllString(key, -1)
 
 	infos[0] = strings.Replace(infos[0], "'", "", -1)
@@ -56,8 +56,7 @@ func ReadResponse(key string, workspaceId uint) (string, error) {
 
 	fields := strings.Split(infos[0], ".")
 
-	repo := storage.NewResponse()
-	response, err := repo.FindOne(uint(reqId), workspaceId)
+	response, err := responsesRepo.FindOne(uint(reqId), workspaceId)
 
 	data := map[string]interface{}{}
 	convert.ToSource(response, &data)
@@ -69,7 +68,7 @@ func ReadResponse(key string, workspaceId uint) (string, error) {
 
 type TransformFunc func(text string) string
 
-func ReplaceByOperator(raw string, workspaceId uint, envs map[string]string) string {
+func ReplaceByOperator(responsesRepo *storage.ResponsesRepo, raw string, workspaceId uint, envs map[string]string) string {
 	listOfEnvs := re_env.FindAllString(raw, -1)
 	listOfResponses := re_response.FindAllString(raw, -1)
 
@@ -82,7 +81,7 @@ func ReplaceByOperator(raw string, workspaceId uint, envs map[string]string) str
 	}
 
 	for _, item := range listOfResponses {
-		if data, err := ReadResponse(item, workspaceId); err != nil {
+		if data, err := ReadResponse(responsesRepo, item, workspaceId); err != nil {
 			raw = strings.ReplaceAll(raw, item, item)
 		} else {
 			raw = strings.ReplaceAll(raw, item, data)

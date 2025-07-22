@@ -14,9 +14,7 @@ type EnvsRepo struct {
 	Sql *gorm.DB
 }
 
-func NewEnvs() *EnvsRepo {
-	db := Database
-
+func NewEnvs(db *gorm.DB) *EnvsRepo {
 	return &EnvsRepo{db}
 }
 

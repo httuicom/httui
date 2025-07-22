@@ -69,9 +69,7 @@ type WorkspacesRepo struct {
 	Sql *gorm.DB
 }
 
-func NewWorkspace() *WorkspacesRepo {
-	db := Database
-
+func NewWorkspace(db *gorm.DB) *WorkspacesRepo {
 	return &WorkspacesRepo{db}
 }
 

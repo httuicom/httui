@@ -1,22 +1,19 @@
 package requests
 
 import (
-	"log"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/pkg/tree/v2"
 )
 
-func LoadDefault() tea.Msg {
-	config, _ := storage.NewDefault().First()
+func (m *Model) LoadDefault() tea.Msg {
+	config, _ := m.DefaultsRepo.First()
 	return *config
 }
 
-func LoadWorspace() tea.Msg {
-	config, _ := storage.NewDefault().First()
-	workspace, _ := storage.NewWorkspace().FindOne(config.WorkspaceId)
-	log.Println(workspace.ID, workspace.Name)
+func (m *Model) LoadWorspace() tea.Msg {
+	config, _ := m.DefaultsRepo.First()
+	workspace, _ := m.WorkspacesRepo.FindOne(config.WorkspaceId)
 
 	return workspace
 }
@@ -30,10 +27,10 @@ type RequestsData struct {
 	Page        int
 }
 
-func LoadRequests() tea.Msg {
-	config, _ := storage.NewDefault().First()
-	request, _ := storage.NewRequest().FindOne(config.RequestId)
-	requests, _ := storage.NewRequest().List(request.ParentID, "")
+func (m *Model) LoadRequests() tea.Msg {
+	config, _ := m.DefaultsRepo.First()
+	request, _ := m.RequestsRepo.FindOne(config.RequestId)
+	requests, _ := m.RequestsRepo.List(request.ParentID, "")
 
 	cursor := 0
 	page := 0
@@ -56,11 +53,11 @@ func LoadRequests() tea.Msg {
 	}
 }
 
-func LoadRequestsByParentId(parentId *uint) tea.Cmd {
+func (m *Model) LoadRequestsByParentId(parentId *uint) tea.Cmd {
 	return func() tea.Msg {
-		config, _ := storage.NewDefault().First()
-		request, _ := storage.NewRequest().FindOne(config.RequestId)
-		requests, _ := storage.NewRequest().List(parentId, "")
+		config, _ := m.DefaultsRepo.First()
+		request, _ := m.RequestsRepo.FindOne(config.RequestId)
+		requests, _ := m.RequestsRepo.List(parentId, "")
 
 		return RequestsData{
 			List:        requests,
@@ -73,11 +70,11 @@ func LoadRequestsByParentId(parentId *uint) tea.Cmd {
 	}
 }
 
-func LoadRequestsByFilter(filter string) tea.Cmd {
+func (m *Model) LoadRequestsByFilter(filter string) tea.Cmd {
 	return func() tea.Msg {
-		config, _ := storage.NewDefault().First()
-		request, _ := storage.NewRequest().FindOne(config.RequestId)
-		requests, _ := storage.NewRequest().List(nil, filter)
+		config, _ := m.DefaultsRepo.First()
+		request, _ := m.RequestsRepo.FindOne(config.RequestId)
+		requests, _ := m.RequestsRepo.List(nil, filter)
 
 		return RequestsData{
 			RequestTree: config.RequestTree.Data(),

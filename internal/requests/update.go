@@ -33,11 +33,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			sync := true
 			request.Sync = &sync
 
-			if storage.NewRequest().Sql.Model(&request).Session(&gorm.Session{FullSaveAssociations: true}).Where("external_id = ?", request.ExternalId).Updates(&request).RowsAffected == 0 {
-				storage.NewRequest().Sql.Model(&request).Create(&request)
+			if m.RequestsRepo.Sql.Model(&request).Session(&gorm.Session{FullSaveAssociations: true}).Where("external_id = ?", request.ExternalId).Updates(&request).RowsAffected == 0 {
+				m.RequestsRepo.Sql.Model(&request).Create(&request)
 			}
 
-			return m, LoadRequestsByParentId(m.parentId)
+			return m, m.LoadRequestsByParentId(m.parentId)
 
 		case "workspace":
 			workspace := storage.Workspace{}
@@ -48,8 +48,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			sync := true
 			workspace.Sync = &sync
 
-			if storage.NewWorkspace().Sql.Model(&workspace).Session(&gorm.Session{FullSaveAssociations: true}).Where("external_id = ?", workspace.ExternalId).Updates(&workspace).RowsAffected == 0 {
-				storage.NewWorkspace().Sql.Model(&workspace).Create(&workspace)
+			if m.WorkspacesRepo.Sql.Model(&workspace).Session(&gorm.Session{FullSaveAssociations: true}).Where("external_id = ?", workspace.ExternalId).Updates(&workspace).RowsAffected == 0 {
+				m.WorkspacesRepo.Sql.Model(&workspace).Create(&workspace)
 			}
 		}
 
@@ -79,7 +79,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case UpdateRequestDefault:
 		if m.Requests.Current.ID == msg.ID {
-			storage.NewDefault().Update(storage.Default{
+			m.DefaultsRepo.Update(storage.Default{
 				RequestId: m.Requests.Current.ID,
 			})
 		}

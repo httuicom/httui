@@ -10,10 +10,9 @@ type Environment struct {
 	Reset     bool
 }
 
-func SetWorkspace(workspaceId uint) tea.Cmd {
+func SetWorkspace(workspacesRepo *storage.WorkspacesRepo, workspaceId uint) tea.Cmd {
 	return func() tea.Msg {
-		workspace_repo := storage.NewWorkspace()
-		workspace, _ := workspace_repo.FindOne(workspaceId)
+		workspace, _ := workspacesRepo.FindOne(workspaceId)
 
 		return Environment{
 			Workspace: workspace,

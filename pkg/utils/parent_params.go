@@ -14,24 +14,24 @@ func CopySliceOfMap[K comparable, V any](src []map[K]V) []map[K]V {
 	return copied
 }
 
-func GetAllParentsHeaders(parentId *uint, headers []map[string]string) []map[string]string {
+func GetAllParentsHeaders(requestsRepo *storage.RequestsRepo, parentId *uint, headers []map[string]string) []map[string]string {
 	updatedHeaders := CopySliceOfMap(headers)
 
 	if parentId != nil {
-		parent, _ := storage.NewRequest().FindOne(*parentId)
-		parentHeaders := GetAllParentsHeaders(parent.ParentID, parent.Headers.Data())
+		parent, _ := requestsRepo.FindOne(*parentId)
+		parentHeaders := GetAllParentsHeaders(requestsRepo, parent.ParentID, parent.Headers.Data())
 		updatedHeaders = append(updatedHeaders, CopySliceOfMap(parentHeaders)...)
 	}
 
 	return updatedHeaders
 }
 
-func GetAllParentsParams(parentId *uint, params []map[string]string) []map[string]string {
+func GetAllParentsParams(requestsRepo *storage.RequestsRepo, parentId *uint, params []map[string]string) []map[string]string {
 	updatedParams := CopySliceOfMap(params)
 
 	if parentId != nil {
-		parent, _ := storage.NewRequest().FindOne(*parentId)
-		parentParams := GetAllParentsParams(parent.ParentID, parent.QueryParams.Data())
+		parent, _ := requestsRepo.FindOne(*parentId)
+		parentParams := GetAllParentsParams(requestsRepo, parent.ParentID, parent.QueryParams.Data())
 		updatedParams = append(updatedParams, CopySliceOfMap(parentParams)...)
 	}
 

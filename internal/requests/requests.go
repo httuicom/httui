@@ -11,6 +11,7 @@ import (
 	"github.com/gandarfh/httui/pkg/common"
 	"github.com/gandarfh/httui/pkg/styles"
 	"github.com/gandarfh/httui/pkg/tree/v2"
+	"gorm.io/gorm"
 )
 
 type Model struct {
@@ -31,43 +32,57 @@ type Model struct {
 	Requests         RequestsData
 	Configs          storage.Default
 	Workspace        storage.Workspace
-	workers          []tea.Cmd
+	WorkspacesRepo   *storage.WorkspacesRepo
+	RequestsRepo     *storage.RequestsRepo
+	ResponsesRepo    *storage.ResponsesRepo
+	DefaultsRepo     *storage.DefaultsRepo
+	EnvsRepo         *storage.EnvsRepo
 }
 
 var (
 	divider = lipgloss.NewStyle().MarginLeft(1).Border(lipgloss.NormalBorder(), false, true, false, false)
 )
 
-func New(workers ...tea.Cmd) tea.Model {
+func New(db *gorm.DB) tea.Model {
 	s := spinner.New()
 	s.Spinner = spinner.Points
 	s.Style = lipgloss.NewStyle().MarginLeft(2).Foreground(styles.DefaultTheme.PrimaryText)
+
+	workspacesRepo := storage.NewWorkspace(db)
+	requestsRepo := storage.NewRequest(db)
+	responsesRepo := storage.NewResponse(db)
+	defaultsRepo := storage.NewDefault(db)
+	envsRepo := storage.NewEnvs(db)
 
 	m := Model{
 		Width:          0,
 		Height:         0,
 		state:          common.Start_state,
 		List:           tree.New([]tree.Node[storage.Request]{}, 0, 0),
-		Detail:         details.New(),
+		Detail:         details.New(workspacesRepo, requestsRepo, responsesRepo, defaultsRepo, envsRepo),
 		help:           help.New(),
 		keys:           keys,
 		spinner:        s,
 		command_bar:    command.New(),
 		command_active: false,
-		workers:        workers,
+		WorkspacesRepo: workspacesRepo,
+		RequestsRepo:   requestsRepo,
+		ResponsesRepo:  responsesRepo,
+		DefaultsRepo:   defaultsRepo,
+		EnvsRepo:       envsRepo,
 	}
 
 	return m
 }
 
 func (m Model) Init() tea.Cmd {
-	cmds := m.workers
+	cmds := []tea.Cmd{}
 
 	cmds = append(cmds,
 		tea.Sequence(
-			LoadDefault,
-			LoadWorspace,
-			LoadRequests,
+			m.LoadDefault,
+			m.LoadWorspace,
+			m.LoadRequests,
 			m.command_bar.Init(),
 			m.Detail.Init(),
 			common.SetState(common.Start_state),

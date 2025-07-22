@@ -17,7 +17,7 @@ func (m Model) Params() string {
 		glamour.WithWordWrap(paramsWidth),
 	)
 
-	rawparams := utils.GetAllParentsParams(m.Request.ParentID, m.Request.QueryParams.Data())
+	rawparams := utils.GetAllParentsParams(m.RequestsRepo, m.Request.ParentID, m.Request.QueryParams.Data())
 	jsonString := DataToString(rawparams, maxTextValueSize, m.Height/3-2)
 
 	query, _ := paramrenderer.Render("```json\n" + jsonString + "\n  ```")

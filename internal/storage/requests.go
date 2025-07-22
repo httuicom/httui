@@ -58,9 +58,7 @@ type RequestsRepo struct {
 	Sql *gorm.DB
 }
 
-func NewRequest() *RequestsRepo {
-	db := Database
-
+func NewRequest(db *gorm.DB) *RequestsRepo {
 	return &RequestsRepo{db}
 }
 

@@ -9,18 +9,23 @@ import (
 	"github.com/gandarfh/httui/internal/requests"
 	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/pkg/config"
+	"gorm.io/gorm"
+)
+
+var (
+	program  tea.Program
+	database *gorm.DB
 )
 
 func init() {
-	if err := storage.SqliteConnection(); err != nil {
+	storage, err := storage.SqliteConnection()
+	if err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
-}
 
-var (
-	program tea.Program
-)
+	database = storage
+}
 
 func App() {
 	configDir, _ := os.UserHomeDir()
@@ -33,7 +38,7 @@ func App() {
 	}
 	defer f.Close()
 
-	m := requests.New()
+	m := requests.New(database)
 
 	program = *tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := program.Run(); err != nil {
