@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gandarfh/httui/pkg/config"
-	"github.com/gandarfh/httui/internal/storage"
 	"github.com/gandarfh/httui/internal/requests"
+	"github.com/gandarfh/httui/internal/storage"
+	"github.com/gandarfh/httui/pkg/config"
 )
 
 func init() {
@@ -16,7 +16,6 @@ func init() {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
-
 }
 
 var (
@@ -37,7 +36,6 @@ func App() {
 	m := requests.New()
 
 	program = *tea.NewProgram(m, tea.WithAltScreen())
-
 	if _, err := program.Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
