@@ -33,6 +33,9 @@ pub mod run_body_commands;
 // Captures persistence (Epic 46 Story 03).
 pub mod captures_commands;
 
+// Template registry (Epic 41 Story 04).
+pub mod templates_commands;
+
 // File-backed config (epic 09 foundation; cutover in epic 19).
 pub mod vault_config_commands;
 
