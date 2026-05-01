@@ -73,6 +73,14 @@ pub struct UiPrefs {
     /// carry).
     #[serde(default)]
     pub mvp_migration_dismissed: bool,
+    /// True when quick-open should hide files whose frontmatter
+    /// `status:` is `archived`. Default `false` (archived files
+    /// still surface). Epic 52 Story 06 task 3 — the toggle the
+    /// settings UI flips. The actual filter applies inside the
+    /// quick-open ranker; this flag only persists the user's
+    /// choice.
+    #[serde(default)]
+    pub hide_archived_in_quick_open: bool,
 }
 
 impl Default for UiPrefs {
@@ -89,6 +97,7 @@ impl Default for UiPrefs {
             sidebar_open: default_sidebar_open(),
             color_mode: default_color_mode(),
             mvp_migration_dismissed: false,
+            hide_archived_in_quick_open: false,
         }
     }
 }
@@ -226,6 +235,7 @@ prompt_timeout_s = 30
         assert!(p.sidebar_open);
         assert_eq!(p.color_mode, "system");
         assert!(!p.mvp_migration_dismissed);
+        assert!(!p.hide_archived_in_quick_open);
     }
 
     #[test]
@@ -246,6 +256,27 @@ prompt_timeout_s = 30
         let raw = "version = \"1\"\n[ui]\ntheme = \"dark\"\n";
         let f: UserFile = toml::from_str(raw).unwrap();
         assert!(!f.ui.mvp_migration_dismissed);
+    }
+
+    #[test]
+    fn hide_archived_in_quick_open_round_trips() {
+        let raw =
+            "version = \"1\"\n[ui]\nhide_archived_in_quick_open = true\n";
+        let f: UserFile = toml::from_str(raw).unwrap();
+        assert!(f.ui.hide_archived_in_quick_open);
+
+        let serialized = toml::to_string(&f).unwrap();
+        assert!(serialized.contains("hide_archived_in_quick_open = true"));
+
+        let back: UserFile = toml::from_str(&serialized).unwrap();
+        assert!(back.ui.hide_archived_in_quick_open);
+    }
+
+    #[test]
+    fn hide_archived_in_quick_open_defaults_to_false_when_omitted() {
+        let raw = "version = \"1\"\n[ui]\ntheme = \"dark\"\n";
+        let f: UserFile = toml::from_str(raw).unwrap();
+        assert!(!f.ui.hide_archived_in_quick_open);
     }
 
     #[test]
