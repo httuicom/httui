@@ -11,8 +11,10 @@
 
 use sqlx::SqlitePool;
 
+pub mod summary;
 pub mod types;
 
+pub use summary::{summarize_last_run, LastRunSummary};
 pub use types::{HistoryEntry, InsertEntry};
 
 const DEFAULT_HISTORY_CAP: i64 = 10;
