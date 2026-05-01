@@ -93,6 +93,22 @@ export function gitCheckoutB(
   return invoke("git_checkout_b_cmd", { vaultPath, newBranch });
 }
 
+/** Which side of a merge conflict to keep — IPC mirror of the
+ *  `httui_core::git::ConflictSide` enum (snake_case). */
+export type ConflictSide = "ours" | "theirs";
+
+/** `git checkout --ours|--theirs -- <path>` — replace a conflicted
+ *  working-tree file with one side of the merge. Powers the
+ *  `<GitConflictBanner>` Accept-yours / Accept-theirs row actions.
+ *  Caller chains `stagePath` to mark the conflict resolved. */
+export function gitCheckoutConflictPath(
+  vaultPath: string,
+  path: string,
+  side: ConflictSide,
+): Promise<void> {
+  return invoke("git_checkout_conflict_path_cmd", { vaultPath, path, side });
+}
+
 export function stagePath(vaultPath: string, path: string): Promise<void> {
   return invoke("stage_path_cmd", { vaultPath, path });
 }

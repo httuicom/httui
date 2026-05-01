@@ -486,6 +486,7 @@ fn main() {
             httui_notes::git_commands::git_remote_list_cmd,
             httui_notes::git_commands::git_first_commit_author_cmd,
             httui_notes::git_commands::git_checkout_cmd,
+            httui_notes::git_commands::git_checkout_conflict_path_cmd,
             httui_notes::git_commands::git_checkout_b_cmd,
             httui_notes::git_commands::stage_path_cmd,
             httui_notes::git_commands::unstage_path_cmd,

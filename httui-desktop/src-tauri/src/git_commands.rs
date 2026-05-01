@@ -2,9 +2,9 @@
 //! the panel UI calls these, the substantive logic lives in core.
 
 use httui_core::git::{
-    git_branch_list, git_checkout, git_checkout_b, git_commit, git_diff, git_fetch,
-    git_first_commit_author, git_log, git_pull, git_push, git_remote_list, git_status, stage_path,
-    unstage_path, BranchInfo, CommitInfo, GitStatus, Remote,
+    git_branch_list, git_checkout, git_checkout_b, git_checkout_conflict_path, git_commit,
+    git_diff, git_fetch, git_first_commit_author, git_log, git_pull, git_push, git_remote_list,
+    git_status, stage_path, unstage_path, BranchInfo, CommitInfo, ConflictSide, GitStatus, Remote,
 };
 use std::path::PathBuf;
 
@@ -73,6 +73,20 @@ pub async fn git_checkout_b_cmd(
     new_branch: String,
 ) -> Result<(), String> {
     git_checkout_b(&PathBuf::from(vault_path), &new_branch)
+}
+
+/// `git checkout --ours|--theirs -- <path>` — replace a conflicted
+/// working-tree file with one side of the merge. Powers Epic 48
+/// Story 06's `<GitConflictBanner>` Accept-yours / Accept-theirs
+/// row actions. Caller is expected to follow up with
+/// `stage_path_cmd` to mark the conflict resolved.
+#[tauri::command]
+pub async fn git_checkout_conflict_path_cmd(
+    vault_path: String,
+    path: String,
+    side: ConflictSide,
+) -> Result<(), String> {
+    git_checkout_conflict_path(&PathBuf::from(vault_path), &path, side)
 }
 
 /// `git add <path>` — stages a single vault-relative file. Powers
@@ -306,6 +320,23 @@ mod tests {
             .unwrap();
         assert_eq!(l.len(), 2);
         assert_eq!(l[0].subject, "second");
+    }
+
+    #[tokio::test]
+    async fn checkout_conflict_path_rejects_empty_path() {
+        // Smoke-only — exhaustive merge-conflict scenarios are covered
+        // in `httui_core::git::checkout::tests`. The wrapper just
+        // needs to forward the arg + side enum.
+        let dir = TempDir::new().unwrap();
+        init_with_commit(&dir);
+        let err = git_checkout_conflict_path_cmd(
+            dir.path().to_string_lossy().into(),
+            "  ".into(),
+            ConflictSide::Ours,
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("empty"));
     }
 
     #[tokio::test]
