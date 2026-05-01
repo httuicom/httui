@@ -501,6 +501,7 @@ fn main() {
             httui_notes::run_body_commands::read_run_body_cmd,
             httui_notes::run_body_commands::list_run_bodies_cmd,
             httui_notes::run_body_commands::trim_run_bodies_cmd,
+            httui_notes::run_body_commands::rename_alias_runs_cmd,
             // Epic 46 Story 03 — captures persistence.
             httui_notes::captures_commands::read_captures_cache_cmd,
             httui_notes::captures_commands::write_captures_cache_cmd,

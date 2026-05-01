@@ -5,7 +5,8 @@
 //! 02-04) reads via `read_run_body_cmd` / `list_run_bodies_cmd`.
 
 use httui_core::run_bodies::{
-    list_run_bodies, read_run_body, trim_run_bodies, write_run_body, RunBodyEntry, RunBodyKind,
+    list_run_bodies, read_run_body, rename_alias_runs, trim_run_bodies, write_run_body,
+    RunBodyEntry, RunBodyKind,
 };
 use std::path::PathBuf;
 
@@ -74,6 +75,26 @@ pub async fn trim_run_bodies_cmd(
         &file_path,
         &alias,
         keep_n,
+    )
+}
+
+/// Move every cached run body for `(file_path, old_alias)` to
+/// `(file_path, new_alias)`. Powers Epic 47 Story 05's alias-rename
+/// flow. Best-effort:
+/// - `Ok(false)` when the source dir doesn't exist
+/// - `Err` when the destination dir already has cached runs
+#[tauri::command]
+pub async fn rename_alias_runs_cmd(
+    vault_path: String,
+    file_path: String,
+    old_alias: String,
+    new_alias: String,
+) -> Result<bool, String> {
+    rename_alias_runs(
+        &PathBuf::from(vault_path),
+        &file_path,
+        &old_alias,
+        &new_alias,
     )
 }
 
@@ -157,6 +178,59 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(deleted, 2);
+    }
+
+    #[tokio::test]
+    async fn rename_alias_round_trip() {
+        let dir = tempdir().unwrap();
+        // Write under "src" alias.
+        write_run_body_cmd(
+            dir.path().to_string_lossy().into_owned(),
+            "rb.md".into(),
+            "src".into(),
+            "r1".into(),
+            "json".into(),
+            b"{}".to_vec(),
+        )
+        .await
+        .unwrap();
+        // Rename to "dst" — succeeds.
+        let moved = rename_alias_runs_cmd(
+            dir.path().to_string_lossy().into_owned(),
+            "rb.md".into(),
+            "src".into(),
+            "dst".into(),
+        )
+        .await
+        .unwrap();
+        assert!(moved);
+        // Old alias dir gone, new one has the run.
+        let from_old = list_run_bodies_cmd(
+            dir.path().to_string_lossy().into_owned(),
+            "rb.md".into(),
+            "src".into(),
+        )
+        .await
+        .unwrap();
+        let from_new = list_run_bodies_cmd(
+            dir.path().to_string_lossy().into_owned(),
+            "rb.md".into(),
+            "dst".into(),
+        )
+        .await
+        .unwrap();
+        assert!(from_old.is_empty());
+        assert_eq!(from_new.len(), 1);
+        // Renaming a never-run alias returns Ok(false).
+        let moved2 = rename_alias_runs_cmd(
+            dir.path().to_string_lossy().into_owned(),
+            "rb.md".into(),
+            "ghost".into(),
+            "fresh".into(),
+        )
+        .await
+        .unwrap();
+        assert!(!moved2);
     }
 
     #[tokio::test]

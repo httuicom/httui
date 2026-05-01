@@ -73,3 +73,23 @@ export function trimRunBodies(
     keepN,
   });
 }
+
+/** Move every cached run body for `(filePath, oldAlias)` to
+ *  `(filePath, newAlias)`. Resolves to `false` when the source dir
+ *  is missing (no runs to move); rejects when the destination dir
+ *  already has cached runs. Powers Epic 47 Story 05's alias-rename
+ *  flow that fires when the user edits a block's `alias=` info-
+ *  string token. */
+export function renameAliasRuns(
+  vaultPath: string,
+  filePath: string,
+  oldAlias: string,
+  newAlias: string,
+): Promise<boolean> {
+  return invoke("rename_alias_runs_cmd", {
+    vaultPath,
+    filePath,
+    oldAlias,
+    newAlias,
+  });
+}
