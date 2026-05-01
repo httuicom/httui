@@ -38,6 +38,26 @@ use std::process::{Command, Output};
 /// parent `git` process (e.g. when this binary runs inside a git
 /// hook) injects to point children at the parent's index/work-tree
 /// — those would override `-C` and silently target the wrong repo.
+/// True when `git check-ignore --quiet -- <path>` reports the path
+/// is ignored (exit 0). Returns `false` for every other outcome:
+/// path not ignored (exit 1), path outside a git repo (exit 128),
+/// `git` not installed, IO failure, etc. Powers Epic 54 Story 04
+/// task 2 — the auto-discovery scanner uses this to skip e.g.
+/// `node_modules/<sub>/.env` without baking the noisy-dir list
+/// any deeper.
+///
+/// Best-effort: never returns `Err`. The caller should treat the
+/// `false` return as "we couldn't confirm it's ignored", not "it's
+/// definitely tracked".
+pub fn is_path_gitignored<P: AsRef<Path>>(vault: P, path: &str) -> bool {
+    let mut cmd = Command::new("git");
+    cmd.arg("-C")
+        .arg(vault.as_ref())
+        .args(["check-ignore", "--quiet", "--", path]);
+    scrub_git_env(&mut cmd);
+    matches!(cmd.status(), Ok(s) if s.code() == Some(0))
+}
+
 pub(crate) fn run_git<P: AsRef<Path>>(vault: P, args: &[&str]) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(vault.as_ref()).args(args);
@@ -177,5 +197,41 @@ mod tests {
         test_helpers::init_repo(dir.path());
         let out = run_git(dir.path(), &["rev-parse", "--is-inside-work-tree"]).unwrap();
         assert_eq!(out.trim(), "true");
+    }
+
+    #[test]
+    fn gitignored_returns_true_when_pattern_matches() {
+        let dir = TempDir::new().unwrap();
+        test_helpers::init_repo(dir.path());
+        std::fs::write(dir.path().join(".gitignore"), "node_modules/\n*.env\n")
+            .unwrap();
+        // Files don't even need to exist — `git check-ignore` works
+        // off the patterns alone.
+        assert!(is_path_gitignored(dir.path(), "node_modules/foo/.env"));
+        assert!(is_path_gitignored(dir.path(), "secrets.env"));
+    }
+
+    #[test]
+    fn gitignored_returns_false_when_pattern_does_not_match() {
+        let dir = TempDir::new().unwrap();
+        test_helpers::init_repo(dir.path());
+        std::fs::write(dir.path().join(".gitignore"), "node_modules/\n").unwrap();
+        assert!(!is_path_gitignored(dir.path(), "runbooks/auth.md"));
+        assert!(!is_path_gitignored(dir.path(), ".env"));
+    }
+
+    #[test]
+    fn gitignored_returns_false_outside_a_git_repo() {
+        let dir = TempDir::new().unwrap();
+        // No `git init` — every check returns false (not "Err").
+        assert!(!is_path_gitignored(dir.path(), ".env"));
+    }
+
+    #[test]
+    fn gitignored_returns_false_when_no_gitignore_present() {
+        let dir = TempDir::new().unwrap();
+        test_helpers::init_repo(dir.path());
+        // Empty repo — nothing is ignored by default.
+        assert!(!is_path_gitignored(dir.path(), ".env"));
     }
 }
