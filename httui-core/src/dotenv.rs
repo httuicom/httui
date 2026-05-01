@@ -244,6 +244,22 @@ pub fn is_likely_placeholder_file(entries: &[DotenvEntry]) -> bool {
     placeholder_count * 2 >= entries.len()
 }
 
+/// Maximum number of entries the auto-discovery scanner will
+/// surface from a single `.env` file. Files exceeding this cap
+/// are too noisy for one-shot import — typical 1000-entry
+/// production secret dumps bury the user in checkboxes — and
+/// should be imported manually with explicit picking.
+pub const MAX_DOTENV_ENTRIES: usize = 50;
+
+/// True when a parsed `.env` file has more entries than the
+/// auto-discovery import flow can safely surface in one preview.
+/// Keeps the scanner's UI light: huge files get the "import
+/// manually" treatment instead of dumping 1000 rows into the
+/// modal.
+pub fn is_dotenv_too_large(entries: &[DotenvEntry]) -> bool {
+    entries.len() > MAX_DOTENV_ENTRIES
+}
+
 // --- Scanner -----------------------------------------------------------
 
 /// Filenames recognised as `.env`-style by the auto-discovery scanner.
@@ -316,6 +332,9 @@ fn scan_dir(dir: &Path, out: &mut Vec<DotenvFile>) {
             continue;
         }
         if is_likely_placeholder_file(&entries) {
+            continue;
+        }
+        if is_dotenv_too_large(&entries) {
             continue;
         }
         out.push(DotenvFile { path, entries });
@@ -687,6 +706,40 @@ WEBHOOK_TOKEN='abc-def-123'
         assert!(
             found.is_empty(),
             "placeholder-only .env should be skipped, got {found:?}",
+        );
+    }
+
+    #[test]
+    fn too_large_flag_kicks_in_above_50_entries() {
+        // 51 entries — over the cap.
+        let mut entries = Vec::new();
+        for i in 0..51 {
+            entries.push(entry(&format!("K{i}"), &format!("v{i}")));
+        }
+        assert!(is_dotenv_too_large(&entries));
+
+        // Exactly 50 — at the cap, still small enough.
+        entries.pop();
+        assert!(!is_dotenv_too_large(&entries));
+    }
+
+    #[test]
+    fn scanner_skips_too_large_dotenv_files() {
+        let dir = tempdir().expect("tempdir");
+        // Build a dotenv body with 51 distinct entries, all real
+        // values so the placeholder filter doesn't preempt the
+        // size cap.
+        let mut body = String::new();
+        for i in 0..51 {
+            body.push_str(&format!("REAL_{i}=value-{i}\n"));
+        }
+        stdfs::write(dir.path().join(".env"), body).unwrap();
+
+        let found = scan_dotenv_files(dir.path());
+
+        assert!(
+            found.is_empty(),
+            "51-entry .env should be skipped as too-large, got {found:?}",
         );
     }
 
