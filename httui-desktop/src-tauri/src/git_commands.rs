@@ -2,9 +2,9 @@
 //! the panel UI calls these, the substantive logic lives in core.
 
 use httui_core::git::{
-    git_branch_list, git_checkout, git_checkout_b, git_commit, git_diff, git_fetch, git_log,
-    git_pull, git_push, git_remote_list, git_status, stage_path, unstage_path, BranchInfo,
-    CommitInfo, GitStatus, Remote,
+    git_branch_list, git_checkout, git_checkout_b, git_commit, git_diff, git_fetch,
+    git_first_commit_author, git_log, git_pull, git_push, git_remote_list, git_status, stage_path,
+    unstage_path, BranchInfo, CommitInfo, GitStatus, Remote,
 };
 use std::path::PathBuf;
 
@@ -44,6 +44,17 @@ pub async fn git_branch_list_cmd(vault_path: String) -> Result<Vec<BranchInfo>, 
 #[tauri::command]
 pub async fn git_remote_list_cmd(vault_path: String) -> Result<Vec<Remote>, String> {
     git_remote_list(&PathBuf::from(vault_path))
+}
+
+/// First-commit author of `path` (follows renames). `None` when the
+/// path doesn't appear in history. Powers Epic 50 Story 03's
+/// `<DocHeaderMetaStrip>` Author chip.
+#[tauri::command]
+pub async fn git_first_commit_author_cmd(
+    vault_path: String,
+    path: String,
+) -> Result<Option<CommitInfo>, String> {
+    git_first_commit_author(&PathBuf::from(vault_path), &path)
 }
 
 /// `git checkout <branch>` — switch to an existing branch. Powers
@@ -295,6 +306,28 @@ mod tests {
             .unwrap();
         assert_eq!(l.len(), 2);
         assert_eq!(l[0].subject, "second");
+    }
+
+    #[tokio::test]
+    async fn first_commit_author_round_trip() {
+        let dir = TempDir::new().unwrap();
+        init_with_commit(&dir);
+        let info = git_first_commit_author_cmd(
+            dir.path().to_string_lossy().into(),
+            "a".into(),
+        )
+        .await
+        .unwrap()
+        .expect("`a` was added by init_with_commit");
+        assert_eq!(info.subject, "init");
+        // Path that was never committed → None.
+        let none = git_first_commit_author_cmd(
+            dir.path().to_string_lossy().into(),
+            "ghost".into(),
+        )
+        .await
+        .unwrap();
+        assert!(none.is_none());
     }
 
     #[tokio::test]

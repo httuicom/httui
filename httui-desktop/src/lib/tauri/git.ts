@@ -76,6 +76,16 @@ export function gitCheckout(vaultPath: string, branch: string): Promise<void> {
   return invoke("git_checkout_cmd", { vaultPath, branch });
 }
 
+/** First-commit author of `path` (follows renames). Resolves to
+ *  `null` when the path doesn't appear in history. Powers Epic 50
+ *  Story 03's `<DocHeaderMetaStrip>` Author chip. */
+export function gitFirstCommitAuthor(
+  vaultPath: string,
+  path: string,
+): Promise<CommitInfo | null> {
+  return invoke("git_first_commit_author_cmd", { vaultPath, path });
+}
+
 export function gitCheckoutB(
   vaultPath: string,
   newBranch: string,
