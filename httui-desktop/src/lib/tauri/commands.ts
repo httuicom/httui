@@ -495,6 +495,26 @@ export function listBlockHistoryForFile(
   return invoke("list_block_history_for_file", { filePath, limit });
 }
 
+/** Backend mirror of `LastRunSummary` from
+ *  `components/layout/docheader/docheader-meta.ts`. The Rust
+ *  serde shape uses snake_case. */
+export interface LastRunSummaryRaw {
+  ran_at: string | null;
+  block_count: number;
+  failed_count: number;
+}
+
+/** Aggregate `block_run_history` rows for a file into the "last
+ *  run-all session" summary. Powers Epic 50 Story 03's
+ *  `<DocHeaderMetaStrip>` Last-run chip. The 5s session window
+ *  heuristic happens server-side; the consumer just maps
+ *  `ran_at → ranAt` and renders. */
+export function blockHistoryLastRunSummary(
+  filePath: string,
+): Promise<LastRunSummaryRaw> {
+  return invoke("block_history_last_run_summary", { filePath });
+}
+
 export function insertBlockHistory(entry: InsertHistoryEntry): Promise<void> {
   return invoke("insert_block_history", { entry });
 }

@@ -444,6 +444,7 @@ fn main() {
             httui_notes::executions::cancel_block,
             httui_notes::commands::blocks::list_block_history,
             httui_notes::commands::blocks::list_block_history_for_file,
+            httui_notes::commands::blocks::block_history_last_run_summary,
             httui_notes::commands::blocks::insert_block_history,
             httui_notes::commands::blocks::purge_block_history,
             httui_notes::commands::blocks::get_block_settings,

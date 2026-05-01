@@ -21,7 +21,9 @@ use sqlx::sqlite::SqlitePool;
 use tauri::State;
 
 use httui_core::block_examples::{self, BlockExample};
-use httui_core::block_history::{self, HistoryEntry, InsertEntry};
+use httui_core::block_history::{
+    self, summarize_last_run, HistoryEntry, InsertEntry, LastRunSummary,
+};
 use httui_core::block_results::{self, CachedBlockResult};
 use httui_core::block_settings::{self, BlockSettings};
 use httui_core::db::environments::get_active_environment_id;
@@ -160,6 +162,21 @@ pub async fn list_block_history_for_file(
     block_history::list_history_for_file(&pool, &file_path, limit)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Aggregate the most recent run-all session for a file. Powers
+/// Epic 50 Story 03's `<DocHeaderMetaStrip>` Last-run chip — pulls
+/// the latest 50 rows + applies `summarize_last_run`'s 5s session
+/// window heuristic so the consumer just renders `formatLastRun`.
+#[tauri::command]
+pub async fn block_history_last_run_summary(
+    pool: State<'_, SqlitePool>,
+    file_path: String,
+) -> Result<LastRunSummary, String> {
+    let entries = block_history::list_history_for_file(&pool, &file_path, 50)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(summarize_last_run(&entries))
 }
 
 /// Append a single run-history row; trim to the retention cap is
