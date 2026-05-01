@@ -10,6 +10,8 @@ use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::git::is_path_gitignored;
+
 /// One parsed entry from a `.env`-style file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DotenvEntry {
@@ -335,6 +337,13 @@ fn scan_dir(dir: &Path, out: &mut Vec<DotenvFile>) {
             continue;
         }
         if is_dotenv_too_large(&entries) {
+            continue;
+        }
+        // Last filter — defer to the user's `.gitignore` for paths
+        // they've explicitly marked private. Outside a git repo or
+        // when `git` isn't available, the helper returns `false`
+        // and the file surfaces normally.
+        if is_path_gitignored(dir, &path.to_string_lossy()) {
             continue;
         }
         out.push(DotenvFile { path, entries });
@@ -762,5 +771,37 @@ WEBHOOK_TOKEN='abc-def-123'
 
         assert_eq!(found.len(), 1, "only the real .env should land");
         assert!(found[0].path.ends_with(".env"));
+    }
+
+    #[test]
+    fn scanner_skips_gitignored_dotenv_files() {
+        use crate::git::test_helpers::init_repo;
+        let dir = tempdir().expect("tempdir");
+        init_repo(dir.path());
+        // Mark `.env` as ignored — typical for production secret
+        // dumps a user wouldn't want auto-imported.
+        stdfs::write(dir.path().join(".gitignore"), ".env\n").unwrap();
+        stdfs::write(
+            dir.path().join(".env"),
+            "DATABASE_URL=postgres://u:p@h/d\nPORT=8080\n",
+        )
+        .unwrap();
+        // `.env.local` isn't covered by the .gitignore — should
+        // still surface (real-values content, no placeholder
+        // shape).
+        stdfs::write(
+            dir.path().join(".env.local"),
+            "API_KEY=sk_live_real_value_123\nLOG_LEVEL=info\n",
+        )
+        .unwrap();
+
+        let found = scan_dotenv_files(dir.path());
+
+        assert_eq!(
+            found.len(),
+            1,
+            "gitignored `.env` should be skipped, only `.env.local` lands; got {found:?}"
+        );
+        assert!(found[0].path.ends_with(".env.local"));
     }
 }
