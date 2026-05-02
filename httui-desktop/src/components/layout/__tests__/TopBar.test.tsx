@@ -66,19 +66,16 @@ describe("TopBar", () => {
       expect(screen.getByText("notes-vault")).toBeInTheDocument();
     });
 
-    it("renders the segmented env switcher (with 'no env' when empty)", () => {
-      renderWithWorkspace(<TopBar {...baseProps} />);
-      expect(screen.getByText("no env")).toBeInTheDocument();
-    });
-
-    it("renders environments as segmented tabs when populated", () => {
+    it("does not render the segmented env switcher (moved to StatusBar in V2)", () => {
       useEnvironmentStore.setState({
         environments: [mkEnv("a", "local"), mkEnv("b", "prod")],
         activeEnvironment: mkEnv("a", "local"),
         switchEnvironment: vi.fn(),
       } as never);
       renderWithWorkspace(<TopBar {...baseProps} />);
-      expect(screen.getAllByRole("tab")).toHaveLength(2);
+      // Old segmented switcher used role=tab; the env interaction
+      // now lives in the status bar.
+      expect(screen.queryAllByRole("tab")).toHaveLength(0);
     });
 
     it("renders the search ⌘K placeholder", () => {

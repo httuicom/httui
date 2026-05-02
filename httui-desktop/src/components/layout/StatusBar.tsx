@@ -19,7 +19,8 @@
 import { Box, Text, chakra } from "@chakra-ui/react";
 import { LuLink, LuTriangleAlert } from "react-icons/lu";
 
-import { Dot, type DotVariant, StatusBarShell } from "@/components/atoms";
+import { Dot, StatusBarShell } from "@/components/atoms";
+import { EnvMenu } from "@/components/layout/EnvMenu";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { useEnvironmentStore } from "@/stores/environment";
 import { usePendingSecretsStore } from "@/stores/pendingSecrets";
@@ -31,13 +32,6 @@ const PendingButton = chakra("button");
 // outside Vite — fall back to "dev" if not defined.
 const APP_VERSION =
   typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "dev";
-
-function envVariant(name: string | undefined | null): DotVariant {
-  if (!name) return "idle";
-  if (/^prod/i.test(name)) return "err";
-  if (/^staging/i.test(name)) return "warn";
-  return "ok";
-}
 
 interface StatusBarProps {
   /** Optional cursor position override; tests use this. Defaults to
@@ -56,7 +50,9 @@ export function StatusBar({
 }: StatusBarProps = {}) {
   const vaultPath = useWorkspaceStore((s) => s.vaultPath);
   const { status: gitState } = useGitStatus(vaultPath);
+  const environments = useEnvironmentStore((s) => s.environments);
   const activeEnvironment = useEnvironmentStore((s) => s.activeEnvironment);
+  const switchEnvironment = useEnvironmentStore((s) => s.switchEnvironment);
   const activeConnection = useWorkspaceStore((s) => s.activeConnection);
   const pendingSecretsCount = usePendingSecretsStore(
     (s) => s.pending.length,
@@ -85,16 +81,12 @@ export function StatusBar({
 
       <Box w="1px" h="12px" bg="line" aria-hidden />
 
-      {/* Env */}
-      <Box
-        display="inline-flex"
-        gap={2}
-        alignItems="center"
-        data-testid="status-env"
-      >
-        <Dot variant={envVariant(activeEnvironment?.name)} />
-        <Text>{activeEnvironment?.name ?? "no env"}</Text>
-      </Box>
+      {/* Env — clickable dropdown to switch environments */}
+      <EnvMenu
+        environments={environments}
+        activeEnvironment={activeEnvironment}
+        onSwitch={(id) => void switchEnvironment(id)}
+      />
 
       {/* Connection latency (opt-in: surfaces only when active) */}
       {activeConnection && (

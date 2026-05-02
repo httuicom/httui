@@ -27,7 +27,6 @@ import {
 
 import { Brand } from "@/components/layout/topbar/Brand";
 import { BreadcrumbNav } from "@/components/layout/topbar/BreadcrumbNav";
-import { SegmentedEnvSwitcher } from "@/components/layout/topbar/SegmentedEnvSwitcher";
 import { WorkspaceMenu } from "@/components/layout/topbar/WorkspaceMenu";
 import { Btn, Kbd } from "@/components/atoms";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -143,8 +142,6 @@ export function TopBar({
       />
 
       <Box flex={1} />
-
-      <SegmentedEnvSwitcher />
 
       <SearchTrigger
         type="button"

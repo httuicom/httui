@@ -41,7 +41,9 @@ beforeEach(() => {
     activeConnection: null,
   } as never);
   useEnvironmentStore.setState({
+    environments: [],
     activeEnvironment: null,
+    switchEnvironment: vi.fn(),
   } as never);
   usePendingSecretsStore.getState().reset();
 });
@@ -69,7 +71,9 @@ describe("StatusBar", () => {
 
   it("env Dot variant is err for prod*", () => {
     useEnvironmentStore.setState({
+      environments: [mkEnv("a", "prod-canary")],
       activeEnvironment: mkEnv("a", "prod-canary"),
+      switchEnvironment: vi.fn(),
     } as never);
     renderWithProviders(<StatusBar />);
     const dot = screen
@@ -80,7 +84,9 @@ describe("StatusBar", () => {
 
   it("env Dot variant is warn for staging", () => {
     useEnvironmentStore.setState({
+      environments: [mkEnv("b", "staging")],
       activeEnvironment: mkEnv("b", "staging"),
+      switchEnvironment: vi.fn(),
     } as never);
     renderWithProviders(<StatusBar />);
     const dot = screen
@@ -91,7 +97,9 @@ describe("StatusBar", () => {
 
   it("env Dot variant is ok for local-style names", () => {
     useEnvironmentStore.setState({
+      environments: [mkEnv("c", "local")],
       activeEnvironment: mkEnv("c", "local"),
+      switchEnvironment: vi.fn(),
     } as never);
     renderWithProviders(<StatusBar />);
     const dot = screen
