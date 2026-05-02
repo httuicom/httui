@@ -67,11 +67,11 @@ export function EnvMenu({
             minW="200px"
             bg="bg"
             borderWidth="1px"
-            borderColor="line"
+            borderColor="border"
             shadow="2xl"
           >
             {environments.length === 0 ? (
-              <Box px={3} py={2} fontSize="11px" color="fg.3">
+              <Box px={3} py={2} fontSize="11px" color="fg.subtle">
                 No environments
               </Box>
             ) : (

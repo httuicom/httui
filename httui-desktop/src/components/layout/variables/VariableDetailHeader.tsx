@@ -22,7 +22,7 @@ export function VariableDetailHeader({ row }: VariableDetailHeaderProps) {
       data-testid="variable-detail-header"
       data-scope={scopeKey}
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
       px={4}
       py={3}
     >
@@ -31,7 +31,7 @@ export function VariableDetailHeader({ row }: VariableDetailHeaderProps) {
           as="span"
           aria-hidden
           fontSize="14px"
-          color="fg.2"
+          color="fg.muted"
           data-testid="variable-detail-header-glyph"
         >
           {meta.glyph}
@@ -53,10 +53,10 @@ export function VariableDetailHeader({ row }: VariableDetailHeaderProps) {
             data-testid="variable-detail-header-secret-chip"
             fontFamily="mono"
             fontSize="10px"
-            color="fg.2"
+            color="fg.muted"
             bg="bg"
             borderWidth="1px"
-            borderColor="line"
+            borderColor="border"
             borderRadius="999px"
             px={2}
             py={0.5}
@@ -67,7 +67,7 @@ export function VariableDetailHeader({ row }: VariableDetailHeaderProps) {
       </Flex>
       <Text
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         mt={1}
         data-testid="variable-detail-header-hint"
       >

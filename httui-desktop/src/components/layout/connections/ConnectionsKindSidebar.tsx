@@ -57,7 +57,7 @@ export function ConnectionsKindSidebar({
       w="220px"
       h="full"
       borderRightWidth="1px"
-      borderRightColor="line"
+      borderRightColor="border"
       bg="bg.subtle"
       overflowY="auto"
       p={3}
@@ -70,7 +70,7 @@ export function ConnectionsKindSidebar({
             fontWeight="bold"
             letterSpacing="0.08em"
             textTransform="uppercase"
-            color="fg.2"
+            color="fg.muted"
             mb={2}
           >
             Kind
@@ -93,11 +93,11 @@ export function ConnectionsKindSidebar({
                   px={2}
                   py="6px"
                   borderRadius="6px"
-                  bg={selected ? "bg.3" : "transparent"}
+                  bg={selected ? "bg.emphasized" : "transparent"}
                   cursor="pointer"
                   textAlign="left"
                   border="none"
-                  _hover={{ bg: selected ? "bg.3" : "bg.2" }}
+                  _hover={{ bg: selected ? "bg.emphasized" : "bg.muted" }}
                 >
                   <ConnectionKindIcon kind={kind} size={18} />
                   <Text
@@ -111,7 +111,7 @@ export function ConnectionsKindSidebar({
                   <Text
                     fontFamily="mono"
                     fontSize="11px"
-                    color="fg.3"
+                    color="fg.subtle"
                     minW="22px"
                     textAlign="right"
                   >
@@ -130,13 +130,13 @@ export function ConnectionsKindSidebar({
             fontWeight="bold"
             letterSpacing="0.08em"
             textTransform="uppercase"
-            color="fg.2"
+            color="fg.muted"
             mb={2}
           >
             Por ambiente
           </Text>
           {envs.length === 0 ? (
-            <Text fontSize="12px" color="fg.3" px={2}>
+            <Text fontSize="12px" color="fg.subtle" px={2}>
               Sem ambientes
             </Text>
           ) : (
@@ -169,7 +169,7 @@ export function ConnectionsKindSidebar({
                   <Text
                     fontFamily="mono"
                     fontSize="11px"
-                    color="fg.3"
+                    color="fg.subtle"
                     minW="22px"
                     textAlign="right"
                   >
@@ -185,10 +185,10 @@ export function ConnectionsKindSidebar({
           data-testid="connections-keychain-hint"
           fontSize="10px"
           lineHeight={1.4}
-          color="fg.2"
-          bg="bg.2"
+          color="fg.muted"
+          bg="bg.muted"
           borderWidth="1px"
-          borderColor="line"
+          borderColor="border"
           borderRadius="6px"
           p={2.5}
           mt="auto"

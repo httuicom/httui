@@ -40,10 +40,10 @@ export function VariableListRow({
       px={5}
       py={2}
       borderBottomWidth="1px"
-      borderBottomColor="line"
-      bg={selected ? "bg.3" : "transparent"}
+      borderBottomColor="border"
+      bg={selected ? "bg.emphasized" : "transparent"}
       cursor="pointer"
-      _hover={{ bg: selected ? "bg.3" : "bg.1" }}
+      _hover={{ bg: selected ? "bg.emphasized" : "bg.subtle" }}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -58,7 +58,7 @@ export function VariableListRow({
           as="span"
           aria-hidden
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
           title={scopeMeta.hint}
           data-testid={`variables-row-${row.key}-scope-glyph`}
         >
@@ -80,7 +80,7 @@ export function VariableListRow({
             as="span"
             aria-label="secret"
             fontSize="10px"
-            color="fg.3"
+            color="fg.subtle"
             data-testid={`variables-row-${row.key}-lock`}
           >
             🔒
@@ -97,7 +97,7 @@ export function VariableListRow({
         />
       ))}
       {Array.from({ length: placeholders }).map((_, i) => (
-        <Text as="span" key={`ph-${i}`} color="fg.3" fontSize="12px">
+        <Text as="span" key={`ph-${i}`} color="fg.subtle" fontSize="12px">
           —
         </Text>
       ))}
@@ -107,7 +107,7 @@ export function VariableListRow({
         textAlign="right"
         fontFamily="mono"
         fontSize="11px"
-        color={row.usesCount > 0 ? "fg.2" : "fg.3"}
+        color={row.usesCount > 0 ? "fg.muted" : "fg.subtle"}
         data-testid={`variables-row-${row.key}-uses`}
       >
         {row.usesCount > 0 ? row.usesCount : "—"}
@@ -127,7 +127,7 @@ function ValueCell({
 }) {
   if (value === undefined) {
     return (
-      <Text as="span" color="fg.3" fontSize="12px" data-testid={testId}>
+      <Text as="span" color="fg.subtle" fontSize="12px" data-testid={testId}>
         —
       </Text>
     );
@@ -138,7 +138,7 @@ function ValueCell({
         as="span"
         fontFamily="mono"
         fontSize="11px"
-        color="fg.2"
+        color="fg.muted"
         data-testid={testId}
       >
         {SECRET_MASK}

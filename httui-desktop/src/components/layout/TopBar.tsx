@@ -117,7 +117,7 @@ export function TopBar({
       gap={3}
       bg="bg"
       borderBottomWidth="1px"
-      borderColor="line"
+      borderColor="border"
       flexShrink={0}
       overflow="hidden"
     >
@@ -152,10 +152,10 @@ export function TopBar({
         gap={2}
         display="inline-flex"
         alignItems="center"
-        bg="bg.2"
-        color="fg.3"
+        bg="bg.muted"
+        color="fg.subtle"
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         borderRadius="4px"
         fontSize="11px"
         fontFamily="mono"
@@ -163,7 +163,7 @@ export function TopBar({
         whiteSpace="nowrap"
         overflow="hidden"
         flexShrink={0}
-        _hover={{ bg: "bg.3", color: "fg.2" }}
+        _hover={{ bg: "bg.emphasized", color: "fg.muted" }}
       >
         <LuSearch size={12} style={{ flexShrink: 0 }} />
         <Box
@@ -179,7 +179,7 @@ export function TopBar({
         <Kbd>⌘K</Kbd>
       </SearchTrigger>
 
-      <Box w="1px" h="16px" bg="line" mx={1} aria-hidden />
+      <Box w="1px" h="16px" bg="border" mx={1} aria-hidden />
 
       {onToggleOutlinePanel && (
         <IconButton

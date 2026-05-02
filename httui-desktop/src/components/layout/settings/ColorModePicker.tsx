@@ -29,7 +29,7 @@ export function ColorModePicker() {
       <Text fontSize="sm" fontWeight={600} color="fg">
         Color mode
       </Text>
-      <Text fontSize="xs" color="fg.2">
+      <Text fontSize="xs" color="fg.muted">
         Switch between Fuji at dusk (dark) and Fuji photo (light), or
         follow the OS preference.
       </Text>
@@ -38,7 +38,7 @@ export function ColorModePicker() {
         aria-label="Color mode"
         gap={0}
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         borderRadius="md"
         overflow="hidden"
         alignSelf="flex-start"
@@ -61,12 +61,12 @@ export function ColorModePicker() {
               alignItems="center"
               fontSize="sm"
               fontWeight={active ? 600 : 500}
-              color={active ? "accent.fg" : "fg.2"}
+              color={active ? "accent.fg" : "fg.muted"}
               bg={active ? "accent" : "transparent"}
               borderLeftWidth={idx === 0 ? 0 : "1px"}
-              borderLeftColor="line"
+              borderLeftColor="border"
               cursor="pointer"
-              _hover={active ? undefined : { bg: "bg.2", color: "fg" }}
+              _hover={active ? undefined : { bg: "bg.muted", color: "fg" }}
             >
               <opt.Icon size={14} />
               {opt.label}

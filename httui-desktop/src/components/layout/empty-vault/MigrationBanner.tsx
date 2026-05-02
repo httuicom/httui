@@ -39,14 +39,14 @@ export function MigrationBanner({
       bg="accent.soft"
       color="fg"
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
     >
       <Box flex={1} fontSize="13px" lineHeight={1.4}>
         <Text fontWeight={600}>
           MVP vault detected — run the v1 migration to unlock the
           new file layout.
         </Text>
-        <Text fontSize="12px" color="fg.2" mt={0.5}>
+        <Text fontSize="12px" color="fg.muted" mt={0.5}>
           See{" "}
           <DocsLink
             href={docsHref}
@@ -82,10 +82,10 @@ export function MigrationBanner({
         alignItems="center"
         justifyContent="center"
         bg="transparent"
-        color="fg.3"
+        color="fg.subtle"
         cursor="pointer"
         borderRadius="4px"
-        _hover={{ bg: "bg.2", color: "fg.2" }}
+        _hover={{ bg: "bg.muted", color: "fg.muted" }}
       >
         <LuX size={14} />
       </DismissBtn>

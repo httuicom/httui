@@ -28,7 +28,7 @@ export function UsedInBlocksList({
       <Text
         data-testid="used-in-blocks-loading"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={4}
         py={2}
       >
@@ -54,7 +54,7 @@ export function UsedInBlocksList({
       <Text
         data-testid="used-in-blocks-empty"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={4}
         py={2}
       >
@@ -80,14 +80,14 @@ export function UsedInBlocksList({
             fontFamily="mono"
             fontSize="10px"
             fontWeight="bold"
-            color="fg.2"
+            color="fg.muted"
             px={4}
             pt={2}
             pb={1}
             data-testid={`used-in-blocks-file-${group.filePath}`}
           >
             {group.filePath}{" "}
-            <Text as="span" color="fg.3" fontWeight="normal">
+            <Text as="span" color="fg.subtle" fontWeight="normal">
               ({group.hits.length})
             </Text>
           </Text>
@@ -133,13 +133,13 @@ function Hit({
       bg="transparent"
       textAlign="left"
       w="full"
-      _hover={interactive ? { bg: "bg.1" } : undefined}
+      _hover={interactive ? { bg: "bg.subtle" } : undefined}
     >
       <Text
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color="fg.3"
+        color="fg.subtle"
         flexShrink={0}
         w="32px"
         textAlign="right"

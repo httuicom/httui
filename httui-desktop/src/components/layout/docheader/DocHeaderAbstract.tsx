@@ -70,7 +70,7 @@ export function DocHeaderAbstract({
         fontStyle="italic"
         fontSize="14px"
         lineHeight="1.5"
-        color="fg.2"
+        color="fg.muted"
         m={0}
         css={
           clamped
@@ -183,7 +183,7 @@ function DocHeaderAbstractInput({
         fontStyle="italic"
         fontSize="14px"
         lineHeight="1.5"
-        color="fg.2"
+        color="fg.muted"
         bg="transparent"
         border="none"
         outline="none"

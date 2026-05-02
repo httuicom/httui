@@ -60,7 +60,7 @@ export function ConnectionDetailSchemaPreview({
           fontWeight="bold"
           letterSpacing="0.08em"
           textTransform="uppercase"
-          color="fg.2"
+          color="fg.muted"
         >
           Schema
         </Text>
@@ -90,7 +90,7 @@ export function ConnectionDetailSchemaPreview({
         <Text
           data-testid="schema-loading"
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
         >
           Loading schema…
         </Text>
@@ -100,7 +100,7 @@ export function ConnectionDetailSchemaPreview({
         <Text
           data-testid="schema-empty"
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
         >
           Pick "Refresh" to introspect this connection's schema.
         </Text>
@@ -112,7 +112,7 @@ export function ConnectionDetailSchemaPreview({
         <Stack gap={1} align="stretch" data-testid="schema-tables">
           <Text
             fontSize="11px"
-            color="fg.3"
+            color="fg.subtle"
             fontFamily="mono"
             data-testid="schema-tables-count"
           >
@@ -145,7 +145,7 @@ function HotTablesSection({
     >
       <Text
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         fontFamily="mono"
       >
         Hot tables (most queried)
@@ -160,12 +160,12 @@ function HotTablesSection({
           px={2}
           py="4px"
           borderRadius="4px"
-          bg="bg.2"
+          bg="bg.muted"
         >
           <Text fontFamily="mono" fontSize="11px" color="fg" truncate>
             {t.tableName}
           </Text>
-          <Text fontFamily="mono" fontSize="11px" color="fg.3" flexShrink={0}>
+          <Text fontFamily="mono" fontSize="11px" color="fg.subtle" flexShrink={0}>
             {t.hits} hits
           </Text>
         </Flex>
@@ -196,13 +196,13 @@ function TableNode({ table }: { table: SchemaTable }) {
         cursor="pointer"
         textAlign="left"
         border="none"
-        _hover={{ bg: "bg.2" }}
+        _hover={{ bg: "bg.muted" }}
       >
         <Text
           as="span"
           fontFamily="mono"
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           minW="10px"
         >
           {open ? "▾" : "▸"}
@@ -217,7 +217,7 @@ function TableNode({ table }: { table: SchemaTable }) {
         >
           {display}
         </Text>
-        <Text as="span" fontFamily="mono" fontSize="10px" color="fg.3">
+        <Text as="span" fontFamily="mono" fontSize="10px" color="fg.subtle">
           {table.columns.length} cols
         </Text>
       </TableHeader>
@@ -240,7 +240,7 @@ function TableNode({ table }: { table: SchemaTable }) {
               <Text color="fg" flex={1} truncate>
                 {c.name}
               </Text>
-              <Text color="fg.3" flexShrink={0}>
+              <Text color="fg.subtle" flexShrink={0}>
                 {c.dataType ?? "—"}
               </Text>
             </HStack>

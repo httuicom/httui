@@ -76,7 +76,7 @@ export function DbExplainSection({
           as="span"
           fontFamily="mono"
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           flexShrink={0}
           data-testid="db-explain-section-sub"
         >

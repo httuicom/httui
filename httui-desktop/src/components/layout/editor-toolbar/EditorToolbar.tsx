@@ -89,12 +89,12 @@ export function EditorToolbar({
       h="28px"
       px={3}
       gap={4}
-      bg="bg.1"
+      bg="bg.subtle"
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
       fontSize="11px"
       fontFamily="mono"
-      color="fg.2"
+      color="fg.muted"
       flexShrink={0}
     >
       <Text
@@ -131,7 +131,7 @@ export function EditorToolbar({
         alignItems="center"
         borderRadius="3px"
         bg={autoCapture ? "accent.soft" : "transparent"}
-        color={autoCapture ? "accent" : "fg.3"}
+        color={autoCapture ? "accent" : "fg.subtle"}
         fontFamily="mono"
         fontSize="10px"
         fontWeight={500}
@@ -139,7 +139,7 @@ export function EditorToolbar({
         _hover={
           autoCapture
             ? { bg: "accent.soft", opacity: 0.85 }
-            : { bg: "bg.2", color: "fg.2" }
+            : { bg: "bg.muted", color: "fg.muted" }
         }
       >
         <LuZap size={10} />

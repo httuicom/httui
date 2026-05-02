@@ -27,8 +27,8 @@ export function GitLogFilter({ state, onChange }: GitLogFilterProps) {
       px={3}
       py={2}
       borderBottomWidth="1px"
-      borderBottomColor="line"
-      bg="bg.1"
+      borderBottomColor="border"
+      bg="bg.subtle"
     >
       <Box flex={1} minW={0}>
         <Input
@@ -63,7 +63,7 @@ export function GitLogFilter({ state, onChange }: GitLogFilterProps) {
           as="button"
           data-testid="git-log-filter-clear"
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           flexShrink={0}
           onClick={() => onChange({ ...state, query: "" })}
         >

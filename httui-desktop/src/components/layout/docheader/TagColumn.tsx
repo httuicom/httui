@@ -68,7 +68,7 @@ export function TagColumn({
         <Text
           fontFamily="mono"
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           textTransform="uppercase"
           letterSpacing="0.05em"
           mb={1}
@@ -80,7 +80,7 @@ export function TagColumn({
             data-testid="tag-column-empty"
             fontFamily="mono"
             fontSize="10px"
-            color="fg.3"
+            color="fg.subtle"
           >
             No tags
           </Text>
@@ -117,9 +117,9 @@ export function TagColumn({
                 direction="column"
                 gap={0}
                 mt={1}
-                bg="bg.1"
+                bg="bg.subtle"
                 borderWidth="1px"
-                borderColor="line"
+                borderColor="border"
                 borderRadius="4px"
               >
                 {suggestions.map((s) => (
@@ -129,13 +129,13 @@ export function TagColumn({
                     data-testid={`tag-column-suggestion-${s}`}
                     fontFamily="mono"
                     fontSize="11px"
-                    color="fg.2"
+                    color="fg.muted"
                     px={2}
                     py={1}
                     textAlign="left"
                     onClick={() => submit(s)}
                     disabled={busy}
-                    _hover={{ bg: "bg.2" }}
+                    _hover={{ bg: "bg.muted" }}
                     cursor="pointer"
                   >
                     {s}
@@ -185,7 +185,7 @@ function TagChip({
         data-testid={`tag-column-chip-${tag}-label`}
         fontFamily="mono"
         fontSize="11px"
-        color="fg.2"
+        color="fg.muted"
         cursor={interactive ? "pointer" : undefined}
         onClick={interactive ? () => onSelect(tag) : undefined}
       >
@@ -197,7 +197,7 @@ function TagChip({
           data-testid={`tag-column-chip-${tag}-remove`}
           fontFamily="mono"
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
           onClick={() => onRemove(tag)}
           disabled={busy}
           cursor="pointer"

@@ -50,7 +50,7 @@ export function EnvironmentsPage({
           </Text>
           <Text
             fontSize="11px"
-            color="fg.2"
+            color="fg.muted"
             data-testid="environments-page-subtitle"
           >
             workspace de envs em <code>envs/*.toml</code> · personais em{" "}
@@ -102,10 +102,10 @@ function EmptyHint() {
       py={10}
       gap={2}
     >
-      <Text fontFamily="serif" fontSize="16px" color="fg.2">
+      <Text fontFamily="serif" fontSize="16px" color="fg.muted">
         Nenhum ambiente ainda
       </Text>
-      <Text fontSize="11px" color="fg.3" textAlign="center" maxW="420px">
+      <Text fontSize="11px" color="fg.subtle" textAlign="center" maxW="420px">
         Use{" "}
         <Text as="span" fontFamily="mono">
           + New environment

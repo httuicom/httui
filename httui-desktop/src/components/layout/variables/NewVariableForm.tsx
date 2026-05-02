@@ -62,8 +62,8 @@ export function NewVariableForm({
       px={5}
       py={3}
       borderBottomWidth="1px"
-      borderBottomColor="line"
-      bg="bg.2"
+      borderBottomColor="border"
+      bg="bg.muted"
     >
       <Flex direction="column" gap={2}>
         <Box>
@@ -98,7 +98,7 @@ export function NewVariableForm({
             as="span"
             fontFamily="mono"
             fontSize="11px"
-            color="fg.2"
+            color="fg.muted"
             w="68px"
             flexShrink={0}
             truncate
@@ -138,7 +138,7 @@ export function NewVariableForm({
             />
             <Text
               fontSize="11px"
-              color="fg.2"
+              color="fg.muted"
               data-testid="new-variable-is-secret-label"
             >
               {isSecret ? "Secret (keychain)" : "Public (envs/*.toml)"}

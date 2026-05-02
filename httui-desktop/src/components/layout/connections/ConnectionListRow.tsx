@@ -42,14 +42,14 @@ const STATUS_DOT = {
   ok: "green.solid",
   slow: "yellow.solid",
   down: "red.solid",
-  untested: "fg.3",
+  untested: "fg.subtle",
 } as const;
 
 const STATUS_TEXT = {
   ok: "fg",
   slow: "yellow.fg",
   down: "red.fg",
-  untested: "fg.3",
+  untested: "fg.subtle",
 } as const;
 
 function fallbackIcon() {
@@ -66,7 +66,7 @@ function fallbackIcon() {
       alignItems="center"
       justifyContent="center"
       fontSize="14px"
-      color="fg.3"
+      color="fg.subtle"
       flexShrink={0}
     >
       🗄
@@ -99,7 +99,7 @@ export function ConnectionListRow({
       cursor="pointer"
       textAlign="left"
       border="none"
-      _hover={{ bg: selected ? "accent.soft" : "bg.2" }}
+      _hover={{ bg: selected ? "accent.soft" : "bg.muted" }}
     >
       {item.kind ? <ConnectionKindIcon kind={item.kind} size={22} /> : fallbackIcon()}
 
@@ -133,7 +133,7 @@ export function ConnectionListRow({
       <Text
         fontFamily="mono"
         fontSize="10px"
-        color="fg.3"
+        color="fg.subtle"
         truncate
       >
         {item.host ?? "—"}
@@ -142,7 +142,7 @@ export function ConnectionListRow({
       <Text
         fontFamily="mono"
         fontSize="11px"
-        color="fg.2"
+        color="fg.muted"
         truncate
       >
         {item.env ?? "—"}
@@ -167,7 +167,7 @@ export function ConnectionListRow({
       </Flex>
 
       <Flex align="center" justify="flex-end" gap={2}>
-        <Text fontFamily="mono" fontSize="11px" color="fg.3">
+        <Text fontFamily="mono" fontSize="11px" color="fg.subtle">
           {item.uses} uses
         </Text>
         <Box
@@ -178,10 +178,10 @@ export function ConnectionListRow({
             onMore?.(item.id);
           }}
           cursor="pointer"
-          color="fg.3"
+          color="fg.subtle"
           fontSize="14px"
           px="3px"
-          _hover={{ color: "fg.2" }}
+          _hover={{ color: "fg.muted" }}
           aria-label="Row actions"
           role="button"
         >

@@ -35,7 +35,7 @@ export function GitFileList({
       <Text
         data-testid="git-file-list-empty"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={3}
         py={4}
       >
@@ -120,10 +120,10 @@ function Group({
         fontFamily="mono"
         fontSize="10px"
         textTransform="uppercase"
-        color="fg.3"
+        color="fg.subtle"
         px={3}
         py={1}
-        bg="bg.2"
+        bg="bg.muted"
       >
         {label} ({count})
       </Text>
@@ -157,8 +157,8 @@ function Row({
       gap={2}
       px={3}
       py={1}
-      bg={selected ? "bg.2" : undefined}
-      _hover={{ bg: "bg.2" }}
+      bg={selected ? "bg.muted" : undefined}
+      _hover={{ bg: "bg.muted" }}
       cursor={onSelect ? "pointer" : undefined}
       onClick={(e) => {
         // Ignore clicks bubbled up from the checkbox so the row click
@@ -243,6 +243,6 @@ function statusColor(status: string): string {
     case "conflicted":
       return "error";
     default:
-      return "fg.3";
+      return "fg.subtle";
   }
 }

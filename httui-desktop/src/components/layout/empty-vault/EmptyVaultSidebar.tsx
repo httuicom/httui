@@ -47,7 +47,7 @@ function SectionLabel({ children }: { children: string }) {
       fontSize="11px"
       fontWeight={700}
       letterSpacing="0.08em"
-      color="fg.2"
+      color="fg.muted"
       textTransform="uppercase"
       data-testid={`section-${children.toLowerCase()}`}
     >
@@ -71,9 +71,9 @@ export function EmptyVaultSidebar({
       px={4}
       py={6}
       gap={6}
-      bg="bg.1"
+      bg="bg.subtle"
       borderRightWidth="1px"
-      borderRightColor="line"
+      borderRightColor="border"
     >
       {/* Workspace section */}
       <Stack gap={2}>
@@ -87,10 +87,10 @@ export function EmptyVaultSidebar({
           gap={2}
           display="inline-flex"
           alignItems="center"
-          bg="bg.2"
+          bg="bg.muted"
           borderRadius="6px"
           cursor={onWorkspaceClick ? "pointer" : "default"}
-          _hover={onWorkspaceClick ? { bg: "bg.3" } : undefined}
+          _hover={onWorkspaceClick ? { bg: "bg.emphasized" } : undefined}
         >
           <Box
             aria-hidden
@@ -131,7 +131,7 @@ export function EmptyVaultSidebar({
         <SectionLabel>RECENTES</SectionLabel>
         <Text
           fontSize="12px"
-          color="fg.3"
+          color="fg.subtle"
           lineHeight={1.4}
           data-testid="recentes-empty"
         >
@@ -154,14 +154,14 @@ export function EmptyVaultSidebar({
                 w="4px"
                 h="4px"
                 borderRadius="full"
-                bg="fg.3"
+                bg="fg.subtle"
                 flexShrink={0}
               />
-              <Text fontSize="12px" color="fg.2" flex={1}>
+              <Text fontSize="12px" color="fg.muted" flex={1}>
                 {entry.label}
               </Text>
               {entry.count !== null && (
-                <Text fontSize="11px" color="fg.3">
+                <Text fontSize="11px" color="fg.subtle">
                   ({entry.count})
                 </Text>
               )}

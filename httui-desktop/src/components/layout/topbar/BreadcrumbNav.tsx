@@ -49,7 +49,7 @@ export function BreadcrumbNav({
 
   if (!workspace && !workspaceSlot) {
     return (
-      <Text data-atom="breadcrumb" color="fg.3" fontSize="13px">
+      <Text data-atom="breadcrumb" color="fg.subtle" fontSize="13px">
         no vault
       </Text>
     );
@@ -70,7 +70,7 @@ export function BreadcrumbNav({
           data-segment="workspace"
           onClick={onWorkspaceClick}
           bg="transparent"
-          color={segments.length === 0 ? "fg" : "fg.2"}
+          color={segments.length === 0 ? "fg" : "fg.muted"}
           fontWeight={500}
           cursor={onWorkspaceClick ? "pointer" : "default"}
           _hover={onWorkspaceClick ? { color: "fg" } : undefined}
@@ -89,13 +89,13 @@ export function BreadcrumbNav({
         const isLast = idx === segments.length - 1;
         return (
           <HStack key={`${idx}-${seg}`} gap={1}>
-            <Box as="span" aria-hidden color="fg.3" fontSize="12px">
+            <Box as="span" aria-hidden color="fg.subtle" fontSize="12px">
               ›
             </Box>
             <Text
               data-segment={isLast ? "file" : "folder"}
               data-active={isLast ? "true" : "false"}
-              color={isLast ? "fg" : "fg.2"}
+              color={isLast ? "fg" : "fg.muted"}
               fontWeight={isLast ? 500 : 400}
               maxWidth="240px"
               overflow="hidden"

@@ -64,7 +64,7 @@ export function BranchMenu({
             {label}
           </Box>
           {hasCounts && (
-            <Box as="span" color="fg.3" data-testid="status-changes">
+            <Box as="span" color="fg.subtle" data-testid="status-changes">
               {ahead > 0 && `↑${ahead} `}
               {behind > 0 && `↓${behind} `}
               {added > 0 && `+${added} `}
@@ -81,7 +81,7 @@ export function BranchMenu({
             minW="220px"
             bg="bg"
             borderWidth="1px"
-            borderColor="line"
+            borderColor="border"
             shadow="2xl"
           >
             <HStack px={3} py={2} gap={2}>
@@ -92,11 +92,11 @@ export function BranchMenu({
             </HStack>
             <Box
               borderTopWidth="1px"
-              borderColor="line"
+              borderColor="border"
               px={3}
               py={2}
               fontSize="11px"
-              color="fg.3"
+              color="fg.subtle"
               data-testid="branch-menu-placeholder"
             >
               Trocar de branch chega na V10. Por agora veja a branch

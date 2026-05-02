@@ -115,10 +115,10 @@ export function NewConnectionSslTab({
       <Box
         data-testid="new-connection-ssl-hint"
         fontSize="11px"
-        color="fg.3"
-        bg="bg.2"
+        color="fg.subtle"
+        bg="bg.muted"
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         borderRadius="6px"
         px={3}
         py={2}
@@ -155,7 +155,7 @@ function ModeSelect({
       lineHeight={1}
       borderRadius="4px"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       bg="bg"
       color="fg"
     >
@@ -193,13 +193,13 @@ function Field({
         fontWeight="bold"
         letterSpacing="0.06em"
         textTransform="uppercase"
-        color="fg.2"
+        color="fg.muted"
       >
         {label}
       </Text>
       {children}
       {hint && (
-        <Text as="span" fontSize="11px" color="fg.3">
+        <Text as="span" fontSize="11px" color="fg.subtle">
           {hint}
         </Text>
       )}

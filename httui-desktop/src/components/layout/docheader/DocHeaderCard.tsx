@@ -85,8 +85,8 @@ export function DocHeaderCard({
       px={6}
       py={5}
       borderBottomWidth="1px"
-      borderBottomColor="line"
-      bg="bg.1"
+      borderBottomColor="border"
+      bg="bg.subtle"
     >
       {breadcrumb.length > 1 && (
         <Flex
@@ -111,7 +111,7 @@ export function DocHeaderCard({
                   data-leaf={isLeaf || undefined}
                   fontFamily="mono"
                   fontSize="11px"
-                  color={isLeaf ? "fg.2" : "fg.3"}
+                  color={isLeaf ? "fg.muted" : "fg.subtle"}
                   cursor={
                     onBreadcrumbSelect && !isLeaf ? "pointer" : undefined
                   }
@@ -260,7 +260,7 @@ function DocHeaderTitleInput({ value, onSave }: DocHeaderTitleInputProps) {
 
 function BreadcrumbSeparator() {
   return (
-    <Text as="span" fontFamily="mono" fontSize="11px" color="fg.3">
+    <Text as="span" fontFamily="mono" fontSize="11px" color="fg.subtle">
       /
     </Text>
   );

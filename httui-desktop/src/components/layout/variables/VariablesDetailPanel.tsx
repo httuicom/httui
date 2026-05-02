@@ -25,8 +25,8 @@ export function VariablesDetailPanel({
       w="380px"
       minW="380px"
       borderLeftWidth="1px"
-      borderLeftColor="line"
-      bg="bg.2"
+      borderLeftColor="border"
+      bg="bg.muted"
       h="full"
       overflowY="auto"
     >
@@ -52,10 +52,10 @@ function EmptyState() {
       px={6}
       gap={2}
     >
-      <Text fontFamily="serif" fontSize="16px" color="fg.2">
+      <Text fontFamily="serif" fontSize="16px" color="fg.muted">
         Selecione uma variável
       </Text>
-      <Text fontSize="11px" color="fg.3" textAlign="center" lineHeight={1.5}>
+      <Text fontSize="11px" color="fg.subtle" textAlign="center" lineHeight={1.5}>
         Clique em uma linha à esquerda para ver e editar o valor por ambiente,
         configurar override de sessão e listar os blocos que a usam.
       </Text>

@@ -31,10 +31,10 @@ export function DeleteEnvironmentConfirm({
       px={5}
       py={3}
       borderTopWidth="1px"
-      borderTopColor="line"
+      borderTopColor="border"
       borderBottomWidth="1px"
-      borderBottomColor="line"
-      bg="bg.2"
+      borderBottomColor="border"
+      bg="bg.muted"
     >
       <Flex direction="column" gap={2}>
         <Text
@@ -51,7 +51,7 @@ export function DeleteEnvironmentConfirm({
         </Text>
         <Text
           fontSize="11px"
-          color="fg.2"
+          color="fg.muted"
           data-testid="delete-environment-confirm-body"
         >
           {env.isPersonal ? (

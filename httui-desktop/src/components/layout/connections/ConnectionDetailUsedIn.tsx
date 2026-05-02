@@ -41,14 +41,14 @@ export function ConnectionDetailUsedIn({
           fontWeight="bold"
           letterSpacing="0.08em"
           textTransform="uppercase"
-          color="fg.2"
+          color="fg.muted"
         >
           Used in runbooks
         </Text>
         <Text
           fontFamily="mono"
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
           data-testid="used-in-count"
         >
           {usages.length}
@@ -59,7 +59,7 @@ export function ConnectionDetailUsedIn({
         <Text
           data-testid="used-in-loading"
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
         >
           Searching vault…
         </Text>
@@ -69,7 +69,7 @@ export function ConnectionDetailUsedIn({
         <Text
           data-testid="used-in-empty"
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
         >
           Not referenced in any runbook yet.
         </Text>
@@ -96,7 +96,7 @@ export function ConnectionDetailUsedIn({
               borderRadius="4px"
               px={2}
               py="6px"
-              _hover={{ bg: "bg.2" }}
+              _hover={{ bg: "bg.muted" }}
             >
               <Flex align="baseline" gap={2}>
                 <Text
@@ -111,7 +111,7 @@ export function ConnectionDetailUsedIn({
                 <Text
                   fontFamily="mono"
                   fontSize="10px"
-                  color="fg.3"
+                  color="fg.subtle"
                   flexShrink={0}
                 >
                   :{u.line}
@@ -122,7 +122,7 @@ export function ConnectionDetailUsedIn({
                   data-testid={`used-in-row-${i}-preview`}
                   fontFamily="mono"
                   fontSize="10px"
-                  color="fg.3"
+                  color="fg.subtle"
                   truncate
                   mt={0.5}
                 >

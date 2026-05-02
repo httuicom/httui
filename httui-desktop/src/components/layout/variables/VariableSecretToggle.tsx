@@ -53,7 +53,7 @@ export function VariableSecretToggle({
       px={4}
       py={3}
       borderTopWidth="1px"
-      borderTopColor="line"
+      borderTopColor="border"
     >
       <Flex align="center" justify="space-between" gap={3}>
         <Box>
@@ -69,7 +69,7 @@ export function VariableSecretToggle({
           </Text>
           <Text
             fontSize="11px"
-            color="fg.3"
+            color="fg.subtle"
             mt={0.5}
             data-testid="variable-secret-toggle-hint"
           >

@@ -34,7 +34,7 @@ export function GitCommitDiffViewer({
   if (diff === null) {
     return (
       <Box data-testid="git-commit-diff-viewer" data-loading="true" px={3} py={4}>
-        <Text fontSize="11px" color="fg.3">
+        <Text fontSize="11px" color="fg.subtle">
           Loading diff…
         </Text>
       </Box>
@@ -56,8 +56,8 @@ export function GitCommitDiffViewer({
         px={3}
         py={2}
         borderBottomWidth="1px"
-        borderBottomColor="line"
-        bg="bg.1"
+        borderBottomColor="border"
+        bg="bg.subtle"
       >
         <Text fontFamily="mono" fontSize="11px" color="fg" truncate>
           {shortSha ? `${shortSha} — ` : ""}
@@ -68,7 +68,7 @@ export function GitCommitDiffViewer({
         <Text
           data-testid="git-commit-diff-viewer-empty"
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
           px={3}
           py={4}
         >
@@ -131,9 +131,9 @@ function roleColor(role: string): string {
     case "remove":
       return "error";
     case "hunk":
-      return "fg.2";
+      return "fg.muted";
     case "fileheader":
-      return "fg.3";
+      return "fg.subtle";
     default:
       return "fg";
   }

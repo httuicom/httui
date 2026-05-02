@@ -54,13 +54,13 @@ export function SharePopover({
         data-state="empty"
         px={4}
         py={3}
-        bg="bg.1"
+        bg="bg.subtle"
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         borderRadius="6px"
         minW="280px"
       >
-        <Text fontFamily="mono" fontSize="11px" color="fg.2">
+        <Text fontFamily="mono" fontSize="11px" color="fg.muted">
           No remote configured.
         </Text>
         {onOpenWorkspaceSettings && (
@@ -94,16 +94,16 @@ export function SharePopover({
       data-remote-count={remotes.length}
       px={4}
       py={3}
-      bg="bg.1"
+      bg="bg.subtle"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="6px"
       minW="320px"
     >
       <Text
         fontFamily="mono"
         fontSize="10px"
-        color="fg.3"
+        color="fg.subtle"
         textTransform="uppercase"
         mb={2}
       >
@@ -129,7 +129,7 @@ export function SharePopover({
         as="div"
         fontFamily="mono"
         fontSize="11px"
-        color="fg.2"
+        color="fg.muted"
         mb={2}
         truncate
         title={active.url}

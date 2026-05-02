@@ -66,7 +66,7 @@ export function NewConnectionFormTab({
       <Box
         data-testid={`new-connection-form-stub-${kind}`}
         fontSize="12px"
-        color="fg.3"
+        color="fg.subtle"
       >
         Form para “{kind}” virá em uma fase futura.
       </Box>
@@ -184,13 +184,13 @@ function Field({
         fontWeight="bold"
         letterSpacing="0.06em"
         textTransform="uppercase"
-        color="fg.2"
+        color="fg.muted"
       >
         {label}
       </Text>
       {children}
       {hint && (
-        <Text as="span" fontSize="11px" color="fg.3">
+        <Text as="span" fontSize="11px" color="fg.subtle">
           {hint}
         </Text>
       )}
@@ -204,10 +204,10 @@ function KeychainSuffix() {
       data-testid="new-connection-keychain-suffix"
       flexShrink={0}
       fontSize="10px"
-      color="fg.2"
-      bg="bg.2"
+      color="fg.muted"
+      bg="bg.muted"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="999px"
       px="8px"
       py="2px"

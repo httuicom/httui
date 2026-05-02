@@ -39,8 +39,8 @@ export function CapturesFooter({
       data-testid="captures-footer"
       data-open={open || undefined}
       borderTopWidth="1px"
-      borderTopColor="line"
-      bg="bg.2"
+      borderTopColor="border"
+      bg="bg.muted"
     >
       <Flex
         as="button"
@@ -56,7 +56,7 @@ export function CapturesFooter({
         textAlign="left"
         w="full"
         cursor="pointer"
-        _hover={{ bg: "bg.1" }}
+        _hover={{ bg: "bg.subtle" }}
       >
         <Text as="span" fontSize="13px" color="accent" flexShrink={0}>
           ↗
@@ -64,7 +64,7 @@ export function CapturesFooter({
         <Text
           fontFamily="mono"
           fontSize="11px"
-          color="fg.2"
+          color="fg.muted"
           data-testid="captures-footer-summary-label"
         >
           {entries.length} captured
@@ -74,7 +74,7 @@ export function CapturesFooter({
           as="span"
           fontFamily="mono"
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           aria-hidden
         >
           {open ? "▾" : "▸"}
@@ -133,13 +133,13 @@ function CaptureRow({
       w="full"
       cursor={interactive ? "pointer" : "default"}
       title={interactive ? "Click to copy" : undefined}
-      _hover={interactive ? { bg: "bg.1" } : undefined}
+      _hover={interactive ? { bg: "bg.subtle" } : undefined}
     >
       <Text
         as="span"
         fontFamily="mono"
         fontSize="11px"
-        color="fg.2"
+        color="fg.muted"
         flexShrink={0}
         truncate
         maxW="160px"
@@ -150,7 +150,7 @@ function CaptureRow({
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color="fg.3"
+        color="fg.subtle"
         flexShrink={0}
       >
         =
@@ -159,7 +159,7 @@ function CaptureRow({
         as="span"
         fontFamily="mono"
         fontSize="11px"
-        color={entry.isSecret ? "fg.2" : "fg"}
+        color={entry.isSecret ? "fg.muted" : "fg"}
         truncate
         title={entry.isSecret ? "secret value" : stringValue}
       >
@@ -169,7 +169,7 @@ function CaptureRow({
         <Text
           as="span"
           fontSize="9px"
-          color="fg.3"
+          color="fg.subtle"
           flexShrink={0}
           data-testid={`captures-footer-row-${name}-secret-chip`}
         >

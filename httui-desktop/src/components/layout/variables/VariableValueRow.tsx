@@ -107,13 +107,13 @@ export function VariableValueRow({
       px={4}
       py={2}
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
     >
       <Text
         as="span"
         fontFamily="mono"
         fontSize="11px"
-        color="fg.2"
+        color="fg.muted"
         w="68px"
         flexShrink={0}
         truncate
@@ -194,7 +194,7 @@ function ValueDisplay({
 
   if (reveal.kind === "loading") {
     return (
-      <Text fontFamily="mono" fontSize="11px" color="fg.3" data-testid={testId}>
+      <Text fontFamily="mono" fontSize="11px" color="fg.subtle" data-testid={testId}>
         carregando…
       </Text>
     );
@@ -214,7 +214,7 @@ function ValueDisplay({
   }
   if (isSecret && reveal.kind !== "revealed") {
     return (
-      <Text fontFamily="mono" fontSize="11px" color="fg.2" data-testid={testId}>
+      <Text fontFamily="mono" fontSize="11px" color="fg.muted" data-testid={testId}>
         {SECRET_MASK}
       </Text>
     );
@@ -230,7 +230,7 @@ function ValueDisplay({
         data-testid={testId}
       >
         {reveal.value || (
-          <Text as="span" color="fg.3">
+          <Text as="span" color="fg.subtle">
             {"(vazio)"}
           </Text>
         )}
@@ -239,7 +239,7 @@ function ValueDisplay({
   }
   if (value === undefined) {
     return (
-      <Text fontFamily="mono" fontSize="11px" color="fg.3" data-testid={testId}>
+      <Text fontFamily="mono" fontSize="11px" color="fg.subtle" data-testid={testId}>
         —
       </Text>
     );

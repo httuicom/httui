@@ -153,7 +153,7 @@ export function ConnectionDetailCredentials({
           fontWeight="bold"
           letterSpacing="0.08em"
           textTransform="uppercase"
-          color="fg.2"
+          color="fg.muted"
         >
           Credentials
         </Text>
@@ -251,7 +251,7 @@ export function ConnectionDetailCredentials({
       <Box
         data-testid="credentials-rotate-section"
         borderTopWidth="1px"
-        borderTopColor="line"
+        borderTopColor="border"
         pt={3}
       >
         {!rotating ? (
@@ -264,7 +264,7 @@ export function ConnectionDetailCredentials({
           </Btn>
         ) : (
           <Stack gap={2}>
-            <Text fontSize="11px" color="fg.2">
+            <Text fontSize="11px" color="fg.muted">
               Enter the new password — it will be written to the OS
               keychain. The vault file only stores a{" "}
               <Box as="code" fontFamily="mono">
@@ -283,10 +283,10 @@ export function ConnectionDetailCredentials({
               px={2}
               fontSize="12px"
               fontFamily="mono"
-              bg="bg.2"
+              bg="bg.muted"
               color="fg"
               borderWidth="1px"
-              borderColor="line"
+              borderColor="border"
               borderRadius="6px"
               outline="none"
               _focus={{ borderColor: "accent" }}
@@ -341,7 +341,7 @@ function SummaryRow({
       justify="space-between"
       gap={3}
     >
-      <Text fontSize="11px" color="fg.3" minW="64px">
+      <Text fontSize="11px" color="fg.subtle" minW="64px">
         {label}
       </Text>
       <Text
@@ -370,7 +370,7 @@ function EditField({
 }) {
   return (
     <Flex align="center" gap={3}>
-      <Text fontSize="11px" color="fg.3" minW="64px">
+      <Text fontSize="11px" color="fg.subtle" minW="64px">
         {label}
       </Text>
       <Field
@@ -385,10 +385,10 @@ function EditField({
         px={2}
         fontSize="12px"
         fontFamily="mono"
-        bg="bg.2"
+        bg="bg.muted"
         color="fg"
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         borderRadius="6px"
         outline="none"
         _focus={{ borderColor: "accent" }}

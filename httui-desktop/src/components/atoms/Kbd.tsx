@@ -27,10 +27,10 @@ export function Kbd({ children, ...rest }: KbdProps) {
       fontSize="10px"
       fontWeight={500}
       lineHeight={1}
-      bg="bg.2"
+      bg="bg.muted"
       color="fg"
       border="1px solid"
-      borderColor="line"
+      borderColor="border"
       borderBottomWidth="2px"
       borderRadius="4px"
       userSelect="none"

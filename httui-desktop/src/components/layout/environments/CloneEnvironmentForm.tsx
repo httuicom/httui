@@ -77,14 +77,14 @@ export function CloneEnvironmentForm({
       px={5}
       py={3}
       borderTopWidth="1px"
-      borderTopColor="line"
+      borderTopColor="border"
       borderBottomWidth="1px"
-      borderBottomColor="line"
-      bg="bg.2"
+      borderBottomColor="border"
+      bg="bg.muted"
     >
       <Text
         fontSize="11px"
-        color="fg.2"
+        color="fg.muted"
         mb={2}
         data-testid="clone-environment-heading"
       >
@@ -153,7 +153,7 @@ export function CloneEnvironmentForm({
         </Flex>
 
         <Flex justify="space-between" align="center">
-          <Text fontSize="11px" color="fg.3" data-testid="clone-target-hint">
+          <Text fontSize="11px" color="fg.subtle" data-testid="clone-target-hint">
             cria{" "}
             <Text as="span" fontFamily="mono">
               envs/{targetFilename}
@@ -199,7 +199,7 @@ function CheckRow({
       onCheckedChange={(e) => onChange(!!e.checked)}
       data-testid={testId}
     >
-      <Text as="span" fontSize="11px" color="fg.2">
+      <Text as="span" fontSize="11px" color="fg.muted">
         {label}
       </Text>
     </Checkbox>

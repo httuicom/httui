@@ -26,10 +26,10 @@ export const Input = forwardRef<HTMLInputElement, InputAtomProps>(
         lineHeight={1}
         borderRadius="4px"
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         bg="bg"
         color="fg"
-        _placeholder={{ color: "fg.3" }}
+        _placeholder={{ color: "fg.subtle" }}
         _focusVisible={{
           borderColor: "accent",
           boxShadow: "0 0 0 1px var(--chakra-colors-accent)",

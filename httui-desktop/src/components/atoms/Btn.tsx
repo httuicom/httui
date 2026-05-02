@@ -37,8 +37,8 @@ export const Btn = forwardRef<HTMLButtonElement, BtnProps>(function Btn(
       : {
           bg: "transparent",
           color: "fg",
-          _hover: { bg: "bg.2" },
-          _active: { bg: "bg.3" },
+          _hover: { bg: "bg.muted" },
+          _active: { bg: "bg.emphasized" },
           fontWeight: 500,
           borderColor: "transparent",
         };

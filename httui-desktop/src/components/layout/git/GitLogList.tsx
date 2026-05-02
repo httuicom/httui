@@ -27,7 +27,7 @@ export function GitLogList({
       <Text
         data-testid="git-log-list-empty"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={3}
         py={4}
       >
@@ -69,8 +69,8 @@ function Row({
       gap={2}
       px={3}
       py={1}
-      bg={selected ? "bg.2" : undefined}
-      _hover={{ bg: "bg.2" }}
+      bg={selected ? "bg.muted" : undefined}
+      _hover={{ bg: "bg.muted" }}
       cursor={onSelect ? "pointer" : undefined}
       onClick={() => onSelect?.(commit)}
     >
@@ -78,7 +78,7 @@ function Row({
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color="fg.3"
+        color="fg.subtle"
         flexShrink={0}
         w="56px"
       >
@@ -88,7 +88,7 @@ function Row({
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color="fg.2"
+        color="fg.muted"
         flexShrink={0}
         w="28px"
         textAlign="center"
@@ -112,7 +112,7 @@ function Row({
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color="fg.3"
+        color="fg.subtle"
         flexShrink={0}
         title={new Date(commit.timestamp * 1000).toISOString()}
       >

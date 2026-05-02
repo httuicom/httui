@@ -26,7 +26,7 @@ export function AssertionsTab({ assertions, result }: AssertionsTabProps) {
       <Text
         data-testid="assertions-tab-empty"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={4}
         py={3}
       >
@@ -44,7 +44,7 @@ export function AssertionsTab({ assertions, result }: AssertionsTabProps) {
       <Text
         data-testid="assertions-tab-pending"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={4}
         py={3}
       >
@@ -72,7 +72,7 @@ export function AssertionsTab({ assertions, result }: AssertionsTabProps) {
             px={4}
             py={2}
             borderBottomWidth="1px"
-            borderBottomColor="line"
+            borderBottomColor="border"
           >
             <Text
               as="span"
@@ -96,7 +96,7 @@ export function AssertionsTab({ assertions, result }: AssertionsTabProps) {
               {failure && (
                 <Text
                   fontSize="10px"
-                  color="fg.2"
+                  color="fg.muted"
                   mt={0.5}
                   fontFamily="mono"
                   data-testid={`assertions-tab-row-${a.line}-failure`}

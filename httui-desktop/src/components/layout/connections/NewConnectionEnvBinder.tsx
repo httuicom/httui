@@ -41,7 +41,7 @@ export function NewConnectionEnvBinder({
         fontWeight="bold"
         letterSpacing="0.08em"
         textTransform="uppercase"
-        color="fg.2"
+        color="fg.muted"
         mb={2}
       >
         Vincular ao ambiente
@@ -66,14 +66,14 @@ export function NewConnectionEnvBinder({
               borderRadius="999px"
               borderWidth="1px"
               borderStyle="solid"
-              borderColor={active ? "accent" : "line"}
+              borderColor={active ? "accent" : "border"}
               bg={active ? "accent.soft" : "transparent"}
-              color={active ? "fg" : "fg.2"}
+              color={active ? "fg" : "fg.muted"}
               fontSize="11px"
               fontWeight={active ? 600 : 500}
               cursor="pointer"
               _hover={{
-                borderColor: active ? "accent" : "fg.3",
+                borderColor: active ? "accent" : "fg.subtle",
                 color: "fg",
               }}
             >
@@ -83,7 +83,7 @@ export function NewConnectionEnvBinder({
                   as="span"
                   fontFamily="mono"
                   fontSize="10px"
-                  color="fg.3"
+                  color="fg.subtle"
                 >
                   (read-only)
                 </Text>
@@ -104,13 +104,13 @@ export function NewConnectionEnvBinder({
             borderRadius="999px"
             borderWidth="1px"
             borderStyle="dashed"
-            borderColor="line"
+            borderColor="border"
             bg="transparent"
-            color="fg.2"
+            color="fg.muted"
             fontSize="11px"
             fontWeight={500}
             cursor="pointer"
-            _hover={{ borderColor: "fg.3", color: "fg" }}
+            _hover={{ borderColor: "fg.subtle", color: "fg" }}
           >
             + novo
           </PillButton>

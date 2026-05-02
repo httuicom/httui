@@ -52,7 +52,7 @@ export function VariablesListPanel({
           </Text>
           <Text
             fontSize="11px"
-            color="fg.2"
+            color="fg.muted"
             data-testid="variables-resolution-hint"
           >
             {VAR_RESOLUTION_HINT}
@@ -91,10 +91,10 @@ export function VariablesListPanel({
             data-testid="variables-active-env-pill"
             fontFamily="mono"
             fontSize="11px"
-            color="fg.2"
-            bg="bg.2"
+            color="fg.muted"
+            bg="bg.muted"
             borderWidth="1px"
-            borderColor="line"
+            borderColor="border"
             borderRadius="999px"
             px={3}
             py={1}
@@ -115,7 +115,7 @@ export function VariablesListPanel({
       <Text
         data-testid="variables-footer-hint"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         textAlign="center"
         py={2}
       >
@@ -138,13 +138,13 @@ function TableHeaders({
       px={5}
       py={2}
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
       fontFamily="mono"
       fontSize="10px"
       fontWeight="bold"
       letterSpacing="0.06em"
       textTransform="uppercase"
-      color="fg.3"
+      color="fg.subtle"
     >
       <Text as="span">KEY · SCOPE</Text>
       {envColumnNames.slice(0, 3).map((env) => (
@@ -153,7 +153,7 @@ function TableHeaders({
         </Text>
       ))}
       {Array.from({ length: placeholders }).map((_, i) => (
-        <Text as="span" key={`ph-${i}`} color="fg.3">
+        <Text as="span" key={`ph-${i}`} color="fg.subtle">
           —
         </Text>
       ))}
@@ -172,7 +172,7 @@ function EmptyHint() {
       justify="center"
       h="full"
       minH="120px"
-      color="fg.3"
+      color="fg.subtle"
       fontSize="12px"
       px={5}
     >

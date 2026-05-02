@@ -17,7 +17,7 @@ export function EmptyVaultFooter() {
       gap="14px"
       mt="36px"
       justify="center"
-      color="fg.2"
+      color="fg.muted"
       fontSize="12px"
     >
       <HStack gap={2}>
@@ -25,7 +25,7 @@ export function EmptyVaultFooter() {
         <Kbd>⌘V</Kbd>
         <Text>e geramos o bloco</Text>
       </HStack>
-      <Box aria-hidden color="fg.3">
+      <Box aria-hidden color="fg.subtle">
         |
       </Box>
       <Text

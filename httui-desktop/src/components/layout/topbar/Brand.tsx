@@ -33,7 +33,7 @@ export function Brand() {
         aria-hidden
         h="18px"
         w="1px"
-        bg="line"
+        bg="border"
         ml={2}
         flexShrink={0}
       />

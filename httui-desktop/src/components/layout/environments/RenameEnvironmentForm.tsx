@@ -62,14 +62,14 @@ export function RenameEnvironmentForm({
       px={5}
       py={3}
       borderTopWidth="1px"
-      borderTopColor="line"
+      borderTopColor="border"
       borderBottomWidth="1px"
-      borderBottomColor="line"
-      bg="bg.2"
+      borderBottomColor="border"
+      bg="bg.muted"
     >
       <Text
         fontSize="11px"
-        color="fg.2"
+        color="fg.muted"
         mb={2}
         data-testid="rename-environment-heading"
       >
@@ -112,7 +112,7 @@ export function RenameEnvironmentForm({
         <Flex justify="space-between" align="center">
           <Text
             fontSize="11px"
-            color="fg.3"
+            color="fg.subtle"
             data-testid="rename-environment-target-hint"
           >
             renomeia para{" "}

@@ -160,12 +160,12 @@ export function AddBlockMenu({
           justifyContent="center"
           borderRadius="full"
           borderWidth="1px"
-          borderColor="line"
-          bg="bg.2"
-          color="fg.2"
+          borderColor="border"
+          bg="bg.muted"
+          color="fg.muted"
           cursor="pointer"
           flexShrink={0}
-          _hover={{ bg: "bg.3", color: "fg" }}
+          _hover={{ bg: "bg.emphasized", color: "fg" }}
         >
           <LuPlus size={iconSize} />
         </Trigger>
@@ -176,7 +176,7 @@ export function AddBlockMenu({
             data-testid="add-block-menu"
             bg="bg"
             borderWidth="1px"
-            borderColor="line"
+            borderColor="border"
             shadow="2xl"
             minW="180px"
           >
@@ -199,7 +199,7 @@ export function AddBlockMenu({
                     <Icon size={14} />
                     <Box flex={1}>{t.label}</Box>
                     {!t.executable && (
-                      <Box fontSize="10px" color="fg.3">
+                      <Box fontSize="10px" color="fg.subtle">
                         non-exec
                       </Box>
                     )}

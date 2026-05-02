@@ -121,7 +121,7 @@ export function ConnectionDetailFooter({
     <Box
       data-testid="connection-detail-footer"
       borderTopWidth="1px"
-      borderTopColor="line"
+      borderTopColor="border"
       pt={3}
     >
       <Flex justify="space-between" align="center" gap={2} wrap="wrap">

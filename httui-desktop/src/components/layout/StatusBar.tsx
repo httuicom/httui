@@ -89,7 +89,7 @@ export function StatusBar({
         deleted={deleted}
       />
 
-      <Box w="1px" h="12px" bg="line" aria-hidden />
+      <Box w="1px" h="12px" bg="border" aria-hidden />
 
       {/* Env — clickable dropdown to switch environments */}
       <EnvMenu
@@ -101,7 +101,7 @@ export function StatusBar({
       {/* Connection latency (opt-in: surfaces only when active) */}
       {activeConnection && (
         <>
-          <Box w="1px" h="12px" bg="line" aria-hidden />
+          <Box w="1px" h="12px" bg="border" aria-hidden />
           <Box
             display="inline-flex"
             gap={2}
@@ -123,7 +123,7 @@ export function StatusBar({
        * same surface on top of itself). Click reopens the modal. */}
       {pendingSecretsCount > 0 && !pendingModalOpen && (
         <>
-          <Box w="1px" h="12px" bg="line" aria-hidden />
+          <Box w="1px" h="12px" bg="border" aria-hidden />
           <PendingButton
             type="button"
             data-testid="status-pending-secrets"
@@ -175,8 +175,8 @@ export function StatusBar({
         display="inline-flex"
         alignItems="center"
         borderRadius="3px"
-        bg="bg.2"
-        color="fg.2"
+        bg="bg.muted"
+        color="fg.muted"
         fontSize="10px"
       >
         v{APP_VERSION}

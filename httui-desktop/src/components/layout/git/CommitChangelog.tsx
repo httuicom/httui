@@ -56,7 +56,7 @@ export function CommitChangelog({
       data-state={
         error ? "error" : loading ? "loading" : entries.length ? "ready" : "empty"
       }
-      bg="bg.2"
+      bg="bg.muted"
       borderRadius="6px"
       p="14px"
     >
@@ -94,7 +94,7 @@ export function CommitChangelog({
             py={0}
             fontSize="14px"
             lineHeight={1}
-            color="fg.2"
+            color="fg.muted"
             bg="transparent"
             border="none"
             cursor="pointer"
@@ -116,7 +116,7 @@ export function CommitChangelog({
       ) : loading ? (
         <Text
           fontSize="12px"
-          color="fg.2"
+          color="fg.muted"
           lineHeight={1.5}
           data-testid="commit-changelog-loading"
         >
@@ -125,7 +125,7 @@ export function CommitChangelog({
       ) : entries.length === 0 ? (
         <Text
           fontSize="12px"
-          color="fg.2"
+          color="fg.muted"
           lineHeight={1.5}
           data-testid="commit-changelog-empty"
         >
@@ -173,7 +173,7 @@ function ChangelogRow({ entry, onAccept }: ChangelogRowProps) {
       fontSize="12px"
       color="fg.1"
       lineHeight={1.5}
-      _hover={interactive ? { color: "fg", bg: "bg.3" } : undefined}
+      _hover={interactive ? { color: "fg", bg: "bg.emphasized" } : undefined}
     >
       <Text as="span" flexShrink={0} aria-hidden>
         •

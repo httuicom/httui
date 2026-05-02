@@ -49,7 +49,7 @@ export function VariablesPanel() {
         <Text
           fontSize="xs"
           fontWeight="semibold"
-          color="fg.3"
+          color="fg.subtle"
           textTransform="uppercase"
           letterSpacing="wider"
         >
@@ -67,13 +67,13 @@ export function VariablesPanel() {
 
       {!activeEnvironment ? (
         <Box px={3} py={4} textAlign="center">
-          <Text fontSize="sm" color="fg.3">
+          <Text fontSize="sm" color="fg.subtle">
             No active environment
           </Text>
         </Box>
       ) : variables.length === 0 ? (
         <Box px={3} py={4} textAlign="center">
-          <Text fontSize="sm" color="fg.3">
+          <Text fontSize="sm" color="fg.subtle">
             No variables
           </Text>
         </Box>
@@ -106,7 +106,7 @@ export function VariablesPanel() {
               <Text flex={1} truncate color="fg.1">
                 {v.key}
               </Text>
-              <Text color="fg.3" maxW="80px" truncate>
+              <Text color="fg.subtle" maxW="80px" truncate>
                 {v.is_secret ? SECRET_MASK : v.value}
               </Text>
             </Flex>

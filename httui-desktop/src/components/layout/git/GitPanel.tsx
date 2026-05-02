@@ -38,7 +38,7 @@ export function GitPanel({
   if (status === null) {
     return (
       <Box data-testid="git-panel" data-loading="true" px={3} py={4}>
-        <Text fontSize="11px" color="fg.3">
+        <Text fontSize="11px" color="fg.subtle">
           Loading git state…
         </Text>
       </Box>
@@ -61,7 +61,7 @@ export function GitPanel({
         minH={0}
         overflow="auto"
         borderBottomWidth="1px"
-        borderBottomColor="line"
+        borderBottomColor="border"
       >
         <SectionLabel>Working tree</SectionLabel>
         <GitFileList
@@ -96,12 +96,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
       fontFamily="mono"
       fontSize="10px"
       textTransform="uppercase"
-      color="fg.3"
+      color="fg.subtle"
       px={3}
       py={1}
-      bg="bg.1"
+      bg="bg.subtle"
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
     >
       {children}
     </Text>

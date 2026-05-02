@@ -35,7 +35,7 @@ export function NewConnectionTestBanner({
       <Box
         data-testid="new-connection-test-banner-running"
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         borderRadius="8px"
         bg="bg.subtle"
         px="12px"
@@ -48,7 +48,7 @@ export function NewConnectionTestBanner({
             h="6px"
             w="6px"
             borderRadius="full"
-            bg="fg.3"
+            bg="fg.subtle"
             aria-hidden
           />
           <Text fontWeight={500} color="fg">

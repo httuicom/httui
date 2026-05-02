@@ -45,10 +45,10 @@ export function NewEnvironmentForm({
       px={5}
       py={3}
       borderTopWidth="1px"
-      borderTopColor="line"
+      borderTopColor="border"
       borderBottomWidth="1px"
-      borderBottomColor="line"
-      bg="bg.2"
+      borderBottomColor="border"
+      bg="bg.muted"
     >
       <Flex direction="column" gap={2}>
         <Box>
@@ -84,7 +84,7 @@ export function NewEnvironmentForm({
         <Flex justify="space-between" align="center">
           <Text
             fontSize="11px"
-            color="fg.3"
+            color="fg.subtle"
             data-testid="new-environment-target-hint"
           >
             cria{" "}

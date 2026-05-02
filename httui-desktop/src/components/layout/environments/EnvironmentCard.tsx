@@ -25,8 +25,8 @@ export function EnvironmentCard({ env, onActivate }: EnvironmentCardProps) {
       data-temporary={env.isTemporary || undefined}
       onClick={interactive ? () => onActivate?.(env.filename) : undefined}
       borderWidth="1px"
-      borderColor={env.isActive ? "accent" : "line"}
-      bg="bg.2"
+      borderColor={env.isActive ? "accent" : "border"}
+      bg="bg.muted"
       borderRadius="6px"
       px={3}
       py={2.5}
@@ -34,7 +34,7 @@ export function EnvironmentCard({ env, onActivate }: EnvironmentCardProps) {
       cursor={interactive ? "pointer" : "default"}
       _hover={
         interactive
-          ? { bg: "bg.1", borderColor: env.isActive ? "accent" : "fg.3" }
+          ? { bg: "bg.subtle", borderColor: env.isActive ? "accent" : "fg.subtle" }
           : undefined
       }
     >
@@ -67,7 +67,7 @@ export function EnvironmentCard({ env, onActivate }: EnvironmentCardProps) {
         )}
       </Flex>
 
-      <Flex gap={3} fontFamily="mono" fontSize="11px" color="fg.2" mb={1.5}>
+      <Flex gap={3} fontFamily="mono" fontSize="11px" color="fg.muted" mb={1.5}>
         <Text data-testid={`environment-card-${env.filename}-vars`}>
           {env.varCount} {env.varCount === 1 ? "var" : "vars"}
         </Text>
@@ -96,7 +96,7 @@ export function EnvironmentCard({ env, onActivate }: EnvironmentCardProps) {
       {env.description && (
         <Text
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           mt={1.5}
           truncate
           title={env.description}
@@ -122,10 +122,10 @@ function Chip({
       data-testid={testId}
       fontFamily="mono"
       fontSize="9px"
-      color="fg.2"
+      color="fg.muted"
       bg="bg"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="4px"
       px={1.5}
       py={0.5}

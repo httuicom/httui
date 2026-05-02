@@ -33,14 +33,14 @@ interface BadgePalette {
 }
 
 const PALETTES: Record<DocHeaderStatusValue, BadgePalette> = {
-  draft: { bg: "bg.2", color: "fg.2", borderColor: "border.2" },
-  active: { bg: "bg.2", color: "accent", borderColor: "accent" },
-  archived: { bg: "bg.2", color: "fg.3", borderColor: "border.2" },
+  draft: { bg: "bg.muted", color: "fg.muted", borderColor: "border.2" },
+  active: { bg: "bg.muted", color: "accent", borderColor: "accent" },
+  archived: { bg: "bg.muted", color: "fg.subtle", borderColor: "border.2" },
 };
 
 const FALLBACK_PALETTE: BadgePalette = {
-  bg: "bg.2",
-  color: "fg.3",
+  bg: "bg.muted",
+  color: "fg.subtle",
   borderColor: "border.2",
 };
 
@@ -88,7 +88,7 @@ export function DocHeaderStatusBadge({
       color={palette.color}
       borderColor={palette.borderColor}
       cursor={interactive ? "pointer" : undefined}
-      _hover={interactive ? { bg: "bg.3" } : undefined}
+      _hover={interactive ? { bg: "bg.emphasized" } : undefined}
       onClick={handleClick}
       title={`status: ${normalized}`}
     >

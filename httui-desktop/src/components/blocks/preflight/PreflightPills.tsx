@@ -116,11 +116,11 @@ function Pill({
       px={2}
       py={1}
       borderRadius="999px"
-      bg="bg.2"
+      bg="bg.muted"
       borderWidth="1px"
       borderColor={pillBorder(kind)}
       cursor={isFailWithSuggestion ? "pointer" : undefined}
-      _hover={isFailWithSuggestion ? { bg: "bg.3" } : undefined}
+      _hover={isFailWithSuggestion ? { bg: "bg.emphasized" } : undefined}
     >
       <Flex align="center" gap={1}>
         <Text
@@ -136,7 +136,7 @@ function Pill({
           as="span"
           fontFamily="mono"
           fontSize="11px"
-          color="fg.2"
+          color="fg.muted"
         >
           {item.label}
         </Text>
@@ -154,7 +154,7 @@ function pillBorder(kind: PillKind): string {
     case "running":
       return "warn";
     default:
-      return "line";
+      return "border";
   }
 }
 
@@ -167,6 +167,6 @@ function pillColor(kind: PillKind): string {
     case "running":
       return "warn";
     default:
-      return "fg.3";
+      return "fg.subtle";
   }
 }

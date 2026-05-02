@@ -29,8 +29,8 @@ export function GitStatusHeader({ status }: GitStatusHeaderProps) {
       px={3}
       py={2}
       borderBottomWidth="1px"
-      borderBottomColor="line"
-      bg="bg.1"
+      borderBottomColor="border"
+      bg="bg.subtle"
     >
       <Text
         as="span"
@@ -48,7 +48,7 @@ export function GitStatusHeader({ status }: GitStatusHeaderProps) {
           as="span"
           fontFamily="mono"
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           flexShrink={0}
           data-testid="git-status-header-upstream"
         >
@@ -87,7 +87,7 @@ export function GitStatusHeader({ status }: GitStatusHeaderProps) {
           as="span"
           fontFamily="mono"
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           flexShrink={0}
           data-testid="git-status-header-clean"
         >

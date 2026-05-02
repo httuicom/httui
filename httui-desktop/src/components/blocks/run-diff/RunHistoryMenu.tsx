@@ -32,7 +32,7 @@ export function RunHistoryMenu({
       <Text
         data-testid="run-history-menu-empty"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={4}
         py={3}
       >
@@ -81,7 +81,7 @@ function Row({
       px={4}
       py={2}
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
     >
       <Text
         as="span"
@@ -97,7 +97,7 @@ function Row({
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color={ok ? "fg.2" : "error"}
+        color={ok ? "fg.muted" : "error"}
         flexShrink={0}
         w="40px"
       >
@@ -118,7 +118,7 @@ function Row({
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color="fg.3"
+        color="fg.subtle"
         flexShrink={0}
         title={entry.ran_at}
       >

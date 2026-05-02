@@ -19,14 +19,14 @@ export function GitAuditHeader({ onLearnMore }: GitAuditHeaderProps) {
       data-testid="git-audit-header"
       px={3}
       py={2}
-      bg="bg.2"
+      bg="bg.muted"
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
     >
       <Text
         fontFamily="mono"
         fontSize="10px"
-        color="fg.2"
+        color="fg.muted"
         textTransform="uppercase"
       >
         Audit log
@@ -36,7 +36,7 @@ export function GitAuditHeader({ onLearnMore }: GitAuditHeaderProps) {
         data-testid="git-audit-header-body"
         fontFamily="mono"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         mt={1}
         textAlign="left"
         onClick={onLearnMore}

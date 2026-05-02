@@ -28,13 +28,13 @@ export function OpenVaultCard({ onOpenClick, busy = false }: OpenVaultCardProps)
       textAlign="left"
       bg="bg"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="12px"
       p="22px"
       minH="260px"
       cursor={busy ? "not-allowed" : "pointer"}
       opacity={busy ? 0.6 : 1}
-      _hover={busy ? undefined : { borderColor: "fg.3" }}
+      _hover={busy ? undefined : { borderColor: "fg.subtle" }}
     >
       <Stack gap={3} h="full" align="stretch">
         <Box
@@ -63,7 +63,7 @@ export function OpenVaultCard({ onOpenClick, busy = false }: OpenVaultCardProps)
         </Text>
         <Text
           fontSize="12px"
-          color="fg.2"
+          color="fg.muted"
           lineHeight={1.4}
           data-testid="open-vault-body"
         >

@@ -34,7 +34,7 @@ export function RunDiffPanel({ diff, initialTab }: RunDiffPanelProps) {
       <Flex
         data-testid="run-diff-tabs"
         borderBottomWidth="1px"
-        borderBottomColor="line"
+        borderBottomColor="border"
         gap={0}
       >
         <TabBtn
@@ -92,13 +92,13 @@ function TabBtn({
       borderBottomColor={active ? "accent" : "transparent"}
       fontFamily="mono"
       fontSize="11px"
-      color={active ? "fg" : "fg.2"}
+      color={active ? "fg" : "fg.muted"}
       cursor="pointer"
       _hover={{ color: "fg" }}
     >
       {label}
       {typeof count === "number" && count > 0 && (
-        <Text as="span" ml={1} color="fg.3">
+        <Text as="span" ml={1} color="fg.subtle">
           ({count})
         </Text>
       )}
@@ -112,7 +112,7 @@ function BodyTab({ diff }: { diff: RunDiff }) {
       <Text
         data-testid="run-diff-body-truncated"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={4}
         py={3}
       >
@@ -130,7 +130,7 @@ function BodyTab({ diff }: { diff: RunDiff }) {
       <Text
         data-testid="run-diff-body-equal"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={4}
         py={3}
       >
@@ -157,7 +157,7 @@ function BodyRow({ entry }: { entry: JsonDiffEntry }) {
       px={4}
       py={1}
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
     >
       <Text
         as="span"
@@ -168,7 +168,7 @@ function BodyRow({ entry }: { entry: JsonDiffEntry }) {
             ? "accent"
             : entry.op === "remove"
               ? "error"
-              : "fg.2"
+              : "fg.muted"
         }
         flexShrink={0}
         w="20px"
@@ -216,7 +216,7 @@ function HeadersTab({ entries }: { entries: ReadonlyArray<HeaderDiffEntry> }) {
       <Text
         data-testid="run-diff-headers-empty"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         px={4}
         py={3}
       >
@@ -236,7 +236,7 @@ function HeadersTab({ entries }: { entries: ReadonlyArray<HeaderDiffEntry> }) {
           px={4}
           py={1}
           borderBottomWidth="1px"
-          borderBottomColor="line"
+          borderBottomColor="border"
           opacity={h.op === "equal" ? 0.6 : 1}
         >
           <Text
@@ -289,11 +289,11 @@ function StatusTab({ diff }: { diff: RunDiff }) {
       fontFamily="mono"
       fontSize="11px"
     >
-      <Text color="fg.3">A:</Text>
+      <Text color="fg.subtle">A:</Text>
       <Text color={diff.status.changed ? "error" : "fg"}>
         {diff.status.before ?? "—"}
       </Text>
-      <Text color="fg.3">B:</Text>
+      <Text color="fg.subtle">B:</Text>
       <Text color={diff.status.changed ? "accent" : "fg"}>
         {diff.status.after ?? "—"}
       </Text>
@@ -313,13 +313,13 @@ function TimingTab({ diff }: { diff: RunDiff }) {
       fontFamily="mono"
       fontSize="11px"
     >
-      <Text color="fg.3">A:</Text>
+      <Text color="fg.subtle">A:</Text>
       <Text>{diff.timing.before ?? "—"}ms</Text>
-      <Text color="fg.3">B:</Text>
+      <Text color="fg.subtle">B:</Text>
       <Text>{diff.timing.after ?? "—"}ms</Text>
       {delta !== undefined && (
         <Text
-          color={delta > 0 ? "error" : delta < 0 ? "accent" : "fg.2"}
+          color={delta > 0 ? "error" : delta < 0 ? "accent" : "fg.muted"}
           data-testid="run-diff-timing-delta"
         >
           {delta > 0 ? `+${delta}` : delta}ms

@@ -32,7 +32,7 @@ export function SegmentedEnvSwitcher() {
         display="inline-flex"
         alignItems="center"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
         fontFamily="mono"
       >
         no env
@@ -48,7 +48,7 @@ export function SegmentedEnvSwitcher() {
       gap={0}
       h="24px"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="4px"
       overflow="hidden"
       flexShrink={0}
@@ -76,12 +76,12 @@ export function SegmentedEnvSwitcher() {
             fontFamily="mono"
             fontSize="11px"
             fontWeight={active ? 600 : 500}
-            color={active ? "fg" : "fg.2"}
-            bg={active ? "bg.3" : "transparent"}
+            color={active ? "fg" : "fg.muted"}
+            bg={active ? "bg.emphasized" : "transparent"}
             borderLeftWidth={idx === 0 ? 0 : "1px"}
-            borderLeftColor="line"
+            borderLeftColor="border"
             cursor="pointer"
-            _hover={active ? undefined : { color: "fg", bg: "bg.2" }}
+            _hover={active ? undefined : { color: "fg", bg: "bg.muted" }}
           >
             {isProd && <Dot variant="err" />}
             {env.name}

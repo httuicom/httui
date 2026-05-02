@@ -85,12 +85,12 @@ export function ConnectionsListPanel({
             fontFamily="mono"
             fontSize="11px"
           >
-            <Text color="fg.2">{status.total}</Text>
-            <Text color="fg.3">·</Text>
+            <Text color="fg.muted">{status.total}</Text>
+            <Text color="fg.subtle">·</Text>
             <Text color="green.fg">{status.ok} ok</Text>
-            <Text color="fg.3">·</Text>
+            <Text color="fg.subtle">·</Text>
             <Text color="yellow.fg">{status.slow} slow</Text>
-            <Text color="fg.3">·</Text>
+            <Text color="fg.subtle">·</Text>
             <Text color="red.fg">{status.down} down</Text>
           </HStack>
         </Box>
@@ -125,10 +125,10 @@ export function ConnectionsListPanel({
         px={3}
         fontSize="12px"
         fontFamily="mono"
-        bg="bg.2"
+        bg="bg.muted"
         color="fg"
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         borderRadius="6px"
         outline="none"
         _focus={{ borderColor: "accent" }}
@@ -159,7 +159,7 @@ export function ConnectionsListPanel({
           justify="center"
           data-testid="connections-list-empty"
         >
-          <Text fontSize="13px" color="fg.3">
+          <Text fontSize="13px" color="fg.subtle">
             {emptyHint}
           </Text>
         </Flex>
@@ -168,7 +168,7 @@ export function ConnectionsListPanel({
       <Text
         data-testid="connections-list-footer"
         fontSize="10px"
-        color="fg.3"
+        color="fg.subtle"
         textAlign="center"
         mt={1}
       >

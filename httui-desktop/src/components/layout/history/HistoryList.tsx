@@ -27,7 +27,7 @@ export function HistoryList({ entries, onSelect }: HistoryListProps) {
         py={2}
         fontFamily="mono"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
       >
         No runs yet
       </Box>
@@ -53,7 +53,7 @@ export function HistoryList({ entries, onSelect }: HistoryListProps) {
             width="100%"
             textAlign="left"
             cursor={interactive ? "pointer" : undefined}
-            _hover={interactive ? { bg: "bg.2" } : undefined}
+            _hover={interactive ? { bg: "bg.muted" } : undefined}
             onClick={interactive ? () => onSelect(entry) : undefined}
           >
             <Box
@@ -67,7 +67,7 @@ export function HistoryList({ entries, onSelect }: HistoryListProps) {
             <Text
               fontFamily="mono"
               fontSize="10px"
-              color="fg.3"
+              color="fg.subtle"
               minWidth="36px"
             >
               {formatRelative(entry.ran_at)}
@@ -87,11 +87,11 @@ export function HistoryList({ entries, onSelect }: HistoryListProps) {
                 data-testid="history-row-plan"
                 fontFamily="mono"
                 fontSize="10px"
-                color="fg.3"
+                color="fg.subtle"
                 px="4px"
                 py="1px"
                 borderRadius="3px"
-                bg="bg.2"
+                bg="bg.muted"
                 flexShrink={0}
                 title="EXPLAIN plan captured for this run"
               >
@@ -113,7 +113,7 @@ export function HistoryList({ entries, onSelect }: HistoryListProps) {
               <Text
                 fontFamily="mono"
                 fontSize="10px"
-                color="fg.3"
+                color="fg.subtle"
                 minWidth="36px"
                 textAlign="right"
               >
@@ -192,6 +192,6 @@ function dotColor(tone: HistoryOutcomeTone): string {
     case "err":
       return "error";
     default:
-      return "fg.3";
+      return "fg.subtle";
   }
 }

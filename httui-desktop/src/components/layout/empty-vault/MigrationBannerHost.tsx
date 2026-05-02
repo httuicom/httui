@@ -59,11 +59,11 @@ export function MigrationBannerHost({ vaultPath }: MigrationBannerHostProps) {
           data-testid="migration-running"
           px={4}
           py={2}
-          bg="bg.2"
+          bg="bg.muted"
           borderBottomWidth="1px"
-          borderBottomColor="line"
+          borderBottomColor="border"
         >
-          <Text fontSize="12px" color="fg.2">
+          <Text fontSize="12px" color="fg.muted">
             Migrating vault…
           </Text>
         </Box>

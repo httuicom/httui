@@ -86,16 +86,16 @@ export function DocHeaderChecklist({
     <Box
       data-testid="docheader-checklist"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="6px"
-      bg="bg.1"
+      bg="bg.subtle"
       px={4}
       py={3}
     >
       <Text
         fontFamily="mono"
         fontSize="10px"
-        color="fg.3"
+        color="fg.subtle"
         textTransform="uppercase"
         letterSpacing="0.05em"
         mb={2}
@@ -247,7 +247,7 @@ function ChecklistRow({
           }}
           fontFamily="mono"
           fontSize="12px"
-          color={item.done ? "fg.3" : "fg"}
+          color={item.done ? "fg.subtle" : "fg"}
           bg="transparent"
           border="none"
           outline="none"
@@ -261,7 +261,7 @@ function ChecklistRow({
           data-testid="docheader-checklist-text"
           fontFamily="mono"
           fontSize="12px"
-          color={item.done ? "fg.3" : "fg"}
+          color={item.done ? "fg.subtle" : "fg"}
           textDecoration={item.done ? "line-through" : undefined}
           textAlign="left"
           flex={1}
@@ -285,7 +285,7 @@ function ChecklistRow({
           data-testid="docheader-checklist-remove"
           fontFamily="mono"
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
           onClick={onRemove}
           cursor="pointer"
           _hover={{ color: "error" }}

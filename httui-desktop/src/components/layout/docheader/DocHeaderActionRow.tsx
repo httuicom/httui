@@ -107,9 +107,9 @@ function OverflowMenu({
       position="absolute"
       top="calc(100% + 4px)"
       right={0}
-      bg="bg.1"
+      bg="bg.subtle"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="4px"
       minW="160px"
       py={1}
@@ -179,7 +179,7 @@ function MenuItem({
       fontSize="11px"
       color={tone === "error" ? "error" : "fg"}
       onClick={onClick}
-      _hover={{ bg: "bg.2" }}
+      _hover={{ bg: "bg.muted" }}
       cursor="pointer"
     >
       {children}

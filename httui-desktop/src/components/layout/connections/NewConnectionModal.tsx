@@ -159,7 +159,7 @@ export function NewConnectionModal({
           data-testid="new-connection-modal"
           bg="bg"
           borderWidth="1px"
-          borderColor="line"
+          borderColor="border"
           borderRadius="10px"
           shadow="2xl"
           w="880px"
@@ -243,7 +243,7 @@ function ModalHeader({
       px={5}
       py={4}
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
     >
       <Box aria-hidden fontSize="32px" lineHeight={1} flexShrink={0}>
         {icon}
@@ -258,17 +258,17 @@ function ModalHeader({
         >
           {label}
         </Text>
-        <Text fontSize="11px" color="fg.2" truncate>
+        <Text fontSize="11px" color="fg.muted" truncate>
           {sub}
         </Text>
       </Box>
       <Box
         data-testid="new-connection-paste-hint"
         fontSize="11px"
-        color="fg.2"
-        bg="bg.2"
+        color="fg.muted"
+        bg="bg.muted"
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         borderRadius="999px"
         px={3}
         py={1}
@@ -298,7 +298,7 @@ function ModalFooter({
     <Flex
       data-testid="new-connection-footer"
       borderTopWidth="1px"
-      borderTopColor="line"
+      borderTopColor="border"
       px={5}
       py={4}
       align="center"
@@ -338,7 +338,7 @@ function TabPlaceholder({ tab }: { tab: NewConnectionTabId }) {
     <Box
       data-testid={`new-connection-placeholder-${tab}`}
       fontSize="12px"
-      color="fg.3"
+      color="fg.subtle"
     >
       Conteúdo da aba “{label}” virá aqui.
     </Box>

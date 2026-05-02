@@ -59,7 +59,7 @@ export function NewConnectionStringTab({
       direction="column"
       gap={3}
     >
-      <Text fontSize="11px" color="fg.2">
+      <Text fontSize="11px" color="fg.muted">
         Cole uma URL do tipo <Mono>postgres://</Mono>, <Mono>postgresql://</Mono>{" "}
         ou <Mono>mysql://</Mono>. Os campos do formulário e os parâmetros{" "}
         <Mono>sslmode</Mono> /<Mono>sslrootcert</Mono> são preenchidos a
@@ -100,7 +100,7 @@ export function NewConnectionStringTab({
           data-testid="new-connection-string-error"
           fontSize="11px"
           color="err"
-          bg="bg.2"
+          bg="bg.muted"
           borderWidth="1px"
           borderColor="err"
           borderRadius="6px"

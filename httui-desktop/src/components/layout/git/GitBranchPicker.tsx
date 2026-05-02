@@ -53,9 +53,9 @@ export function GitBranchPicker({
       data-creating={creating || undefined}
       px={3}
       py={3}
-      bg="bg.1"
+      bg="bg.subtle"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="6px"
       minW="280px"
     >
@@ -118,7 +118,7 @@ export function GitBranchPicker({
             <Text
               data-testid="git-branch-picker-empty"
               fontSize="11px"
-              color="fg.3"
+              color="fg.subtle"
               py={2}
             >
               No branches match "{filter}".
@@ -156,7 +156,7 @@ function Section({
         fontFamily="mono"
         fontSize="10px"
         textTransform="uppercase"
-        color="fg.3"
+        color="fg.subtle"
         mb={1}
       >
         {label}
@@ -189,14 +189,14 @@ function Row({
       textAlign="left"
       cursor={interactive ? "pointer" : undefined}
       onClick={interactive ? () => onSelect(branch) : undefined}
-      _hover={interactive ? { bg: "bg.2" } : undefined}
+      _hover={interactive ? { bg: "bg.muted" } : undefined}
       borderRadius="4px"
     >
       <Text
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color={branch.current ? "accent" : "fg.3"}
+        color={branch.current ? "accent" : "fg.subtle"}
         flexShrink={0}
         w="14px"
         textAlign="center"
@@ -207,7 +207,7 @@ function Row({
         as="span"
         fontFamily="mono"
         fontSize="11px"
-        color={branch.current ? "fg" : "fg.2"}
+        color={branch.current ? "fg" : "fg.muted"}
         flex={1}
         truncate
       >
@@ -237,7 +237,7 @@ function CreateForm({
         fontFamily="mono"
         fontSize="10px"
         textTransform="uppercase"
-        color="fg.3"
+        color="fg.subtle"
         mb={1}
       >
         New branch

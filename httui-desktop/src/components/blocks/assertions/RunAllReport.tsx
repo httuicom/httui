@@ -26,9 +26,9 @@ export function RunAllReport({ summary, onJumpToBlock }: RunAllReportProps) {
         px={4}
         py={3}
         borderTopWidth="1px"
-        borderTopColor="line"
+        borderTopColor="border"
       >
-        <Text fontSize="11px" color="fg.3">
+        <Text fontSize="11px" color="fg.subtle">
           {blocks} {blocks === 1 ? "block" : "blocks"} ran. No assertions
           defined.
         </Text>
@@ -44,8 +44,8 @@ export function RunAllReport({ summary, onJumpToBlock }: RunAllReportProps) {
       px={4}
       py={3}
       borderTopWidth="1px"
-      borderTopColor="line"
-      bg={allPass ? "bg.2" : "bg.2"}
+      borderTopColor="border"
+      bg={allPass ? "bg.muted" : "bg.muted"}
     >
       <Flex align="center" gap={2} mb={failedBlocks.length > 0 ? 2 : 0}>
         <Text

@@ -34,7 +34,7 @@ export function NewConnectionKindPicker({
       w="220px"
       h="full"
       borderRightWidth="1px"
-      borderRightColor="line"
+      borderRightColor="border"
       bg="bg.subtle"
       overflowY="auto"
       p={4}
@@ -50,7 +50,7 @@ export function NewConnectionKindPicker({
           >
             Nova conexão
           </Text>
-          <Text fontSize="11px" color="fg.2" mt={0.5}>
+          <Text fontSize="11px" color="fg.muted" mt={0.5}>
             Escolha o tipo
           </Text>
         </Box>
@@ -73,14 +73,14 @@ export function NewConnectionKindPicker({
                 px={2}
                 py="6px"
                 borderRadius="6px"
-                bg={selected ? "bg.3" : "transparent"}
+                bg={selected ? "bg.emphasized" : "transparent"}
                 borderLeftWidth="2px"
                 borderLeftStyle="solid"
                 borderLeftColor={selected ? "accent" : "transparent"}
                 cursor="pointer"
                 textAlign="left"
                 border="none"
-                _hover={{ bg: selected ? "bg.3" : "bg.2" }}
+                _hover={{ bg: selected ? "bg.emphasized" : "bg.muted" }}
               >
                 <ConnectionKindIcon kind={kind} size={18} />
                 <Text

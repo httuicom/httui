@@ -43,7 +43,7 @@ export function OutlineList({
         py={2}
         fontFamily="mono"
         fontSize="11px"
-        color="fg.3"
+        color="fg.subtle"
       >
         No headings yet
       </Box>
@@ -73,17 +73,17 @@ export function OutlineList({
             pl={`${12 + indent}px`}
             width="100%"
             textAlign="left"
-            bg={active ? "bg.2" : "transparent"}
+            bg={active ? "bg.muted" : "transparent"}
             color={active ? "fg.0" : "fg.1"}
             cursor={interactive ? "pointer" : undefined}
-            _hover={interactive ? { bg: "bg.2" } : undefined}
+            _hover={interactive ? { bg: "bg.muted" } : undefined}
             onClick={interactive ? () => onSelect(entry) : undefined}
           >
             {numbered && (
               <Text
                 fontFamily="mono"
                 fontSize="10px"
-                color={active ? "accent" : "fg.3"}
+                color={active ? "accent" : "fg.subtle"}
                 minWidth="22px"
               >
                 {idx + 1}.

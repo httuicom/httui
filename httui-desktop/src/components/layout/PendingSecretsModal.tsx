@@ -86,7 +86,7 @@ function PendingSecretsModalContent() {
           data-testid="pending-secrets-modal"
           bg="bg"
           borderWidth="1px"
-          borderColor="line"
+          borderColor="border"
           borderRadius="12px"
           p="24px"
           w="min(560px, 90vw)"
@@ -97,7 +97,7 @@ function PendingSecretsModalContent() {
           <Heading as="h2" size="lg" mb={1}>
             Secrets pendentes
           </Heading>
-          <Text fontSize="13px" color="fg.2" mb={5}>
+          <Text fontSize="13px" color="fg.muted" mb={5}>
             Este vault referencia secrets que ainda não estão no seu
             keychain. Preencha cada um abaixo. Você pode pular agora e
             preencher depois — o app não conseguirá executar blocos
@@ -179,12 +179,12 @@ function PendingSecretRow({ refEntry, onSaved, onSkipped }: RowProps) {
     <Box
       data-testid={`pending-secret-row-${refEntry.keychain_key}`}
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="8px"
       p="12px"
     >
       <HStack gap={2} mb={2} align="baseline">
-        <Text fontSize="11px" color="fg.3" textTransform="uppercase">
+        <Text fontSize="11px" color="fg.subtle" textTransform="uppercase">
           {kindLabel}
         </Text>
         <Text
@@ -198,7 +198,7 @@ function PendingSecretRow({ refEntry, onSaved, onSkipped }: RowProps) {
         </Text>
         <Text
           fontSize="11px"
-          color="fg.3"
+          color="fg.subtle"
           ml="auto"
           data-testid="pending-secret-source"
         >

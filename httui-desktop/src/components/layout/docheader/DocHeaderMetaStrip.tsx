@@ -148,13 +148,13 @@ function Chip({
       px={2}
       py={1}
       borderRadius="3px"
-      bg="bg.2"
+      bg="bg.muted"
       color={palette.color}
       flexShrink={0}
       title={title}
       onClick={onClick}
       cursor={onClick ? "pointer" : undefined}
-      _hover={onClick ? { bg: "bg.3" } : undefined}
+      _hover={onClick ? { bg: "bg.emphasized" } : undefined}
     >
       {children}
     </Text>
@@ -170,7 +170,7 @@ function chipPalette(tone: ChipTone): { color: string } {
     case "fail":
       return { color: "error" };
     default:
-      return { color: "fg.2" };
+      return { color: "fg.muted" };
   }
 }
 
@@ -265,7 +265,7 @@ function AuthorChip({
       <Text
         fontFamily="mono"
         fontSize="11px"
-        color="fg.2"
+        color="fg.muted"
         _hover={onClick ? { color: "fg" } : undefined}
       >
         {display}

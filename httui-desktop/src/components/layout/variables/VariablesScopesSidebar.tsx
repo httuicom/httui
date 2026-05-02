@@ -33,8 +33,8 @@ export function VariablesScopesSidebar({
       w="200px"
       minW="200px"
       borderRightWidth="1px"
-      borderRightColor="line"
-      bg="bg.2"
+      borderRightColor="border"
+      bg="bg.muted"
       h="full"
     >
       <SectionLabel>SCOPES</SectionLabel>
@@ -55,7 +55,7 @@ export function VariablesScopesSidebar({
               px={2}
               py={1.5}
               borderRadius="6px"
-              bg={active ? "bg.3" : "transparent"}
+              bg={active ? "bg.emphasized" : "transparent"}
               cursor="pointer"
               fontSize="12px"
               borderLeftWidth={active ? "2px" : "0"}
@@ -67,7 +67,7 @@ export function VariablesScopesSidebar({
                   onSelectScope(scope);
                 }
               }}
-              _hover={{ bg: active ? "bg.3" : "bg.1" }}
+              _hover={{ bg: active ? "bg.emphasized" : "bg.subtle" }}
             >
               <Text
                 as="span"
@@ -85,7 +85,7 @@ export function VariablesScopesSidebar({
                 as="span"
                 fontFamily="mono"
                 fontSize="11px"
-                color="fg.2"
+                color="fg.muted"
                 data-testid={`variables-scope-${scope}-count`}
               >
                 {count}
@@ -108,7 +108,7 @@ export function VariablesScopesSidebar({
             py={1}
             borderRadius="4px"
             title={helper.hint}
-            _hover={{ bg: "bg.1" }}
+            _hover={{ bg: "bg.subtle" }}
           >
             {helper.syntax}
           </Box>
@@ -123,10 +123,10 @@ export function VariablesScopesSidebar({
         p={3}
         bg="bg"
         borderWidth="1px"
-        borderColor="line"
+        borderColor="border"
         borderRadius="6px"
         fontSize="10px"
-        color="fg.2"
+        color="fg.muted"
         lineHeight={1.4}
       >
         🔑{" "}
@@ -154,7 +154,7 @@ function SectionLabel({
       fontWeight="bold"
       letterSpacing="0.06em"
       textTransform="uppercase"
-      color="fg.3"
+      color="fg.subtle"
       px={3}
       py={2}
       {...rest}

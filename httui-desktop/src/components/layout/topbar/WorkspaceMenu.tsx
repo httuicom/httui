@@ -53,7 +53,7 @@ export function WorkspaceMenu({
           data-segment="workspace"
           aria-label={`Workspace ${workspace}`}
           bg="transparent"
-          color={isLeaf ? "fg" : "fg.2"}
+          color={isLeaf ? "fg" : "fg.muted"}
           fontWeight={500}
           fontSize="13px"
           cursor="pointer"
@@ -85,7 +85,7 @@ export function WorkspaceMenu({
             minW="240px"
             maxW="360px"
             borderWidth="1px"
-            borderColor="line"
+            borderColor="border"
             shadow="2xl"
           >
             {vaults.map((vault) => {
@@ -125,7 +125,7 @@ export function WorkspaceMenu({
                       </Box>
                       <Box
                         fontSize="10px"
-                        color="fg.3"
+                        color="fg.subtle"
                         overflow="hidden"
                         textOverflow="ellipsis"
                         whiteSpace="nowrap"

@@ -78,7 +78,7 @@ export function CreateVaultCard({
       data-expanded={expanded ? "true" : "false"}
       bg="bg"
       borderWidth="1px"
-      borderColor="line"
+      borderColor="border"
       borderRadius="12px"
       p="22px"
       minH="260px"
@@ -111,7 +111,7 @@ export function CreateVaultCard({
         </Text>
         <Text
           fontSize="12px"
-          color="fg.2"
+          color="fg.muted"
           lineHeight={1.4}
           data-testid="create-vault-body"
         >
@@ -147,19 +147,19 @@ export function CreateVaultCard({
                 px="10px"
                 borderRadius="4px"
                 fontSize="11px"
-                bg="bg.2"
+                bg="bg.muted"
                 borderWidth="1px"
-                borderColor="line"
-                color="fg.2"
+                borderColor="border"
+                color="fg.muted"
                 cursor={disabled ? "not-allowed" : "pointer"}
-                _hover={disabled ? undefined : { bg: "bg.3" }}
+                _hover={disabled ? undefined : { bg: "bg.emphasized" }}
               >
                 Choose…
               </chakra.button>
               <Text
                 flex={1}
                 fontSize="11px"
-                color="fg.3"
+                color="fg.subtle"
                 truncate
                 data-testid="create-vault-parent"
               >

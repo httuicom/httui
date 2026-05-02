@@ -83,7 +83,7 @@ export function ConnectionsDetailPanel({
       w="420px"
       h="full"
       borderLeftWidth="1px"
-      borderLeftColor="line"
+      borderLeftColor="border"
       bg="bg.subtle"
       overflowY="auto"
       p={5}
@@ -96,10 +96,10 @@ export function ConnectionsDetailPanel({
           gap={2}
           data-testid="connections-detail-empty"
         >
-          <Text fontSize="13px" color="fg.3">
+          <Text fontSize="13px" color="fg.subtle">
             Nothing selected
           </Text>
-          <Text fontSize="11px" color="fg.3" textAlign="center">
+          <Text fontSize="11px" color="fg.subtle" textAlign="center">
             Pick a connection on the left to see credentials,
             schema preview, and where it's used.
           </Text>
@@ -139,7 +139,7 @@ export function ConnectionsDetailPanel({
           <Text fontSize="13px" fontWeight={600}>
             {selectedConnectionName}
           </Text>
-          <Text fontSize="11px" color="fg.3">
+          <Text fontSize="11px" color="fg.subtle">
             Detail sections (credentials / schema / used in runbooks)
             land in the Story 02-04 slices.
           </Text>

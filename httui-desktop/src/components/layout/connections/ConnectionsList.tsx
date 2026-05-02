@@ -224,7 +224,7 @@ export function ConnectionsList() {
                         data-testid={`sidebar-connection-${conn.id}-latency`}
                         fontFamily="mono"
                         fontSize="2xs"
-                        color="fg.3"
+                        color="fg.subtle"
                       >
                         {ping.latencyMs}ms
                       </Text>

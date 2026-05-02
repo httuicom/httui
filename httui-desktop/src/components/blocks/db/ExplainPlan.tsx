@@ -37,7 +37,7 @@ export function ExplainPlan({
         px={3}
         py={3}
       >
-        <Text fontSize="11px" color="fg.3">
+        <Text fontSize="11px" color="fg.subtle">
           EXPLAIN unavailable for{" "}
           {driverLabel ? <strong>{driverLabel}</strong> : "this driver"}.
         </Text>
@@ -47,7 +47,7 @@ export function ExplainPlan({
   if (plan === null) {
     return (
       <Box data-testid="explain-plan" data-state="loading" px={3} py={3}>
-        <Text fontSize="11px" color="fg.3">
+        <Text fontSize="11px" color="fg.subtle">
           Loading plan…
         </Text>
       </Box>
@@ -87,10 +87,10 @@ function Node({
         gap={2}
         py={1}
         borderLeftWidth={depth > 0 ? "1px" : 0}
-        borderLeftColor="line"
+        borderLeftColor="border"
         pl={depth > 0 ? 2 : 0}
         cursor={hasChildren ? "pointer" : undefined}
-        _hover={hasChildren ? { bg: "bg.2" } : undefined}
+        _hover={hasChildren ? { bg: "bg.muted" } : undefined}
         onClick={hasChildren ? () => setOpen((v) => !v) : undefined}
       >
         {hasChildren && (
@@ -98,7 +98,7 @@ function Node({
             as="span"
             fontFamily="mono"
             fontSize="10px"
-            color="fg.3"
+            color="fg.subtle"
             flexShrink={0}
             w="12px"
             textAlign="center"
@@ -123,7 +123,7 @@ function Node({
             as="span"
             fontFamily="mono"
             fontSize="10px"
-            color="fg.2"
+            color="fg.muted"
             truncate
             flex={1}
             title={node.target}
@@ -136,7 +136,7 @@ function Node({
           as="span"
           fontFamily="mono"
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           flexShrink={0}
           data-testid="explain-plan-cost"
         >
@@ -146,7 +146,7 @@ function Node({
           as="span"
           fontFamily="mono"
           fontSize="10px"
-          color="fg.2"
+          color="fg.muted"
           flexShrink={0}
           minW="60px"
           textAlign="right"
@@ -194,7 +194,7 @@ function CostBar({ pct, warn }: { pct: number; warn: boolean }) {
       data-pct={clamped}
       data-warn={warn || undefined}
       h="6px"
-      bg="bg.2"
+      bg="bg.muted"
       borderRadius="3px"
       overflow="hidden"
     >

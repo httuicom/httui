@@ -32,9 +32,9 @@ export function Tabbar({
       h="32px"
       px="0"
       gap={0}
-      bg="bg.1"
+      bg="bg.subtle"
       borderBottomWidth="1px"
-      borderBottomColor="line"
+      borderBottomColor="border"
       flexShrink={0}
       {...rest}
     >
@@ -56,7 +56,7 @@ export function Tabbar({
             fontFamily="body"
             fontSize="13px"
             fontWeight={active ? 600 : 500}
-            color={active ? "fg" : "fg.2"}
+            color={active ? "fg" : "fg.muted"}
             bg="transparent"
             cursor="pointer"
             borderTopWidth="1px"

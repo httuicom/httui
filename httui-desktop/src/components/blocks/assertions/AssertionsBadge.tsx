@@ -30,8 +30,8 @@ export function AssertionsBadge({
   const someFail = result?.pass === false;
 
   const bg = someFail ? "error" : allPass ? "accent" : "bg";
-  const fg = someFail || allPass ? "accent.fg" : "fg.2";
-  const border = someFail || allPass ? "transparent" : "line";
+  const fg = someFail || allPass ? "accent.fg" : "fg.muted";
+  const border = someFail || allPass ? "transparent" : "border";
 
   const label = result === null ? `0/${total}` : `${passed}/${total}`;
 

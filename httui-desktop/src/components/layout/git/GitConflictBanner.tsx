@@ -46,7 +46,7 @@ export function GitConflictBanner({
       borderWidth="1px"
       borderColor="error"
       borderRadius="6px"
-      bg="bg.1"
+      bg="bg.subtle"
       p={3}
       mb={2}
     >
@@ -95,7 +95,7 @@ function ConflictRow({
       gap={2}
       px={2}
       py={1}
-      bg="bg.2"
+      bg="bg.muted"
       borderRadius="4px"
     >
       <Text

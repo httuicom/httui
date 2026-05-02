@@ -94,7 +94,7 @@ function SectionLabel({
       fontWeight="bold"
       letterSpacing="0.06em"
       textTransform="uppercase"
-      color="fg.3"
+      color="fg.subtle"
       px={4}
       py={2}
       {...rest}
@@ -109,7 +109,7 @@ function EmptyEnvsHint() {
     <Text
       data-testid="variable-detail-empty-envs"
       fontSize="11px"
-      color="fg.3"
+      color="fg.subtle"
       px={4}
       py={2}
     >
@@ -123,7 +123,7 @@ function UsesPlaceholder({ usesCount }: { usesCount: number }) {
     <Text
       data-testid="variable-detail-uses-placeholder"
       fontSize="11px"
-      color="fg.3"
+      color="fg.subtle"
       px={4}
       py={2}
     >

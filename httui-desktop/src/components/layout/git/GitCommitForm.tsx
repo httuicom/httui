@@ -49,8 +49,8 @@ export function GitCommitForm({
       px={3}
       py={2}
       borderTopWidth="1px"
-      borderTopColor="line"
-      bg="bg.1"
+      borderTopColor="border"
+      bg="bg.subtle"
     >
       <Textarea
         data-testid="git-commit-form-message"
@@ -62,7 +62,7 @@ export function GitCommitForm({
         fontSize="11px"
         resize="vertical"
         bg="bg"
-        borderColor="line"
+        borderColor="border"
       />
       {validation.errors.map((err, i) => (
         <Text
@@ -83,7 +83,7 @@ export function GitCommitForm({
           onCheckedChange={(d) => onAmendChange(!!d.checked)}
           disabled={busy}
         >
-          <Text fontSize="11px" color="fg.2">
+          <Text fontSize="11px" color="fg.muted">
             Amend last
           </Text>
         </Checkbox>
@@ -91,7 +91,7 @@ export function GitCommitForm({
         <Text
           data-testid="git-commit-form-summary"
           fontSize="10px"
-          color="fg.3"
+          color="fg.subtle"
           flexShrink={0}
         >
           {pluralizeFiles(stagedCount)} staged
