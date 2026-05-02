@@ -145,7 +145,7 @@ Only one survives:
 - `src/components/layout/ConflictBanner.tsx` — banner for externally modified files
 - `src/components/layout/TopBar.tsx` — vault selector, environment switcher
 - `src/components/chat/` — ChatPanel, ChatConversation, ChatInput, ChatMessageBubble, ChatSessionList, ChatMarkdown, ToolUseGroup, PermissionBanner, PermissionManager, UsagePanel
-- `src/components/editor/` — MarkdownEditor (CM6), DiffViewer (side-by-side merge), HttpWidgetPortals, DbWidgetPortals
+- `src/components/editor/` — MarkdownEditor (CM6 composition shell, ~206L), DiffViewer (side-by-side merge), HttpWidgetPortals, DbWidgetPortals. The CM6 extension stack lives in three sibling modules with 100% coverage: `markdown-vim-motions.ts` (vim compartment + doc-line `ArrowUp/Down` keymap + `moveByLines` motion override), `markdown-highlight-style.ts` (Chakra-driven `HighlightStyle` + `dbSqlLanguages` + `containerCss`), and `markdown-extensions.ts` (`buildExtensions(params)` + `flattenFiles` helper).
 - `src/components/blocks/` — ExecutableBlockShell, http/fenced/HttpFencedPanel, db/fenced/DbFencedPanel, db/ResultTable, standalone/StandaloneBlock
 
 ## Multi-pane system
@@ -157,7 +157,7 @@ Only one survives:
 ## Vim mode
 
 - Provided by `@replit/codemirror-vim` (CM6 official-ish vim mode). Toggle via StatusBar badge.
-- Wired in `MarkdownEditor.tsx` as a CM6 extension.
+- Wired in `MarkdownEditor.tsx` as a CM6 extension; the compartment, the doc-line `ArrowUp/Down` keymap and the `moveByLines` motion override live in `markdown-vim-motions.ts` and are imported by the shell.
 - The previous custom TipTap-based vim implementation under `src/components/editor/vim/` was removed.
 
 ## Search

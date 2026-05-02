@@ -21,6 +21,19 @@ launch checklist (Epic 38, Story 03).
 
 ### Added
 
+- **Workbench shell + design system** — top bar com logo, breadcrumb
+  (workspace › project › file), segmented env switcher, ⌘K search e
+  branch button substituem a topbar legada. Sidebar nova reúne Files,
+  Connections (status dot + latência ms + PROD chip) e Variables
+  (lock icon + valor mascarado para entries `is_secret`). Status bar
+  interativa expõe env menu, branch menu, contador `+N ~M -D` de
+  mudanças git, latência, cursor (Ln/Col), encoding e versão.
+  (V2 cenários 1-3)
+- **Inline DocHeader (Notion-mode)** — título serif, abstract, tags
+  (chips +/×) e checklist preflight (`[x] item`) editáveis dentro do
+  CodeMirror; frontmatter YAML invisível e gerado automaticamente.
+  Meta strip do header mostra autor (avatar Gravatar + nome),
+  contagem de blocos e last-run inline. (V2 cenário 4.5)
 - **Empty-state cards (Open / Clone / Create vault)** — primeiro
   contato com o app sem vault aberto. Three actionable cards
   replace the legacy "Em branco / Templates / Importar" surface,
@@ -107,6 +120,23 @@ launch checklist (Epic 38, Story 03).
 
 ### Changed
 
+- **Design system token vocabulary** — UI 100% alinhada ao
+  vocabulário Chakra v3. Tokens custom (`bg.1/2/3/hi`,
+  `fg.2/3`, `line`, `line.soft`, `accent.*`, `sel`) foram
+  retirados em favor dos defaults Chakra (`bg.subtle/muted/
+  emphasized/panel`, `fg.muted/subtle`, `border`, `brand.fg/
+  contrast/subtle`). Recipes internos (Menu, Popover, Tooltip,
+  Card, Badge) consomem os mesmos nomes — sem slot recipe
+  override por componente. (V2 cenário 5)
+- **File-tree contrast** — items inativos da árvore de arquivos
+  passaram de `fg.subtle` para `fg.muted` para garantir
+  legibilidade no tema dark Fuji. (V2 cenário 5)
+- **MarkdownEditor split** — o componente monolítico
+  (~573 linhas com `coverage:exclude`) foi quebrado em três
+  sub-módulos coesos (`markdown-vim-motions`,
+  `markdown-highlight-style`, `markdown-extensions`) com
+  100% de cobertura, deixando o shell React em ~206 linhas.
+  Comportamento user-visible inalterado. (V2 cenário 6)
 - **Editor stack** — TipTap rich-text editor and the legacy "E2E"
   block were removed; the editor is now CodeMirror 6 only. Block
   panels (HTTP, DB) mount via React portals into CM6 widget DOM.
@@ -133,6 +163,17 @@ launch checklist (Epic 38, Story 03).
 
 ### Removed
 
+- **Top bar "Run all" button** — dropado em V2; o roteiro
+  inteiro de um documento já é executável bloco-a-bloco e o
+  botão acumulava complexidade sem demanda real.
+- **EditorToolbar (28 px) acima do CM6** — a faixa duplicava
+  o DocHeader (título / branch / "edited just now") e o
+  slash command (`/`) já cobre todos os 7 tipos de bloco.
+  O componente fica em disco como atom reutilizável, mas
+  não é mais montado.
+- **Auto-numeração de headings (`# 1.`, `# 1.1`)** —
+  removida do editor após validação visual; cabeçalhos
+  voltam a ser markdown puro.
 - **TipTap-based editor** and its custom vim-mode adapter — replaced
   by CodeMirror 6 with `@replit/codemirror-vim`. (commits 7aa97e8,
   0aa2868, 9124ad4)
