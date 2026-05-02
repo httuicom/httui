@@ -24,25 +24,35 @@
 // _for_block_list_or_other_shapes` in the Rust tests + the matching
 // "returns [] on block-list shape" test below.
 
+import {
+  parsePreflightItem,
+  type PreflightItem,
+} from "./preflight-item";
+
 export interface FrontmatterShape {
   title?: string;
   abstract?: string;
   tags: string[];
+  /** V2 / cenário 4.5 / M6 — pre-flight checklist items. Stored as a
+   *  flow-list of `"[ ] text"` / `"[x] text"` strings to stay within
+   *  the slice-1 schema (no block-style nested mappings). */
+  preflight: PreflightItem[];
 }
 
 /** Parse the frontmatter region into the DocHeader shape (title +
- *  abstract + tags). Returns an object with `tags: []` and missing
- *  optionals when the document has no frontmatter / no closing fence
- *  / unknown keys. Each typed key follows the Rust slice-1 rule
- *  (flow-style only; block scalar values fall through as
- *  `undefined`). */
+ *  abstract + tags + preflight). Returns an object with `tags: []` /
+ *  `preflight: []` and missing optionals when the document has no
+ *  frontmatter / no closing fence / unknown keys. Each typed key
+ *  follows the Rust slice-1 rule (flow-style only; block scalar
+ *  values fall through as `undefined`). */
 export function extractFrontmatter(content: string): FrontmatterShape {
   const yaml = splitFrontmatterYaml(content);
-  if (yaml === null) return { tags: [] };
+  if (yaml === null) return { tags: [], preflight: [] };
 
   let title: string | undefined;
   let abstractText: string | undefined;
   let tags: string[] = [];
+  let preflight: PreflightItem[] = [];
   // Track which top-level keys we've already accepted so duplicate
   // lines (malformed input) take the first occurrence — matches the
   // first-wins shape of the Rust `parse_typed` loop.
@@ -73,10 +83,13 @@ export function extractFrontmatter(content: string): FrontmatterShape {
     } else if (key === "tags") {
       seen.add(key);
       tags = parseFlowList(valuePart);
+    } else if (key === "preflight") {
+      seen.add(key);
+      preflight = parseFlowList(valuePart).map(parsePreflightItem);
     }
   }
 
-  const out: FrontmatterShape = { tags };
+  const out: FrontmatterShape = { tags, preflight };
   if (title !== undefined) out.title = title;
   if (abstractText !== undefined) out.abstract = abstractText;
   return out;

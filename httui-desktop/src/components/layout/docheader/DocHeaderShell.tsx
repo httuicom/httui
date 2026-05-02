@@ -15,9 +15,12 @@ import {
   type PreflightPillItem,
 } from "@/components/blocks/preflight/PreflightPills";
 
+import type { PreflightItem } from "@/lib/blocks/preflight-item";
+
 import { DocHeaderAbstract } from "./DocHeaderAbstract";
 import { DocHeaderActionRow } from "./DocHeaderActionRow";
 import { DocHeaderCard } from "./DocHeaderCard";
+import { DocHeaderChecklist } from "./DocHeaderChecklist";
 import { DocHeaderMetaStrip } from "./DocHeaderMetaStrip";
 import { TagColumn } from "./TagColumn";
 import type { DocHeaderFrontmatter } from "./docheader-derive";
@@ -51,6 +54,9 @@ export interface DocHeaderShellProps {
    *  `tags:` line via `updateFrontmatterTags`. */
   onAddTag?: (tag: string) => void;
   onRemoveTag?: (tag: string) => void;
+  /** Pre-flight checklist save callback. Receives the full new list
+   *  on every edit (toggle / text change / add / remove). */
+  onChecklistSave?: (items: PreflightItem[]) => void;
 
   // ── Meta strip inputs ──────────────────────────────────────────
   author?: AuthorInfo | null;
@@ -92,6 +98,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     availableTags,
     onAddTag,
     onRemoveTag,
+    onChecklistSave,
     author,
     mtimeMs,
     dirty,
@@ -121,6 +128,10 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     (onAddTag !== undefined ||
       onRemoveTag !== undefined ||
       (frontmatter?.tags?.length ?? 0) > 0);
+  const showChecklist =
+    !compact &&
+    (onChecklistSave !== undefined ||
+      (frontmatter?.preflight?.length ?? 0) > 0);
 
   return (
     <Box data-testid="docheader-shell" data-compact={compact || undefined}>
@@ -179,6 +190,14 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
                 availableTags={availableTags}
                 onAddTag={onAddTag}
                 onRemoveTag={onRemoveTag}
+              />
+            </Box>
+          )}
+          {showChecklist && (
+            <Box data-testid="docheader-shell-checklist-slot">
+              <DocHeaderChecklist
+                items={frontmatter?.preflight ?? []}
+                onChecklistSave={onChecklistSave}
               />
             </Box>
           )}

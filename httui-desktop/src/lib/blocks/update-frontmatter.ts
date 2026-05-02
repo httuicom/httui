@@ -2,13 +2,19 @@
 // markdown document. Pure string-in / string-out: each function takes
 // the full document content and the new field value, and returns the
 // modified document. Mirrors the Rust slice-1 schema (single-line scalar
-// `title:` / `abstract:`, flow-style `tags: [a, b]`).
+// `title:` / `abstract:`, flow-style `tags: [a, b]`,
+// `preflight: ["[ ] foo", "[x] bar"]`).
 //
 // These helpers are deliberately conservative — they only modify the
 // minimum slice of the document needed and preserve everything else
 // (body, leading whitespace, other frontmatter keys, line-ending
 // style). The DocHeader's editable fields call into these on commit so
 // the source of truth stays the `.md` file, not React state.
+
+import {
+  stringifyPreflightItem,
+  type PreflightItem,
+} from "./preflight-item";
 
 interface SplitDoc {
   before: string;
@@ -269,6 +275,55 @@ export function updateFrontmatterTags(
   }
 
   const newLine = `tags: ${encodeFlowList(tags)}`;
+
+  if (range) {
+    const next =
+      split.fmBody.slice(0, range.from) +
+      newLine +
+      split.fmBody.slice(range.to);
+    return split.before + next + split.after;
+  }
+
+  const insertion =
+    split.fmBody.length === 0
+      ? `${newLine}\n`
+      : `${split.fmBody}${newLine}\n`;
+  return split.before + insertion + split.after;
+}
+
+/**
+ * Replace, insert, or remove the `preflight:` field. Uses the same
+ * empty-list semantics as `updateFrontmatterTags`: empty input drops
+ * the line when present, no-ops when absent. Items are serialised via
+ * `stringifyPreflightItem` (`[ ] foo` / `[x] bar`) and wrapped in a
+ * flow-list — staying within the slice-1 schema.
+ */
+export function updateFrontmatterPreflight(
+  content: string,
+  items: ReadonlyArray<PreflightItem>,
+): string {
+  const split = splitDoc(content);
+  const isEmpty = items.length === 0;
+
+  if (!split) {
+    if (isEmpty) return content;
+    const list = encodeFlowList(items.map(stringifyPreflightItem));
+    return `---\npreflight: ${list}\n---\n\n${content}`;
+  }
+
+  const range = findFieldLineRange(split.fmBody, "preflight");
+
+  if (isEmpty) {
+    if (!range) return content;
+    const lineEnd = range.to + 1;
+    const trimmedTo = Math.min(lineEnd, split.fmBody.length);
+    const next =
+      split.fmBody.slice(0, range.from) + split.fmBody.slice(trimmedTo);
+    return split.before + next + split.after;
+  }
+
+  const list = encodeFlowList(items.map(stringifyPreflightItem));
+  const newLine = `preflight: ${list}`;
 
   if (range) {
     const next =

@@ -21,8 +21,10 @@ import { useFileDocHeaderCompact } from "@/hooks/useFileDocHeaderCompact";
 import { useFileMtime } from "@/hooks/useFileMtime";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { extractFrontmatter } from "@/lib/blocks/extract-frontmatter-tags";
+import type { PreflightItem } from "@/lib/blocks/preflight-item";
 import {
   updateFrontmatterAbstract,
+  updateFrontmatterPreflight,
   updateFrontmatterTags,
   updateFrontmatterTitle,
 } from "@/lib/blocks/update-frontmatter";
@@ -98,7 +100,8 @@ export function DocHeaderedEditor({
     if (
       fm.title === undefined &&
       fm.abstract === undefined &&
-      fm.tags.length === 0
+      fm.tags.length === 0 &&
+      fm.preflight.length === 0
     ) {
       // No frontmatter at all → null lets the card fall back through
       // first-heading → filename. Distinct from "fenced but empty"
@@ -109,6 +112,7 @@ export function DocHeaderedEditor({
       title: fm.title,
       abstract: fm.abstract,
       tags: fm.tags,
+      preflight: fm.preflight,
     };
   }, [content]);
 
@@ -158,6 +162,12 @@ export function DocHeaderedEditor({
     onChangeRef.current(nextContent);
   }, []);
 
+  const onChecklistSave = useCallback((items: PreflightItem[]) => {
+    const nextContent = updateFrontmatterPreflight(contentRef.current, items);
+    if (nextContent === contentRef.current) return;
+    onChangeRef.current(nextContent);
+  }, []);
+
   const inlineHeader = useMemo<InlineDocHeader>(
     () => ({
       filePath,
@@ -173,6 +183,7 @@ export function DocHeaderedEditor({
       onAbstractSave,
       onAddTag,
       onRemoveTag,
+      onChecklistSave,
     }),
     [
       filePath,
@@ -186,6 +197,7 @@ export function DocHeaderedEditor({
       onAbstractSave,
       onAddTag,
       onRemoveTag,
+      onChecklistSave,
     ],
   );
 

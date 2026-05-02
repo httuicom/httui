@@ -6,10 +6,15 @@
 // what does the breadcrumb look like? does the abstract need
 // fade-out?
 
+import type { PreflightItem } from "@/lib/blocks/preflight-item";
+
 export interface DocHeaderFrontmatter {
   title?: string;
   abstract?: string;
   tags?: ReadonlyArray<string>;
+  /** V2 / cenário 4.5 / M6 — pre-flight checklist items. The DocHeader
+   *  Checklist subcomponent reads this to render its rows. */
+  preflight?: ReadonlyArray<PreflightItem>;
 }
 
 /**

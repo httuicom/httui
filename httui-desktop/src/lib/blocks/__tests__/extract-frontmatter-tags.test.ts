@@ -139,8 +139,11 @@ describe("extractFrontmatterTags", () => {
 
 describe("extractFrontmatter", () => {
   it("returns empty shape with tags:[] for content without frontmatter", () => {
-    expect(extractFrontmatter("# heading only\n")).toEqual({ tags: [] });
-    expect(extractFrontmatter("")).toEqual({ tags: [] });
+    expect(extractFrontmatter("# heading only\n")).toEqual({
+      tags: [],
+      preflight: [],
+    });
+    expect(extractFrontmatter("")).toEqual({ tags: [], preflight: [] });
   });
 
   it("extracts title + abstract + tags from a typical document", () => {
@@ -150,7 +153,17 @@ describe("extractFrontmatter", () => {
       title: "Payments — debug capture failures",
       abstract: "Capture flow when X",
       tags: ["payments", "debug"],
+      preflight: [],
     });
+  });
+
+  it("extracts a preflight checklist", () => {
+    const doc =
+      '---\ntitle: x\npreflight: ["[ ] Verify", "[x] Done"]\n---\nbody\n';
+    expect(extractFrontmatter(doc).preflight).toEqual([
+      { text: "Verify", done: false },
+      { text: "Done", done: true },
+    ]);
   });
 
   it("unquotes both quote styles for title", () => {
