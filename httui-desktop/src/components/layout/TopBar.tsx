@@ -108,6 +108,8 @@ export function TopBar({
       data-tauri-drag-region
       data-atom="topbar"
       h="36px"
+      minH="36px"
+      maxH="36px"
       pl="80px"
       pr={2}
       gap={3}
@@ -115,6 +117,7 @@ export function TopBar({
       borderBottomWidth="1px"
       borderColor="line"
       flexShrink={0}
+      overflow="hidden"
     >
       <IconButton
         aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}

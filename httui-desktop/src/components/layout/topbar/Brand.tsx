@@ -16,12 +16,19 @@ export function Brand() {
     colorMode === "dark" ? "/httui-dark-full.png" : "/httui-light-full.png";
 
   return (
-    <HStack data-atom="brand" gap={2}>
+    <HStack data-atom="brand" gap={2} flexShrink={0}>
       <img
         src={src}
         alt="httui"
+        width={66}
         height={20}
-        style={{ display: "block", height: "20px", width: "auto" }}
+        style={{
+          display: "block",
+          height: "20px",
+          width: "auto",
+          maxHeight: "20px",
+          flexShrink: 0,
+        }}
       />
       <Box
         aria-hidden

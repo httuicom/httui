@@ -48,7 +48,14 @@ export function BreadcrumbNav({
   }
 
   return (
-    <HStack data-atom="breadcrumb" gap={1} fontSize="13px" minW={0}>
+    <HStack
+      data-atom="breadcrumb"
+      gap={1}
+      fontSize="13px"
+      minW={0}
+      overflow="hidden"
+      flexShrink={1}
+    >
       <Segment
         type="button"
         data-segment="workspace"
@@ -59,6 +66,12 @@ export function BreadcrumbNav({
         cursor={onWorkspaceClick ? "pointer" : "default"}
         _hover={onWorkspaceClick ? { color: "fg" } : undefined}
         px={1}
+        maxWidth="160px"
+        overflow="hidden"
+        textOverflow="ellipsis"
+        whiteSpace="nowrap"
+        title={workspace}
+        flexShrink={0}
       >
         {workspace}
       </Segment>
