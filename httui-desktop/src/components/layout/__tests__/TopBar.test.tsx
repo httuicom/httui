@@ -89,17 +89,21 @@ describe("TopBar", () => {
       expect(screen.getByText("⌘K")).toBeInTheDocument();
     });
 
-    it("renders the branch button + Run-all button", () => {
+    it("renders the branch button (read-only label awaiting V10)", () => {
       renderWithWorkspace(<TopBar {...baseProps} />);
       expect(screen.getByLabelText("Switch branch")).toBeInTheDocument();
+    });
+
+    it("does not render a Run-all button (dropped 2026-05-01 / V2 cenário 1)", () => {
+      renderWithWorkspace(<TopBar {...baseProps} />);
       expect(
-        screen.getByLabelText("Run all blocks in document"),
-      ).toBeInTheDocument();
-      expect(screen.getByText("Run all")).toBeInTheDocument();
+        screen.queryByLabelText("Run all blocks in document"),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Run all")).not.toBeInTheDocument();
     });
   });
 
-  describe("toggle controls (right of run-all)", () => {
+  describe("toggle controls (right edge)", () => {
     it("toggle sidebar dispatches onToggleSidebar", async () => {
       const user = userEvent.setup();
       const onToggleSidebar = vi.fn();
@@ -155,7 +159,7 @@ describe("TopBar", () => {
     });
   });
 
-  describe("search + run-all + breadcrumb wiring", () => {
+  describe("search + branch + breadcrumb wiring", () => {
     it("clicking the search trigger dispatches the supplied onSearch", async () => {
       const user = userEvent.setup();
       const onSearch = vi.fn();
@@ -164,16 +168,6 @@ describe("TopBar", () => {
         screen.getByLabelText("Search blocks, vars, schema"),
       );
       expect(onSearch).toHaveBeenCalledTimes(1);
-    });
-
-    it("clicking Run-all dispatches the supplied onRunAll", async () => {
-      const user = userEvent.setup();
-      const onRunAll = vi.fn();
-      renderWithWorkspace(<TopBar {...baseProps} onRunAll={onRunAll} />);
-      await user.click(
-        screen.getByLabelText("Run all blocks in document"),
-      );
-      expect(onRunAll).toHaveBeenCalledTimes(1);
     });
 
     it("defaultSearchTrigger fires a synthetic Cmd+P when onSearch is not supplied", async () => {

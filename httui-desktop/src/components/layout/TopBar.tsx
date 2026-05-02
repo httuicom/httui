@@ -1,22 +1,21 @@
 // Workbench top bar — canvas §4 (36px tall).
 //
-// Canvas-spec layout:
+// Layout:
 //   [Sidebar toggle][Brand][Breadcrumb] ━━━ [SegmentedEnvSwitcher]
-//   [SearchPlaceholder ⌘K] [BranchButton] [▶ Run all] [Schema][Chat][Settings]
+//   [SearchPlaceholder ⌘K] [BranchButton] [Schema][Chat][Settings]
 //
 // The Sidebar/Chat/Schema/Settings toggles are functional necessities
-// and live to the right of the run-all button. Brand wordmark is
-// centered with the Tauri drag region in mind (`pl="80px"` reserves
-// space for macOS traffic-light buttons).
+// and live on the right edge. Brand wordmark is centered with the
+// Tauri drag region in mind (`pl="80px"` reserves space for macOS
+// traffic-light buttons).
 //
-// Search/Branch/Run-all stubs ship in this slice — wired (Search ⌘K
-// dispatches existing Cmd+P, Run-all is a no-op call awaiting Story
-// 04, Branch is read-only awaiting Epic 48).
+// Search ⌘K re-dispatches Cmd+P so the existing keyboard route picks
+// it up. Branch is read-only awaiting V10. The "Run all" button was
+// dropped per user decision on 2026-05-01 (V2 / cenário 1).
 
 import { Box, HStack, IconButton, chakra } from "@chakra-ui/react";
 import {
   LuMenu,
-  LuPlay,
   LuGitBranch,
   LuSearch,
   LuMessageSquare,
@@ -56,9 +55,6 @@ interface TopBarProps {
    * to dispatching a `Mod-p` keyboard event so existing handlers
    * pick it up. */
   onSearch?: () => void;
-  /** Optional override for tests; defaults to a no-op until Story
-   * 04 wires the Run-all walker. */
-  onRunAll?: () => void;
 }
 
 function defaultSearchTrigger() {
@@ -86,7 +82,6 @@ export function TopBar({
   historyPanelOpen,
   onToggleHistoryPanel,
   onSearch = defaultSearchTrigger,
-  onRunAll,
 }: TopBarProps) {
   const { vaultPath, switchVault, vaults } = useWorkspace();
   const openSettings = useSettingsStore((s) => s.openSettings);
@@ -177,22 +172,10 @@ export function TopBar({
         aria-label="Switch branch"
         h="24px"
         gap={2}
-        title="Branch switcher (Epic 48)"
+        title="Branch switcher (V10)"
       >
         <LuGitBranch size={12} />
         {branchLabel}
-      </Btn>
-
-      <Btn
-        variant="primary"
-        data-atom="run-all-btn"
-        aria-label="Run all blocks in document"
-        onClick={onRunAll}
-        h="24px"
-        gap={2}
-      >
-        <LuPlay size={12} />
-        Run all
       </Btn>
 
       <Box w="1px" h="16px" bg="line" mx={1} aria-hidden />
