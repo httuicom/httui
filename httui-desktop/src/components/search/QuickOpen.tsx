@@ -58,9 +58,9 @@ function QuickOpenInner({ onClose }: { onClose: () => void }) {
         transform="translateX(-50%)"
         w="500px"
         maxW="90vw"
-        bg="bg.panel"
+        bg="bg.1"
         borderWidth="1px"
-        borderColor="border"
+        borderColor="line"
         rounded="lg"
         shadow="2xl"
         zIndex={9999}
@@ -81,7 +81,7 @@ function QuickOpenInner({ onClose }: { onClose: () => void }) {
         <Box maxH="300px" overflowY="auto" pb={1}>
           {results.length === 0 && query && (
             <Flex px={3} py={4} justify="center">
-              <Text fontSize="sm" color="fg.muted">
+              <Text fontSize="sm" color="fg.3">
                 Nenhum resultado
               </Text>
             </Flex>
@@ -99,8 +99,8 @@ function QuickOpenInner({ onClose }: { onClose: () => void }) {
               mx={1}
               rounded="md"
               cursor="pointer"
-              bg={index === safeIndex ? "bg.emphasized" : "transparent"}
-              _hover={{ bg: "bg.emphasized" }}
+              bg={index === safeIndex ? "bg.3" : "transparent"}
+              _hover={{ bg: "bg.3" }}
               onClick={() => handleSelect(index)}
               onMouseEnter={() => setSelectedIndex(index)}
             >
@@ -109,7 +109,7 @@ function QuickOpenInner({ onClose }: { onClose: () => void }) {
                 <Text fontSize="sm" color="fg">
                   {result.name}
                 </Text>
-                <Text fontSize="xs" color="fg.muted">
+                <Text fontSize="xs" color="fg.3">
                   {result.path}
                 </Text>
               </Box>
