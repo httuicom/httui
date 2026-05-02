@@ -20,6 +20,8 @@ function DocHeaderStub({
   branch,
   onTitleSave,
   onAbstractSave,
+  onAddTag,
+  onRemoveTag,
 }: {
   filePath: string;
   compact?: boolean;
@@ -34,6 +36,8 @@ function DocHeaderStub({
   branch?: { branch: string | null } | null;
   onTitleSave?: (title: string) => void;
   onAbstractSave?: (abstract: string) => void;
+  onAddTag?: (tag: string) => void;
+  onRemoveTag?: (tag: string) => void;
 }) {
   return (
     <>
@@ -70,6 +74,22 @@ function DocHeaderStub({
           onClick={() => onAbstractSave("New summary")}
         >
           save abstract
+        </button>
+      )}
+      {onAddTag && (
+        <button
+          data-testid="docheader-stub-add-tag"
+          onClick={() => onAddTag("alpha")}
+        >
+          add tag
+        </button>
+      )}
+      {onRemoveTag && (
+        <button
+          data-testid="docheader-stub-remove-tag"
+          onClick={() => onRemoveTag("beta")}
+        >
+          remove tag
         </button>
       )}
     </>
@@ -393,6 +413,58 @@ describe("DocHeaderedEditor", () => {
     expect(onChange).toHaveBeenCalledWith(
       "---\ntitle: Renamed\n---\nbody\n",
     );
+  });
+
+  it("adds a tag and fires onChange with the rewritten frontmatter", () => {
+    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
+    const onChange = vi.fn();
+    renderWithProviders(
+      <DocHeaderedEditor
+        {...baseProps}
+        content={"---\ntitle: x\ntags: [beta]\n---\nbody\n"}
+        onChange={onChange}
+      />,
+    );
+
+    screen.getByTestId("docheader-stub-add-tag").click();
+
+    expect(onChange).toHaveBeenCalledWith(
+      "---\ntitle: x\ntags: [beta, alpha]\n---\nbody\n",
+    );
+  });
+
+  it("removes a tag and rewrites the line", () => {
+    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
+    const onChange = vi.fn();
+    renderWithProviders(
+      <DocHeaderedEditor
+        {...baseProps}
+        content={"---\ntitle: x\ntags: [alpha, beta]\n---\nbody\n"}
+        onChange={onChange}
+      />,
+    );
+
+    screen.getByTestId("docheader-stub-remove-tag").click();
+
+    expect(onChange).toHaveBeenCalledWith(
+      "---\ntitle: x\ntags: [alpha]\n---\nbody\n",
+    );
+  });
+
+  it("removes the last tag and drops the tags line", () => {
+    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
+    const onChange = vi.fn();
+    renderWithProviders(
+      <DocHeaderedEditor
+        {...baseProps}
+        content={"---\ntitle: x\ntags: [beta]\n---\nbody\n"}
+        onChange={onChange}
+      />,
+    );
+
+    screen.getByTestId("docheader-stub-remove-tag").click();
+
+    expect(onChange).toHaveBeenCalledWith("---\ntitle: x\n---\nbody\n");
   });
 
   it("rewrites the doc and fires onChange when the abstract is committed", () => {

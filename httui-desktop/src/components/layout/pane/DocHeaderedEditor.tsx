@@ -23,6 +23,7 @@ import { useGitStatus } from "@/hooks/useGitStatus";
 import { extractFrontmatter } from "@/lib/blocks/extract-frontmatter-tags";
 import {
   updateFrontmatterAbstract,
+  updateFrontmatterTags,
   updateFrontmatterTitle,
 } from "@/lib/blocks/update-frontmatter";
 import type { DocHeaderFrontmatter } from "../docheader/docheader-derive";
@@ -118,9 +119,12 @@ export function DocHeaderedEditor({
   // re-renders. Refs flatten that to one render per title commit.
   const contentRef = useRef(content);
   const onChangeRef = useRef(onChange);
+  // Tags need the latest frontmatter to compute add/remove deltas.
+  const frontmatterRef = useRef(frontmatter);
   useEffect(() => {
     contentRef.current = content;
     onChangeRef.current = onChange;
+    frontmatterRef.current = frontmatter;
   });
 
   const onTitleSave = useCallback((title: string) => {
@@ -133,6 +137,25 @@ export function DocHeaderedEditor({
     const next = updateFrontmatterAbstract(contentRef.current, abstract);
     if (next === contentRef.current) return;
     onChangeRef.current(next);
+  }, []);
+
+  const onAddTag = useCallback((tag: string) => {
+    const current = (frontmatterRef.current?.tags ?? []) as ReadonlyArray<string>;
+    const trimmed = tag.trim();
+    if (trimmed.length === 0 || current.includes(trimmed)) return;
+    const next = [...current, trimmed];
+    const nextContent = updateFrontmatterTags(contentRef.current, next);
+    if (nextContent === contentRef.current) return;
+    onChangeRef.current(nextContent);
+  }, []);
+
+  const onRemoveTag = useCallback((tag: string) => {
+    const current = (frontmatterRef.current?.tags ?? []) as ReadonlyArray<string>;
+    const next = current.filter((t) => t !== tag);
+    if (next.length === current.length) return;
+    const nextContent = updateFrontmatterTags(contentRef.current, next);
+    if (nextContent === contentRef.current) return;
+    onChangeRef.current(nextContent);
   }, []);
 
   const inlineHeader = useMemo<InlineDocHeader>(
@@ -148,6 +171,8 @@ export function DocHeaderedEditor({
       branch,
       onTitleSave,
       onAbstractSave,
+      onAddTag,
+      onRemoveTag,
     }),
     [
       filePath,
@@ -159,6 +184,8 @@ export function DocHeaderedEditor({
       branch,
       onTitleSave,
       onAbstractSave,
+      onAddTag,
+      onRemoveTag,
     ],
   );
 

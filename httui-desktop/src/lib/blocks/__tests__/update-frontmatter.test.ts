@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   updateFrontmatterAbstract,
+  updateFrontmatterTags,
   updateFrontmatterTitle,
 } from "@/lib/blocks/update-frontmatter";
 
@@ -143,6 +144,70 @@ describe("updateFrontmatterAbstract", () => {
   it("quotes special characters", () => {
     expect(updateFrontmatterAbstract("", "hello: world")).toContain(
       'abstract: "hello: world"',
+    );
+  });
+});
+
+describe("updateFrontmatterTags", () => {
+  it("returns content unchanged when removing tags from a doc that has none", () => {
+    const before = "---\ntitle: x\n---\nbody\n";
+    expect(updateFrontmatterTags(before, [])).toBe(before);
+  });
+
+  it("returns content unchanged when removing all tags from a doc with no frontmatter", () => {
+    const before = "# heading\nbody\n";
+    expect(updateFrontmatterTags(before, [])).toBe(before);
+  });
+
+  it("removes the tags line when the new list is empty", () => {
+    const before = "---\ntitle: x\ntags: [a, b]\n---\nbody\n";
+    expect(updateFrontmatterTags(before, [])).toBe(
+      "---\ntitle: x\n---\nbody\n",
+    );
+  });
+
+  it("prepends a fresh frontmatter when adding tags to a doc with none", () => {
+    expect(updateFrontmatterTags("body\n", ["alpha", "beta"])).toBe(
+      "---\ntags: [alpha, beta]\n---\n\nbody\n",
+    );
+  });
+
+  it("inserts at the end of an existing frontmatter when missing", () => {
+    const before = "---\ntitle: x\n---\nbody\n";
+    expect(updateFrontmatterTags(before, ["a", "b"])).toBe(
+      "---\ntitle: x\ntags: [a, b]\n---\nbody\n",
+    );
+  });
+
+  it("replaces an existing tags line in place", () => {
+    const before = "---\ntitle: x\ntags: [a, b]\n---\nbody\n";
+    expect(updateFrontmatterTags(before, ["c", "d"])).toBe(
+      "---\ntitle: x\ntags: [c, d]\n---\nbody\n",
+    );
+  });
+
+  it("dedupes (first wins) and trims entries", () => {
+    expect(
+      updateFrontmatterTags("body\n", ["  alpha", "alpha", "beta  "]),
+    ).toBe("---\ntags: [alpha, beta]\n---\n\nbody\n");
+  });
+
+  it("filters out empty / whitespace-only entries", () => {
+    expect(updateFrontmatterTags("body\n", ["alpha", "", "  ", "beta"])).toBe(
+      "---\ntags: [alpha, beta]\n---\n\nbody\n",
+    );
+  });
+
+  it("quotes entries that contain commas or brackets", () => {
+    const out = updateFrontmatterTags("body\n", ["a,b", "[c]", "ok"]);
+    expect(out).toContain('tags: ["a,b", "[c]", ok]');
+  });
+
+  it("preserves the body across edits", () => {
+    const body = "# Notes\n\nLine 1\n```ts\nconst x = 1;\n```\nLine 2\n";
+    const before = "---\ntags: [a]\n---\n" + body;
+    expect(updateFrontmatterTags(before, ["b"])).toBe(
+      "---\ntags: [b]\n---\n" + body,
     );
   });
 });

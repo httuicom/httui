@@ -19,6 +19,7 @@ import { DocHeaderAbstract } from "./DocHeaderAbstract";
 import { DocHeaderActionRow } from "./DocHeaderActionRow";
 import { DocHeaderCard } from "./DocHeaderCard";
 import { DocHeaderMetaStrip } from "./DocHeaderMetaStrip";
+import { TagColumn } from "./TagColumn";
 import type { DocHeaderFrontmatter } from "./docheader-derive";
 import type {
   AuthorInfo,
@@ -44,6 +45,12 @@ export interface DocHeaderShellProps {
   /** When provided, the abstract paragraph becomes an editable inline
    *  textarea. Newlines collapse to spaces on commit. */
   onAbstractSave?: (abstract: string) => void;
+  /** Vault-wide tag union, fed into the TagColumn autocomplete. */
+  availableTags?: ReadonlyArray<string>;
+  /** Add / remove a single tag — the consumer rebuilds the full
+   *  `tags:` line via `updateFrontmatterTags`. */
+  onAddTag?: (tag: string) => void;
+  onRemoveTag?: (tag: string) => void;
 
   // ── Meta strip inputs ──────────────────────────────────────────
   author?: AuthorInfo | null;
@@ -82,6 +89,9 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     onBreadcrumbSelect,
     onTitleSave,
     onAbstractSave,
+    availableTags,
+    onAddTag,
+    onRemoveTag,
     author,
     mtimeMs,
     dirty,
@@ -106,6 +116,11 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
   const showActionRow = !compact;
   const showAbstract = !compact;
   const showPreflight = !compact && (preflightItems?.length ?? 0) > 0;
+  const showTags =
+    !compact &&
+    (onAddTag !== undefined ||
+      onRemoveTag !== undefined ||
+      (frontmatter?.tags?.length ?? 0) > 0);
 
   return (
     <Box data-testid="docheader-shell" data-compact={compact || undefined}>
@@ -154,6 +169,16 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
               <DocHeaderAbstract
                 frontmatter={frontmatter ?? null}
                 onAbstractSave={onAbstractSave}
+              />
+            </Box>
+          )}
+          {showTags && (
+            <Box data-testid="docheader-shell-tags-slot" mt={2}>
+              <TagColumn
+                tags={frontmatter?.tags ?? []}
+                availableTags={availableTags}
+                onAddTag={onAddTag}
+                onRemoveTag={onRemoveTag}
               />
             </Box>
           )}

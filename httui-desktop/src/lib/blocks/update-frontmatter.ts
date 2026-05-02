@@ -201,3 +201,86 @@ export function updateFrontmatterAbstract(
     insertAt: "end",
   });
 }
+
+/**
+ * Encode a flow-style list value `tags: [a, b, "c d"]`. Trims each
+ * entry, drops empties, dedupes (first wins), quotes entries that
+ * contain commas / brackets / leading whitespace / quotes — anything
+ * that would re-parse incorrectly otherwise.
+ */
+function encodeFlowList(values: ReadonlyArray<string>): string {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values) {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) continue;
+    if (seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(encodeListItem(trimmed));
+  }
+  return `[${out.join(", ")}]`;
+}
+
+function encodeListItem(value: string): string {
+  // Items inside a flow-list are split on `,`. Anything that would
+  // confuse the parser (commas, square brackets, leading dash that
+  // could be read as a YAML scalar marker, surrounding quotes) gets
+  // a double-quoted form.
+  const needsQuoting =
+    /[,[\]"]/.test(value) ||
+    /^[-?!&*]/.test(value) ||
+    /^\s|\s$/.test(value) ||
+    /^["']/.test(value);
+  if (!needsQuoting) return value;
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * Replace, insert, or remove the `tags:` field. Empty list:
+ *   - When the field exists, the line is removed (the user has
+ *     cleared all tags via the chip × button).
+ *   - When the field is absent, the call is a no-op.
+ *
+ * Non-empty list: write a flow-style line (`tags: [a, b]`). Insertion
+ * happens at the end of `fmBody` so it sits below title + abstract.
+ */
+export function updateFrontmatterTags(
+  content: string,
+  tags: ReadonlyArray<string>,
+): string {
+  const split = splitDoc(content);
+  const isEmpty = tags.every((t) => t.trim().length === 0);
+
+  if (!split) {
+    if (isEmpty) return content;
+    return `---\ntags: ${encodeFlowList(tags)}\n---\n\n${content}`;
+  }
+
+  const range = findFieldLineRange(split.fmBody, "tags");
+
+  if (isEmpty) {
+    // Removing — drop the existing line (and the newline after it,
+    // if any) so we don't leave a blank line behind.
+    if (!range) return content;
+    const lineEnd = range.to + 1; // include the trailing \n
+    const trimmedTo = Math.min(lineEnd, split.fmBody.length);
+    const next = split.fmBody.slice(0, range.from) + split.fmBody.slice(trimmedTo);
+    return split.before + next + split.after;
+  }
+
+  const newLine = `tags: ${encodeFlowList(tags)}`;
+
+  if (range) {
+    const next =
+      split.fmBody.slice(0, range.from) +
+      newLine +
+      split.fmBody.slice(range.to);
+    return split.before + next + split.after;
+  }
+
+  const insertion =
+    split.fmBody.length === 0
+      ? `${newLine}\n`
+      : `${split.fmBody}${newLine}\n`;
+  return split.before + insertion + split.after;
+}
