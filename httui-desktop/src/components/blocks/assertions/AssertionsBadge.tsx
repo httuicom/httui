@@ -29,8 +29,8 @@ export function AssertionsBadge({
   const allPass = result?.pass === true;
   const someFail = result?.pass === false;
 
-  const bg = someFail ? "error" : allPass ? "accent" : "bg";
-  const fg = someFail || allPass ? "accent.fg" : "fg.muted";
+  const bg = someFail ? "error" : allPass ? "brand.fg" : "bg";
+  const fg = someFail || allPass ? "brand.contrast" : "fg.muted";
   const border = someFail || allPass ? "transparent" : "border";
 
   const label = result === null ? `0/${total}` : `${passed}/${total}`;

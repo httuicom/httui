@@ -64,7 +64,7 @@ export function CommitChangelog({
         <Text
           as="span"
           fontSize="14px"
-          color="accent"
+          color="brand.fg"
           flexShrink={0}
           aria-hidden
         >

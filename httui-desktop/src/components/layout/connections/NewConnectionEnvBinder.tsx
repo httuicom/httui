@@ -66,14 +66,14 @@ export function NewConnectionEnvBinder({
               borderRadius="999px"
               borderWidth="1px"
               borderStyle="solid"
-              borderColor={active ? "accent" : "border"}
-              bg={active ? "accent.soft" : "transparent"}
+              borderColor={active ? "brand.fg" : "border"}
+              bg={active ? "brand.subtle" : "transparent"}
               color={active ? "fg" : "fg.muted"}
               fontSize="11px"
               fontWeight={active ? 600 : 500}
               cursor="pointer"
               _hover={{
-                borderColor: active ? "accent" : "fg.subtle",
+                borderColor: active ? "brand.fg" : "fg.subtle",
                 color: "fg",
               }}
             >

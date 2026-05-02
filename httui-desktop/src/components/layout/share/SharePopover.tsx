@@ -70,7 +70,7 @@ export function SharePopover({
             mt={2}
             fontFamily="mono"
             fontSize="11px"
-            color="accent"
+            color="brand.fg"
             onClick={onOpenWorkspaceSettings}
             cursor="pointer"
           >

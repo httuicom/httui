@@ -83,6 +83,13 @@ const config = defineConfig({
         //   fg.subtle              ← THEME.fg3
         //   border                 ← THEME.line
         //   border.muted           ← THEME.lineSoft
+        //   brand.fg               ← THEME.accent     (era token "accent")
+        //   brand.contrast         ← THEME.accentFg   (era token "accent.fg")
+        //   brand.subtle           ← THEME.accentSoft (era token "accent.soft")
+        // Chakra v3 não inclui `brand` nos semantic tokens defaults.
+        // Definimos aqui com fallback Fuji; lib/theme/apply.ts
+        // sobrescreve via --chakra-colors-brand-* quando o user
+        // customiza accent palette.
         bg: {
           DEFAULT: { value: pair(THEME_DARK.bg, THEME_LIGHT.bg) },
           subtle: { value: pair(THEME_DARK.bg1, THEME_LIGHT.bg1) },
@@ -99,6 +106,25 @@ const config = defineConfig({
           DEFAULT: { value: pair(THEME_DARK.line, THEME_LIGHT.line) },
           muted: {
             value: pair(THEME_DARK.lineSoft, THEME_LIGHT.lineSoft),
+          },
+        },
+        brand: {
+          fg: { value: pair(THEME_DARK.accent, THEME_LIGHT.accent) },
+          contrast: {
+            value: pair(THEME_DARK.accentFg, THEME_LIGHT.accentFg),
+          },
+          subtle: {
+            value: pair(THEME_DARK.accentSoft, THEME_LIGHT.accentSoft),
+          },
+          muted: {
+            value: pair(THEME_DARK.accentSoft, THEME_LIGHT.accentSoft),
+          },
+          emphasized: {
+            value: pair(THEME_DARK.accent, THEME_LIGHT.accent),
+          },
+          solid: { value: pair(THEME_DARK.accent, THEME_LIGHT.accent) },
+          focusRing: {
+            value: pair(THEME_DARK.accent, THEME_LIGHT.accent),
           },
         },
       },

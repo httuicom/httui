@@ -25,7 +25,7 @@ export function EnvironmentCard({ env, onActivate }: EnvironmentCardProps) {
       data-temporary={env.isTemporary || undefined}
       onClick={interactive ? () => onActivate?.(env.filename) : undefined}
       borderWidth="1px"
-      borderColor={env.isActive ? "accent" : "border"}
+      borderColor={env.isActive ? "brand.fg" : "border"}
       bg="bg.muted"
       borderRadius="6px"
       px={3}
@@ -34,7 +34,7 @@ export function EnvironmentCard({ env, onActivate }: EnvironmentCardProps) {
       cursor={interactive ? "pointer" : "default"}
       _hover={
         interactive
-          ? { bg: "bg.subtle", borderColor: env.isActive ? "accent" : "fg.subtle" }
+          ? { bg: "bg.subtle", borderColor: env.isActive ? "brand.fg" : "fg.subtle" }
           : undefined
       }
     >
@@ -56,8 +56,8 @@ export function EnvironmentCard({ env, onActivate }: EnvironmentCardProps) {
             fontSize="9px"
             fontWeight="bold"
             letterSpacing="0.04em"
-            color="accent.fg"
-            bg="accent"
+            color="brand.contrast"
+            bg="brand.fg"
             borderRadius="999px"
             px={1.5}
             py={0.5}

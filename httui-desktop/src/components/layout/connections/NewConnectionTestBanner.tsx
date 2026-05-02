@@ -92,7 +92,7 @@ export function NewConnectionTestBanner({
               data-testid="new-connection-test-retry"
               onClick={onRetry}
               fontSize="11px"
-              color="accent"
+              color="brand.fg"
               bg="transparent"
               border="none"
               cursor="pointer"
@@ -138,7 +138,7 @@ export function NewConnectionTestBanner({
             data-testid="new-connection-test-retry"
             onClick={onRetry}
             fontSize="11px"
-            color="accent"
+            color="brand.fg"
             bg="transparent"
             border="none"
             cursor="pointer"

@@ -59,7 +59,7 @@ export function VariablesScopesSidebar({
               cursor="pointer"
               fontSize="12px"
               borderLeftWidth={active ? "2px" : "0"}
-              borderLeftColor="accent"
+              borderLeftColor="brand.fg"
               onClick={() => onSelectScope(scope)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -103,7 +103,7 @@ export function VariablesScopesSidebar({
             data-testid={`variables-helper-${helper.syntax}`}
             fontFamily="mono"
             fontSize="11px"
-            color="accent"
+            color="brand.fg"
             px={2}
             py={1}
             borderRadius="4px"

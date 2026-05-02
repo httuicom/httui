@@ -92,7 +92,7 @@ export function DocHeaderAbstract({
           data-testid="docheader-abstract-toggle"
           fontFamily="mono"
           fontSize="11px"
-          color="accent"
+          color="brand.fg"
           mt={1}
           onClick={() => setExpanded((v) => !v)}
           cursor="pointer"

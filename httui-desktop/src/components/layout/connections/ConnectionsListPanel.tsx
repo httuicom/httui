@@ -131,7 +131,7 @@ export function ConnectionsListPanel({
         borderColor="border"
         borderRadius="6px"
         outline="none"
-        _focus={{ borderColor: "accent" }}
+        _focus={{ borderColor: "brand.fg" }}
       />
 
       {rows && rows.length > 0 ? (

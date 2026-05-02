@@ -26,8 +26,8 @@ export function TemporaryChip({
       data-testid="temporary-chip"
       data-interactive={interactive || undefined}
       onClick={onClear}
-      bg="accent"
-      color="accent.fg"
+      bg="brand.fg"
+      color="brand.contrast"
       fontFamily="serif"
       fontStyle="italic"
       fontSize="9px"

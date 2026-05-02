@@ -127,7 +127,7 @@ export function CloneVaultCard({
             disabled={disabled}
             mt={1.5}
             fontSize="11px"
-            color="accent"
+            color="brand.fg"
             fontWeight={600}
             textAlign="left"
             bg="transparent"

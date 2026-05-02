@@ -92,14 +92,14 @@ export function ConnectionListRow({
       gap="10px"
       px={3}
       py="9px"
-      bg={selected ? "accent.soft" : "transparent"}
+      bg={selected ? "brand.subtle" : "transparent"}
       borderLeftWidth="2px"
-      borderLeftColor={selected ? "accent" : "transparent"}
+      borderLeftColor={selected ? "brand.fg" : "transparent"}
       borderRadius="4px"
       cursor="pointer"
       textAlign="left"
       border="none"
-      _hover={{ bg: selected ? "accent.soft" : "bg.muted" }}
+      _hover={{ bg: selected ? "brand.subtle" : "bg.muted" }}
     >
       {item.kind ? <ConnectionKindIcon kind={item.kind} size={22} /> : fallbackIcon()}
 

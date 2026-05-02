@@ -36,7 +36,7 @@ export function MigrationBanner({
       gap={3}
       px={4}
       py={3}
-      bg="accent.soft"
+      bg="brand.subtle"
       color="fg"
       borderBottomWidth="1px"
       borderBottomColor="border"
@@ -53,7 +53,7 @@ export function MigrationBanner({
             target="_blank"
             rel="noreferrer"
             data-testid="migration-banner-docs"
-            color="accent"
+            color="brand.fg"
             textDecoration="underline"
           >
             docs/MIGRATION.md

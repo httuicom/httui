@@ -237,7 +237,7 @@ function statusColor(status: string): string {
       return "warn";
     case "added":
     case "untracked":
-      return "accent";
+      return "brand.fg";
     case "deleted":
       return "error";
     case "conflicted":

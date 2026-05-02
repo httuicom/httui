@@ -153,7 +153,7 @@ export function StatusBar({
       {/* Right cluster — cursor + encoding + chained + version */}
       {chained && (
         <Box
-          color="accent"
+          color="brand.fg"
           data-testid="status-chained"
           title="Chained"
           display="inline-flex"

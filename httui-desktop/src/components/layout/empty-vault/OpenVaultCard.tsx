@@ -72,7 +72,7 @@ export function OpenVaultCard({ onOpenClick, busy = false }: OpenVaultCardProps)
         </Text>
         <Text
           fontSize="11px"
-          color="accent"
+          color="brand.fg"
           mt={1.5}
           fontWeight={600}
           data-testid="open-vault-cta"

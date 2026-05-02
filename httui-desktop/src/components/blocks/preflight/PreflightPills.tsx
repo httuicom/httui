@@ -148,7 +148,7 @@ function Pill({
 function pillBorder(kind: PillKind): string {
   switch (kind) {
     case "pass":
-      return "accent";
+      return "brand.fg";
     case "fail":
       return "error";
     case "running":
@@ -161,7 +161,7 @@ function pillBorder(kind: PillKind): string {
 function pillColor(kind: PillKind): string {
   switch (kind) {
     case "pass":
-      return "accent";
+      return "brand.fg";
     case "fail":
       return "error";
     case "running":

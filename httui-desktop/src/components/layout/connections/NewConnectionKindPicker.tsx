@@ -76,7 +76,7 @@ export function NewConnectionKindPicker({
                 bg={selected ? "bg.emphasized" : "transparent"}
                 borderLeftWidth="2px"
                 borderLeftStyle="solid"
-                borderLeftColor={selected ? "accent" : "transparent"}
+                borderLeftColor={selected ? "brand.fg" : "transparent"}
                 cursor="pointer"
                 textAlign="left"
                 border="none"

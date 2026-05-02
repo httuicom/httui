@@ -101,8 +101,8 @@ export function WorkspaceMenu({
                   px={2}
                   py={1.5}
                   borderRadius="3px"
-                  _highlighted={{ bg: "accent.soft", color: "fg" }}
-                  _hover={{ bg: "accent.soft", color: "fg" }}
+                  _highlighted={{ bg: "brand.subtle", color: "fg" }}
+                  _hover={{ bg: "brand.subtle", color: "fg" }}
                 >
                   <Box
                     display="inline-flex"
@@ -146,8 +146,8 @@ export function WorkspaceMenu({
               px={2}
               py={1.5}
               borderRadius="3px"
-              _highlighted={{ bg: "sel", color: "fg" }}
-              _hover={{ bg: "sel", color: "fg" }}
+              _highlighted={{ bg: "bg.muted", color: "fg" }}
+              _hover={{ bg: "bg.muted", color: "fg" }}
             >
               <Box display="inline-flex" alignItems="center" gap={2}>
                 <Box w="14px" display="inline-flex" justifyContent="center">

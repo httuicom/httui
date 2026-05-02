@@ -87,7 +87,7 @@ function Row({
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color={ok ? "accent" : "error"}
+        color={ok ? "brand.fg" : "error"}
         flexShrink={0}
         w="40px"
       >

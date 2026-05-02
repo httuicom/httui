@@ -130,15 +130,15 @@ export function EditorToolbar({
         display="inline-flex"
         alignItems="center"
         borderRadius="3px"
-        bg={autoCapture ? "accent.soft" : "transparent"}
-        color={autoCapture ? "accent" : "fg.subtle"}
+        bg={autoCapture ? "brand.subtle" : "transparent"}
+        color={autoCapture ? "brand.fg" : "fg.subtle"}
         fontFamily="mono"
         fontSize="10px"
         fontWeight={500}
         cursor="pointer"
         _hover={
           autoCapture
-            ? { bg: "accent.soft", opacity: 0.85 }
+            ? { bg: "brand.subtle", opacity: 0.85 }
             : { bg: "bg.muted", color: "fg.muted" }
         }
       >

@@ -89,7 +89,7 @@ function TabBtn({
       bg="transparent"
       borderWidth={0}
       borderBottomWidth="2px"
-      borderBottomColor={active ? "accent" : "transparent"}
+      borderBottomColor={active ? "brand.fg" : "transparent"}
       fontFamily="mono"
       fontSize="11px"
       color={active ? "fg" : "fg.muted"}
@@ -165,7 +165,7 @@ function BodyRow({ entry }: { entry: JsonDiffEntry }) {
         fontSize="10px"
         color={
           entry.op === "add"
-            ? "accent"
+            ? "brand.fg"
             : entry.op === "remove"
               ? "error"
               : "fg.muted"
@@ -199,7 +199,7 @@ function BodyRow({ entry }: { entry: JsonDiffEntry }) {
         {entry.after !== undefined && (
           <Text
             as="span"
-            color="accent"
+            color="brand.fg"
             data-testid={`run-diff-body-row-${entry.path}-after`}
           >
             {fmt(entry.after)}
@@ -264,7 +264,7 @@ function HeadersTab({ entries }: { entries: ReadonlyArray<HeaderDiffEntry> }) {
             as="span"
             fontFamily="mono"
             fontSize="10px"
-            color="accent"
+            color="brand.fg"
             flex={1}
             truncate
             data-testid={`run-diff-headers-row-${h.key}-after`}
@@ -294,7 +294,7 @@ function StatusTab({ diff }: { diff: RunDiff }) {
         {diff.status.before ?? "—"}
       </Text>
       <Text color="fg.subtle">B:</Text>
-      <Text color={diff.status.changed ? "accent" : "fg"}>
+      <Text color={diff.status.changed ? "brand.fg" : "fg"}>
         {diff.status.after ?? "—"}
       </Text>
     </Flex>
@@ -319,7 +319,7 @@ function TimingTab({ diff }: { diff: RunDiff }) {
       <Text>{diff.timing.after ?? "—"}ms</Text>
       {delta !== undefined && (
         <Text
-          color={delta > 0 ? "error" : delta < 0 ? "accent" : "fg.muted"}
+          color={delta > 0 ? "error" : delta < 0 ? "brand.fg" : "fg.muted"}
           data-testid="run-diff-timing-delta"
         >
           {delta > 0 ? `+${delta}` : delta}ms

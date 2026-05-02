@@ -102,7 +102,7 @@ export function GitSyncButtons({
                   data-testid="git-sync-configure-remote"
                   fontFamily="mono"
                   fontSize="10px"
-                  color="accent"
+                  color="brand.fg"
                   onClick={onConfigureRemote}
                   cursor="pointer"
                 >

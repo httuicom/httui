@@ -289,7 +289,7 @@ export function ConnectionDetailCredentials({
               borderColor="border"
               borderRadius="6px"
               outline="none"
-              _focus={{ borderColor: "accent" }}
+              _focus={{ borderColor: "brand.fg" }}
             />
             <HStack gap={1}>
               <Btn
@@ -391,7 +391,7 @@ function EditField({
         borderColor="border"
         borderRadius="6px"
         outline="none"
-        _focus={{ borderColor: "accent" }}
+        _focus={{ borderColor: "brand.fg" }}
       />
     </Flex>
   );

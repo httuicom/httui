@@ -77,7 +77,7 @@ export function AssertionsTab({ assertions, result }: AssertionsTabProps) {
             <Text
               as="span"
               fontSize="14px"
-              color={passed ? "accent" : "error"}
+              color={passed ? "brand.fg" : "error"}
               flexShrink={0}
               data-testid={`assertions-tab-row-${a.line}-icon`}
             >

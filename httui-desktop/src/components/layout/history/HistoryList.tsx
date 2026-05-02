@@ -186,7 +186,7 @@ export function formatElapsed(ms: number): string {
 function dotColor(tone: HistoryOutcomeTone): string {
   switch (tone) {
     case "ok":
-      return "accent";
+      return "brand.fg";
     case "warn":
       return "warn";
     case "err":

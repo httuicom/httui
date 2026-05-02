@@ -31,7 +31,7 @@ export const Input = forwardRef<HTMLInputElement, InputAtomProps>(
         color="fg"
         _placeholder={{ color: "fg.subtle" }}
         _focusVisible={{
-          borderColor: "accent",
+          borderColor: "brand.fg",
           boxShadow: "0 0 0 1px var(--chakra-colors-accent)",
           outline: "none",
         }}

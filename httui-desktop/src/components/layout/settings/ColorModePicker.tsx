@@ -61,8 +61,8 @@ export function ColorModePicker() {
               alignItems="center"
               fontSize="sm"
               fontWeight={active ? 600 : 500}
-              color={active ? "accent.fg" : "fg.muted"}
-              bg={active ? "accent" : "transparent"}
+              color={active ? "brand.contrast" : "fg.muted"}
+              bg={active ? "brand.fg" : "transparent"}
               borderLeftWidth={idx === 0 ? 0 : "1px"}
               borderLeftColor="border"
               cursor="pointer"

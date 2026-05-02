@@ -21,14 +21,14 @@ export const Btn = forwardRef<HTMLButtonElement, BtnProps>(function Btn(
   const palette =
     variant === "primary"
       ? {
-          bg: "accent",
-          color: "accent.fg",
+          bg: "brand.fg",
+          color: "brand.contrast",
           _hover: {
-            bg: "accent",
+            bg: "brand.fg",
             opacity: 0.9,
           },
           _active: {
-            bg: "accent",
+            bg: "brand.fg",
             opacity: 0.8,
           },
           fontWeight: 600,

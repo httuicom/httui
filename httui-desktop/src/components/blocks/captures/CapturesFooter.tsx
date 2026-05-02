@@ -58,7 +58,7 @@ export function CapturesFooter({
         cursor="pointer"
         _hover={{ bg: "bg.subtle" }}
       >
-        <Text as="span" fontSize="13px" color="accent" flexShrink={0}>
+        <Text as="span" fontSize="13px" color="brand.fg" flexShrink={0}>
           ↗
         </Text>
         <Text

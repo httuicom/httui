@@ -34,7 +34,7 @@ interface BadgePalette {
 
 const PALETTES: Record<DocHeaderStatusValue, BadgePalette> = {
   draft: { bg: "bg.muted", color: "fg.muted", borderColor: "border.2" },
-  active: { bg: "bg.muted", color: "accent", borderColor: "accent" },
+  active: { bg: "bg.muted", color: "brand.fg", borderColor: "brand.fg" },
   archived: { bg: "bg.muted", color: "fg.subtle", borderColor: "border.2" },
 };
 

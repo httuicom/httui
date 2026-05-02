@@ -61,7 +61,7 @@ export function Tabbar({
             cursor="pointer"
             borderTopWidth="1px"
             borderTopStyle="solid"
-            borderTopColor={active ? "accent" : "transparent"}
+            borderTopColor={active ? "brand.fg" : "transparent"}
             _hover={{ color: "fg" }}
           >
             {t.label}

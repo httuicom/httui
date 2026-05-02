@@ -58,7 +58,7 @@ export function GitStatusHeader({ status }: GitStatusHeaderProps) {
       {summary.ahead > 0 && (
         <Chip
           testId="git-status-header-ahead"
-          tone="accent"
+          tone="brand.fg"
           label={`↑ ${summary.ahead}`}
         />
       )}
@@ -104,7 +104,7 @@ function Chip({
   label,
 }: {
   testId: string;
-  tone: "accent" | "warn";
+  tone: "brand.fg" | "warn";
   label: string;
 }) {
   return (
@@ -114,7 +114,7 @@ function Chip({
       data-tone={tone}
       fontFamily="mono"
       fontSize="10px"
-      color={tone === "accent" ? "accent" : "warn"}
+      color={tone === "brand.fg" ? "brand.fg" : "warn"}
       flexShrink={0}
     >
       {label}

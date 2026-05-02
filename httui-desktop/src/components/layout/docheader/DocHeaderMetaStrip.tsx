@@ -164,7 +164,7 @@ function Chip({
 function chipPalette(tone: ChipTone): { color: string } {
   switch (tone) {
     case "ok":
-      return { color: "accent" };
+      return { color: "brand.fg" };
     case "warn":
       return { color: "warn" };
     case "fail":

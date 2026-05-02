@@ -201,7 +201,7 @@ function CostBar({ pct, warn }: { pct: number; warn: boolean }) {
       <Box
         h="100%"
         w={`${clamped}%`}
-        bg={warn ? "error" : "accent"}
+        bg={warn ? "error" : "brand.fg"}
       />
     </Box>
   );

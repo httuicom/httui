@@ -83,7 +83,7 @@ export function OutlineList({
               <Text
                 fontFamily="mono"
                 fontSize="10px"
-                color={active ? "accent" : "fg.subtle"}
+                color={active ? "brand.fg" : "fg.subtle"}
                 minWidth="22px"
               >
                 {idx + 1}.

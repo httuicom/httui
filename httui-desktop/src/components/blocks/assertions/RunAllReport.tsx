@@ -51,7 +51,7 @@ export function RunAllReport({ summary, onJumpToBlock }: RunAllReportProps) {
         <Text
           as="span"
           fontSize="14px"
-          color={allPass ? "accent" : "error"}
+          color={allPass ? "brand.fg" : "error"}
           flexShrink={0}
         >
           {allPass ? "✓" : "✗"}

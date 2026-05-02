@@ -127,7 +127,7 @@ export function classifyDiffLine(line: string): string {
 function roleColor(role: string): string {
   switch (role) {
     case "add":
-      return "accent";
+      return "brand.fg";
     case "remove":
       return "error";
     case "hunk":

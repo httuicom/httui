@@ -189,7 +189,7 @@ export function TopBar({
           variant="ghost"
           size="xs"
           onClick={onToggleOutlinePanel}
-          color={outlinePanelOpen ? "accent" : undefined}
+          color={outlinePanelOpen ? "brand.fg" : undefined}
         >
           <LuListTree />
         </IconButton>
@@ -202,7 +202,7 @@ export function TopBar({
           variant="ghost"
           size="xs"
           onClick={onToggleHistoryPanel}
-          color={historyPanelOpen ? "accent" : undefined}
+          color={historyPanelOpen ? "brand.fg" : undefined}
         >
           <LuClock />
         </IconButton>
@@ -212,7 +212,7 @@ export function TopBar({
         variant="ghost"
         size="xs"
         onClick={onToggleSchemaPanel}
-        color={schemaPanelOpen ? "accent" : undefined}
+        color={schemaPanelOpen ? "brand.fg" : undefined}
       >
         <LuDatabase />
       </IconButton>
@@ -221,7 +221,7 @@ export function TopBar({
         variant="ghost"
         size="xs"
         onClick={onToggleChat}
-        color={chatOpen ? "accent" : undefined}
+        color={chatOpen ? "brand.fg" : undefined}
       >
         <LuMessageSquare />
       </IconButton>

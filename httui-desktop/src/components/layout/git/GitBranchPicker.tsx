@@ -196,7 +196,7 @@ function Row({
         as="span"
         fontFamily="mono"
         fontSize="10px"
-        color={branch.current ? "accent" : "fg.subtle"}
+        color={branch.current ? "brand.fg" : "fg.subtle"}
         flexShrink={0}
         w="14px"
         textAlign="center"
