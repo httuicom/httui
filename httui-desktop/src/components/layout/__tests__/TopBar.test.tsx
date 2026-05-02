@@ -86,9 +86,9 @@ describe("TopBar", () => {
       expect(screen.getByText("⌘K")).toBeInTheDocument();
     });
 
-    it("renders the branch button (read-only label awaiting V10)", () => {
+    it("does not render a branch button in the topbar (moved to StatusBar in V2)", () => {
       renderWithWorkspace(<TopBar {...baseProps} />);
-      expect(screen.getByLabelText("Switch branch")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Switch branch")).toBeNull();
     });
 
     it("does not render a Run-all button (dropped 2026-05-01 / V2 cenário 1)", () => {
@@ -156,7 +156,7 @@ describe("TopBar", () => {
     });
   });
 
-  describe("search + branch + breadcrumb wiring", () => {
+  describe("search + breadcrumb wiring", () => {
     it("clicking the search trigger dispatches the supplied onSearch", async () => {
       const user = userEvent.setup();
       const onSearch = vi.fn();
@@ -183,34 +183,6 @@ describe("TopBar", () => {
       const ev = calls[0][0] as KeyboardEvent;
       expect(ev.metaKey).toBe(true);
       dispatch.mockRestore();
-    });
-
-    it("branch label reflects gitStatus.branch when a vault is open", async () => {
-      const { mockTauriCommand } = await import("@/test/mocks/tauri");
-      mockTauriCommand("git_status_cmd", () => ({
-        branch: "feat/login",
-        upstream: null,
-        ahead: 0,
-        behind: 0,
-        changed: [],
-        clean: true,
-      }));
-
-      const { findByLabelText } = renderWithWorkspace(
-        <TopBar {...baseProps} />,
-        { vaultPath: "/v" },
-      );
-      const btn = await findByLabelText("Switch branch");
-      // useGitStatus polls async; allow a microtask flush.
-      await new Promise((r) => setTimeout(r, 0));
-      expect(btn.textContent).toContain("feat/login");
-    });
-
-    it("branch label falls back to 'main' when no gitStatus has resolved yet", () => {
-      renderWithWorkspace(<TopBar {...baseProps} />, { vaultPath: null });
-      expect(
-        screen.getByLabelText("Switch branch").textContent,
-      ).toContain("main");
     });
 
     it("workspace segment opens a vault picker dropdown (not a cycle)", async () => {

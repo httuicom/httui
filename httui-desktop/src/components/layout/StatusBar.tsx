@@ -20,6 +20,7 @@ import { Box, Text, chakra } from "@chakra-ui/react";
 import { LuLink, LuTriangleAlert } from "react-icons/lu";
 
 import { Dot, StatusBarShell } from "@/components/atoms";
+import { BranchMenu } from "@/components/layout/BranchMenu";
 import { EnvMenu } from "@/components/layout/EnvMenu";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { useEnvironmentStore } from "@/stores/environment";
@@ -60,24 +61,19 @@ export function StatusBar({
   const pendingModalOpen = usePendingSecretsStore((s) => s.modalOpen);
   const reopenPendingSecrets = usePendingSecretsStore((s) => s.reopen);
 
-  const branchLabel = gitState?.branch ?? "—";
   const ahead = gitState?.ahead ?? 0;
   const behind = gitState?.behind ?? 0;
   const changeCount = gitState?.changed.length ?? 0;
 
   return (
     <StatusBarShell data-testid="status-bar">
-      {/* Branch + diff counts */}
-      <Box display="inline-flex" gap={2} alignItems="center">
-        <Text data-testid="status-branch">{branchLabel}</Text>
-        {(ahead > 0 || behind > 0 || changeCount > 0) && (
-          <Text color="fg.3" data-testid="status-changes">
-            {ahead > 0 && `↑${ahead} `}
-            {behind > 0 && `↓${behind} `}
-            {changeCount > 0 && `~${changeCount}`}
-          </Text>
-        )}
-      </Box>
+      {/* Branch + diff counts — clickable dropdown (placeholder until V10) */}
+      <BranchMenu
+        branch={gitState?.branch ?? null}
+        ahead={ahead}
+        behind={behind}
+        changeCount={changeCount}
+      />
 
       <Box w="1px" h="12px" bg="line" aria-hidden />
 

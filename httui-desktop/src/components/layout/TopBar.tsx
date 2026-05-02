@@ -1,8 +1,8 @@
 // Workbench top bar — canvas §4 (36px tall).
 //
 // Layout:
-//   [Sidebar toggle][Brand][Breadcrumb] ━━━ [SegmentedEnvSwitcher]
-//   [SearchPlaceholder ⌘K] [BranchButton] [Schema][Chat][Settings]
+//   [Sidebar toggle][Brand][Breadcrumb] ━━━
+//   [SearchPlaceholder ⌘K] [Schema][Chat][Settings]
 //
 // The Sidebar/Chat/Schema/Settings toggles are functional necessities
 // and live on the right edge. Brand wordmark is centered with the
@@ -10,13 +10,14 @@
 // traffic-light buttons).
 //
 // Search ⌘K re-dispatches Cmd+P so the existing keyboard route picks
-// it up. Branch is read-only awaiting V10. The "Run all" button was
-// dropped per user decision on 2026-05-01 (V2 / cenário 1).
+// it up. The previous Run-all button (dropped 2026-05-01), env
+// switcher (moved to StatusBar `EnvMenu`) and branch button (moved
+// to StatusBar `BranchMenu`) are no longer in the topbar — V2 keeps
+// the chrome to the breadcrumb + search + the right-edge toggles.
 
 import { Box, HStack, IconButton, chakra } from "@chakra-ui/react";
 import {
   LuMenu,
-  LuGitBranch,
   LuSearch,
   LuMessageSquare,
   LuSettings,
@@ -28,9 +29,8 @@ import {
 import { Brand } from "@/components/layout/topbar/Brand";
 import { BreadcrumbNav } from "@/components/layout/topbar/BreadcrumbNav";
 import { WorkspaceMenu } from "@/components/layout/topbar/WorkspaceMenu";
-import { Btn, Kbd } from "@/components/atoms";
+import { Kbd } from "@/components/atoms";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { useGitStatus } from "@/hooks/useGitStatus";
 import { useSettingsStore } from "@/stores/settings";
 import {
   usePaneStore,
@@ -88,8 +88,6 @@ export function TopBar({
 
   const activeFilePath = usePaneStore(selectActiveTabPath);
   const activeUnsaved = usePaneStore(selectActiveTabUnsaved);
-  const { status: gitState } = useGitStatus(vaultPath);
-  const branchLabel = gitState?.branch ?? "main";
 
   const workspace = vaultPath ? vaultPath.split("/").pop() ?? vaultPath : null;
   const isLeafSegment = !activeFilePath;
@@ -180,18 +178,6 @@ export function TopBar({
         </Box>
         <Kbd>⌘K</Kbd>
       </SearchTrigger>
-
-      <Btn
-        variant="ghost"
-        data-atom="branch-btn"
-        aria-label="Switch branch"
-        h="24px"
-        gap={2}
-        title="Branch switcher (V10)"
-      >
-        <LuGitBranch size={12} />
-        {branchLabel}
-      </Btn>
 
       <Box w="1px" h="16px" bg="line" mx={1} aria-hidden />
 
