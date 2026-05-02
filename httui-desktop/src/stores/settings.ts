@@ -29,6 +29,55 @@ const DEFAULTS: AppSettings = {
  * `next-themes` provider via `<ColorModeSync />`. */
 export type ColorMode = "system" | "light" | "dark";
 
+/** Keyboard-shortcut profile selector (V3 cenário 1). `default` and
+ * `vim` are functional; `vscode` and `jetbrains` are surfaced disabled
+ * in the UI ("coming soon") and resolve to `default` at runtime. */
+export type ShortcutProfile = "default" | "vim" | "vscode" | "jetbrains";
+
+const SHORTCUT_PROFILE_VALUES: ReadonlySet<ShortcutProfile> = new Set([
+  "default",
+  "vim",
+  "vscode",
+  "jetbrains",
+]);
+
+function parseShortcutProfile(raw: string | undefined): ShortcutProfile {
+  return raw && SHORTCUT_PROFILE_VALUES.has(raw as ShortcutProfile)
+    ? (raw as ShortcutProfile)
+    : "default";
+}
+
+/** UI density (V3 cenário 1.2). `comfortable` is the baseline; the
+ * other two scale a CSS custom property `--httui-density` consumed by
+ * components that want denser spacing. */
+export type Density = "compact" | "comfortable" | "spacious";
+
+const DENSITY_VALUES: ReadonlySet<Density> = new Set([
+  "compact",
+  "comfortable",
+  "spacious",
+]);
+
+function parseDensity(raw: string | undefined): Density {
+  return raw && DENSITY_VALUES.has(raw as Density)
+    ? (raw as Density)
+    : "comfortable";
+}
+
+const DENSITY_SCALE: Record<Density, string> = {
+  compact: "0.85",
+  comfortable: "1",
+  spacious: "1.15",
+};
+
+function applyDensity(d: Density) {
+  if (typeof document === "undefined") return;
+  document.documentElement.style.setProperty(
+    "--httui-density",
+    DENSITY_SCALE[d],
+  );
+}
+
 interface SettingsState {
   // Settings
   settingsOpen: boolean;
@@ -47,6 +96,10 @@ interface SettingsState {
   // MVP-to-v1 migration banner
   mvpMigrationDismissed: boolean;
 
+  // V3 — Settings UI
+  shortcutProfile: ShortcutProfile;
+  density: Density;
+
   // Actions
   openSettings: () => void;
   closeSettings: () => void;
@@ -63,6 +116,11 @@ interface SettingsState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setMvpMigrationDismissed: (dismissed: boolean) => void;
+  /** Set the shortcut profile. `vim` maps `vimEnabled=true`;
+   * `default` maps `vimEnabled=false`. `vscode`/`jetbrains` are
+   * coming-soon stubs — the picker should surface them disabled. */
+  setShortcutProfile: (profile: ShortcutProfile) => void;
+  setDensity: (density: Density) => void;
   loadSettings: () => Promise<void>;
 }
 
@@ -109,6 +167,8 @@ export const useSettingsStore = create<SettingsState>()(
       vimMode: "normal",
       sidebarOpen: true,
       mvpMigrationDismissed: false,
+      shortcutProfile: "default" as ShortcutProfile,
+      density: "comfortable" as Density,
 
       openSettings: () => set({ settingsOpen: true }),
       closeSettings: () => set({ settingsOpen: false }),
@@ -185,6 +245,25 @@ export const useSettingsStore = create<SettingsState>()(
         })).catch(() => {});
       },
 
+      setShortcutProfile: (profile) => {
+        // `vim` ↔ vimEnabled true; `default` ↔ false. The other two
+        // are surfaced disabled in the UI but if persisted by hand
+        // they resolve to default behavior.
+        const vimEnabled = profile === "vim";
+        set({ shortcutProfile: profile, vimEnabled });
+        patchUiPrefs((ui) => ({
+          ...ui,
+          shortcut_profile: profile,
+          vim_enabled: vimEnabled,
+        })).catch(() => {});
+      },
+
+      setDensity: (density) => {
+        set({ density });
+        applyDensity(density);
+        patchUiPrefs((ui) => ({ ...ui, density })).catch(() => {});
+      },
+
       loadSettings: async () => {
         const file = await getUserConfig();
         const ui = file.ui;
@@ -209,6 +288,13 @@ export const useSettingsStore = create<SettingsState>()(
         }
         applyTheme(themeConfig);
 
+        const density = parseDensity(ui.density);
+        applyDensity(density);
+        const profile = parseShortcutProfile(ui.shortcut_profile);
+        // Honor stored vim_enabled but reconcile when profile says
+        // otherwise — the profile is the source of truth in V3.
+        const vimEnabled = profile === "vim" ? true : (ui.vim_enabled ?? false);
+
         set({
           settings: {
             autoSaveMs: ui.auto_save_ms || DEFAULTS.autoSaveMs,
@@ -220,9 +306,11 @@ export const useSettingsStore = create<SettingsState>()(
           },
           theme: themeConfig,
           colorMode: parseColorMode(ui.color_mode),
-          vimEnabled: ui.vim_enabled ?? false,
+          vimEnabled,
           sidebarOpen: ui.sidebar_open ?? true,
           mvpMigrationDismissed: ui.mvp_migration_dismissed ?? false,
+          shortcutProfile: profile,
+          density,
           loaded: true,
         });
       },

@@ -7,7 +7,7 @@ import { PaneContainer } from "./pane";
 import { QuickOpen } from "@/components/search/QuickOpen";
 import { SearchPanel } from "@/components/search/SearchPanel";
 import { EnvironmentManager } from "./environments/EnvironmentManager";
-import { SettingsDrawer } from "./settings/SettingsDrawer";
+import { SettingsPage } from "./settings/SettingsPage";
 import { SchemaPanel } from "./schema/SchemaPanel";
 import { OutlinePanel } from "./outline/OutlinePanel";
 import { HistoryPanel } from "./history/HistoryPanel";
@@ -247,7 +247,7 @@ export function AppShell() {
         />
 
         <EnvironmentManager />
-        <SettingsDrawer />
+        <SettingsPage />
         <PendingSecretsModal />
       </Flex>
     </WorkspaceContext.Provider>

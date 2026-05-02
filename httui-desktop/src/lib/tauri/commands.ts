@@ -36,7 +36,18 @@ export interface WorkspaceDefaults {
   environment?: string | null;
   git_remote?: string | null;
   git_branch?: string | null;
+  /** Human-friendly vault label; falls back to directory name. */
+  display_name?: string | null;
 }
+
+// V3 source-tracking — see ./workspace-config (kept separate to stay
+// under the 600-line gate).
+export type {
+  WorkspaceFieldSource,
+  WorkspaceSources,
+  WorkspaceDefaultsWithSources,
+} from "./workspace-config";
+export { getWorkspaceConfigWithSources } from "./workspace-config";
 
 /** `[ui]` section of `~/.config/httui/user.toml`.
  *
@@ -67,6 +78,10 @@ export interface UserUiPrefs {
    * detected.
    */
   mvp_migration_dismissed: boolean;
+  /** Quick-open archive filter (epic 52 story 06). */
+  hide_archived_in_quick_open?: boolean;
+  /** Shortcut profile (V3 cenário 1): default|vim|vscode|jetbrains. */
+  shortcut_profile: string;
 }
 
 /** `[secrets]` section. */
