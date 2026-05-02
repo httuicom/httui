@@ -41,6 +41,9 @@ export interface DocHeaderShellProps {
   /** When provided, the H1 becomes an editable input (Notion-mode).
    *  See DocHeaderCard for debounce + sync semantics. */
   onTitleSave?: (title: string) => void;
+  /** When provided, the abstract paragraph becomes an editable inline
+   *  textarea. Newlines collapse to spaces on commit. */
+  onAbstractSave?: (abstract: string) => void;
 
   // ── Meta strip inputs ──────────────────────────────────────────
   author?: AuthorInfo | null;
@@ -78,6 +81,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     onToggleCompact,
     onBreadcrumbSelect,
     onTitleSave,
+    onAbstractSave,
     author,
     mtimeMs,
     dirty,
@@ -147,7 +151,10 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
           />
           {showAbstract && (
             <Box data-testid="docheader-shell-abstract-slot">
-              <DocHeaderAbstract frontmatter={frontmatter ?? null} />
+              <DocHeaderAbstract
+                frontmatter={frontmatter ?? null}
+                onAbstractSave={onAbstractSave}
+              />
             </Box>
           )}
           {showPreflight && preflightItems && (

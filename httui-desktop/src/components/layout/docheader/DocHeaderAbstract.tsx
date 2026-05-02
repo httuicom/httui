@@ -8,8 +8,12 @@
 // Long abstracts (> ABSTRACT_FADE_THRESHOLD = 250 chars) collapse
 // to ~3 lines via CSS line-clamp with a soft fade-out gradient at
 // the bottom; a "more" / "less" button toggles the clamp.
+//
+// V2 / cenário 4.5 / M4 — when `onAbstractSave` is provided the
+// abstract becomes an editable Notion-mode textarea. Newlines collapse
+// to a single space on commit (slice-1 schema is single-line scalar).
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
 import {
@@ -17,18 +21,34 @@ import {
   type DocHeaderFrontmatter,
 } from "./docheader-derive";
 
+const ABSTRACT_SAVE_DEBOUNCE_MS = 400;
+
 export interface DocHeaderAbstractProps {
   frontmatter: DocHeaderFrontmatter | null;
   /** Number of lines to show in the collapsed state. Default 3
    *  matches the canvas spec. */
   collapsedLines?: number;
+  /** Notion-mode editor — when provided, the abstract renders as an
+   *  inline textarea. Debounced 400ms before firing. */
+  onAbstractSave?: (abstract: string) => void;
 }
 
 export function DocHeaderAbstract({
   frontmatter,
   collapsedLines = 3,
+  onAbstractSave,
 }: DocHeaderAbstractProps) {
   const [expanded, setExpanded] = useState(false);
+
+  if (onAbstractSave) {
+    return (
+      <DocHeaderAbstractInput
+        value={frontmatter?.abstract?.trim() ?? ""}
+        onSave={onAbstractSave}
+      />
+    );
+  }
+
   const display = deriveAbstractDisplay(frontmatter);
   if (!display) return null;
 
@@ -100,5 +120,79 @@ function FadeMask() {
       h="2em"
       bgGradient="linear(to-b, transparent, var(--chakra-colors-bg-1))"
     />
+  );
+}
+
+interface DocHeaderAbstractInputProps {
+  value: string;
+  onSave: (abstract: string) => void;
+}
+
+function DocHeaderAbstractInput({
+  value,
+  onSave,
+}: DocHeaderAbstractInputProps) {
+  const [local, setLocal] = useState(value);
+  const lastExternalRef = useRef(value);
+
+  useEffect(() => {
+    if (value !== lastExternalRef.current && value !== local) {
+      lastExternalRef.current = value;
+      setLocal(value);
+    } else {
+      lastExternalRef.current = value;
+    }
+  }, [value, local]);
+
+  const onSaveRef = useRef(onSave);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  });
+
+  useEffect(() => {
+    if (local === value) return;
+    const timer = setTimeout(() => {
+      onSaveRef.current(local);
+    }, ABSTRACT_SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [local, value]);
+
+  // Single-line semantics: pressing Enter shouldn't insert a newline
+  // (the slice-1 schema can't round-trip them). It commits-by-blur
+  // instead so the user-visible flow matches the title field.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <Box mt={3} position="relative">
+      <Box
+        as="textarea"
+        data-testid="docheader-abstract-input"
+        rows={2}
+        value={local}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+          setLocal(e.target.value)
+        }
+        onKeyDown={onKeyDown}
+        placeholder="Add a description…"
+        fontFamily="serif"
+        fontStyle="italic"
+        fontSize="14px"
+        lineHeight="1.5"
+        color="fg.2"
+        bg="transparent"
+        border="none"
+        outline="none"
+        resize="none"
+        width="100%"
+        m={0}
+        p={0}
+        _placeholder={{ color: "fg.3" }}
+      />
+    </Box>
   );
 }

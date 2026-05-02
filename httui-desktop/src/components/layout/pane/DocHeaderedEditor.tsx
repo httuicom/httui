@@ -21,7 +21,10 @@ import { useFileDocHeaderCompact } from "@/hooks/useFileDocHeaderCompact";
 import { useFileMtime } from "@/hooks/useFileMtime";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { extractFrontmatter } from "@/lib/blocks/extract-frontmatter-tags";
-import { updateFrontmatterTitle } from "@/lib/blocks/update-frontmatter";
+import {
+  updateFrontmatterAbstract,
+  updateFrontmatterTitle,
+} from "@/lib/blocks/update-frontmatter";
 import type { DocHeaderFrontmatter } from "../docheader/docheader-derive";
 
 export interface DocHeaderedEditorProps {
@@ -126,6 +129,12 @@ export function DocHeaderedEditor({
     onChangeRef.current(next);
   }, []);
 
+  const onAbstractSave = useCallback((abstract: string) => {
+    const next = updateFrontmatterAbstract(contentRef.current, abstract);
+    if (next === contentRef.current) return;
+    onChangeRef.current(next);
+  }, []);
+
   const inlineHeader = useMemo<InlineDocHeader>(
     () => ({
       filePath,
@@ -138,6 +147,7 @@ export function DocHeaderedEditor({
       dirty,
       branch,
       onTitleSave,
+      onAbstractSave,
     }),
     [
       filePath,
@@ -148,6 +158,7 @@ export function DocHeaderedEditor({
       dirty,
       branch,
       onTitleSave,
+      onAbstractSave,
     ],
   );
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 
 import { DocHeaderAbstract } from "@/components/layout/docheader/DocHeaderAbstract";
@@ -99,5 +99,83 @@ describe("DocHeaderAbstract", () => {
     expect(screen.getByTestId("docheader-abstract-text").textContent).toBe(
       "Hello",
     );
+  });
+
+  describe("editable mode (onAbstractSave)", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("renders a textarea instead of static text when onAbstractSave is given", () => {
+      renderWithProviders(
+        <DocHeaderAbstract
+          frontmatter={{ abstract: "An abstract" }}
+          onAbstractSave={() => {}}
+        />,
+      );
+      const input = screen.getByTestId(
+        "docheader-abstract-input",
+      ) as HTMLTextAreaElement;
+      expect(input.tagName).toBe("TEXTAREA");
+      expect(input.value).toBe("An abstract");
+      // Static text node is gone — the editable mode owns the slot.
+      expect(
+        screen.queryByTestId("docheader-abstract-text"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders an empty textarea with placeholder when no abstract is set", () => {
+      renderWithProviders(
+        <DocHeaderAbstract frontmatter={null} onAbstractSave={() => {}} />,
+      );
+      const input = screen.getByTestId(
+        "docheader-abstract-input",
+      ) as HTMLTextAreaElement;
+      expect(input.value).toBe("");
+      expect(input.placeholder).toBe("Add a description…");
+    });
+
+    it("debounces onAbstractSave by 400ms after the last keystroke", async () => {
+      const onAbstractSave = vi.fn();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(
+        <DocHeaderAbstract
+          frontmatter={{ abstract: "" }}
+          onAbstractSave={onAbstractSave}
+        />,
+      );
+      const input = screen.getByTestId(
+        "docheader-abstract-input",
+      ) as HTMLTextAreaElement;
+      await user.click(input);
+      await user.keyboard("Notes");
+      expect(onAbstractSave).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(400);
+      expect(onAbstractSave).toHaveBeenCalledTimes(1);
+      expect(onAbstractSave).toHaveBeenCalledWith("Notes");
+    });
+
+    it("commits on Enter without inserting a newline", async () => {
+      const onAbstractSave = vi.fn();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(
+        <DocHeaderAbstract
+          frontmatter={{ abstract: "" }}
+          onAbstractSave={onAbstractSave}
+        />,
+      );
+      const input = screen.getByTestId(
+        "docheader-abstract-input",
+      ) as HTMLTextAreaElement;
+      await user.click(input);
+      await user.keyboard("Hi{Enter}");
+      // Newline never makes it into the value.
+      expect(input.value).toBe("Hi");
+      vi.advanceTimersByTime(400);
+      expect(onAbstractSave).toHaveBeenCalledWith("Hi");
+    });
   });
 });

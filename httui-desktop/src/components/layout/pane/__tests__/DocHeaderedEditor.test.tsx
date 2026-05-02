@@ -19,6 +19,7 @@ function DocHeaderStub({
   dirty,
   branch,
   onTitleSave,
+  onAbstractSave,
 }: {
   filePath: string;
   compact?: boolean;
@@ -32,6 +33,7 @@ function DocHeaderStub({
   dirty?: boolean;
   branch?: { branch: string | null } | null;
   onTitleSave?: (title: string) => void;
+  onAbstractSave?: (abstract: string) => void;
 }) {
   return (
     <>
@@ -60,6 +62,14 @@ function DocHeaderStub({
           onClick={() => onTitleSave("Renamed")}
         >
           save title
+        </button>
+      )}
+      {onAbstractSave && (
+        <button
+          data-testid="docheader-stub-save-abstract"
+          onClick={() => onAbstractSave("New summary")}
+        >
+          save abstract
         </button>
       )}
     </>
@@ -382,6 +392,24 @@ describe("DocHeaderedEditor", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith(
       "---\ntitle: Renamed\n---\nbody\n",
+    );
+  });
+
+  it("rewrites the doc and fires onChange when the abstract is committed", () => {
+    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
+    const onChange = vi.fn();
+    renderWithProviders(
+      <DocHeaderedEditor
+        {...baseProps}
+        content={"---\ntitle: x\n---\nbody\n"}
+        onChange={onChange}
+      />,
+    );
+
+    screen.getByTestId("docheader-stub-save-abstract").click();
+
+    expect(onChange).toHaveBeenCalledWith(
+      "---\ntitle: x\nabstract: New summary\n---\nbody\n",
     );
   });
 

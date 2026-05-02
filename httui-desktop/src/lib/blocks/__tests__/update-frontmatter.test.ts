@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { updateFrontmatterTitle } from "@/lib/blocks/update-frontmatter";
+import {
+  updateFrontmatterAbstract,
+  updateFrontmatterTitle,
+} from "@/lib/blocks/update-frontmatter";
 
 describe("updateFrontmatterTitle", () => {
   it("returns content unchanged when the new title is empty", () => {
@@ -88,6 +91,58 @@ describe("updateFrontmatterTitle", () => {
     const after = updateFrontmatterTitle(before, "Renamed");
     expect(after).toBe(
       "---\ntitle: Renamed\ntitle: Second\n---\nbody\n",
+    );
+  });
+});
+
+describe("updateFrontmatterAbstract", () => {
+  it("returns content unchanged when the new abstract is empty", () => {
+    const before = "---\ntitle: x\nabstract: keep\n---\nbody\n";
+    expect(updateFrontmatterAbstract(before, "")).toBe(before);
+    expect(updateFrontmatterAbstract(before, "   \n  ")).toBe(before);
+  });
+
+  it("prepends a new frontmatter when the doc has none", () => {
+    const before = "# heading\nbody\n";
+    expect(updateFrontmatterAbstract(before, "Cool note")).toBe(
+      "---\nabstract: Cool note\n---\n\n# heading\nbody\n",
+    );
+  });
+
+  it("inserts after the title when the field is missing", () => {
+    const before = "---\ntitle: x\n---\nbody\n";
+    expect(updateFrontmatterAbstract(before, "Cool note")).toBe(
+      "---\ntitle: x\nabstract: Cool note\n---\nbody\n",
+    );
+  });
+
+  it("replaces an existing abstract line in place", () => {
+    const before = "---\ntitle: x\nabstract: old\n---\nbody\n";
+    expect(updateFrontmatterAbstract(before, "new")).toBe(
+      "---\ntitle: x\nabstract: new\n---\nbody\n",
+    );
+  });
+
+  it("collapses multi-line input to a single space", () => {
+    const before = "";
+    const after = updateFrontmatterAbstract(
+      before,
+      "line one\nline two\n  line three",
+    );
+    // No double-spaces from the original \n + indent.
+    expect(after).toContain("abstract: line one line two line three");
+  });
+
+  it("inserts at the end of an existing frontmatter without a title", () => {
+    const before = "---\ntags: [a]\n---\nbody\n";
+    expect(updateFrontmatterAbstract(before, "info")).toBe(
+      "---\ntags: [a]\nabstract: info\n---\nbody\n",
+    );
+  });
+
+  it("quotes special characters", () => {
+    expect(updateFrontmatterAbstract("", "hello: world")).toContain(
+      'abstract: "hello: world"',
     );
   });
 });

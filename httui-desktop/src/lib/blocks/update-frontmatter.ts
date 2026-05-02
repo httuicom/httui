@@ -111,6 +111,56 @@ function encodeScalar(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
+type InsertAt = "start" | "end";
+
+/**
+ * Generic single-line scalar replacement / insertion. Drives both
+ * `updateFrontmatterTitle` and `updateFrontmatterAbstract` with the
+ * only behavioural difference being where the new line lands when the
+ * field is missing (`title` at the top, `abstract` at the bottom).
+ */
+function updateFrontmatterScalar(
+  content: string,
+  field: string,
+  rawValue: string,
+  opts: { insertAt: InsertAt },
+): string {
+  const trimmed = rawValue.trim();
+  if (trimmed.length === 0) return content;
+
+  const encoded = encodeScalar(trimmed);
+  const newLine = `${field}: ${encoded}`;
+
+  const split = splitDoc(content);
+  if (!split) {
+    // No frontmatter — prepend a fresh block. Preserve a separator
+    // blank line so the rest of the doc stays readable.
+    return `---\n${newLine}\n---\n\n${content}`;
+  }
+
+  const range = findFieldLineRange(split.fmBody, field);
+  if (range) {
+    const next =
+      split.fmBody.slice(0, range.from) +
+      newLine +
+      split.fmBody.slice(range.to);
+    return split.before + next + split.after;
+  }
+
+  // Field is missing — insert at the requested side. `fmBody` always
+  // ends in `\n` when non-empty (each YAML line carries its own
+  // terminator), so concatenation produces well-formed output.
+  let nextBody: string;
+  if (split.fmBody.length === 0) {
+    nextBody = `${newLine}\n`;
+  } else if (opts.insertAt === "start") {
+    nextBody = `${newLine}\n${split.fmBody}`;
+  } else {
+    nextBody = `${split.fmBody}${newLine}\n`;
+  }
+  return split.before + nextBody + split.after;
+}
+
 /**
  * Replace, insert, or prepend a `title:` field in a markdown document's
  * YAML frontmatter and return the rewritten document.
@@ -128,34 +178,26 @@ export function updateFrontmatterTitle(
   content: string,
   newTitle: string,
 ): string {
-  const trimmed = newTitle.trim();
-  if (trimmed.length === 0) return content;
+  return updateFrontmatterScalar(content, "title", newTitle, {
+    insertAt: "start",
+  });
+}
 
-  const encoded = encodeScalar(trimmed);
-  const titleLine = `title: ${encoded}`;
-
-  const split = splitDoc(content);
-  if (!split) {
-    // Case 4 — no frontmatter. Prepend a fresh block. Preserve a
-    // separator blank line so the rest of the doc stays readable.
-    return `---\n${titleLine}\n---\n\n${content}`;
-  }
-
-  const range = findFieldLineRange(split.fmBody, "title");
-  if (range) {
-    // Case 2 — splice the existing title line.
-    const next =
-      split.fmBody.slice(0, range.from) +
-      titleLine +
-      split.fmBody.slice(range.to);
-    return split.before + next + split.after;
-  }
-
-  // Case 3 — insert as the first body line. Preserve any existing
-  // content by appending it after our new line.
-  const insertion =
-    split.fmBody.length === 0
-      ? `${titleLine}\n`
-      : `${titleLine}\n${split.fmBody}`;
-  return split.before + insertion + split.after;
+/**
+ * Replace, insert, or prepend an `abstract:` field. Newlines in the
+ * input are collapsed to a single space (the slice-1 schema only
+ * supports single-line scalars; multi-line block scalars are deferred).
+ * When the field is missing, the new line lands at the END of the
+ * frontmatter body so it sits below the title.
+ */
+export function updateFrontmatterAbstract(
+  content: string,
+  newAbstract: string,
+): string {
+  // Single-line collapse. We trim duplicated whitespace as well so
+  // pasted multi-paragraph text writes back as a tidy one-liner.
+  const oneLine = newAbstract.replace(/\s+/g, " ");
+  return updateFrontmatterScalar(content, "abstract", oneLine, {
+    insertAt: "end",
+  });
 }
