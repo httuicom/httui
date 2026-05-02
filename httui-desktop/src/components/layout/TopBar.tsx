@@ -157,10 +157,20 @@ export function TopBar({
         fontSize="11px"
         fontFamily="mono"
         cursor="pointer"
+        whiteSpace="nowrap"
+        overflow="hidden"
+        flexShrink={0}
         _hover={{ bg: "bg.3", color: "fg.2" }}
       >
-        <LuSearch size={12} />
-        <Box flex={1} textAlign="left">
+        <LuSearch size={12} style={{ flexShrink: 0 }} />
+        <Box
+          flex={1}
+          minW={0}
+          textAlign="left"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+        >
           Search blocks, vars, schema…
         </Box>
         <Kbd>⌘K</Kbd>
