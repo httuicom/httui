@@ -77,6 +77,13 @@ const config = defineConfig({
           "2": { value: pair(THEME_DARK.bg2, THEME_LIGHT.bg2) },
           "3": { value: pair(THEME_DARK.bg3, THEME_LIGHT.bg3) },
           hi: { value: pair(THEME_DARK.bgHi, THEME_LIGHT.bgHi) },
+          // Chakra v3's Menu / Popover / Tooltip recipes referenciam
+          // `colors.bg.panel` via a var `--menu-bg` (etc). Apontamos
+          // pro nosso `bg.hi` pra que popups herdem contraste forte
+          // sobre o canvas em vez do near-canvas default. Se algum
+          // popup específico precisar de outro tom, override por
+          // recipe lá em vez de inline.
+          panel: { value: pair(THEME_DARK.bgHi, THEME_LIGHT.bgHi) },
         },
         // Lines.
         line: {
