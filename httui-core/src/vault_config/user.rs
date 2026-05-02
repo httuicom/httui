@@ -81,6 +81,13 @@ pub struct UiPrefs {
     /// choice.
     #[serde(default)]
     pub hide_archived_in_quick_open: bool,
+    /// Keyboard-shortcut profile selected in the Settings UI. One of
+    /// `"default" | "vim" | "vscode" | "jetbrains"`. V3 ships
+    /// `default` and `vim` functional; `vscode` / `jetbrains` are
+    /// surfaced disabled in the UI ("coming soon") and resolve to
+    /// `default` behavior at runtime if persisted somehow.
+    #[serde(default = "default_shortcut_profile")]
+    pub shortcut_profile: String,
 }
 
 impl Default for UiPrefs {
@@ -98,6 +105,7 @@ impl Default for UiPrefs {
             color_mode: default_color_mode(),
             mvp_migration_dismissed: false,
             hide_archived_in_quick_open: false,
+            shortcut_profile: default_shortcut_profile(),
         }
     }
 }
@@ -128,6 +136,9 @@ fn default_sidebar_open() -> bool {
 }
 fn default_color_mode() -> String {
     "system".to_string()
+}
+fn default_shortcut_profile() -> String {
+    "default".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -236,6 +247,27 @@ prompt_timeout_s = 30
         assert_eq!(p.color_mode, "system");
         assert!(!p.mvp_migration_dismissed);
         assert!(!p.hide_archived_in_quick_open);
+        assert_eq!(p.shortcut_profile, "default");
+    }
+
+    #[test]
+    fn shortcut_profile_round_trips() {
+        let raw = "version = \"1\"\n[ui]\nshortcut_profile = \"vim\"\n";
+        let f: UserFile = toml::from_str(raw).unwrap();
+        assert_eq!(f.ui.shortcut_profile, "vim");
+
+        let serialized = toml::to_string(&f).unwrap();
+        assert!(serialized.contains("shortcut_profile = \"vim\""));
+
+        let back: UserFile = toml::from_str(&serialized).unwrap();
+        assert_eq!(back.ui.shortcut_profile, "vim");
+    }
+
+    #[test]
+    fn shortcut_profile_defaults_when_omitted() {
+        let raw = "version = \"1\"\n[ui]\ntheme = \"dark\"\n";
+        let f: UserFile = toml::from_str(raw).unwrap();
+        assert_eq!(f.ui.shortcut_profile, "default");
     }
 
     #[test]
@@ -312,6 +344,7 @@ prompt_timeout_s = 30
         assert_eq!(default_history_retention(), 10);
         assert!(default_sidebar_open());
         assert_eq!(default_color_mode(), "system");
+        assert_eq!(default_shortcut_profile(), "default");
         assert_eq!(default_backend(), "auto");
         assert!(default_biometric());
         assert_eq!(default_prompt_timeout(), 60);

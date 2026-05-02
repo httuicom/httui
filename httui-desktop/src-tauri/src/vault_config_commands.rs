@@ -23,7 +23,9 @@ use httui_core::vault_config::missing_secrets::{scan_missing_secrets, MissingRef
 use httui_core::vault_config::scaffold::{is_vault, scaffold_new_vault, ScaffoldReport};
 use httui_core::vault_config::user::UserFile;
 use httui_core::vault_config::user_store::default_user_config_path;
-use httui_core::vault_config::workspace::{FileSettings, WorkspaceDefaults};
+use httui_core::vault_config::workspace::{
+    FileSettings, WorkspaceDefaults, WorkspaceDefaultsWithSources,
+};
 use httui_core::vault_config::{UserStore, WorkspaceStore};
 use sqlx::sqlite::SqlitePool;
 use std::path::PathBuf;
@@ -41,6 +43,18 @@ pub async fn set_workspace_config(
 ) -> Result<(), String> {
     let store = WorkspaceStore::new(vault_path);
     store.set_defaults(defaults).await
+}
+
+/// Like [`get_workspace_config`] but also reports per-field origin
+/// (`workspace` vs `local`) so the Settings UI can render the
+/// "overridden locally" badges (V3 cenário 3). Round-trip is one IPC
+/// call instead of two.
+#[tauri::command]
+pub async fn get_workspace_config_with_sources(
+    vault_path: String,
+) -> Result<WorkspaceDefaultsWithSources, String> {
+    let store = WorkspaceStore::new(vault_path);
+    store.defaults_with_sources().await
 }
 
 /// Read the per-file settings entry for `file_path` (vault-relative).
@@ -228,6 +242,7 @@ mod tests {
 
         let initial = get_workspace_config(vault_str.clone()).await.unwrap();
         assert!(initial.environment.is_none());
+        assert!(initial.display_name.is_none());
 
         set_workspace_config(
             vault_str.clone(),
@@ -235,6 +250,7 @@ mod tests {
                 environment: Some("staging".into()),
                 git_remote: Some("origin".into()),
                 git_branch: Some("main".into()),
+                display_name: Some("Payments".into()),
             },
         )
         .await
@@ -244,6 +260,56 @@ mod tests {
         assert_eq!(after.environment.as_deref(), Some("staging"));
         assert_eq!(after.git_remote.as_deref(), Some("origin"));
         assert_eq!(after.git_branch.as_deref(), Some("main"));
+        assert_eq!(after.display_name.as_deref(), Some("Payments"));
+    }
+
+    #[tokio::test]
+    async fn workspace_with_sources_marks_workspace_when_no_local() {
+        let (_dir, vault) = temp_xdg();
+        let vault_str = vault.to_string_lossy().into_owned();
+        set_workspace_config(
+            vault_str.clone(),
+            WorkspaceDefaults {
+                environment: Some("staging".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        let r = get_workspace_config_with_sources(vault_str).await.unwrap();
+        assert_eq!(r.defaults.environment.as_deref(), Some("staging"));
+        assert_eq!(
+            r.sources.environment,
+            httui_core::vault_config::Source::Workspace
+        );
+    }
+
+    #[tokio::test]
+    async fn workspace_with_sources_flags_local_override() {
+        let (_dir, vault) = temp_xdg();
+        let vault_str = vault.to_string_lossy().into_owned();
+        set_workspace_config(
+            vault_str.clone(),
+            WorkspaceDefaults {
+                environment: Some("staging".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        let local = vault.join(".httui").join("workspace.local.toml");
+        std::fs::write(&local, "[defaults]\nenvironment = \"qa-eu\"\n").unwrap();
+
+        let r = get_workspace_config_with_sources(vault_str).await.unwrap();
+        assert_eq!(r.defaults.environment.as_deref(), Some("qa-eu"));
+        assert_eq!(
+            r.sources.environment,
+            httui_core::vault_config::Source::Local
+        );
+        assert_eq!(
+            r.sources.git_remote,
+            httui_core::vault_config::Source::Workspace
+        );
     }
 
     #[tokio::test]

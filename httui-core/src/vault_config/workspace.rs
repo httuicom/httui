@@ -32,6 +32,47 @@ pub struct WorkspaceDefaults {
     pub git_remote: Option<String>,
     #[serde(default)]
     pub git_branch: Option<String>,
+    /// Human-friendly vault label shown in the workspace switcher.
+    /// Falls back to the directory name when unset. Per-vault committed
+    /// preference — every collaborator sees the same name.
+    #[serde(default)]
+    pub display_name: Option<String>,
+}
+
+/// Per-field origin marker returned alongside [`WorkspaceDefaults`] by
+/// [`super::workspace_store::WorkspaceStore::defaults_with_sources`].
+/// Powers the "overridden locally" badge in the Settings UI (V3
+/// cenário 3): a `Local` source means the value lives in
+/// `workspace.local.toml`, not the committed base file.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Source {
+    #[default]
+    Workspace,
+    Local,
+}
+
+/// Origin of every field in [`WorkspaceDefaults`]. One entry per field
+/// — exhaustive on purpose so the UI can't accidentally forget a
+/// badge when new fields land.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkspaceSources {
+    #[serde(default)]
+    pub environment: Source,
+    #[serde(default)]
+    pub git_remote: Source,
+    #[serde(default)]
+    pub git_branch: Source,
+    #[serde(default)]
+    pub display_name: Source,
+}
+
+/// Bundle returned by `defaults_with_sources` so the frontend gets the
+/// values + their origin in a single round-trip.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct WorkspaceDefaultsWithSources {
+    pub defaults: WorkspaceDefaults,
+    pub sources: WorkspaceSources,
 }
 
 /// Per-file settings persisted in `[files."path/to/note.md"]` blocks
@@ -80,11 +121,61 @@ version = "1"
 environment = "staging"
 git_remote = "origin"
 git_branch = "main"
+display_name = "Payments"
 "#;
         let f: WorkspaceFile = toml::from_str(raw).unwrap();
         assert_eq!(f.defaults.environment.as_deref(), Some("staging"));
         assert_eq!(f.defaults.git_remote.as_deref(), Some("origin"));
         assert_eq!(f.defaults.git_branch.as_deref(), Some("main"));
+        assert_eq!(f.defaults.display_name.as_deref(), Some("Payments"));
+    }
+
+    #[test]
+    fn display_name_round_trips() {
+        let mut f = WorkspaceFile::default();
+        f.defaults.display_name = Some("Payments".into());
+        let raw = toml::to_string(&f).unwrap();
+        assert!(raw.contains("display_name = \"Payments\""));
+        let back: WorkspaceFile = toml::from_str(&raw).unwrap();
+        assert_eq!(back.defaults.display_name.as_deref(), Some("Payments"));
+    }
+
+    #[test]
+    fn display_name_omitted_when_none() {
+        let f = WorkspaceFile::default();
+        let raw = toml::to_string(&f).unwrap();
+        assert!(!raw.contains("display_name"), "got: {raw}");
+    }
+
+    #[test]
+    fn source_default_is_workspace() {
+        assert_eq!(Source::default(), Source::Workspace);
+    }
+
+    #[test]
+    fn source_serializes_lowercase() {
+        let raw = toml::to_string(&WorkspaceSources {
+            environment: Source::Local,
+            git_remote: Source::Workspace,
+            git_branch: Source::Workspace,
+            display_name: Source::Local,
+        })
+        .unwrap();
+        assert!(raw.contains("environment = \"local\""), "got: {raw}");
+        assert!(raw.contains("git_remote = \"workspace\""), "got: {raw}");
+    }
+
+    #[test]
+    fn source_round_trips_via_serde() {
+        let s = WorkspaceSources {
+            environment: Source::Local,
+            git_remote: Source::Workspace,
+            git_branch: Source::Local,
+            display_name: Source::Workspace,
+        };
+        let serialized = serde_json::to_string(&s).unwrap();
+        let back: WorkspaceSources = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(back, s);
     }
 
     #[test]

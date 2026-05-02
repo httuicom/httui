@@ -43,7 +43,9 @@ pub use environments_store::{
 pub use envs::{EnvFile, EnvMeta};
 pub use user::UserFile;
 pub use user_store::UserStore;
-pub use workspace::{WorkspaceDefaults, WorkspaceFile};
+pub use workspace::{
+    Source, WorkspaceDefaults, WorkspaceDefaultsWithSources, WorkspaceFile, WorkspaceSources,
+};
 pub use workspace_store::WorkspaceStore;
 
 use serde::{Deserialize, Serialize};

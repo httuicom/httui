@@ -11,6 +11,7 @@
 //! the `WorkspaceFile` schema. The shape is deliberately minimal so the
 //! file stays human-reviewable in PRs.
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -20,7 +21,10 @@ use tokio::sync::RwLock;
 use super::atomic::{read_toml, write_toml};
 use super::layout::{WORKSPACE_DIR, WORKSPACE_FILE};
 use super::merge::{load_with_local, mtime_or_none};
-use super::workspace::{FileSettings, WorkspaceDefaults, WorkspaceFile};
+use super::workspace::{
+    FileSettings, Source, WorkspaceDefaults, WorkspaceDefaultsWithSources, WorkspaceFile,
+    WorkspaceSources,
+};
 use super::Version;
 
 /// Cache entry. Keys on both base and override mtimes so a touch on
@@ -123,12 +127,44 @@ impl WorkspaceStore {
         Ok(self.load().await?.defaults)
     }
 
+    /// Same as [`defaults`](Self::defaults) but also reports which
+    /// fields originate from `workspace.local.toml`. Powers the
+    /// "overridden locally" badges in the Settings UI (V3 cenário 3).
+    ///
+    /// A field is `Source::Local` iff the `[defaults]` table in the
+    /// `.local.toml` sibling has that key, regardless of whether the
+    /// value matches the base. This is the honest signal — the field
+    /// *can* drift even when the values happen to coincide today.
+    pub async fn defaults_with_sources(
+        &self,
+    ) -> Result<WorkspaceDefaultsWithSources, String> {
+        let merged = self.defaults().await?;
+        let local_keys = read_local_defaults_keys(&self.path())?;
+        let pick = |key: &str| -> Source {
+            if local_keys.contains(key) {
+                Source::Local
+            } else {
+                Source::Workspace
+            }
+        };
+        Ok(WorkspaceDefaultsWithSources {
+            defaults: merged,
+            sources: WorkspaceSources {
+                environment: pick("environment"),
+                git_remote: pick("git_remote"),
+                git_branch: pick("git_branch"),
+                display_name: pick("display_name"),
+            },
+        })
+    }
+
     /// Replace the entire `[defaults]` section. Empty strings are
     /// treated as "unset" and stored as `None` to keep the TOML clean.
     pub async fn set_defaults(&self, mut defaults: WorkspaceDefaults) -> Result<(), String> {
         normalize(&mut defaults.environment);
         normalize(&mut defaults.git_remote);
         normalize(&mut defaults.git_branch);
+        normalize(&mut defaults.display_name);
         // Mutate the base file, not the merged view (audit-003).
         let mut file = self.load_base_only().await?;
         file.defaults = defaults;
@@ -215,6 +251,26 @@ fn local_path_for(base: &std::path::Path) -> PathBuf {
     super::merge::local_override_path(base).unwrap_or_else(|| base.to_path_buf())
 }
 
+/// Parse the `[defaults]` table out of `<base>.local.toml` and return
+/// the set of keys it spells out. Empty set when the file is missing
+/// or has no `[defaults]` section. Bubbles a parse error otherwise so
+/// the UI surfaces the problem instead of silently treating broken
+/// overrides as "no overrides".
+fn read_local_defaults_keys(base: &std::path::Path) -> Result<BTreeSet<String>, String> {
+    let local = local_path_for(base);
+    if !local.exists() {
+        return Ok(BTreeSet::new());
+    }
+    let text = std::fs::read_to_string(&local)
+        .map_err(|e| format!("read {}: {e}", local.display()))?;
+    let value: toml::Value =
+        toml::from_str(&text).map_err(|e| format!("parse {}: {e}", local.display()))?;
+    let Some(defaults) = value.get("defaults").and_then(|v| v.as_table()) else {
+        return Ok(BTreeSet::new());
+    };
+    Ok(defaults.keys().cloned().collect())
+}
+
 fn normalize(value: &mut Option<String>) {
     if let Some(v) = value {
         let trimmed = v.trim();
@@ -252,6 +308,7 @@ mod tests {
             environment: Some("staging".into()),
             git_remote: Some("origin".into()),
             git_branch: Some("main".into()),
+            display_name: None,
         })
         .await
         .unwrap();
@@ -271,6 +328,7 @@ mod tests {
             environment: Some("   ".into()),
             git_remote: Some(String::new()),
             git_branch: Some(" main ".into()),
+            display_name: Some(" Payments ".into()),
         })
         .await
         .unwrap();
@@ -278,6 +336,7 @@ mod tests {
         assert!(d.environment.is_none());
         assert!(d.git_remote.is_none());
         assert_eq!(d.git_branch.as_deref(), Some("main"));
+        assert_eq!(d.display_name.as_deref(), Some("Payments"));
     }
 
     #[tokio::test]
@@ -355,6 +414,7 @@ mod tests {
             environment: Some("staging".into()),
             git_remote: Some("origin".into()),
             git_branch: Some("main".into()),
+            display_name: None,
         })
         .await
         .unwrap();
@@ -494,6 +554,111 @@ mod tests {
         // The .local file is untouched.
         let local_text = std::fs::read_to_string(&local).unwrap();
         assert!(local_text.contains("dev"));
+    }
+
+    #[tokio::test]
+    async fn sources_marks_workspace_when_no_local_file() {
+        let dir = TempDir::new().unwrap();
+        let s = store(&dir);
+        s.set_defaults(WorkspaceDefaults {
+            environment: Some("staging".into()),
+            git_remote: Some("origin".into()),
+            git_branch: Some("main".into()),
+            display_name: Some("Payments".into()),
+        })
+        .await
+        .unwrap();
+        let r = s.defaults_with_sources().await.unwrap();
+        assert_eq!(r.defaults.environment.as_deref(), Some("staging"));
+        assert_eq!(r.sources.environment, Source::Workspace);
+        assert_eq!(r.sources.git_remote, Source::Workspace);
+        assert_eq!(r.sources.git_branch, Source::Workspace);
+        assert_eq!(r.sources.display_name, Source::Workspace);
+    }
+
+    #[tokio::test]
+    async fn sources_flags_keys_present_in_local_file() {
+        let dir = TempDir::new().unwrap();
+        let s = store(&dir);
+        s.set_defaults(WorkspaceDefaults {
+            environment: Some("staging".into()),
+            git_remote: Some("origin".into()),
+            git_branch: Some("main".into()),
+            display_name: None,
+        })
+        .await
+        .unwrap();
+        let local = dir.path().join(WORKSPACE_DIR).join("workspace.local.toml");
+        std::fs::write(
+            &local,
+            "[defaults]\nenvironment = \"qa-eu\"\ndisplay_name = \"Payments QA\"\n",
+        )
+        .unwrap();
+        s.invalidate_cache().await;
+
+        let r = s.defaults_with_sources().await.unwrap();
+        assert_eq!(r.defaults.environment.as_deref(), Some("qa-eu"));
+        assert_eq!(r.sources.environment, Source::Local);
+        assert_eq!(r.sources.git_remote, Source::Workspace);
+        assert_eq!(r.sources.git_branch, Source::Workspace);
+        assert_eq!(r.defaults.display_name.as_deref(), Some("Payments QA"));
+        assert_eq!(r.sources.display_name, Source::Local);
+    }
+
+    #[tokio::test]
+    async fn sources_flag_local_even_when_value_matches_base() {
+        let dir = TempDir::new().unwrap();
+        let s = store(&dir);
+        s.set_defaults(WorkspaceDefaults {
+            environment: Some("staging".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+        let local = dir.path().join(WORKSPACE_DIR).join("workspace.local.toml");
+        std::fs::write(&local, "[defaults]\nenvironment = \"staging\"\n").unwrap();
+        s.invalidate_cache().await;
+
+        let r = s.defaults_with_sources().await.unwrap();
+        // Same value, but local *spells it out* — the badge should
+        // still surface because the user is one keystroke away from
+        // diverging.
+        assert_eq!(r.sources.environment, Source::Local);
+    }
+
+    #[tokio::test]
+    async fn sources_returns_workspace_when_no_files_exist() {
+        let dir = TempDir::new().unwrap();
+        let s = store(&dir);
+        let r = s.defaults_with_sources().await.unwrap();
+        assert_eq!(r.sources.environment, Source::Workspace);
+        assert_eq!(r.sources.display_name, Source::Workspace);
+        assert!(r.defaults.environment.is_none());
+    }
+
+    #[tokio::test]
+    async fn sources_propagate_local_parse_errors() {
+        let dir = TempDir::new().unwrap();
+        let s = store(&dir);
+        s.ensure_exists().await.unwrap();
+        let local = dir.path().join(WORKSPACE_DIR).join("workspace.local.toml");
+        std::fs::write(&local, "this = = invalid").unwrap();
+        let err = s.defaults_with_sources().await.unwrap_err();
+        assert!(err.contains("parse"), "got: {err}");
+    }
+
+    #[tokio::test]
+    async fn sources_handles_local_without_defaults_table() {
+        let dir = TempDir::new().unwrap();
+        let s = store(&dir);
+        s.ensure_exists().await.unwrap();
+        let local = dir.path().join(WORKSPACE_DIR).join("workspace.local.toml");
+        // Local exists but only has a [files."x"] table — no defaults.
+        std::fs::write(&local, "[files.\"a.md\"]\nauto_capture = true\n").unwrap();
+        s.invalidate_cache().await;
+        let r = s.defaults_with_sources().await.unwrap();
+        assert_eq!(r.sources.environment, Source::Workspace);
+        assert_eq!(r.sources.display_name, Source::Workspace);
     }
 
     #[test]

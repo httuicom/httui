@@ -195,6 +195,7 @@ mod tests {
                 environment: Some("staging".into()),
                 git_remote: Some("origin".into()),
                 git_branch: Some("main".into()),
+                display_name: None,
             },
             files: Default::default(),
         };

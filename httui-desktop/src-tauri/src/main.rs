@@ -462,6 +462,7 @@ fn main() {
             // Epic 09 foundation — file-backed workspace + user config.
             // Frontend cutover lands in epic 19 (settings split).
             httui_notes::vault_config_commands::get_workspace_config,
+            httui_notes::vault_config_commands::get_workspace_config_with_sources,
             httui_notes::vault_config_commands::set_workspace_config,
             httui_notes::vault_config_commands::get_file_settings,
             httui_notes::vault_config_commands::set_file_auto_capture,
