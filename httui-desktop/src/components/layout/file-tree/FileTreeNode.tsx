@@ -153,7 +153,7 @@ export function FileTreeNode({
             onClick={handleClick}
           >
             {entry.is_dir && (
-              <Box color="fg.subtle" flexShrink={0}>
+              <Box color="fg.muted" flexShrink={0}>
                 {isExpanded ? (
                   <LuChevronDown size={12} />
                 ) : (
@@ -161,7 +161,7 @@ export function FileTreeNode({
                 )}
               </Box>
             )}
-            <Box color="fg.subtle" flexShrink={0}>
+            <Box color="fg.muted" flexShrink={0}>
               {entry.is_dir ? (
                 isExpanded ? (
                   <LuFolderOpen size={14} />
@@ -175,7 +175,7 @@ export function FileTreeNode({
             <Text
               fontSize="xs"
               truncate
-              color={isActive ? "fg" : "fg.subtle"}
+              color={isActive ? "fg" : "fg.muted"}
               fontWeight={isActive ? "medium" : "normal"}
             >
               {entry.is_dir ? entry.name : entry.name.replace(".md", "")}
