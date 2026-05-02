@@ -1924,6 +1924,7 @@ pub fn record_db_history_async(
         response_size,
         elapsed_ms,
         outcome: outcome.to_string(),
+        plan: None,
     };
     tokio::spawn(async move {
         if let Err(e) = httui_core::block_history::insert_history_entry(&pool, entry).await {

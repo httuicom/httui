@@ -479,6 +479,7 @@ fn record_history_async(
             response_size: Some(response.size_bytes as i64),
             elapsed_ms: Some(response.elapsed_ms as i64),
             outcome: "success".into(),
+            plan: None,
         },
         Err(msg) => httui_core::block_history::InsertEntry {
             file_path,
@@ -497,6 +498,7 @@ fn record_history_async(
                 "error"
             }
             .into(),
+            plan: None,
         },
     };
     tokio::spawn(async move {
