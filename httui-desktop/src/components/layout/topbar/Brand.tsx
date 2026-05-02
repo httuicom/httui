@@ -1,35 +1,28 @@
-// httui logo + wordmark + 1×18 vertical divider — canvas §4.
+// httui wordmark + 1×18 vertical divider — canvas §4.
+//
+// Uses the same logo assets as the marketing landing
+// (`httui-web/public/httui-{light,dark}-full.png`, 66×19). Theme-aware
+// via `useColorMode` so the dark variant kicks in when the workbench
+// switches modes. The PNG is rendered with a fixed height and `width
+// auto` so the aspect ratio stays clean.
 
-import { Box, HStack, Text } from "@chakra-ui/react";
+import { Box, HStack } from "@chakra-ui/react";
+
+import { useColorMode } from "@/components/ui/color-mode";
 
 export function Brand() {
+  const { colorMode } = useColorMode();
+  const src =
+    colorMode === "dark" ? "/httui-dark-full.png" : "/httui-light-full.png";
+
   return (
     <HStack data-atom="brand" gap={2}>
-      <Box
-        aria-hidden
-        w="18px"
-        h="18px"
-        borderRadius="4px"
-        bg="accent"
-        display="inline-flex"
-        alignItems="center"
-        justifyContent="center"
-        color="accent.fg"
-        fontSize="11px"
-        fontWeight={700}
-      >
-        h
-      </Box>
-      <Text
-        as="span"
-        fontFamily="body"
-        fontSize="13px"
-        fontWeight={700}
-        color="accent"
-        letterSpacing="-0.02em"
-      >
-        httui
-      </Text>
+      <img
+        src={src}
+        alt="httui"
+        height={20}
+        style={{ display: "block", height: "20px", width: "auto" }}
+      />
       <Box
         aria-hidden
         h="18px"

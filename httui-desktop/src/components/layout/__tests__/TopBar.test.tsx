@@ -49,9 +49,9 @@ describe("TopBar", () => {
   });
 
   describe("layout shape", () => {
-    it("renders the httui brand wordmark (canvas §4)", () => {
+    it("renders the httui brand image (canvas §4)", () => {
       renderWithWorkspace(<TopBar {...baseProps} />);
-      expect(screen.getByText("httui")).toBeInTheDocument();
+      expect(screen.getByAltText("httui")).toBeInTheDocument();
     });
 
     it("renders 'no vault' breadcrumb fallback when no vault is open", () => {

@@ -4,9 +4,17 @@ import { renderWithProviders, screen } from "@/test/render";
 import { Brand } from "@/components/layout/topbar/Brand";
 
 describe("Brand", () => {
-  it("renders the httui wordmark", () => {
+  it("renders the httui logo image", () => {
     renderWithProviders(<Brand />);
-    expect(screen.getByText("httui")).toBeInTheDocument();
+    const img = screen.getByAltText("httui") as HTMLImageElement;
+    expect(img).toBeInTheDocument();
+    expect(img.tagName).toBe("IMG");
+  });
+
+  it("points to one of the theme-aware logo assets", () => {
+    renderWithProviders(<Brand />);
+    const img = screen.getByAltText("httui") as HTMLImageElement;
+    expect(img.src).toMatch(/httui-(light|dark)-full\.png$/);
   });
 
   it("tags the wrapper as data-atom='brand'", () => {
@@ -16,8 +24,8 @@ describe("Brand", () => {
 
   it("renders the divider as a non-interactive aria-hidden element", () => {
     const { container } = renderWithProviders(<Brand />);
-    const dividers = container.querySelectorAll('[aria-hidden="true"]');
-    // 2 aria-hidden: the logo box (decorative) + the divider
-    expect(dividers.length).toBeGreaterThanOrEqual(2);
+    expect(
+      container.querySelectorAll('[aria-hidden="true"]').length,
+    ).toBeGreaterThanOrEqual(1);
   });
 });
