@@ -202,23 +202,45 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
               />
             </Box>
           )}
-          {showTags && (
-            <Box data-testid="docheader-shell-tags-slot" mt={2}>
-              <TagColumn
-                tags={frontmatter?.tags ?? []}
-                availableTags={availableTags}
-                onAddTag={onAddTag}
-                onRemoveTag={onRemoveTag}
-              />
-            </Box>
-          )}
-          {showChecklist && (
-            <Box data-testid="docheader-shell-checklist-slot">
-              <DocHeaderChecklist
-                items={frontmatter?.preflight ?? []}
-                onChecklistSave={onChecklistSave}
-              />
-            </Box>
+          {(showChecklist || showTags) && (
+            <Flex
+              data-testid="docheader-shell-meta-row"
+              direction="row"
+              gap={6}
+              mt={3}
+              align="flex-start"
+            >
+              {showChecklist ? (
+                <Box
+                  data-testid="docheader-shell-checklist-slot"
+                  flex={1}
+                  minW={0}
+                >
+                  <DocHeaderChecklist
+                    items={frontmatter?.preflight ?? []}
+                    onChecklistSave={onChecklistSave}
+                  />
+                </Box>
+              ) : (
+                // Reserve the column even when there's no checklist so
+                // the tag column stays right-aligned.
+                <Box flex={1} />
+              )}
+              {showTags && (
+                <Box
+                  data-testid="docheader-shell-tags-slot"
+                  width="180px"
+                  flexShrink={0}
+                >
+                  <TagColumn
+                    tags={frontmatter?.tags ?? []}
+                    availableTags={availableTags}
+                    onAddTag={onAddTag}
+                    onRemoveTag={onRemoveTag}
+                  />
+                </Box>
+              )}
+            </Flex>
           )}
           {showPreflight && preflightItems && (
             <Box data-testid="docheader-shell-preflight-slot">

@@ -65,7 +65,17 @@ export function TagColumn({
       data-tag-count={tags.length}
     >
       <Flex direction="column" gap={1} align="flex-end">
-        {tags.length === 0 && !adding && (
+        <Text
+          fontFamily="mono"
+          fontSize="10px"
+          color="fg.3"
+          textTransform="uppercase"
+          letterSpacing="0.05em"
+          mb={1}
+        >
+          Tags
+        </Text>
+        {tags.length === 0 && !adding && !onAddTag && (
           <Text
             data-testid="tag-column-empty"
             fontFamily="mono"
@@ -168,16 +178,13 @@ function TagChip({
       data-testid={`tag-column-chip-${tag}`}
       align="center"
       gap={1}
-      bg="bg.2"
-      borderRadius="999px"
-      px={2}
-      py="2px"
+      role="group"
     >
       <Text
         as={interactive ? "button" : "span"}
         data-testid={`tag-column-chip-${tag}-label`}
         fontFamily="mono"
-        fontSize="10px"
+        fontSize="11px"
         color="fg.2"
         cursor={interactive ? "pointer" : undefined}
         onClick={interactive ? () => onSelect(tag) : undefined}
@@ -189,11 +196,14 @@ function TagChip({
           as="button"
           data-testid={`tag-column-chip-${tag}-remove`}
           fontFamily="mono"
-          fontSize="10px"
+          fontSize="11px"
           color="fg.3"
           onClick={() => onRemove(tag)}
           disabled={busy}
           cursor="pointer"
+          opacity={0}
+          transition="opacity 80ms ease-out"
+          _groupHover={{ opacity: 1 }}
           _hover={{ color: "error" }}
         >
           ×

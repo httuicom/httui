@@ -13,7 +13,7 @@
 // disabled boxes so the diff viewer / read-only contexts still display
 // the checklist visually.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import { Btn, Input } from "@/components/atoms";
@@ -76,8 +76,32 @@ export function DocHeaderChecklist({
     setAdding(false);
   };
 
+  const headerLabel = useMemo(() => {
+    const n = items.length;
+    if (n === 0) return "Pré-flight";
+    return `Pré-flight — ${n} ${n === 1 ? "item" : "itens"}`;
+  }, [items.length]);
+
   return (
-    <Box data-testid="docheader-checklist" mt={3}>
+    <Box
+      data-testid="docheader-checklist"
+      borderWidth="1px"
+      borderColor="line"
+      borderRadius="6px"
+      bg="bg.1"
+      px={4}
+      py={3}
+    >
+      <Text
+        fontFamily="mono"
+        fontSize="10px"
+        color="fg.3"
+        textTransform="uppercase"
+        letterSpacing="0.05em"
+        mb={2}
+      >
+        {headerLabel}
+      </Text>
       <Flex direction="column" gap={1}>
         {items.map((item, idx) => (
           <ChecklistRow
@@ -111,13 +135,15 @@ export function DocHeaderChecklist({
               />
             </Box>
           ) : (
-            <Btn
-              data-testid="docheader-checklist-add"
-              variant="ghost"
-              onClick={() => setAdding(true)}
-            >
-              + Add check
-            </Btn>
+            <Box>
+              <Btn
+                data-testid="docheader-checklist-add"
+                variant="ghost"
+                onClick={() => setAdding(true)}
+              >
+                + Add check
+              </Btn>
+            </Box>
           ))}
       </Flex>
     </Box>
