@@ -191,7 +191,12 @@ function DocHeaderAbstractInput({
         width="100%"
         m={0}
         p={0}
-        _placeholder={{ color: "fg.3" }}
+        css={{
+          "&::placeholder": {
+            color: "var(--chakra-colors-fg-3)",
+            opacity: 1,
+          },
+        }}
       />
     </Box>
   );

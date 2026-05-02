@@ -29,6 +29,9 @@ import {
 } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";
 
+import { extractFrontmatter } from "@/lib/blocks/extract-frontmatter-tags";
+import type { DocHeaderFrontmatter } from "@/components/layout/docheader/docheader-derive";
+
 // Vim ownership guard — when vim is in normal / visual mode, hjkl /
 // arrows belong to vim and we MUST NOT intercept them. In insert mode
 // (or when vim is off entirely) the editor is in "regular text mode"
@@ -103,6 +106,12 @@ export interface DocHeaderEntry {
    *  the body restores the previous position. Defaults to body start
    *  when the user has never placed a cursor in the body. */
   lastBodyOffset: number;
+  /** Live frontmatter parsed from the doc by the `EditorView`'s
+   *  StateField. The portal reads this directly so the React tree
+   *  always sees the same shape CM6 sees — bypasses the non-reactive
+   *  `editorContents` Map in the pane store. `null` mirrors the legacy
+   *  "no frontmatter" sentinel from `DocHeaderedEditor`. */
+  frontmatter: DocHeaderFrontmatter | null;
 }
 
 const entries = new Map<string, DocHeaderEntry>();
@@ -139,6 +148,7 @@ function ensureEntry(id: string, container: HTMLElement): DocHeaderEntry {
     view: null,
     titleInput: null,
     lastBodyOffset: 0,
+    frontmatter: null,
   };
   entries.set(id, next);
   return next;
@@ -168,9 +178,100 @@ function registerContainer(
       view: null,
       titleInput: null,
       lastBodyOffset: 0,
+      frontmatter: null,
     });
   }
   notify();
+}
+
+function frontmatterEqual(
+  a: DocHeaderFrontmatter | null,
+  b: DocHeaderFrontmatter | null,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.title !== b.title) return false;
+  if (a.abstract !== b.abstract) return false;
+  const aTags = a.tags ?? [];
+  const bTags = b.tags ?? [];
+  if (aTags.length !== bTags.length) return false;
+  for (let i = 0; i < aTags.length; i++) if (aTags[i] !== bTags[i]) return false;
+  const aPre = a.preflight ?? [];
+  const bPre = b.preflight ?? [];
+  if (aPre.length !== bPre.length) return false;
+  for (let i = 0; i < aPre.length; i++) {
+    if (aPre[i].text !== bPre[i].text) return false;
+    if (aPre[i].done !== bPre[i].done) return false;
+  }
+  return true;
+}
+
+function frontmatterFromDoc(doc: string): DocHeaderFrontmatter | null {
+  const fm = extractFrontmatter(doc);
+  if (
+    fm.title === undefined &&
+    fm.abstract === undefined &&
+    fm.tags.length === 0 &&
+    fm.preflight.length === 0
+  ) {
+    return null;
+  }
+  return {
+    title: fm.title,
+    abstract: fm.abstract,
+    tags: fm.tags,
+    preflight: fm.preflight,
+  };
+}
+
+/** Set the live frontmatter for an entry and notify subscribers if the
+ *  parsed shape actually changed. Called from the StateField on every
+ *  doc change — gating on equality keeps the React portal from
+ *  re-rendering on body keystrokes that didn't touch the frontmatter. */
+function syncEntryFrontmatter(id: string, doc: string) {
+  const entry = entries.get(id);
+  if (!entry) return;
+  const next = frontmatterFromDoc(doc);
+  if (frontmatterEqual(entry.frontmatter, next)) return;
+  entry.frontmatter = next;
+  notify();
+}
+
+/**
+ * Replace the editor's doc with `newContent`, dispatching a minimal
+ * change record (computed from the longest common prefix / suffix) so
+ * CM6 maps the user's body cursor automatically. Used by header
+ * callbacks (title / abstract / tags / checklist) to round-trip a
+ * frontmatter rewrite through CM6's update cycle — that fires the
+ * editor's onChange (which writes to the pane store's content map)
+ * AND triggers the StateField below (which re-parses the frontmatter
+ * and refreshes the React portal).
+ */
+export function dispatchDocReplace(view: EditorView, newContent: string) {
+  const oldContent = view.state.doc.toString();
+  if (oldContent === newContent) return;
+
+  let prefix = 0;
+  const minLen = Math.min(oldContent.length, newContent.length);
+  while (prefix < minLen && oldContent[prefix] === newContent[prefix]) prefix++;
+
+  let suffix = 0;
+  const maxSuffix = minLen - prefix;
+  while (
+    suffix < maxSuffix &&
+    oldContent[oldContent.length - 1 - suffix] ===
+      newContent[newContent.length - 1 - suffix]
+  ) {
+    suffix++;
+  }
+
+  view.dispatch({
+    changes: {
+      from: prefix,
+      to: oldContent.length - suffix,
+      insert: newContent.slice(prefix, newContent.length - suffix),
+    },
+  });
 }
 
 function unregisterContainer(id: string) {
@@ -261,12 +362,17 @@ class DocHeaderWidget extends WidgetType {
     div.contentEditable = "false";
     registerContainer(this.instanceId, div, this.hasFrontmatter);
     bindView(this.instanceId, view, div);
+    // Seed the live frontmatter on first mount so the portal renders
+    // with the correct tags / checklist immediately, without waiting
+    // for a doc change.
+    syncEntryFrontmatter(this.instanceId, view.state.doc.toString());
     return div;
   }
 
   updateDOM(dom: HTMLElement, view: EditorView): boolean {
     registerContainer(this.instanceId, dom, this.hasFrontmatter);
     bindView(this.instanceId, view, dom);
+    syncEntryFrontmatter(this.instanceId, view.state.doc.toString());
     return true;
   }
 
@@ -378,12 +484,18 @@ export function createDocHeaderExtension(): DocHeaderExtensionHandle {
 
   fieldByInstance.set(instanceId, field);
 
-  // Track the last cursor offset inside the body so leaving the editor
-  // (focus jumps to the title input on ArrowUp) and coming back
-  // restores the same position. The guard skips writes when the cursor
-  // is still inside the frontmatter range — atomicRanges normally
-  // prevents this, but during initial mount it can briefly happen.
+  // Track:
+  //   1. the last cursor offset inside the body — leaving + re-entering
+  //      restores the position (M3),
+  //   2. the live frontmatter parse — pushed into the entry so the
+  //      React portal sees fresh tags / checklist / abstract / title
+  //      without needing the upstream `content` prop to change. (The
+  //      pane store's editorContents is a non-reactive Map, so React
+  //      doesn't otherwise re-render on body keystrokes.)
   const updateListener = EditorView.updateListener.of((u) => {
+    if (u.docChanged) {
+      syncEntryFrontmatter(instanceId, u.state.doc.toString());
+    }
     if (!u.selectionSet && !u.viewportChanged) return;
     const value = u.state.field(field, false);
     if (!value) return;

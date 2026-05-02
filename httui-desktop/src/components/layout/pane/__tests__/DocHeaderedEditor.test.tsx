@@ -4,95 +4,41 @@ import { DocHeaderedEditor } from "@/components/layout/pane/DocHeaderedEditor";
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
 import { renderWithProviders, screen } from "@/test/render";
 
-// V2 / cenário 4.5 — the DocHeader is now mounted INSIDE the
-// MarkdownEditor via a CM6 block widget + React portal. The mock below
-// reproduces that wiring at the integration boundary by rendering the
-// inlineHeader's stub alongside the editor placeholder, so the existing
-// `docheader-stub` assertions keep working without coupling them to
-// CodeMirror itself.
+// V2 / cenário 4.5 — the DocHeader is mounted INSIDE the MarkdownEditor
+// via a CM6 block widget + React portal. The portal owns the editable
+// callbacks (title / abstract / tags / checklist) and the live
+// frontmatter parse — those flows are tested at the
+// `cm-doc-header` / `update-frontmatter` level. The mock below only
+// reproduces the AMBIENT props the inlineHeader still carries
+// (filePath, compact, mtime, dirty, branch) so this test focuses on
+// the metadata wiring of `DocHeaderedEditor` itself.
 function DocHeaderStub({
   filePath,
   compact,
   onToggleCompact,
-  frontmatter,
   mtimeMs,
   dirty,
   branch,
-  onTitleSave,
-  onAbstractSave,
-  onAddTag,
-  onRemoveTag,
 }: {
   filePath: string;
   compact?: boolean;
   onToggleCompact?: () => void;
-  frontmatter?: {
-    title?: string;
-    abstract?: string;
-    tags?: readonly string[];
-  } | null;
   mtimeMs?: number | null;
   dirty?: boolean;
   branch?: { branch: string | null } | null;
-  onTitleSave?: (title: string) => void;
-  onAbstractSave?: (abstract: string) => void;
-  onAddTag?: (tag: string) => void;
-  onRemoveTag?: (tag: string) => void;
 }) {
   return (
-    <>
-      <button
-        data-testid="docheader-stub"
-        data-file={filePath}
-        data-compact={String(Boolean(compact))}
-        data-fm-null={String(frontmatter === null)}
-        data-fm-title={frontmatter?.title ?? ""}
-        data-fm-abstract={frontmatter?.abstract ?? ""}
-        data-fm-tags={(frontmatter?.tags ?? []).join(",")}
-        data-mtime={String(mtimeMs ?? "")}
-        data-dirty={String(Boolean(dirty))}
-        data-branch={branch?.branch ?? ""}
-        onClick={() => onToggleCompact?.()}
-      >
-        docheader
-      </button>
-      {/* Hook for the save-title flow: a test clicks this to drive
-          `onTitleSave` with a fixed value, exercising the full
-          `updateFrontmatterTitle` → `onChange` wiring without needing
-          to render the real input + debounce machinery. */}
-      {onTitleSave && (
-        <button
-          data-testid="docheader-stub-save-title"
-          onClick={() => onTitleSave("Renamed")}
-        >
-          save title
-        </button>
-      )}
-      {onAbstractSave && (
-        <button
-          data-testid="docheader-stub-save-abstract"
-          onClick={() => onAbstractSave("New summary")}
-        >
-          save abstract
-        </button>
-      )}
-      {onAddTag && (
-        <button
-          data-testid="docheader-stub-add-tag"
-          onClick={() => onAddTag("alpha")}
-        >
-          add tag
-        </button>
-      )}
-      {onRemoveTag && (
-        <button
-          data-testid="docheader-stub-remove-tag"
-          onClick={() => onRemoveTag("beta")}
-        >
-          remove tag
-        </button>
-      )}
-    </>
+    <button
+      data-testid="docheader-stub"
+      data-file={filePath}
+      data-compact={String(Boolean(compact))}
+      data-mtime={String(mtimeMs ?? "")}
+      data-dirty={String(Boolean(dirty))}
+      data-branch={branch?.branch ?? ""}
+      onClick={() => onToggleCompact?.()}
+    >
+      docheader
+    </button>
   );
 }
 
@@ -244,70 +190,11 @@ describe("DocHeaderedEditor", () => {
     expect(editor.dataset.len).toBe("4");
   });
 
-  it("threads frontmatter=null when content has no fence", () => {
-    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    renderWithProviders(
-      <DocHeaderedEditor {...baseProps} content={"# heading only\n"} />,
-    );
-    const header = screen.getByTestId("docheader-stub");
-    expect(header.dataset.fmNull).toBe("true");
-    expect(header.dataset.fmTitle).toBe("");
-    expect(header.dataset.fmTags).toBe("");
-  });
-
-  it("parses frontmatter title + abstract + tags from the document", () => {
-    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    const doc = [
-      "---",
-      'title: "Payments — debug capture failures"',
-      'abstract: "Capture flow when X"',
-      "tags: [payments, debug]",
-      "---",
-      "body",
-      "",
-    ].join("\n");
-    renderWithProviders(
-      <DocHeaderedEditor {...baseProps} content={doc} />,
-    );
-    const header = screen.getByTestId("docheader-stub");
-    expect(header.dataset.fmNull).toBe("false");
-    expect(header.dataset.fmTitle).toBe("Payments — debug capture failures");
-    expect(header.dataset.fmAbstract).toBe("Capture flow when X");
-    expect(header.dataset.fmTags).toBe("payments,debug");
-  });
-
-  it("frontmatter survives subsequent body edits (parser memoized on content)", async () => {
-    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    const initial = "---\ntitle: Stable\n---\nbody\n";
-    const { rerender } = renderWithProviders(
-      <DocHeaderedEditor {...baseProps} content={initial} />,
-    );
-    expect(screen.getByTestId("docheader-stub").dataset.fmTitle).toBe(
-      "Stable",
-    );
-
-    // Edit body only — title stays.
-    rerender(
-      <DocHeaderedEditor
-        {...baseProps}
-        content={"---\ntitle: Stable\n---\nbody edited\n"}
-      />,
-    );
-    expect(screen.getByTestId("docheader-stub").dataset.fmTitle).toBe(
-      "Stable",
-    );
-
-    // Edit title — reflects.
-    rerender(
-      <DocHeaderedEditor
-        {...baseProps}
-        content={"---\ntitle: Renamed\n---\nbody edited\n"}
-      />,
-    );
-    expect(screen.getByTestId("docheader-stub").dataset.fmTitle).toBe(
-      "Renamed",
-    );
-  });
+  // Frontmatter parsing + editable callbacks moved to
+  // `DocHeaderWidgetPortal` (lives inside MarkdownEditor and reads the
+  // CM6 StateField directly). Tests for those flows: see
+  // `update-frontmatter.test.ts`, `extract-frontmatter-tags.test.ts`,
+  // `cm-doc-header.test.ts`.
 
   it("threads mtime from useFileMtime into the meta strip", async () => {
     mockTauriCommand("get_file_mtime", () => 1_734_000_000_000);
@@ -394,114 +281,6 @@ describe("DocHeaderedEditor", () => {
     rerender(<DocHeaderedEditor {...baseProps} dirty={false} />);
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(calls).toBe(initialCalls);
-  });
-
-  it("rewrites the doc and fires onChange when the title is committed", () => {
-    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    const onChange = vi.fn();
-    renderWithProviders(
-      <DocHeaderedEditor
-        {...baseProps}
-        content={"---\ntitle: Old\n---\nbody\n"}
-        onChange={onChange}
-      />,
-    );
-
-    screen.getByTestId("docheader-stub-save-title").click();
-
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith(
-      "---\ntitle: Renamed\n---\nbody\n",
-    );
-  });
-
-  it("adds a tag and fires onChange with the rewritten frontmatter", () => {
-    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    const onChange = vi.fn();
-    renderWithProviders(
-      <DocHeaderedEditor
-        {...baseProps}
-        content={"---\ntitle: x\ntags: [beta]\n---\nbody\n"}
-        onChange={onChange}
-      />,
-    );
-
-    screen.getByTestId("docheader-stub-add-tag").click();
-
-    expect(onChange).toHaveBeenCalledWith(
-      "---\ntitle: x\ntags: [beta, alpha]\n---\nbody\n",
-    );
-  });
-
-  it("removes a tag and rewrites the line", () => {
-    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    const onChange = vi.fn();
-    renderWithProviders(
-      <DocHeaderedEditor
-        {...baseProps}
-        content={"---\ntitle: x\ntags: [alpha, beta]\n---\nbody\n"}
-        onChange={onChange}
-      />,
-    );
-
-    screen.getByTestId("docheader-stub-remove-tag").click();
-
-    expect(onChange).toHaveBeenCalledWith(
-      "---\ntitle: x\ntags: [alpha]\n---\nbody\n",
-    );
-  });
-
-  it("removes the last tag and drops the tags line", () => {
-    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    const onChange = vi.fn();
-    renderWithProviders(
-      <DocHeaderedEditor
-        {...baseProps}
-        content={"---\ntitle: x\ntags: [beta]\n---\nbody\n"}
-        onChange={onChange}
-      />,
-    );
-
-    screen.getByTestId("docheader-stub-remove-tag").click();
-
-    expect(onChange).toHaveBeenCalledWith("---\ntitle: x\n---\nbody\n");
-  });
-
-  it("rewrites the doc and fires onChange when the abstract is committed", () => {
-    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    const onChange = vi.fn();
-    renderWithProviders(
-      <DocHeaderedEditor
-        {...baseProps}
-        content={"---\ntitle: x\n---\nbody\n"}
-        onChange={onChange}
-      />,
-    );
-
-    screen.getByTestId("docheader-stub-save-abstract").click();
-
-    expect(onChange).toHaveBeenCalledWith(
-      "---\ntitle: x\nabstract: New summary\n---\nbody\n",
-    );
-  });
-
-  it("prepends a new frontmatter when committing a title in virtual mode", () => {
-    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    const onChange = vi.fn();
-    renderWithProviders(
-      <DocHeaderedEditor
-        {...baseProps}
-        content={"# Heading\n\nbody\n"}
-        onChange={onChange}
-      />,
-    );
-
-    screen.getByTestId("docheader-stub-save-title").click();
-
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith(
-      "---\ntitle: Renamed\n---\n\n# Heading\n\nbody\n",
-    );
   });
 
   it("does NOT refresh mtime on the clean → dirty falling edge", async () => {

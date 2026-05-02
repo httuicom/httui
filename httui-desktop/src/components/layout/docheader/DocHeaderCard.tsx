@@ -243,7 +243,17 @@ function DocHeaderTitleInput({ value, onSave }: DocHeaderTitleInputProps) {
       width="100%"
       m={0}
       p={0}
-      _placeholder={{ color: "fg.3" }}
+      css={{
+        // Browsers default placeholders to ~50% opacity AND the ::placeholder
+        // pseudo-selector is not exposed via Chakra's `_placeholder` shorthand
+        // when we're using `Box as="input"` — write the rule directly so
+        // the placeholder shows in `fg.3` instead of bleeding through as
+        // bright white that looks like a real title.
+        "&::placeholder": {
+          color: "var(--chakra-colors-fg-3)",
+          opacity: 1,
+        },
+      }}
     />
   );
 }

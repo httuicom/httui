@@ -10,7 +10,7 @@
 // stays outside the CM6 editor so it pushes the whole pane down on
 // stale-on-disk.
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Box } from "@chakra-ui/react";
 
 import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
@@ -20,15 +20,6 @@ import type { BranchSummaryData } from "../docheader/docheader-meta";
 import { useFileDocHeaderCompact } from "@/hooks/useFileDocHeaderCompact";
 import { useFileMtime } from "@/hooks/useFileMtime";
 import { useGitStatus } from "@/hooks/useGitStatus";
-import { extractFrontmatter } from "@/lib/blocks/extract-frontmatter-tags";
-import type { PreflightItem } from "@/lib/blocks/preflight-item";
-import {
-  updateFrontmatterAbstract,
-  updateFrontmatterPreflight,
-  updateFrontmatterTags,
-  updateFrontmatterTitle,
-} from "@/lib/blocks/update-frontmatter";
-import type { DocHeaderFrontmatter } from "../docheader/docheader-derive";
 
 export interface DocHeaderedEditorProps {
   filePath: string;
@@ -89,89 +80,15 @@ export function DocHeaderedEditor({
     };
   }, [gitStatus]);
 
-  // Parse frontmatter inline (synchronous TS port of the Rust slice-1
-  // schema — title + abstract + tags only). Re-runs every keystroke,
-  // but the parser short-circuits on `---\n` absence so the common
-  // body-edit case is a single string-prefix check. The Rust
-  // `parse_frontmatter` stays the authoritative parser on the vault-
-  // walker path; this is the per-edit synchronous counterpart.
-  const frontmatter = useMemo<DocHeaderFrontmatter | null>(() => {
-    const fm = extractFrontmatter(content);
-    if (
-      fm.title === undefined &&
-      fm.abstract === undefined &&
-      fm.tags.length === 0 &&
-      fm.preflight.length === 0
-    ) {
-      // No frontmatter at all → null lets the card fall back through
-      // first-heading → filename. Distinct from "fenced but empty"
-      // which still renders the card chrome.
-      return null;
-    }
-    return {
-      title: fm.title,
-      abstract: fm.abstract,
-      tags: fm.tags,
-      preflight: fm.preflight,
-    };
-  }, [content]);
-
-  // Latest content + onChange refs so the title-save callback below can
-  // be stable across body keystrokes — without this the callback rebuilds
-  // on every render (content is in scope), which the editable input
-  // already tolerates via its onSaveRef but produces unnecessary portal
-  // re-renders. Refs flatten that to one render per title commit.
-  const contentRef = useRef(content);
-  const onChangeRef = useRef(onChange);
-  // Tags need the latest frontmatter to compute add/remove deltas.
-  const frontmatterRef = useRef(frontmatter);
-  useEffect(() => {
-    contentRef.current = content;
-    onChangeRef.current = onChange;
-    frontmatterRef.current = frontmatter;
-  });
-
-  const onTitleSave = useCallback((title: string) => {
-    const next = updateFrontmatterTitle(contentRef.current, title);
-    if (next === contentRef.current) return;
-    onChangeRef.current(next);
-  }, []);
-
-  const onAbstractSave = useCallback((abstract: string) => {
-    const next = updateFrontmatterAbstract(contentRef.current, abstract);
-    if (next === contentRef.current) return;
-    onChangeRef.current(next);
-  }, []);
-
-  const onAddTag = useCallback((tag: string) => {
-    const current = (frontmatterRef.current?.tags ?? []) as ReadonlyArray<string>;
-    const trimmed = tag.trim();
-    if (trimmed.length === 0 || current.includes(trimmed)) return;
-    const next = [...current, trimmed];
-    const nextContent = updateFrontmatterTags(contentRef.current, next);
-    if (nextContent === contentRef.current) return;
-    onChangeRef.current(nextContent);
-  }, []);
-
-  const onRemoveTag = useCallback((tag: string) => {
-    const current = (frontmatterRef.current?.tags ?? []) as ReadonlyArray<string>;
-    const next = current.filter((t) => t !== tag);
-    if (next.length === current.length) return;
-    const nextContent = updateFrontmatterTags(contentRef.current, next);
-    if (nextContent === contentRef.current) return;
-    onChangeRef.current(nextContent);
-  }, []);
-
-  const onChecklistSave = useCallback((items: PreflightItem[]) => {
-    const nextContent = updateFrontmatterPreflight(contentRef.current, items);
-    if (nextContent === contentRef.current) return;
-    onChangeRef.current(nextContent);
-  }, []);
-
+  // The frontmatter and the editable callbacks live inside
+  // `DocHeaderWidgetPortal` now — it dispatches transactions directly
+  // into CM6 and reads the parsed frontmatter off the StateField,
+  // bypassing the non-reactive `editorContents` Map in the pane store.
+  // This component just provides the ambient metadata (mtime / dirty /
+  // branch / compact) that doesn't depend on doc content.
   const inlineHeader = useMemo<InlineDocHeader>(
     () => ({
       filePath,
-      frontmatter,
       compact,
       onToggleCompact: () => {
         void setCompact(!compact);
@@ -179,26 +96,8 @@ export function DocHeaderedEditor({
       mtimeMs: mtime,
       dirty,
       branch,
-      onTitleSave,
-      onAbstractSave,
-      onAddTag,
-      onRemoveTag,
-      onChecklistSave,
     }),
-    [
-      filePath,
-      frontmatter,
-      compact,
-      setCompact,
-      mtime,
-      dirty,
-      branch,
-      onTitleSave,
-      onAbstractSave,
-      onAddTag,
-      onRemoveTag,
-      onChecklistSave,
-    ],
+    [filePath, compact, setCompact, mtime, dirty, branch],
   );
 
   return (
