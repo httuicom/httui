@@ -113,10 +113,72 @@ describe("ConnectionsList", () => {
     const user = userEvent.setup();
     renderWithProviders(<ConnectionsList />);
     await user.click(screen.getByLabelText("New connection"));
-    // ConnectionForm renders a Create button as part of its modal.
-    // That's the cheapest signal that the form mounted.
     expect(
       screen.getByRole("button", { name: /Create/i }),
     ).toBeInTheDocument();
+  });
+
+  it("clicking the row opens the ⋮ menu with Edit / Test / Refresh / Delete", async () => {
+    const user = userEvent.setup();
+    mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
+    renderWithProviders(<ConnectionsList />);
+    await waitFor(() =>
+      expect(screen.getByText("local-pg")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByText("local-pg"));
+    expect(screen.getByText("Edit")).toBeInTheDocument();
+    expect(screen.getByText("Test Connection")).toBeInTheDocument();
+    expect(screen.getByText("Refresh")).toBeInTheDocument();
+    expect(screen.getByText("Delete")).toBeInTheDocument();
+  });
+
+  it("Delete in the menu calls delete_connection then refresh", async () => {
+    const user = userEvent.setup();
+    const deleteSpy = vi.fn();
+    mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
+    mockTauriCommand("delete_connection", (args) => {
+      deleteSpy(args);
+      return undefined;
+    });
+    renderWithProviders(<ConnectionsList />);
+    await waitFor(() =>
+      expect(screen.getByText("local-pg")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByText("local-pg"));
+    await user.click(screen.getByText("Delete"));
+    await waitFor(() => expect(deleteSpy).toHaveBeenCalled());
+    expect(deleteSpy.mock.calls[0][0]).toMatchObject({ id: "c1" });
+  });
+
+  it("Edit in the menu opens the form preloaded with the connection", async () => {
+    const user = userEvent.setup();
+    mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
+    renderWithProviders(<ConnectionsList />);
+    await waitFor(() =>
+      expect(screen.getByText("local-pg")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByText("local-pg"));
+    await user.click(screen.getByText("Edit"));
+    expect(screen.getByRole("button", { name: /Save/i })).toBeInTheDocument();
+  });
+
+  it("Test Connection in the menu re-pings and updates latency", async () => {
+    const user = userEvent.setup();
+    let pingCount = 0;
+    mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
+    mockTauriCommand("test_connection", async () => {
+      pingCount += 1;
+      return undefined;
+    });
+    renderWithProviders(<ConnectionsList />);
+    await waitFor(() =>
+      expect(screen.getByText("local-pg")).toBeInTheDocument(),
+    );
+    // Auto-ping fires once.
+    await waitFor(() => expect(pingCount).toBeGreaterThanOrEqual(1));
+    const before = pingCount;
+    await user.click(screen.getByText("local-pg"));
+    await user.click(screen.getByText("Test Connection"));
+    await waitFor(() => expect(pingCount).toBeGreaterThan(before));
   });
 });
