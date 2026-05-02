@@ -84,6 +84,10 @@ export function WorkspaceMenu({
             data-testid="workspace-menu"
             minW="240px"
             maxW="360px"
+            bg="bg"
+            borderWidth="1px"
+            borderColor="line"
+            shadow="2xl"
           >
             {vaults.map((vault) => {
               const isActive = vault === activeVault;
