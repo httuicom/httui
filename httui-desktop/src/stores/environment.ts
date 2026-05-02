@@ -10,6 +10,7 @@ import {
   listEnvVariables,
   setEnvVariable as setEnvVarCmd,
   deleteEnvVariable as deleteEnvVarCmd,
+  resolveActiveEnvVariables,
 } from "@/lib/tauri/commands";
 
 // --- Types ---
@@ -102,12 +103,22 @@ export const useEnvironmentStore = create<EnvironmentState>()(
       getActiveVariables: async () => {
         const { activeEnvironment } = get();
         if (!activeEnvironment) return {};
-        const vars = await listEnvVariables(activeEnvironment.id);
-        const result: Record<string, string> = {};
-        for (const v of vars) {
-          result[v.key] = v.value;
+        // The dedicated execution-context IPC resolves secret values
+        // from the keychain. The plain `listEnvVariables` masks
+        // secrets to empty strings — using it here would silently
+        // collapse `{{SECRET_KEY}}` to nothing on every request.
+        try {
+          return await resolveActiveEnvVariables();
+        } catch {
+          // Fall back to the masked list so the request still goes
+          // out (with secrets unresolved) rather than failing.
+          const vars = await listEnvVariables(activeEnvironment.id);
+          const result: Record<string, string> = {};
+          for (const v of vars) {
+            result[v.key] = v.value;
+          }
+          return result;
         }
-        return result;
       },
     }),
     { name: "environment-store" },

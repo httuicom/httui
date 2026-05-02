@@ -235,14 +235,16 @@ describe("environmentStore", () => {
       expect(result).toEqual({});
     });
 
-    it("returns key->value map for the active environment", async () => {
+    it("returns key->value map for the active environment (resolved)", async () => {
       useEnvironmentStore.setState({
         activeEnvironment: mkEnv("a", "dev", true),
       });
-      mockTauriCommand("list_env_variables", () => [
-        mkVar("v1", "a", "TOKEN", "abc"),
-        mkVar("v2", "a", "URL", "https://example.com"),
-      ]);
+      // Primary path is the resolver IPC — secrets come back already
+      // unmasked. The plain `list_env_variables` is the fallback.
+      mockTauriCommand("resolve_active_env_variables", () => ({
+        TOKEN: "abc",
+        URL: "https://example.com",
+      }));
 
       const result = await useEnvironmentStore.getState().getActiveVariables();
 
@@ -256,10 +258,25 @@ describe("environmentStore", () => {
       useEnvironmentStore.setState({
         activeEnvironment: mkEnv("a", "dev", true),
       });
-      mockTauriCommand("list_env_variables", () => []);
+      mockTauriCommand("resolve_active_env_variables", () => ({}));
 
       const result = await useEnvironmentStore.getState().getActiveVariables();
       expect(result).toEqual({});
+    });
+
+    it("falls back to listEnvVariables when the resolver IPC fails", async () => {
+      useEnvironmentStore.setState({
+        activeEnvironment: mkEnv("a", "dev", true),
+      });
+      mockTauriCommand("resolve_active_env_variables", () => {
+        throw new Error("backend offline");
+      });
+      mockTauriCommand("list_env_variables", () => [
+        mkVar("v1", "a", "TOKEN", "abc"),
+      ]);
+
+      const result = await useEnvironmentStore.getState().getActiveVariables();
+      expect(result).toEqual({ TOKEN: "abc" });
     });
   });
 });

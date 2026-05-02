@@ -249,6 +249,45 @@ pub async fn delete_env_variable(
     stores.environments.delete_var(env_name, key).await
 }
 
+/// Resolve every variable of the active environment for execution
+/// context. Plain `[vars]` come through verbatim; `[secrets]` are
+/// resolved against the OS keychain so HTTP/DB blocks see the real
+/// value when expanding `{{KEY}}`.
+///
+/// **Do not** display the result anywhere visible to the user — this
+/// is the only IPC that returns secret values and is intended for
+/// the request-dispatch resolver. `list_env_variables` keeps masking
+/// secrets for display surfaces.
+#[tauri::command]
+pub async fn resolve_active_env_variables(
+    pool: State<'_, SqlitePool>,
+    registry: State<'_, Arc<VaultStoreRegistry>>,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    let stores = registry.for_active_vault(&pool).await?;
+    let Some(env_name) = stores.environments.active_env().await? else {
+        return Ok(std::collections::HashMap::new());
+    };
+    let public = stores.environments.list_vars(&env_name).await?;
+    let mut out = std::collections::HashMap::with_capacity(public.len());
+    for v in public {
+        let value = if v.is_secret {
+            // Skip silently if a secret can't be resolved — better to
+            // emit `{{KEY}}` literally than to crash the request.
+            stores
+                .environments
+                .resolve_var(&env_name, &v.key)
+                .await
+                .ok()
+                .flatten()
+                .unwrap_or_default()
+        } else {
+            v.value
+        };
+        out.insert(v.key, value);
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     //! These tests exercise the synthesized id parsing + DTO mapping.

@@ -395,6 +395,19 @@ export function deleteEnvVariable(id: string): Promise<void> {
   return invoke("delete_env_variable", { id });
 }
 
+/**
+ * Resolve every variable of the active environment for execution
+ * context. Plain `[vars]` come through verbatim; `[secrets]` are
+ * resolved against the OS keychain so HTTP/DB blocks see the real
+ * value when expanding `{{KEY}}`.
+ *
+ * Use ONLY in the request-dispatch path. `listEnvVariables` keeps
+ * masking secrets for any display surface.
+ */
+export function resolveActiveEnvVariables(): Promise<Record<string, string>> {
+  return invoke("resolve_active_env_variables");
+}
+
 // --- Block execution ---
 
 export interface BlockResult {
