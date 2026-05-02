@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Box, Flex, Input, Portal, Text } from "@chakra-ui/react";
+import { Box, Flex, Input, Text } from "@chakra-ui/react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useFileSearch } from "@/hooks/useFileSearch";
 import { LuFileText } from "react-icons/lu";
@@ -43,7 +43,7 @@ function QuickOpenInner({ onClose }: { onClose: () => void }) {
   }, [safeIndex]);
 
   return (
-    <Portal>
+    <>
       <Box
         position="fixed"
         inset={0}
@@ -117,6 +117,6 @@ function QuickOpenInner({ onClose }: { onClose: () => void }) {
           ))}
         </Box>
       </Box>
-    </Portal>
+    </>
   );
 }
