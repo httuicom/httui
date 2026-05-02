@@ -21,6 +21,39 @@ launch checklist (Epic 38, Story 03).
 
 ### Added
 
+- **Empty-state cards (Open / Clone / Create vault)** — primeiro
+  contato com o app sem vault aberto. Three actionable cards
+  replace the legacy "Em branco / Templates / Importar" surface,
+  with inline error rendering per card and Mac-native directory
+  picker. Open and Create rely on `scaffold_new_vault`; Clone
+  shells out to `git` and respects the user's credential helper
+  / ssh-agent. (V1 vertical 1, cenários 1-3)
+- **`clone_vault_cmd` Tauri command** — `git clone <url>
+  <parent>/<repo-name>` com leaf derivado da URL e parent
+  configurável. Default parent: `~/Documents`. Pre-flight rejeita
+  parent inexistente, parent que é arquivo, e leaf não-vazio.
+  Backed by `httui_core::git::git_clone`. (V1 vertical 1, cenário 2)
+- **`create_vault_cmd` Tauri command** — compõe mkdir + `git init`
+  + `scaffold_new_vault` numa operação atômica do ponto de vista
+  do user. Validações de input rejeitam path traversal (name vazio,
+  com `/` ou `\\`, começando com `.`). Backed by
+  `httui_core::vault_config::create::create_new_vault`.
+  (V1 vertical 1, cenário 3)
+- **First-run secrets modal** — quando o vault aberto referencia
+  `{{keychain:...}}` ausentes do OS keychain local, abre um modal
+  batch após `switchVault`. Cada row tem Save (preenche e remove
+  do store) e Skip (esconde da sessão atual mas mantém pendente).
+  Skip all / Done dismissam sem tocar o store. Refs ainda pendentes
+  ficam visíveis via badge na statusbar (`LuTriangleAlert` +
+  contador), clicável para reabrir o modal. (V1 vertical 1,
+  cenário 4)
+- **`save_secret_cmd` Tauri command** — persiste valor no OS
+  keychain. Validações rejeitam `keychain_key` vazio e `value`
+  vazio. Driver pra coletar resposta do modal first-run.
+- **`make wipe-config`** — limpa estado persistente do app
+  (`~/.config/httui`, `~/Library/Application Support/httui`,
+  `~/Library/Caches/httui-notes`) sem tocar keychain ou vaults.
+  Útil pra dev / debug / voltar pro empty state.
 - **File-backed configuration** — connections, environments and the
   per-machine UI prefs now live in plain TOML files (vault root +
   `~/.config/httui/user.toml`), not in `notes.db`. SQLite is retained as

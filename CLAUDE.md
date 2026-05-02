@@ -33,7 +33,29 @@ npm run test:coverage              # Run with v8 coverage report (HTML at covera
 # Lint
 npm run lint                       # ESLint
 cargo clippy --workspace           # Rust linter (all crates)
+
+# Dev utilities
+make wipe-config                   # Apaga config persistente do app (notes.db, user.toml, WebKit cache).
+                                   # Mantém keychain. Útil pra voltar ao empty state entre testes manuais.
 ```
+
+## Empty-state + first-run flow (V1 vertical 1)
+
+Mounted in `AppShell` when `vaultPath === null`:
+
+- `EmptyVaultScreen` — three cards: **Open** (file picker → `switchVault`),
+  **Clone** (form → `clone_vault_cmd` → derived `<parent>/<repo-name>` →
+  `switchVault`), **Create** (form → `create_vault_cmd` → mkdir + `git
+  init` + `scaffold_new_vault` → `switchVault`).
+- After `switchVault`, `usePendingSecretsScan` invokes
+  `list_missing_secrets`. If non-empty, the `PendingSecretsModal` opens
+  with a Save/Skip per row. Skipped refs stay in the store so the
+  `StatusBar` badge surfaces them; clicking the badge re-opens the
+  modal. `save_secret_cmd` persists each one to the OS keychain.
+- Tauri wrappers for these flows live in `src/lib/tauri/vault-ops.ts`
+  (`cloneVault`, `createVault`, `saveSecret`), re-exported from
+  `commands.ts`. Backend modules: `httui-core::git::clone`,
+  `httui-core::vault_config::create`, `vault_config_commands.rs`.
 
 ## Architecture
 
