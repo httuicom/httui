@@ -38,14 +38,29 @@ const DRIVER_COLORS: Record<string, string> = {
   sqlite: "green",
 };
 
+const PROD_PATTERN = /prod/i;
+
+interface PingState {
+  status: "idle" | "ok" | "err";
+  latencyMs: number | null;
+}
+
+async function pingConnection(id: string): Promise<PingState> {
+  const start = performance.now();
+  try {
+    await testConnection(id);
+    return { status: "ok", latencyMs: Math.round(performance.now() - start) };
+  } catch {
+    return { status: "err", latencyMs: null };
+  }
+}
+
 export function ConnectionsList() {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [editingConn, setEditingConn] = useState<Connection | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<
-    Record<string, "success" | "error">
-  >({});
+  const [pings, setPings] = useState<Record<string, PingState>>({});
 
   const refresh = useCallback(async () => {
     try {
@@ -59,6 +74,22 @@ export function ConnectionsList() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Auto-ping every connection on mount + whenever the connection
+  // list changes. Fire-and-forget per id so a slow one doesn't block
+  // the others. Failures land as `status="err"` in the ping map.
+  useEffect(() => {
+    let cancelled = false;
+    for (const conn of connections) {
+      pingConnection(conn.id).then((result) => {
+        if (cancelled) return;
+        setPings((prev) => ({ ...prev, [conn.id]: result }));
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [connections]);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -74,19 +105,9 @@ export function ConnectionsList() {
 
   const handleTest = useCallback(async (id: string) => {
     setTesting(id);
-    setTestResults((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-    try {
-      await testConnection(id);
-      setTestResults((prev) => ({ ...prev, [id]: "success" }));
-    } catch {
-      setTestResults((prev) => ({ ...prev, [id]: "error" }));
-    } finally {
-      setTesting(null);
-    }
+    const result = await pingConnection(id);
+    setPings((prev) => ({ ...prev, [id]: result }));
+    setTesting(null);
   }, []);
 
   const handleFormClose = useCallback(() => {
@@ -128,13 +149,19 @@ export function ConnectionsList() {
         </Box>
       ) : (
         <Box px={1} pb={2}>
-          {connections.map((conn) => (
+          {connections.map((conn) => {
+            const ping = pings[conn.id];
+            const isProd = PROD_PATTERN.test(conn.name);
+            return (
             <Menu.Root
               key={conn.id}
               positioning={{ placement: "bottom-start" }}
             >
               <Menu.Trigger asChild>
                 <Flex
+                  data-testid={`sidebar-connection-${conn.id}`}
+                  data-status={ping?.status ?? "idle"}
+                  data-prod={isProd ? "true" : "false"}
                   align="center"
                   gap={2}
                   px={2}
@@ -149,6 +176,22 @@ export function ConnectionsList() {
                   <Text flex={1} truncate fontFamily="mono" fontSize="xs">
                     {conn.name}
                   </Text>
+                  {isProd && (
+                    <Text
+                      data-testid={`sidebar-connection-${conn.id}-prod`}
+                      fontSize="2xs"
+                      fontWeight={700}
+                      letterSpacing="0.06em"
+                      px="4px"
+                      py="1px"
+                      color="red.fg"
+                      bg="red.subtle"
+                      borderRadius="3px"
+                      flexShrink={0}
+                    >
+                      PROD
+                    </Text>
+                  )}
                   <Badge
                     size="sm"
                     variant="subtle"
@@ -158,20 +201,35 @@ export function ConnectionsList() {
                   >
                     {DRIVER_LABELS[conn.driver] ?? conn.driver}
                   </Badge>
-                  {testing === conn.id ? (
-                    <Spinner size="xs" />
-                  ) : testResults[conn.id] ? (
-                    <Box
-                      w={2}
-                      h={2}
-                      rounded="full"
-                      bg={
-                        testResults[conn.id] === "success"
-                          ? "green.500"
-                          : "red.500"
-                      }
-                    />
-                  ) : null}
+                  <Flex align="center" gap={1} flexShrink={0}>
+                    {testing === conn.id ? (
+                      <Spinner size="xs" />
+                    ) : (
+                      <Box
+                        data-testid={`sidebar-connection-${conn.id}-dot`}
+                        w={2}
+                        h={2}
+                        rounded="full"
+                        bg={
+                          ping?.status === "ok"
+                            ? "green.500"
+                            : ping?.status === "err"
+                              ? "red.500"
+                              : "gray.500"
+                        }
+                      />
+                    )}
+                    {ping?.latencyMs != null && (
+                      <Text
+                        data-testid={`sidebar-connection-${conn.id}-latency`}
+                        fontFamily="mono"
+                        fontSize="2xs"
+                        color="fg.3"
+                      >
+                        {ping.latencyMs}ms
+                      </Text>
+                    )}
+                  </Flex>
                 </Flex>
               </Menu.Trigger>
               <Portal>
@@ -211,7 +269,8 @@ export function ConnectionsList() {
                 </Menu.Positioner>
               </Portal>
             </Menu.Root>
-          ))}
+            );
+          })}
         </Box>
       )}
 
