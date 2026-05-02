@@ -1,25 +1,25 @@
 /**
  * Welcome screen rendered by AppShell when no vault is active.
  *
- * Lays out the canvas §3 surface: 260px workspace sidebar +
- * centred main column with the three CTAs (open / scaffold /
- * clone-stub). Story 01 functional MVP shipped in `d5917f1`;
- * Story 02 sidebar wired here.
+ * Lays out the canvas §3 surface: 260px workspace sidebar + centred
+ * main column with three cards — Open / Clone / Create. The cards
+ * are dumb; this screen owns the busy/error state and wires each
+ * one to the workspace store + Tauri commands.
  *
- * Stories 03-07 (card design, templates registry, importar
- * parsers, footer paste-URL handler, post-MVP migration banner)
- * are pending.
+ * Cenário 1 (V1): Open is fully functional. Clone and Create show
+ * forms that surface "not implemented" errors inline. Cenários 2 e 3
+ * complete those flows.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Box, Flex, Heading, Stack, Text, Button } from "@chakra-ui/react";
+import { Box, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 
 import { useWorkspaceStore } from "@/stores/workspace";
 import { scaffoldVault, writeNote } from "@/lib/tauri/commands";
 import { EmptyVaultSidebar } from "@/components/layout/empty-vault/EmptyVaultSidebar";
-import { EmBrancoCard } from "@/components/layout/empty-vault/EmBrancoCard";
-import { TemplatesCard } from "@/components/layout/empty-vault/TemplatesCard";
-import { ImportarCard } from "@/components/layout/empty-vault/ImportarCard";
+import { OpenVaultCard } from "@/components/layout/empty-vault/OpenVaultCard";
+import { CloneVaultCard } from "@/components/layout/empty-vault/CloneVaultCard";
+import { CreateVaultCard } from "@/components/layout/empty-vault/CreateVaultCard";
 import { EmptyVaultFooter } from "@/components/layout/empty-vault/EmptyVaultFooter";
 import { FUJI_BG_DARK, FUJI_BG_LIGHT } from "@/theme/tokens";
 import {
@@ -28,42 +28,76 @@ import {
   PASTE_URL_RUNBOOK_PATH,
 } from "@/lib/paste-url";
 
-interface CreateState {
+interface FlowState {
   busy: boolean;
   error: string | null;
+}
+
+async function pickDirectory(title: string): Promise<string | null> {
+  const { open: openDialog } = await import("@tauri-apps/plugin-dialog");
+  const selected = await openDialog({
+    directory: true,
+    multiple: false,
+    title,
+  });
+  return (selected as string | null) ?? null;
 }
 
 export function EmptyVaultScreen() {
   const openVault = useWorkspaceStore((s) => s.openVault);
   const switchVault = useWorkspaceStore((s) => s.switchVault);
-  const [createState, setCreateState] = useState<CreateState>({
-    busy: false,
-    error: null,
-  });
-  const handleCreate = useCallback(async () => {
-    setCreateState({ busy: true, error: null });
+  const [flow, setFlow] = useState<FlowState>({ busy: false, error: null });
+
+  const handleOpen = useCallback(async () => {
+    setFlow({ busy: true, error: null });
     try {
-      const { open: openDialog } = await import("@tauri-apps/plugin-dialog");
-      const selected = await openDialog({
-        directory: true,
-        multiple: false,
-        title: "Choose folder for new vault",
-      });
-      if (!selected) {
-        setCreateState({ busy: false, error: null });
-        return;
-      }
-      const path = selected as string;
-      await scaffoldVault(path);
-      await switchVault(path);
+      await openVault();
     } catch (err) {
-      setCreateState({
+      setFlow({
         busy: false,
         error: err instanceof Error ? err.message : String(err),
       });
       return;
     }
-    setCreateState({ busy: false, error: null });
+    setFlow({ busy: false, error: null });
+  }, [openVault]);
+
+  const handleClone = useCallback(
+    async (_url: string, _destination: string | null) => {
+      throw new Error(
+        "Clone ainda não está disponível — chega na próxima vertical (cenário 2).",
+      );
+    },
+    [],
+  );
+
+  const handleCreate = useCallback(
+    async (_parentPath: string, _name: string) => {
+      throw new Error(
+        "Create ainda não está disponível — chega na próxima vertical (cenário 3).",
+      );
+    },
+    [],
+  );
+
+  const handleSidebarCreate = useCallback(async () => {
+    setFlow({ busy: true, error: null });
+    try {
+      const picked = await pickDirectory("Choose folder for new vault");
+      if (!picked) {
+        setFlow({ busy: false, error: null });
+        return;
+      }
+      await scaffoldVault(picked);
+      await switchVault(picked);
+    } catch (err) {
+      setFlow({
+        busy: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
+    setFlow({ busy: false, error: null });
   }, [switchVault]);
 
   // Paste-URL flow (Epic 41 Story 06): when the user pastes a clean
@@ -74,36 +108,24 @@ export function EmptyVaultScreen() {
   // click anything first.
   const handleCreateWithUrl = useCallback(
     async (url: string) => {
-      setCreateState({ busy: true, error: null });
+      setFlow({ busy: true, error: null });
       try {
-        const { open: openDialog } = await import(
-          "@tauri-apps/plugin-dialog"
-        );
-        const selected = await openDialog({
-          directory: true,
-          multiple: false,
-          title: "Choose folder for new vault",
-        });
-        if (!selected) {
-          setCreateState({ busy: false, error: null });
+        const picked = await pickDirectory("Choose folder for new vault");
+        if (!picked) {
+          setFlow({ busy: false, error: null });
           return;
         }
-        const path = selected as string;
-        await scaffoldVault(path);
-        await writeNote(
-          path,
-          PASTE_URL_RUNBOOK_PATH,
-          buildRunbookFromUrl(url),
-        );
-        await switchVault(path);
+        await scaffoldVault(picked);
+        await writeNote(picked, PASTE_URL_RUNBOOK_PATH, buildRunbookFromUrl(url));
+        await switchVault(picked);
       } catch (err) {
-        setCreateState({
+        setFlow({
           busy: false,
           error: err instanceof Error ? err.message : String(err),
         });
         return;
       }
-      setCreateState({ busy: false, error: null });
+      setFlow({ busy: false, error: null });
     },
     [switchVault],
   );
@@ -113,12 +135,6 @@ export function EmptyVaultScreen() {
       const text = event.clipboardData?.getData("text/plain") ?? "";
       const url = extractUrl(text);
       if (!url) return;
-      // Don't fight the OS paste menu when an input is focused — the
-      // user is pasting *into* something, not on the screen as a
-      // whole. The empty-vault screen has no inputs, but plugins or
-      // future widgets might add one. `target` is `Document` for
-      // bubbling pastes that didn't hit a focused element; skip the
-      // input check in that case.
       const target = event.target;
       if (target instanceof Element) {
         if (target.matches("input, textarea, [contenteditable]")) {
@@ -134,6 +150,15 @@ export function EmptyVaultScreen() {
     };
   }, [handleCreateWithUrl]);
 
+  const pickClonePath = useCallback(
+    () => pickDirectory("Choose destination for cloned vault"),
+    [],
+  );
+  const pickCreateParent = useCallback(
+    () => pickDirectory("Choose parent folder for new vault"),
+    [],
+  );
+
   return (
     <Flex
       data-testid="empty-vault-screen"
@@ -147,99 +172,70 @@ export function EmptyVaultScreen() {
       backgroundSize="cover"
       backgroundRepeat="no-repeat"
     >
-      <EmptyVaultSidebar onCreateRunbook={handleCreate} />
-      <Flex
-        flex={1}
-        align="center"
-        justify="center"
-        px={8}
-        py={12}
-      >
-        <Stack maxW="640px" gap={6} align="stretch">
-        <Box>
-          <Text
-            fontSize="xs"
-            fontWeight="bold"
-            letterSpacing="0.12em"
-            textTransform="uppercase"
-            color="brand.500"
-          >
-            Workspace ready
-          </Text>
-          <Heading as="h1" size="2xl" mt={2}>
-            Welcome to httui notes
-          </Heading>
-          <Text mt={3} fontSize="md" color="fg.muted">
-            Each runbook is a `.md` file you read, run, and version. Open
-            an existing folder, start fresh, or clone a teammate's vault.
-          </Text>
-        </Box>
-
-        {createState.error && (
-          <Box
-            data-testid="empty-vault-error"
-            bg="red.50"
-            color="red.900"
-            border="1px solid"
-            borderColor="red.200"
-            borderRadius="md"
-            px={4}
-            py={3}
-          >
-            <Text fontSize="sm" fontWeight="bold">
-              Couldn&apos;t set up the vault
+      <EmptyVaultSidebar onCreateRunbook={handleSidebarCreate} />
+      <Flex flex={1} align="center" justify="center" px={8} py={12}>
+        <Stack maxW="900px" gap={6} align="stretch">
+          <Box>
+            <Text
+              fontSize="xs"
+              fontWeight="bold"
+              letterSpacing="0.12em"
+              textTransform="uppercase"
+              color="brand.500"
+            >
+              Workspace ready
             </Text>
-            <Text fontSize="sm" mt={1}>
-              {createState.error}
+            <Heading as="h1" size="2xl" mt={2}>
+              Welcome to httui notes
+            </Heading>
+            <Text mt={3} fontSize="md" color="fg.muted">
+              Each runbook is a `.md` file you read, run, and version. Open an
+              existing folder, clone a teammate&apos;s repo, or start fresh.
             </Text>
           </Box>
-        )}
 
-        <Box
-          data-testid="empty-vault-card-grid"
-          display="grid"
-          gridTemplateColumns={{
-            base: "1fr",
-            md: "1.3fr 1fr 1fr",
-          }}
-          gap="14px"
-          maxW="760px"
-          alignItems="stretch"
-        >
-          <EmBrancoCard onCreateClick={handleCreate} />
-          <TemplatesCard onSelect={() => {}} />
-          <ImportarCard onSelect={() => {}} />
-        </Box>
+          {flow.error && (
+            <Box
+              data-testid="empty-vault-error"
+              bg="red.50"
+              color="red.900"
+              border="1px solid"
+              borderColor="red.200"
+              borderRadius="md"
+              px={4}
+              py={3}
+            >
+              <Text fontSize="sm" fontWeight="bold">
+                Couldn&apos;t open the vault
+              </Text>
+              <Text fontSize="sm" mt={1}>
+                {flow.error}
+              </Text>
+            </Box>
+          )}
 
-        <EmptyVaultFooter />
-
-        <Stack direction="row" gap={3} mt={2} justify="center">
-          <Button
-            data-testid="empty-vault-open"
-            onClick={() => openVault()}
-            disabled={createState.busy}
-            variant="ghost"
-            size="sm"
+          <Box
+            data-testid="empty-vault-card-grid"
+            display="grid"
+            gridTemplateColumns={{ base: "1fr", md: "1fr 1fr 1fr" }}
+            gap="14px"
+            maxW="900px"
+            alignItems="stretch"
           >
-            Open existing folder…
-          </Button>
-        </Stack>
+            <OpenVaultCard onOpenClick={handleOpen} busy={flow.busy} />
+            <CloneVaultCard
+              onClone={handleClone}
+              onPickDestination={pickClonePath}
+              busy={flow.busy}
+            />
+            <CreateVaultCard
+              onCreate={handleCreate}
+              onPickParent={pickCreateParent}
+              busy={flow.busy}
+            />
+          </Box>
 
-        <Text fontSize="xs" color="fg.muted" textAlign="center">
-          Clone-from-git arrives with Epic 17 — for now use{" "}
-          <Box as="span" fontFamily="mono">
-            git clone &lt;url&gt;
-          </Box>{" "}
-          in a terminal, then come back and pick the folder above.
-        </Text>
-
-        <Text fontSize="xs" color="fg.muted" textAlign="center">
-          See{" "}
-          <Box as="span" fontFamily="mono">
-            docs/getting-started.md
-          </Box>{" "}
-          for the longer walkthrough.
-        </Text>
+          <EmptyVaultFooter />
         </Stack>
       </Flex>
     </Flex>

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderWithProviders, screen } from "@/test/render";
+import { renderWithProviders, screen, waitFor } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
 
@@ -28,40 +28,94 @@ afterEach(() => {
 });
 
 describe("EmptyVaultScreen", () => {
-  it("renders the welcome heading and three CTAs", () => {
+  it("renders the welcome heading and three V1 cards", () => {
     renderWithProviders(<EmptyVaultScreen />);
     expect(
       screen.getByRole("heading", { name: /Welcome to httui notes/i }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("empty-vault-open")).toBeInTheDocument();
-    expect(screen.getByTestId("em-branco-cta")).toBeInTheDocument();
+    expect(screen.getByTestId("open-vault-card")).toBeInTheDocument();
+    expect(screen.getByTestId("clone-vault-card")).toBeInTheDocument();
+    expect(screen.getByTestId("create-vault-card")).toBeInTheDocument();
   });
 
-  it("renders the canvas-spec 3-card grid (Em branco / Templates / Importar)", () => {
+  it("does NOT render the v1.x-only Templates and Importar cards", () => {
     renderWithProviders(<EmptyVaultScreen />);
-    expect(screen.getByTestId("empty-vault-card-grid")).toBeInTheDocument();
-    expect(screen.getByTestId("em-branco-card")).toBeInTheDocument();
-    expect(screen.getByTestId("templates-card")).toBeInTheDocument();
-    expect(screen.getByTestId("importar-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("templates-card")).toBeNull();
+    expect(screen.queryByTestId("importar-card")).toBeNull();
+    expect(screen.queryByTestId("em-branco-card")).toBeNull();
   });
 
-  it("Choose folder dispatches the workspace store openVault action", async () => {
+  it("Open card dispatches the workspace store openVault action", async () => {
     const user = userEvent.setup();
-    // Spy on the store's openVault — exact wiring of the dialog
-    // resolves elsewhere; this test only verifies the CTA is wired
-    // to the right action.
     const spy = vi.fn();
     useWorkspaceStore.setState({ openVault: spy });
 
     renderWithProviders(<EmptyVaultScreen />);
-    await user.click(screen.getByTestId("empty-vault-open"));
+    await user.click(screen.getByTestId("open-vault-card"));
 
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it("New vault scaffolds and switches into the new path", async () => {
+  it("Open card surfaces an inline error if openVault rejects", async () => {
     const user = userEvent.setup();
-    vi.mocked(openDialog).mockResolvedValue("/tmp/fresh-vault");
+    const spy = vi.fn(async () => {
+      throw new Error("vault not a git repo");
+    });
+    useWorkspaceStore.setState({ openVault: spy });
+
+    renderWithProviders(<EmptyVaultScreen />);
+    await user.click(screen.getByTestId("open-vault-card"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("empty-vault-error")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("empty-vault-error").textContent).toContain(
+      "vault not a git repo",
+    );
+  });
+
+  it("Clone card surfaces 'not implemented yet' inline (cenário 2 work)", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<EmptyVaultScreen />);
+    await user.click(screen.getByTestId("clone-vault-expand"));
+    await user.type(
+      screen.getByTestId("clone-vault-url"),
+      "https://github.com/x/y.git",
+    );
+    await user.click(screen.getByTestId("clone-vault-submit"));
+    await waitFor(() =>
+      expect(screen.getByTestId("clone-vault-error").textContent).toContain(
+        "Clone ainda não está disponível",
+      ),
+    );
+    // App must not have crashed and Open card must still be functional.
+    expect(screen.getByTestId("open-vault-card")).toBeInTheDocument();
+  });
+
+  it("Create card surfaces 'not implemented yet' inline (cenário 3 work)", async () => {
+    const user = userEvent.setup();
+    vi.mocked(openDialog).mockResolvedValueOnce("/tmp/parent");
+    renderWithProviders(<EmptyVaultScreen />);
+    await user.click(screen.getByTestId("create-vault-expand"));
+    await user.click(screen.getByTestId("create-vault-pick-parent"));
+    await waitFor(() =>
+      expect(screen.getByTestId("create-vault-parent").textContent).toContain(
+        "/tmp/parent",
+      ),
+    );
+    await user.type(screen.getByTestId("create-vault-name"), "v1");
+    await user.click(screen.getByTestId("create-vault-submit"));
+    await waitFor(() =>
+      expect(screen.getByTestId("create-vault-error").textContent).toContain(
+        "Create ainda não está disponível",
+      ),
+    );
+    expect(screen.getByTestId("open-vault-card")).toBeInTheDocument();
+  });
+
+  it("Sidebar 'Novo runbook' scaffolds + switches into the chosen folder", async () => {
+    const user = userEvent.setup();
+    vi.mocked(openDialog).mockResolvedValue("/tmp/sidebar-vault");
     let scaffolded: string | null = null;
     mockTauriCommand("scaffold_vault", (args) => {
       scaffolded = (args as { vaultPath: string }).vaultPath;
@@ -78,14 +132,15 @@ describe("EmptyVaultScreen", () => {
     mockTauriCommand("stop_watching", () => null);
 
     renderWithProviders(<EmptyVaultScreen />);
-    await user.click(screen.getByTestId("em-branco-cta"));
+    await user.click(screen.getByTestId("create-runbook-btn"));
 
-    await new Promise((r) => setTimeout(r, 10));
-    expect(scaffolded).toBe("/tmp/fresh-vault");
-    expect(useWorkspaceStore.getState().vaultPath).toBe("/tmp/fresh-vault");
+    await waitFor(() =>
+      expect(useWorkspaceStore.getState().vaultPath).toBe("/tmp/sidebar-vault"),
+    );
+    expect(scaffolded).toBe("/tmp/sidebar-vault");
   });
 
-  it("New vault shows the error when scaffold rejects", async () => {
+  it("Sidebar create surfaces inline error when scaffold rejects", async () => {
     const user = userEvent.setup();
     vi.mocked(openDialog).mockResolvedValue("/tmp/bad");
     mockTauriCommand("scaffold_vault", () => {
@@ -93,17 +148,18 @@ describe("EmptyVaultScreen", () => {
     });
 
     renderWithProviders(<EmptyVaultScreen />);
-    await user.click(screen.getByTestId("em-branco-cta"));
+    await user.click(screen.getByTestId("create-runbook-btn"));
 
-    await new Promise((r) => setTimeout(r, 10));
-    expect(screen.getByTestId("empty-vault-error")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("empty-vault-error")).toBeInTheDocument(),
+    );
     expect(screen.getByTestId("empty-vault-error").textContent).toContain(
       "permission denied",
     );
     expect(useWorkspaceStore.getState().vaultPath).toBeNull();
   });
 
-  it("New vault is a no-op when the user cancels the picker", async () => {
+  it("Sidebar create is a no-op when the user cancels the picker", async () => {
     const user = userEvent.setup();
     vi.mocked(openDialog).mockResolvedValue(null);
     let scaffoldCalled = false;
@@ -113,27 +169,28 @@ describe("EmptyVaultScreen", () => {
     });
 
     renderWithProviders(<EmptyVaultScreen />);
-    await user.click(screen.getByTestId("em-branco-cta"));
+    await user.click(screen.getByTestId("create-runbook-btn"));
 
     await new Promise((r) => setTimeout(r, 10));
     expect(scaffoldCalled).toBe(false);
     expect(useWorkspaceStore.getState().vaultPath).toBeNull();
   });
 
-  it("Pasting a URL scaffolds + writes the seed runbook (Story 06)", async () => {
+  it("Pasting a URL scaffolds + writes the seed runbook (Story 06 carry)", async () => {
     vi.mocked(openDialog).mockResolvedValue("/tmp/paste-vault");
-    let scaffolded: string | null = null;
-    let written: { vaultPath: string; filePath: string; content: string } | null = null;
+    type WriteArgs = { vaultPath: string; filePath: string; content: string };
+    const scaffoldedRef: { current: string | null } = { current: null };
+    const writtenRef: { current: WriteArgs | null } = { current: null };
     mockTauriCommand("scaffold_vault", (args) => {
-      scaffolded = (args as { vaultPath: string }).vaultPath;
+      scaffoldedRef.current = (args as { vaultPath: string }).vaultPath;
       return {
-        vault_path: scaffolded,
+        vault_path: scaffoldedRef.current,
         created: ["connections.toml"],
         already_a_vault: false,
       };
     });
     mockTauriCommand("write_note", (args) => {
-      written = args as { vaultPath: string; filePath: string; content: string };
+      writtenRef.current = args as WriteArgs;
       return null;
     });
     mockTauriCommand("set_active_vault", () => null);
@@ -153,13 +210,15 @@ describe("EmptyVaultScreen", () => {
     });
     document.dispatchEvent(paste);
 
-    await new Promise((r) => setTimeout(r, 10));
-
-    expect(scaffolded).toBe("/tmp/paste-vault");
-    expect(written?.vaultPath).toBe("/tmp/paste-vault");
-    expect(written?.filePath).toBe("runbooks/untitled.md");
-    expect(written?.content).toContain("GET https://api.example.com/users");
-    expect(useWorkspaceStore.getState().vaultPath).toBe("/tmp/paste-vault");
+    await waitFor(() =>
+      expect(useWorkspaceStore.getState().vaultPath).toBe("/tmp/paste-vault"),
+    );
+    expect(scaffoldedRef.current).toBe("/tmp/paste-vault");
+    expect(writtenRef.current?.vaultPath).toBe("/tmp/paste-vault");
+    expect(writtenRef.current?.filePath).toBe("runbooks/untitled.md");
+    expect(writtenRef.current?.content).toContain(
+      "GET https://api.example.com/users",
+    );
   });
 
   it("Pasting non-URL text falls through (no scaffold)", async () => {

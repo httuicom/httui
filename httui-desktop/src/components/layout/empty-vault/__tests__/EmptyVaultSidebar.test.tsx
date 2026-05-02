@@ -61,15 +61,15 @@ describe("EmptyVaultSidebar", () => {
     );
   });
 
-  it("EXPLORAR section lists Templates / Connections / Variables / Members", () => {
+  it("EXPLORAR section lists Connections / Variables / Members (Templates is out of V1 scope)", () => {
     renderWithProviders(<EmptyVaultSidebar onCreateRunbook={() => {}} />);
-    expect(screen.getByTestId("explore-templates")).toBeInTheDocument();
     expect(screen.getByTestId("explore-connections")).toBeInTheDocument();
     expect(screen.getByTestId("explore-variables")).toBeInTheDocument();
     expect(screen.getByTestId("explore-members")).toBeInTheDocument();
+    expect(screen.queryByTestId("explore-templates")).toBeNull();
   });
 
-  it("Connections / Variables / Members render a (count) suffix; Templates does not", () => {
+  it("Connections / Variables / Members render a (count) suffix", () => {
     renderWithProviders(<EmptyVaultSidebar onCreateRunbook={() => {}} />);
     expect(screen.getByTestId("explore-connections").textContent).toContain(
       "(0)",
@@ -79,9 +79,6 @@ describe("EmptyVaultSidebar", () => {
     );
     expect(screen.getByTestId("explore-members").textContent).toContain(
       "(1)",
-    );
-    expect(screen.getByTestId("explore-templates").textContent).not.toContain(
-      "(",
     );
   });
 

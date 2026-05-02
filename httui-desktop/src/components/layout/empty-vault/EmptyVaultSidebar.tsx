@@ -35,7 +35,6 @@ interface ExplorerEntry {
 }
 
 const EXPLORE_ENTRIES: ReadonlyArray<ExplorerEntry> = [
-  { label: "Templates", count: null },
   { label: "Connections", count: 0 },
   { label: "Variables", count: 0 },
   { label: "Members", count: 1 },
