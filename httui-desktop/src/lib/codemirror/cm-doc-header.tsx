@@ -282,8 +282,12 @@ class DocHeaderWidget extends WidgetType {
   }
 
   ignoreEvent(): boolean {
-    // Let React handle clicks / keys inside the widget DOM.
-    return false;
+    // CM6 must NOT process events that originate inside the widget —
+    // otherwise a click on the title input is intercepted and the
+    // editor's cursor jumps somewhere in the doc, stealing focus
+    // before React's `<input>` gets it. The HTTP/DB widgets follow
+    // the same convention for the same reason.
+    return true;
   }
 
   get estimatedHeight(): number {
