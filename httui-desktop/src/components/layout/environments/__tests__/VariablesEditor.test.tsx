@@ -115,4 +115,47 @@ describe("VariablesEditor", () => {
     renderWithProviders(<VariablesEditor {...baseProps} />);
     expect(screen.getByText(/in HTTP blocks/i)).toBeInTheDocument();
   });
+
+  it("row delete dispatches onDeleteVariable with the row id", async () => {
+    const user = userEvent.setup();
+    const onDeleteVariable = vi.fn(async () => {});
+    renderWithProviders(
+      <VariablesEditor
+        {...baseProps}
+        variables={[mkVar("v1", "TOKEN", "abc")]}
+        onDeleteVariable={onDeleteVariable}
+      />,
+    );
+
+    await user.click(screen.getByLabelText("Delete variable"));
+    expect(onDeleteVariable).toHaveBeenCalledWith("v1");
+  });
+
+  it("row toggle reveal dispatches onToggleReveal with the row id", async () => {
+    const user = userEvent.setup();
+    const onToggleReveal = vi.fn();
+    renderWithProviders(
+      <VariablesEditor
+        {...baseProps}
+        variables={[mkVar("v1", "TOKEN", "", true)]}
+        onToggleReveal={onToggleReveal}
+      />,
+    );
+
+    await user.click(screen.getByLabelText("Show value"));
+    expect(onToggleReveal).toHaveBeenCalledWith("v1");
+  });
+
+  it("revealed secret row shows the resolvedValue (not •••)", () => {
+    renderWithProviders(
+      <VariablesEditor
+        {...baseProps}
+        variables={[mkVar("v1", "API_KEY", "", true)]}
+        revealedKeys={new Set(["v1"])}
+        resolvedValues={{ API_KEY: "sk-real-secret" }}
+      />,
+    );
+    expect(screen.getByText("sk-real-secret")).toBeInTheDocument();
+    expect(screen.queryByText("••••••••")).toBeNull();
+  });
 });
