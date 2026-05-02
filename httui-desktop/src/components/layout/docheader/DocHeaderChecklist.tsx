@@ -178,7 +178,7 @@ function ChecklistRow({
         as="button"
         type="button"
         data-testid="docheader-checklist-checkbox"
-        data-checked={item.done || undefined}
+        data-checked={item.done ? "true" : undefined}
         onClick={editable ? onToggle : undefined}
         disabled={!editable}
         w="16px"
@@ -186,18 +186,23 @@ function ChecklistRow({
         align="center"
         justify="center"
         borderWidth="1px"
-        borderColor={item.done ? "accent" : "line"}
         borderRadius="3px"
-        bg={item.done ? "accent" : "transparent"}
         cursor={editable ? "pointer" : "default"}
         flexShrink={0}
         p={0}
         css={{
+          // User-agent stylesheets repaint <button> backgrounds via
+          // `background-color: buttonface` (and similar) which beats
+          // Chakra's class-scoped rules in the cascade. `appearance:
+          // none` clears that, then we read the semantic-token CSS
+          // vars directly. The vars are emitted by Chakra v3 from
+          // `lib/theme.ts`'s semanticTokens config (see index.css for
+          // the same `--chakra-colors-bg-3` / `--chakra-colors-fg-3`
+          // pattern in production).
           appearance: "none",
-          // Some user-agent stylesheets repaint <button> backgrounds
-          // when focus or hover is engaged — pin the bg explicitly so
-          // the green stays visible while the row is active.
-          "&[data-checked]": {
+          backgroundColor: "transparent",
+          borderColor: "var(--chakra-colors-line)",
+          "&[data-checked='true']": {
             backgroundColor: "var(--chakra-colors-accent)",
             borderColor: "var(--chakra-colors-accent)",
           },
@@ -208,7 +213,7 @@ function ChecklistRow({
             as="span"
             fontSize="11px"
             lineHeight="1"
-            color="bg"
+            color="var(--chakra-colors-accent-fg)"
             fontWeight={700}
             aria-hidden="true"
           >
