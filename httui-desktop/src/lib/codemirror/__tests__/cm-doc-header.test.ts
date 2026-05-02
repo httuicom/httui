@@ -278,16 +278,30 @@ describe("DocHeader frontmatter guard (transactionFilter)", () => {
     view.destroy();
   });
 
-  it("body-clipped Cmd-A delete erases only the body", () => {
+  it("body-clipped Cmd-A delete erases only the body and pads `\\n`", () => {
     const view = createView("---\ntitle: x\n---\nbody one\nbody two\n");
     // Body starts at offset 17. The Cmd-A keymap clips selection to
     // [17, doc.length]; deleting that range hits no frontmatter
-    // bytes so the guard lets it pass.
+    // bytes so the guard lets it pass — and follows up with a
+    // trailing `\n` so the caret has a visible line to land on
+    // (otherwise CM6 has nothing to anchor it after the replace
+    // decoration covers the entire frontmatter).
     const bodyStart = 17;
     view.dispatch({
       changes: { from: bodyStart, to: view.state.doc.length, insert: "" },
     });
-    expect(view.state.doc.toString()).toBe("---\ntitle: x\n---\n");
+    expect(view.state.doc.toString()).toBe("---\ntitle: x\n---\n\n");
+    expect(view.state.selection.main.head).toBe(17);
+    view.destroy();
+  });
+
+  it("does not pad when the body still has content after a delete", () => {
+    const view = createView("---\ntitle: x\n---\nbody one\nbody two\n");
+    // Delete just the second line — body still has "body one\n".
+    view.dispatch({
+      changes: { from: 26, to: view.state.doc.length, insert: "" },
+    });
+    expect(view.state.doc.toString()).toBe("---\ntitle: x\n---\nbody one\n");
     view.destroy();
   });
 });

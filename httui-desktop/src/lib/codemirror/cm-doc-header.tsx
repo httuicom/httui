@@ -594,13 +594,31 @@ export function createDocHeaderExtension(): DocHeaderExtensionHandle {
       // start counts as a hit.
       if (from < rTo && to > rFrom) touches = true;
     });
-    if (!touches) return tr;
-    // Drop the change but preserve the selection update if any —
-    // returning an empty array would also cancel selection moves the
-    // user might want (Backspace selecting the prev char visually,
-    // for instance). The simplest safe call is to return an empty
-    // transaction spec, which discards everything.
-    return [];
+    if (touches) {
+      // Drop the change but preserve the selection update if any —
+      // returning an empty array would also cancel selection moves the
+      // user might want (Backspace selecting the prev char visually,
+      // for instance). The simplest safe call is to return an empty
+      // transaction spec, which discards everything.
+      return [];
+    }
+
+    // After a clean change: if the resulting doc ends right at the
+    // frontmatter close (`rTo`), the body is empty and CM6 has no
+    // line to anchor the caret on — typing still works but the user
+    // sees an invisible cursor (Cmd-A + Delete reproduces this).
+    // Pad with `\n` so the body has one empty line for the caret.
+    if (tr.changes.newLength === rTo) {
+      return [
+        tr,
+        {
+          changes: { from: rTo, insert: "\n" },
+          selection: EditorSelection.cursor(rTo),
+          annotations: FRONTMATTER_REWRITE.of(true),
+        },
+      ];
+    }
+    return tr;
   });
 
   return {
