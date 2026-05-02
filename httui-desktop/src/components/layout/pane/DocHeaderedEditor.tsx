@@ -1,25 +1,21 @@
-// Wraps the `<MarkdownEditor>` mount with a `<DocHeaderShell>` card on
-// top + the `<ConflictBanner>` (when stale-on-disk). Pulled out of
-// `PaneNode` so the per-file `useFileDocHeaderCompact` hook lives at
-// the top of a stable component (hooks can't run inside the
-// conditional that picks "diff vs file" tab content).
+// V2 / cenário 4.5 — DocHeader inline, mounted as a CM6 block widget at
+// the top of the document (no separate React layer). The inlineHeader
+// prop carries the data the standalone shell used to read; the
+// MarkdownEditor's CM6 extension creates a portal slot that this
+// component fills via the same DocHeaderShell render path.
 //
-// Closes the consumer-side mount carry from Epic 50 Story 06: click
-// on the H1 toggles compact mode and persists to
-// `.httui/workspace.toml` via the existing
-// `set_file_docheader_compact` Tauri command.
-//
-// Minimum viable mount — `frontmatter` is currently undefined; the
-// card falls back to filename-as-H1 (`pickH1Title`). Wiring per-chip
-// data (author / branch / last-run summary) + frontmatter parse is
-// the next slice and stays in this same component.
+// Pre-V2 the DocHeader was a sibling React layer above the editor with
+// its own scroll surface. It's now a single-scroll editor with the
+// header inline, matching the Notion-style mockup. ConflictBanner
+// stays outside the CM6 editor so it pushes the whole pane down on
+// stale-on-disk.
 
 import { useEffect, useMemo, useRef } from "react";
 import { Box } from "@chakra-ui/react";
 
 import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
+import type { InlineDocHeader } from "@/components/editor/DocHeaderWidgetPortal";
 import { ConflictBanner } from "../ConflictBanner";
-import { DocHeaderShell } from "../docheader/DocHeaderShell";
 import type { BranchSummaryData } from "../docheader/docheader-meta";
 import { useFileDocHeaderCompact } from "@/hooks/useFileDocHeaderCompact";
 import { useFileMtime } from "@/hooks/useFileMtime";
@@ -111,6 +107,21 @@ export function DocHeaderedEditor({
     };
   }, [content]);
 
+  const inlineHeader = useMemo<InlineDocHeader>(
+    () => ({
+      filePath,
+      frontmatter,
+      compact,
+      onToggleCompact: () => {
+        void setCompact(!compact);
+      },
+      mtimeMs: mtime,
+      dirty,
+      branch,
+    }),
+    [filePath, frontmatter, compact, setCompact, mtime, dirty, branch],
+  );
+
   return (
     <Box
       data-testid="doc-headered-editor"
@@ -126,17 +137,6 @@ export function DocHeaderedEditor({
           onKeep={onConflictKeep}
         />
       )}
-      <DocHeaderShell
-        filePath={filePath}
-        frontmatter={frontmatter}
-        compact={compact}
-        onToggleCompact={() => {
-          void setCompact(!compact);
-        }}
-        mtimeMs={mtime}
-        dirty={dirty}
-        branch={branch}
-      />
       <Box flex={1} overflow="hidden">
         <MarkdownEditor
           content={content}
@@ -144,6 +144,7 @@ export function DocHeaderedEditor({
           filePath={filePath}
           vimEnabled={vimEnabled}
           onNavigateFile={onNavigateFile}
+          inlineHeader={inlineHeader}
         />
       </Box>
     </Box>

@@ -4,40 +4,34 @@ import { DocHeaderedEditor } from "@/components/layout/pane/DocHeaderedEditor";
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
 import { renderWithProviders, screen } from "@/test/render";
 
-vi.mock("@/components/editor/MarkdownEditor", () => ({
-  MarkdownEditor: ({
-    filePath,
-    content,
-  }: {
-    filePath: string;
-    content: string;
-  }) => (
-    <div data-testid="markdown-editor" data-file={filePath} data-len={content.length} />
-  ),
-}));
-
-vi.mock("../../docheader/DocHeaderShell", () => ({
-  DocHeaderShell: ({
-    filePath,
-    compact,
-    onToggleCompact,
-    frontmatter,
-    mtimeMs,
-    dirty,
-    branch,
-  }: {
-    filePath: string;
-    compact?: boolean;
-    onToggleCompact?: () => void;
-    frontmatter?: {
-      title?: string;
-      abstract?: string;
-      tags?: readonly string[];
-    } | null;
-    mtimeMs?: number | null;
-    dirty?: boolean;
-    branch?: { branch: string | null } | null;
-  }) => (
+// V2 / cenário 4.5 — the DocHeader is now mounted INSIDE the
+// MarkdownEditor via a CM6 block widget + React portal. The mock below
+// reproduces that wiring at the integration boundary by rendering the
+// inlineHeader's stub alongside the editor placeholder, so the existing
+// `docheader-stub` assertions keep working without coupling them to
+// CodeMirror itself.
+function DocHeaderStub({
+  filePath,
+  compact,
+  onToggleCompact,
+  frontmatter,
+  mtimeMs,
+  dirty,
+  branch,
+}: {
+  filePath: string;
+  compact?: boolean;
+  onToggleCompact?: () => void;
+  frontmatter?: {
+    title?: string;
+    abstract?: string;
+    tags?: readonly string[];
+  } | null;
+  mtimeMs?: number | null;
+  dirty?: boolean;
+  branch?: { branch: string | null } | null;
+}) {
+  return (
     <button
       data-testid="docheader-stub"
       data-file={filePath}
@@ -53,6 +47,27 @@ vi.mock("../../docheader/DocHeaderShell", () => ({
     >
       docheader
     </button>
+  );
+}
+
+vi.mock("@/components/editor/MarkdownEditor", () => ({
+  MarkdownEditor: ({
+    filePath,
+    content,
+    inlineHeader,
+  }: {
+    filePath: string;
+    content: string;
+    inlineHeader?: Parameters<typeof DocHeaderStub>[0];
+  }) => (
+    <>
+      {inlineHeader && <DocHeaderStub {...inlineHeader} />}
+      <div
+        data-testid="markdown-editor"
+        data-file={filePath}
+        data-len={content.length}
+      />
+    </>
   ),
 }));
 

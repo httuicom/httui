@@ -81,6 +81,7 @@ import {
   createHttpBlockExtension,
   createHttpBlockCompletionSource,
 } from "@/lib/codemirror/cm-http-block";
+import { createDocHeaderExtension } from "@/lib/codemirror/cm-doc-header";
 import {
   wikilinks,
   createWikilinkCompletion,
@@ -95,6 +96,10 @@ import { useEnvironmentStore } from "@/stores/environment";
 import { BlockContextProvider } from "@/components/blocks/BlockContext";
 import { DbWidgetPortals } from "./DbWidgetPortals";
 import { HttpWidgetPortals } from "./HttpWidgetPortals";
+import {
+  DocHeaderWidgetPortal,
+  type InlineDocHeader,
+} from "./DocHeaderWidgetPortal";
 import {
   registerActiveEditor,
   unregisterActiveEditor,
@@ -122,6 +127,11 @@ interface MarkdownEditorProps {
   filePath: string;
   vimEnabled?: boolean;
   onNavigateFile?: (filePath: string) => void;
+  /** When provided, the DocHeader CM6 widget mounts at the top of the
+   *  document and the React shell is rendered inside it via portal. The
+   *  consumer (`DocHeaderedEditor`) feeds in the same data the standalone
+   *  shell used to receive. */
+  inlineHeader?: InlineDocHeader;
 }
 
 // Compartment for toggling vim mode without recreating the editor
@@ -338,10 +348,22 @@ export function MarkdownEditor({
   filePath,
   vimEnabled = false,
   onNavigateFile,
+  inlineHeader,
 }: MarkdownEditorProps) {
   const cmRef = useRef<ReactCodeMirrorRef>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [editorReady, setEditorReady] = useState(false);
+
+  // The DocHeader extension is created lazily once per editor mount. It
+  // returns a stable instanceId so the React portal can find its slot in
+  // the global registry. Stays null when `inlineHeader` is not provided
+  // — the editor renders without a header (preserves callers that don't
+  // need the DocHeader, e.g. standalone test mounts).
+  const hasInlineHeader = inlineHeader != null;
+  const docHeaderHandle = useMemo(
+    () => (hasInlineHeader ? createDocHeaderExtension() : null),
+    [hasInlineHeader],
+  );
 
   // Read workspace state imperatively (non-reactive)
   const entriesRef = useRef<FileEntry[]>(useWorkspaceStore.getState().entries);
@@ -385,6 +407,7 @@ export function MarkdownEditor({
       ]),
       moveBlocksKeymap(),
       hybridRendering(),
+      ...(docHeaderHandle ? [docHeaderHandle.extension] : []),
       createDbBlockExtension(),
       createHttpBlockExtension(),
       createEditorBlockWidgets(),
@@ -435,6 +458,12 @@ export function MarkdownEditor({
       editorTheme,
       EditorView.lineWrapping,
     ],
+    // CM6 extensions must be stable across renders — re-creating them
+    // would tear the editor down. `filePath` and `docHeaderHandle` are
+    // captured from the first render; the file path also keys the
+    // outer <CodeMirror key={filePath}> so a new file mount produces
+    // a fresh closure naturally.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -530,6 +559,12 @@ export function MarkdownEditor({
           <>
             <DbWidgetPortals view={viewRef.current} filePath={filePath} />
             <HttpWidgetPortals view={viewRef.current} filePath={filePath} />
+            {docHeaderHandle && inlineHeader && (
+              <DocHeaderWidgetPortal
+                instanceId={docHeaderHandle.instanceId}
+                inlineHeader={inlineHeader}
+              />
+            )}
           </>
         )}
       </Box>
