@@ -6,6 +6,11 @@ import type { EnvVariable } from "@/lib/tauri/commands";
 interface VariableRowProps {
   variable: EnvVariable;
   revealed: boolean;
+  /** Real value resolved from the OS keychain. Used to surface a
+   *  secret when the eye toggle is on; the masked `variable.value`
+   *  comes back as empty string from `list_env_variables` so it
+   *  can't fill the reveal on its own. */
+  resolvedValue?: string;
   isLast: boolean;
   onSave: (value: string, isSecret?: boolean) => Promise<void>;
   onDelete: () => Promise<void>;
@@ -22,26 +27,31 @@ interface VariableRowProps {
 export function VariableRow({
   variable,
   revealed,
+  resolvedValue,
   isLast,
   onSave,
   onDelete,
   onToggleReveal,
 }: VariableRowProps) {
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState(variable.value);
-
   const isSecret = variable.is_secret;
   const shouldMask = isSecret && !revealed;
+  // Secrets come back masked from `list_env_variables`; for editing
+  // we need the real value, which `resolvedValue` carries.
+  const effectiveValue =
+    isSecret && resolvedValue !== undefined ? resolvedValue : variable.value;
+
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(effectiveValue);
 
   const handleSave = async () => {
-    if (editValue !== variable.value) {
+    if (editValue !== effectiveValue) {
       await onSave(editValue, isSecret);
     }
     setEditing(false);
   };
 
   const handleToggleSecret = async () => {
-    await onSave(variable.value, !isSecret);
+    await onSave(effectiveValue, !isSecret);
   };
 
   return (
@@ -76,7 +86,7 @@ export function VariableRow({
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSave();
               if (e.key === "Escape") {
-                setEditValue(variable.value);
+                setEditValue(effectiveValue);
                 setEditing(false);
               }
             }}
@@ -88,12 +98,12 @@ export function VariableRow({
             fontSize="xs"
             cursor="pointer"
             onClick={() => {
-              setEditValue(variable.value);
+              setEditValue(effectiveValue);
               setEditing(true);
             }}
             minH="20px"
           >
-            {shouldMask ? "••••••••" : variable.value}
+            {shouldMask ? "••••••••" : effectiveValue}
           </Text>
         )}
       </Box>

@@ -547,6 +547,7 @@ fn main() {
             httui_notes::commands::environments::set_env_variable,
             httui_notes::commands::environments::delete_env_variable,
             httui_notes::commands::environments::resolve_active_env_variables,
+            httui_notes::commands::environments::resolve_env_variables,
             // Chat
             create_chat_session,
             list_chat_sessions,

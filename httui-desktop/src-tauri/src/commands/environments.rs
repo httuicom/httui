@@ -258,24 +258,19 @@ pub async fn delete_env_variable(
 /// is the only IPC that returns secret values and is intended for
 /// the request-dispatch resolver. `list_env_variables` keeps masking
 /// secrets for display surfaces.
-#[tauri::command]
-pub async fn resolve_active_env_variables(
-    pool: State<'_, SqlitePool>,
-    registry: State<'_, Arc<VaultStoreRegistry>>,
+async fn resolve_vars_for_env(
+    stores: &crate::commands::vault_stores::VaultStores,
+    env_name: &str,
 ) -> Result<std::collections::HashMap<String, String>, String> {
-    let stores = registry.for_active_vault(&pool).await?;
-    let Some(env_name) = stores.environments.active_env().await? else {
-        return Ok(std::collections::HashMap::new());
-    };
-    let public = stores.environments.list_vars(&env_name).await?;
+    let public = stores.environments.list_vars(env_name).await?;
     let mut out = std::collections::HashMap::with_capacity(public.len());
     for v in public {
         let value = if v.is_secret {
             // Skip silently if a secret can't be resolved — better to
-            // emit `{{KEY}}` literally than to crash the request.
+            // emit empty than to crash the caller.
             stores
                 .environments
-                .resolve_var(&env_name, &v.key)
+                .resolve_var(env_name, &v.key)
                 .await
                 .ok()
                 .flatten()
@@ -286,6 +281,32 @@ pub async fn resolve_active_env_variables(
         out.insert(v.key, value);
     }
     Ok(out)
+}
+
+/// Resolve every variable of a specific environment for execution-or-
+/// reveal context. Secrets come back unmasked from the OS keychain;
+/// plain `[vars]` come through verbatim. Treat as sensitive — the
+/// returned map carries cleartext secret values.
+#[tauri::command]
+pub async fn resolve_env_variables(
+    pool: State<'_, SqlitePool>,
+    registry: State<'_, Arc<VaultStoreRegistry>>,
+    environment_id: String,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    let stores = registry.for_active_vault(&pool).await?;
+    resolve_vars_for_env(&stores, &environment_id).await
+}
+
+#[tauri::command]
+pub async fn resolve_active_env_variables(
+    pool: State<'_, SqlitePool>,
+    registry: State<'_, Arc<VaultStoreRegistry>>,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    let stores = registry.for_active_vault(&pool).await?;
+    let Some(env_name) = stores.environments.active_env().await? else {
+        return Ok(std::collections::HashMap::new());
+    };
+    resolve_vars_for_env(&stores, &env_name).await
 }
 
 #[cfg(test)]

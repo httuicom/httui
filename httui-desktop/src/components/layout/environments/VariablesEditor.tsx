@@ -17,6 +17,9 @@ interface VariablesEditorProps {
   isActive: boolean;
   variables: EnvVariable[];
   revealedKeys: Set<string>;
+  /** Keychain-resolved values keyed by `EnvVariable.key`. Optional —
+   *  when missing, secret rows render `••••••••` even if revealed. */
+  resolvedValues?: Record<string, string>;
   onSetActive: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -34,6 +37,7 @@ export function VariablesEditor({
   isActive,
   variables,
   revealedKeys,
+  resolvedValues,
   onSetActive,
   onDuplicate,
   onDelete,
@@ -97,6 +101,7 @@ export function VariablesEditor({
             key={v.id}
             variable={v}
             revealed={revealedKeys.has(v.id)}
+            resolvedValue={resolvedValues?.[v.key]}
             isLast={i === variables.length - 1}
             onSave={(value, isSecret) => onSetVariable(v.key, value, isSecret)}
             onDelete={() => onDeleteVariable(v.id)}

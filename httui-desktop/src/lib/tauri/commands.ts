@@ -408,6 +408,18 @@ export function resolveActiveEnvVariables(): Promise<Record<string, string>> {
   return invoke("resolve_active_env_variables");
 }
 
+/**
+ * Resolve every variable of a specific environment, with secrets
+ * unmasked from the OS keychain. Treat the returned map as
+ * sensitive — the only legitimate consumers are the request
+ * dispatcher and the EnvironmentManager's reveal toggle.
+ */
+export function resolveEnvVariables(
+  environmentId: string,
+): Promise<Record<string, string>> {
+  return invoke("resolve_env_variables", { environmentId });
+}
+
 // --- Block execution ---
 
 export interface BlockResult {

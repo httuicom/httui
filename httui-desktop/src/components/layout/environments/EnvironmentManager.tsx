@@ -11,7 +11,10 @@ import {
 } from "@chakra-ui/react";
 import { LuPlus, LuX, LuCheck } from "react-icons/lu";
 import { useEnvironmentStore } from "@/stores/environment";
-import type { EnvVariable } from "@/lib/tauri/commands";
+import {
+  resolveEnvVariables,
+  type EnvVariable,
+} from "@/lib/tauri/commands";
 import { VariablesEditor } from "./VariablesEditor";
 
 export function EnvironmentManager() {
@@ -31,6 +34,9 @@ export function EnvironmentManager() {
 
   const [selectedEnvId, setSelectedEnvId] = useState<string | null>(null);
   const [variables, setVariables] = useState<EnvVariable[]>([]);
+  const [resolvedValues, setResolvedValues] = useState<Record<string, string>>(
+    {},
+  );
   const [newEnvName, setNewEnvName] = useState("");
   const [creating, setCreating] = useState(false);
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
@@ -43,15 +49,25 @@ export function EnvironmentManager() {
     setSelectedEnvId(environments[0]?.id ?? null);
   }, [managerOpen, environments, selectedEnvId]);
 
-  // Load variables when selected environment changes
+  // Load variables when selected environment changes — also fetch
+  // the keychain-resolved map so the reveal eye has real values to
+  // surface. Reset revealedKeys per env switch so secrets don't
+  // leak across envs by accident.
   useEffect(() => {
+    setRevealedKeys(new Set());
     if (!selectedEnvId) {
       setVariables([]);
+      setResolvedValues({});
       return;
     }
     let cancelled = false;
-    loadVariables(selectedEnvId).then((vars) => {
-      if (!cancelled) setVariables(vars);
+    Promise.all([
+      loadVariables(selectedEnvId),
+      resolveEnvVariables(selectedEnvId).catch(() => ({})),
+    ]).then(([vars, resolved]) => {
+      if (cancelled) return;
+      setVariables(vars);
+      setResolvedValues(resolved);
     });
     return () => {
       cancelled = true;
@@ -60,8 +76,12 @@ export function EnvironmentManager() {
 
   const refreshVariables = useCallback(async () => {
     if (!selectedEnvId) return;
-    const vars = await loadVariables(selectedEnvId);
+    const [vars, resolved] = await Promise.all([
+      loadVariables(selectedEnvId),
+      resolveEnvVariables(selectedEnvId).catch(() => ({})),
+    ]);
     setVariables(vars);
+    setResolvedValues(resolved);
   }, [selectedEnvId, loadVariables]);
 
   const handleCreate = useCallback(async () => {
@@ -252,6 +272,7 @@ export function EnvironmentManager() {
                 isActive={activeEnvironment?.id === selectedEnvId}
                 variables={variables}
                 revealedKeys={revealedKeys}
+                resolvedValues={resolvedValues}
                 onSetActive={() => switchEnvironment(selectedEnvId)}
                 onDuplicate={() =>
                   handleDuplicate(
