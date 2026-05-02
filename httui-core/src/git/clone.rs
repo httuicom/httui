@@ -120,7 +120,7 @@ pub(crate) fn derive_repo_name(url: &str) -> String {
         .strip_suffix(".git")
         .unwrap_or(trimmed);
     let last = without_git
-        .rsplit(|c: char| c == '/' || c == ':')
+        .rsplit(['/', ':'])
         .next()
         .unwrap_or("");
     last.to_string()
