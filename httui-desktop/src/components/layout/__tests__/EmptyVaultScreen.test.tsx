@@ -312,6 +312,66 @@ describe("EmptyVaultScreen", () => {
     );
   });
 
+  it("V1 cenário 5 audit — consecutive errors across all three cards never crash the app", async () => {
+    const user = userEvent.setup();
+    const openVaultSpy = vi.fn(async () => {
+      throw new Error("vault not a git repo");
+    });
+    useWorkspaceStore.setState({ openVault: openVaultSpy });
+    mockTauriCommand("clone_vault_cmd", () => {
+      throw new Error("fatal: repository 'foo' not found");
+    });
+    mockTauriCommand("create_vault_cmd", () => {
+      throw new Error("permission denied");
+    });
+    vi.mocked(openDialog).mockResolvedValue("/tmp/parent");
+
+    renderWithProviders(<EmptyVaultScreen />);
+
+    // 1. Open fails → global banner.
+    await user.click(screen.getByTestId("open-vault-card"));
+    await waitFor(() =>
+      expect(screen.getByTestId("empty-vault-error").textContent).toContain(
+        "vault not a git repo",
+      ),
+    );
+
+    // 2. Clone fails → inline error on card; banner stays cleared.
+    await user.click(screen.getByTestId("clone-vault-expand"));
+    await user.type(
+      screen.getByTestId("clone-vault-url"),
+      "https://nope.invalid/x.git",
+    );
+    await user.click(screen.getByTestId("clone-vault-submit"));
+    await waitFor(() =>
+      expect(screen.getByTestId("clone-vault-error").textContent).toContain(
+        "fatal",
+      ),
+    );
+
+    // 3. Create fails → inline error on card.
+    await user.click(screen.getByTestId("create-vault-expand"));
+    await user.click(screen.getByTestId("create-vault-pick-parent"));
+    await waitFor(() =>
+      expect(screen.getByTestId("create-vault-parent").textContent).toContain(
+        "/tmp/parent",
+      ),
+    );
+    await user.type(screen.getByTestId("create-vault-name"), "anything");
+    await user.click(screen.getByTestId("create-vault-submit"));
+    await waitFor(() =>
+      expect(screen.getByTestId("create-vault-error").textContent).toContain(
+        "permission denied",
+      ),
+    );
+
+    // App alive: all three cards still rendered, store still null.
+    expect(screen.getByTestId("open-vault-card")).toBeInTheDocument();
+    expect(screen.getByTestId("clone-vault-card")).toBeInTheDocument();
+    expect(screen.getByTestId("create-vault-card")).toBeInTheDocument();
+    expect(useWorkspaceStore.getState().vaultPath).toBeNull();
+  });
+
   it("Pasting non-URL text falls through (no scaffold)", async () => {
     let scaffoldCalled = false;
     mockTauriCommand("scaffold_vault", () => {
