@@ -11,9 +11,17 @@ import {
   TYPE_SCALE,
 } from "@/theme/tokens";
 
-// Semantic token entries swap value per color-mode condition.
-// `_dark` resolves under `.dark &`, `_light` under `.light &`.
-const semanticPair = (dark: string, light: string) => ({
+// Semantic token entry: same shape as Chakra v3's built-in
+// `defineSemanticTokens.colors` (see node_modules/@chakra-ui/react/
+// dist/esm/theme/semantic-tokens/colors.js). `_dark` / `_light` map
+// to Chakra's default conditions:
+//   _dark  → ".dark &, .dark .chakra-theme:not(.light) &"
+//   _light → ":root &, .light &"
+// We rely on those defaults — overriding `conditions` previously
+// caused dotted scale tokens (`bg.1`, `accent.soft`, `sel`) to fail
+// in `<button>` backgrounds, `Menu.Content`, and `_hover`. See
+// docs-llm/v2/known-issues.md#7 for the audit.
+const pair = (dark: string, light: string) => ({
   value: { _dark: dark, _light: light },
 });
 
@@ -60,41 +68,49 @@ const config = defineConfig({
     },
     semanticTokens: {
       colors: {
-        // Backgrounds (Fuji ramp).
-        bg: { value: semanticPair(THEME_DARK.bg, THEME_LIGHT.bg) },
-        "bg.1": { value: semanticPair(THEME_DARK.bg1, THEME_LIGHT.bg1) },
-        "bg.2": { value: semanticPair(THEME_DARK.bg2, THEME_LIGHT.bg2) },
-        "bg.3": { value: semanticPair(THEME_DARK.bg3, THEME_LIGHT.bg3) },
-        "bg.hi": { value: semanticPair(THEME_DARK.bgHi, THEME_LIGHT.bgHi) },
+        // Backgrounds (Fuji ramp). Nested-scale form is what Chakra
+        // v3's built-in tokens use; flat dotted keys like "bg.1"
+        // half-work and break in `<button>` bg / Menu / _hover paths.
+        bg: {
+          DEFAULT: { value: pair(THEME_DARK.bg, THEME_LIGHT.bg) },
+          "1": { value: pair(THEME_DARK.bg1, THEME_LIGHT.bg1) },
+          "2": { value: pair(THEME_DARK.bg2, THEME_LIGHT.bg2) },
+          "3": { value: pair(THEME_DARK.bg3, THEME_LIGHT.bg3) },
+          hi: { value: pair(THEME_DARK.bgHi, THEME_LIGHT.bgHi) },
+        },
         // Lines.
-        line: { value: semanticPair(THEME_DARK.line, THEME_LIGHT.line) },
-        "line.soft": {
-          value: semanticPair(THEME_DARK.lineSoft, THEME_LIGHT.lineSoft),
+        line: {
+          DEFAULT: { value: pair(THEME_DARK.line, THEME_LIGHT.line) },
+          soft: {
+            value: pair(THEME_DARK.lineSoft, THEME_LIGHT.lineSoft),
+          },
         },
         // Foregrounds.
-        fg: { value: semanticPair(THEME_DARK.fg, THEME_LIGHT.fg) },
-        "fg.1": { value: semanticPair(THEME_DARK.fg1, THEME_LIGHT.fg1) },
-        "fg.2": { value: semanticPair(THEME_DARK.fg2, THEME_LIGHT.fg2) },
-        "fg.3": { value: semanticPair(THEME_DARK.fg3, THEME_LIGHT.fg3) },
+        fg: {
+          DEFAULT: { value: pair(THEME_DARK.fg, THEME_LIGHT.fg) },
+          "1": { value: pair(THEME_DARK.fg1, THEME_LIGHT.fg1) },
+          "2": { value: pair(THEME_DARK.fg2, THEME_LIGHT.fg2) },
+          "3": { value: pair(THEME_DARK.fg3, THEME_LIGHT.fg3) },
+        },
         // Accent.
         accent: {
-          value: semanticPair(THEME_DARK.accent, THEME_LIGHT.accent),
-        },
-        "accent.fg": {
-          value: semanticPair(THEME_DARK.accentFg, THEME_LIGHT.accentFg),
-        },
-        "accent.soft": {
-          value: semanticPair(THEME_DARK.accentSoft, THEME_LIGHT.accentSoft),
+          DEFAULT: { value: pair(THEME_DARK.accent, THEME_LIGHT.accent) },
+          fg: {
+            value: pair(THEME_DARK.accentFg, THEME_LIGHT.accentFg),
+          },
+          soft: {
+            value: pair(THEME_DARK.accentSoft, THEME_LIGHT.accentSoft),
+          },
         },
         // Selection.
-        sel: { value: semanticPair(THEME_DARK.sel, THEME_LIGHT.sel) },
+        sel: { value: pair(THEME_DARK.sel, THEME_LIGHT.sel) },
       },
     },
   },
-  conditions: {
-    dark: ".dark &",
-    light: ".light &",
-  },
+  // No custom `conditions`: Chakra v3 defaults already match
+  // `.dark` (and the LightMode/DarkMode wrapper class
+  // `.chakra-theme.light/.dark`). Overriding broke nested-scale
+  // resolution.
 });
 
 export const system = createSystem(defaultConfig, config);
