@@ -22,6 +22,7 @@ pub fn list_workspace(vault_path: &str) -> Result<Vec<FileEntry>, String> {
 }
 
 const IGNORED_DIRS: &[&str] = &[
+    // Heavy build / dependency dirs.
     "node_modules",
     "target",
     "dist",
@@ -34,6 +35,10 @@ const IGNORED_DIRS: &[&str] = &[
     "vendor",
     ".venv",
     "venv",
+    // Vault internals — managed via dedicated UIs (EnvironmentManager
+    // drawer, ConnectionsList panel) rather than the file tree.
+    // The file is always under top-level `envs/` per ADR 0001.
+    "envs",
 ];
 
 fn list_dir_recursive(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String> {
@@ -175,6 +180,26 @@ mod tests {
         assert_eq!(entries[0].name, "subfolder");
         assert!(entries[0].children.as_ref().unwrap().len() == 1);
         assert!(!entries[1].is_dir);
+    }
+
+    #[test]
+    fn list_workspace_hides_envs_internal_dir() {
+        // Scaffolded vaults always include `envs/` for env TOML files
+        // (ADR 0001). Those are managed via the EnvironmentManager
+        // drawer / TopBar, not the file tree, so the sidebar must
+        // hide them — otherwise the user sees a confusing folder
+        // they can't usefully edit as markdown.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("envs")).unwrap();
+        std::fs::write(root.join("envs/local.toml"), "[vars]\n").unwrap();
+        std::fs::create_dir_all(root.join("runbooks")).unwrap();
+        std::fs::write(root.join("runbooks/auth.md"), "# Auth").unwrap();
+
+        let entries = list_workspace(root.to_str().unwrap()).unwrap();
+        let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
+        assert!(!names.contains(&"envs"), "envs should be hidden, got: {names:?}");
+        assert!(names.contains(&"runbooks"), "runbooks should appear, got: {names:?}");
     }
 
     #[test]

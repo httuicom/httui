@@ -479,6 +479,8 @@ fn main() {
             httui_notes::vault_config_commands::scaffold_vault,
             // Epic 18 — first-run missing-secrets scan.
             httui_notes::vault_config_commands::list_missing_secrets,
+            // V1 vertical 1, cenário 3 — create vault (mkdir + git init + scaffold).
+            httui_notes::vault_config_commands::create_vault_cmd,
             // Epic 20 — git panel.
             httui_notes::git_commands::git_status_cmd,
             httui_notes::git_commands::git_log_cmd,

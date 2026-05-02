@@ -13,6 +13,7 @@
 //! the cutover in epic 19.
 
 use httui_core::secrets::Keychain;
+use httui_core::vault_config::create::{create_new_vault, CreateOutcome};
 use httui_core::vault_config::gitignore::{ensure_local_overrides_in_gitignore, GitignoreOutcome};
 use httui_core::vault_config::migration::{
     detect_migration_candidate, run_migration, MigrationCandidate, MigrationOptions,
@@ -129,6 +130,20 @@ pub async fn scaffold_vault(vault_path: String) -> Result<ScaffoldReport, String
 pub async fn list_missing_secrets(vault_path: String) -> Result<Vec<MissingRef>, String> {
     let path = PathBuf::from(vault_path);
     scan_missing_secrets(&path, &Keychain)
+}
+
+/// Create a brand-new vault at `<parent>/<name>` — V1 vertical 1,
+/// cenário 3. Composes mkdir + `git init` + scaffold so the user
+/// gets a versionable, ready-to-edit vault in one step. The leaf
+/// name is the user's input; the backend rejects empty/path-traversal
+/// inputs and refuses to overwrite an existing non-empty folder.
+#[tauri::command]
+pub async fn create_vault_cmd(
+    parent_path: String,
+    name: String,
+) -> Result<CreateOutcome, String> {
+    let parent = PathBuf::from(parent_path);
+    create_new_vault(&parent, &name)
 }
 
 /// Probe `vault_path` to decide whether to surface the MVP→v1
@@ -278,6 +293,28 @@ mod tests {
         let r2 = scaffold_vault(folder_str).await.unwrap();
         assert!(r2.already_a_vault);
         assert!(r2.created.is_empty());
+    }
+
+    #[tokio::test]
+    async fn create_vault_cmd_round_trip() {
+        let (_dir, parent) = temp_xdg();
+        let parent_str = parent.to_string_lossy().into_owned();
+        let outcome = create_vault_cmd(parent_str, "novo-vault".into())
+            .await
+            .unwrap();
+        assert_eq!(outcome.destination, parent.join("novo-vault"));
+        assert!(outcome.destination.join(".git").is_dir());
+        assert!(outcome.destination.join("connections.toml").is_file());
+    }
+
+    #[tokio::test]
+    async fn create_vault_cmd_rejects_path_traversal_in_name() {
+        let (_dir, parent) = temp_xdg();
+        let parent_str = parent.to_string_lossy().into_owned();
+        let err = create_vault_cmd(parent_str, "../evil".into())
+            .await
+            .unwrap_err();
+        assert!(err.contains("'.'") || err.contains("'/'"), "got: {err}");
     }
 
     #[tokio::test]

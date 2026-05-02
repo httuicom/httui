@@ -133,9 +133,28 @@ describe("EmptyVaultScreen", () => {
     expect(useWorkspaceStore.getState().vaultPath).toBeNull();
   });
 
-  it("Create card surfaces 'not implemented yet' inline (cenário 3 work)", async () => {
+  it("Create card calls create_vault_cmd and switches into the new vault", async () => {
     const user = userEvent.setup();
     vi.mocked(openDialog).mockResolvedValueOnce("/tmp/parent");
+    type CreateArgs = { parentPath: string; name: string };
+    const createArgsRef: { current: CreateArgs | null } = { current: null };
+    mockTauriCommand("create_vault_cmd", (args) => {
+      createArgsRef.current = args as CreateArgs;
+      return {
+        destination: "/tmp/parent/meu-vault",
+        scaffold: {
+          vault_path: "/tmp/parent/meu-vault",
+          created: ["connections.toml"],
+          already_a_vault: false,
+        },
+      };
+    });
+    mockTauriCommand("set_active_vault", () => null);
+    mockTauriCommand("list_workspace", () => []);
+    mockTauriCommand("start_watching", () => null);
+    mockTauriCommand("rebuild_search_index", () => null);
+    mockTauriCommand("stop_watching", () => null);
+
     renderWithProviders(<EmptyVaultScreen />);
     await user.click(screen.getByTestId("create-vault-expand"));
     await user.click(screen.getByTestId("create-vault-pick-parent"));
@@ -144,14 +163,45 @@ describe("EmptyVaultScreen", () => {
         "/tmp/parent",
       ),
     );
-    await user.type(screen.getByTestId("create-vault-name"), "v1");
+    await user.type(screen.getByTestId("create-vault-name"), "meu-vault");
     await user.click(screen.getByTestId("create-vault-submit"));
+
     await waitFor(() =>
-      expect(screen.getByTestId("create-vault-error").textContent).toContain(
-        "Create ainda não está disponível",
+      expect(useWorkspaceStore.getState().vaultPath).toBe(
+        "/tmp/parent/meu-vault",
       ),
     );
-    expect(screen.getByTestId("open-vault-card")).toBeInTheDocument();
+    expect(createArgsRef.current).toEqual({
+      parentPath: "/tmp/parent",
+      name: "meu-vault",
+    });
+  });
+
+  it("Create card surfaces backend error inline without doubling the global banner", async () => {
+    const user = userEvent.setup();
+    vi.mocked(openDialog).mockResolvedValueOnce("/tmp/parent");
+    mockTauriCommand("create_vault_cmd", () => {
+      throw new Error("'/tmp/parent/exists' já existe e não está vazio");
+    });
+
+    renderWithProviders(<EmptyVaultScreen />);
+    await user.click(screen.getByTestId("create-vault-expand"));
+    await user.click(screen.getByTestId("create-vault-pick-parent"));
+    await waitFor(() =>
+      expect(screen.getByTestId("create-vault-parent").textContent).toContain(
+        "/tmp/parent",
+      ),
+    );
+    await user.type(screen.getByTestId("create-vault-name"), "exists");
+    await user.click(screen.getByTestId("create-vault-submit"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("create-vault-error").textContent).toContain(
+        "já existe",
+      ),
+    );
+    expect(screen.queryByTestId("empty-vault-error")).toBeNull();
+    expect(useWorkspaceStore.getState().vaultPath).toBeNull();
   });
 
   it("Sidebar 'Novo runbook' scaffolds + switches into the chosen folder", async () => {

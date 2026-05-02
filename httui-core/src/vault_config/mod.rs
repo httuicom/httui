@@ -15,6 +15,7 @@ pub mod connection_traits;
 pub mod connection_views;
 pub mod connections;
 pub mod connections_store;
+pub mod create;
 pub mod environments_store;
 pub mod envs;
 pub mod error;

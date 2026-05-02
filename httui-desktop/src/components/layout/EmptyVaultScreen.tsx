@@ -15,7 +15,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Box, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 
 import { useWorkspaceStore } from "@/stores/workspace";
-import { cloneVault, scaffoldVault, writeNote } from "@/lib/tauri/commands";
+import {
+  cloneVault,
+  createVault,
+  scaffoldVault,
+  writeNote,
+} from "@/lib/tauri/commands";
 import { EmptyVaultSidebar } from "@/components/layout/empty-vault/EmptyVaultSidebar";
 import { OpenVaultCard } from "@/components/layout/empty-vault/OpenVaultCard";
 import { CloneVaultCard } from "@/components/layout/empty-vault/CloneVaultCard";
@@ -81,12 +86,20 @@ export function EmptyVaultScreen() {
   );
 
   const handleCreate = useCallback(
-    async (_parentPath: string, _name: string) => {
-      throw new Error(
-        "Create ainda não está disponível — chega na próxima vertical (cenário 3).",
-      );
+    async (parentPath: string, name: string) => {
+      // Same inline-only error policy as Clone — re-throw so the
+      // card surfaces the message; only the busy flag is global.
+      setFlow({ busy: true, error: null });
+      try {
+        const outcome = await createVault(parentPath, name);
+        await switchVault(outcome.destination);
+      } catch (err) {
+        setFlow({ busy: false, error: null });
+        throw err;
+      }
+      setFlow({ busy: false, error: null });
     },
-    [],
+    [switchVault],
   );
 
   const handleSidebarCreate = useCallback(async () => {

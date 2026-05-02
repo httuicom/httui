@@ -180,6 +180,27 @@ export function cloneVault(
   return invoke("clone_vault_cmd", { url, parent });
 }
 
+// --- Create vault (V1 vertical 1, cenário 3) ---
+
+export interface CreateOutcome {
+  /** Absolute path of the new vault, ready for switchVault. */
+  destination: string;
+  /** What the scaffold actually wrote. */
+  scaffold: ScaffoldReport;
+}
+
+/**
+ * Create a brand-new vault at `<parentPath>/<name>` — composes
+ * mkdir + `git init` + scaffold. Backend rejects empty/path-traversal
+ * names and refuses to overwrite an existing non-empty folder.
+ */
+export function createVault(
+  parentPath: string,
+  name: string,
+): Promise<CreateOutcome> {
+  return invoke("create_vault_cmd", { parentPath, name });
+}
+
 // --- Missing secrets scan (epic 18) ---
 
 export interface MissingRef {
