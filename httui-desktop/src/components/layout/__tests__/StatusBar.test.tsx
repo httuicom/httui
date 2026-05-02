@@ -154,6 +154,34 @@ describe("StatusBar", () => {
       /^v[\w.-]+/,
     );
   });
+
+  it("categorises gitStatus.changed into +N ~M -D buckets", async () => {
+    useWorkspaceStore.setState({ vaultPath: "/v" } as never);
+    mockTauriCommand("git_status_cmd", () => ({
+      branch: "main",
+      upstream: null,
+      ahead: 0,
+      behind: 0,
+      changed: [
+        // Two added (one staged "A", one untracked "??")
+        { path: "new1.md", status: "A", staged: true, untracked: false },
+        { path: "new2.md", status: "??", staged: false, untracked: true },
+        // Three modified (M / R / C codes all collapse to "modified")
+        { path: "doc.md", status: "M", staged: false, untracked: false },
+        { path: "renamed.md", status: "R", staged: false, untracked: false },
+        { path: "copied.md", status: "C", staged: false, untracked: false },
+        // One deleted
+        { path: "old.md", status: "D", staged: false, untracked: false },
+      ],
+      clean: false,
+    }));
+    renderWithProviders(<StatusBar />);
+    await new Promise((r) => setTimeout(r, 0));
+    const counts = await screen.findByTestId("status-changes");
+    expect(counts.textContent).toContain("+2");
+    expect(counts.textContent).toContain("~3");
+    expect(counts.textContent).toContain("-1");
+  });
 });
 
 describe("StatusBar — pending secrets badge", () => {
