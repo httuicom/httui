@@ -20,13 +20,12 @@ export function Brand() {
       <img
         src={src}
         alt="httui"
-        width={66}
-        height={20}
+        height={16}
         style={{
           display: "block",
-          height: "20px",
+          height: "16px",
           width: "auto",
-          maxHeight: "20px",
+          maxHeight: "16px",
           flexShrink: 0,
         }}
       />
