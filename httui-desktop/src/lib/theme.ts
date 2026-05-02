@@ -68,56 +68,37 @@ const config = defineConfig({
     },
     semanticTokens: {
       colors: {
-        // Backgrounds (Fuji ramp). Nested-scale form is what Chakra
-        // v3's built-in tokens use; flat dotted keys like "bg.1"
-        // half-work and break in `<button>` bg / Menu / _hover paths.
+        // Sobrescreve os semantic tokens DEFAULT do Chakra v3 com a
+        // ramp Fuji. Vantagem: todos os recipes internos (Menu,
+        // Popover, Tooltip, Card, Badge, etc.) já referenciam esses
+        // nomes — nossas cores fluem sem nenhum override por slot.
+        // Mapping:
+        //   bg          (canvas)   ← THEME.bg
+        //   bg.subtle   (sutil)    ← THEME.bg1
+        //   bg.muted    (médio)    ← THEME.bg2
+        //   bg.emphasized          ← THEME.bg3
+        //   bg.panel    (popups)   ← THEME.bgHi
+        //   fg          (texto)    ← THEME.fg
+        //   fg.muted               ← THEME.fg2
+        //   fg.subtle              ← THEME.fg3
+        //   border                 ← THEME.line
+        //   border.muted           ← THEME.lineSoft
         bg: {
           DEFAULT: { value: pair(THEME_DARK.bg, THEME_LIGHT.bg) },
-          "1": { value: pair(THEME_DARK.bg1, THEME_LIGHT.bg1) },
-          "2": { value: pair(THEME_DARK.bg2, THEME_LIGHT.bg2) },
-          "3": { value: pair(THEME_DARK.bg3, THEME_LIGHT.bg3) },
-          hi: { value: pair(THEME_DARK.bgHi, THEME_LIGHT.bgHi) },
+          subtle: { value: pair(THEME_DARK.bg1, THEME_LIGHT.bg1) },
+          muted: { value: pair(THEME_DARK.bg2, THEME_LIGHT.bg2) },
+          emphasized: { value: pair(THEME_DARK.bg3, THEME_LIGHT.bg3) },
+          panel: { value: pair(THEME_DARK.bgHi, THEME_LIGHT.bgHi) },
         },
-        // Lines.
-        line: {
-          DEFAULT: { value: pair(THEME_DARK.line, THEME_LIGHT.line) },
-          soft: {
-            value: pair(THEME_DARK.lineSoft, THEME_LIGHT.lineSoft),
-          },
-        },
-        // Foregrounds.
         fg: {
           DEFAULT: { value: pair(THEME_DARK.fg, THEME_LIGHT.fg) },
-          "1": { value: pair(THEME_DARK.fg1, THEME_LIGHT.fg1) },
-          "2": { value: pair(THEME_DARK.fg2, THEME_LIGHT.fg2) },
-          "3": { value: pair(THEME_DARK.fg3, THEME_LIGHT.fg3) },
+          muted: { value: pair(THEME_DARK.fg2, THEME_LIGHT.fg2) },
+          subtle: { value: pair(THEME_DARK.fg3, THEME_LIGHT.fg3) },
         },
-        // Accent.
-        accent: {
-          DEFAULT: { value: pair(THEME_DARK.accent, THEME_LIGHT.accent) },
-          fg: {
-            value: pair(THEME_DARK.accentFg, THEME_LIGHT.accentFg),
-          },
-          soft: {
-            value: pair(THEME_DARK.accentSoft, THEME_LIGHT.accentSoft),
-          },
-        },
-        // Selection.
-        sel: { value: pair(THEME_DARK.sel, THEME_LIGHT.sel) },
-      },
-    },
-    slotRecipes: {
-      // Override Chakra v3's Menu recipe content slot — default `bg`
-      // resolves to `colors.bg.panel` which falls back to gray.950 /
-      // white from the Chakra default palette (não bate com nossa
-      // ramp Fuji `bg.hi`). Apontamos `--menu-bg` direto pro nosso
-      // token de contraste forte. Mesmo padrão recomendado em
-      // chakra-ui.com/docs/theming/recipes#extending-recipes.
-      menu: {
-        slots: ["content"],
-        base: {
-          content: {
-            "--menu-bg": "colors.bg.hi",
+        border: {
+          DEFAULT: { value: pair(THEME_DARK.line, THEME_LIGHT.line) },
+          muted: {
+            value: pair(THEME_DARK.lineSoft, THEME_LIGHT.lineSoft),
           },
         },
       },
