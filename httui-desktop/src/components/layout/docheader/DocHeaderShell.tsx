@@ -38,6 +38,9 @@ export interface DocHeaderShellProps {
   /** Click-on-title toggle. Consumer flips compact + persists. */
   onToggleCompact?: () => void;
   onBreadcrumbSelect?: (path: string) => void;
+  /** When provided, the H1 becomes an editable input (Notion-mode).
+   *  See DocHeaderCard for debounce + sync semantics. */
+  onTitleSave?: (title: string) => void;
 
   // ── Meta strip inputs ──────────────────────────────────────────
   author?: AuthorInfo | null;
@@ -74,6 +77,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     compact,
     onToggleCompact,
     onBreadcrumbSelect,
+    onTitleSave,
     author,
     mtimeMs,
     dirty,
@@ -110,6 +114,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
           compact={compact}
           onTitleClick={onToggleCompact}
           onBreadcrumbSelect={onBreadcrumbSelect}
+          onTitleSave={onTitleSave}
         />
         {showActionRow && (
           <Box

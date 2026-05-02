@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 
 import { DocHeaderCard } from "@/components/layout/docheader/DocHeaderCard";
@@ -121,5 +121,92 @@ describe("DocHeaderCard", () => {
   it("renders the title as h1 by default", () => {
     renderWithProviders(<DocHeaderCard filePath="x.md" />);
     expect(screen.getByTestId("docheader-title").tagName).toBe("H1");
+  });
+
+  describe("editable mode (onTitleSave)", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("renders an input when onTitleSave is provided", () => {
+      renderWithProviders(
+        <DocHeaderCard
+          filePath="x.md"
+          frontmatter={{ title: "Initial" }}
+          onTitleSave={() => {}}
+        />,
+      );
+      const input = screen.getByTestId("docheader-title");
+      expect(input.tagName).toBe("INPUT");
+      expect((input as HTMLInputElement).value).toBe("Initial");
+    });
+
+    it("renders an empty input with `Untitled` placeholder in virtual mode", () => {
+      renderWithProviders(
+        <DocHeaderCard filePath="x.md" onTitleSave={() => {}} />,
+      );
+      const input = screen.getByTestId("docheader-title") as HTMLInputElement;
+      expect(input.value).toBe("");
+      expect(input.placeholder).toBe("Untitled");
+    });
+
+    it("does not fall back to the filename in editable mode", () => {
+      renderWithProviders(
+        <DocHeaderCard filePath="my-note.md" onTitleSave={() => {}} />,
+      );
+      const input = screen.getByTestId("docheader-title") as HTMLInputElement;
+      // Static path would have shown "my-note"; editable mode uses
+      // empty + placeholder so the user explicitly types a title before
+      // the disk write happens.
+      expect(input.value).toBe("");
+    });
+
+    it("debounces onTitleSave by 300ms after the last keystroke", async () => {
+      const onTitleSave = vi.fn();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithProviders(
+        <DocHeaderCard
+          filePath="x.md"
+          frontmatter={{ title: "" }}
+          onTitleSave={onTitleSave}
+        />,
+      );
+      const input = screen.getByTestId("docheader-title") as HTMLInputElement;
+      await user.click(input);
+      await user.keyboard("Hello");
+      // No commit yet — still inside the debounce window.
+      expect(onTitleSave).not.toHaveBeenCalled();
+      // Advance past the debounce.
+      vi.advanceTimersByTime(300);
+      expect(onTitleSave).toHaveBeenCalledTimes(1);
+      expect(onTitleSave).toHaveBeenCalledWith("Hello");
+    });
+
+    it("re-syncs the input when the external frontmatter title changes", () => {
+      const { rerender } = renderWithProviders(
+        <DocHeaderCard
+          filePath="x.md"
+          frontmatter={{ title: "First" }}
+          onTitleSave={() => {}}
+        />,
+      );
+      expect(
+        (screen.getByTestId("docheader-title") as HTMLInputElement).value,
+      ).toBe("First");
+
+      rerender(
+        <DocHeaderCard
+          filePath="x.md"
+          frontmatter={{ title: "Second" }}
+          onTitleSave={() => {}}
+        />,
+      );
+      expect(
+        (screen.getByTestId("docheader-title") as HTMLInputElement).value,
+      ).toBe("Second");
+    });
   });
 });

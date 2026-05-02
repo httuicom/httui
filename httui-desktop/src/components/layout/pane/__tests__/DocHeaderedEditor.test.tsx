@@ -18,6 +18,7 @@ function DocHeaderStub({
   mtimeMs,
   dirty,
   branch,
+  onTitleSave,
 }: {
   filePath: string;
   compact?: boolean;
@@ -30,23 +31,38 @@ function DocHeaderStub({
   mtimeMs?: number | null;
   dirty?: boolean;
   branch?: { branch: string | null } | null;
+  onTitleSave?: (title: string) => void;
 }) {
   return (
-    <button
-      data-testid="docheader-stub"
-      data-file={filePath}
-      data-compact={String(Boolean(compact))}
-      data-fm-null={String(frontmatter === null)}
-      data-fm-title={frontmatter?.title ?? ""}
-      data-fm-abstract={frontmatter?.abstract ?? ""}
-      data-fm-tags={(frontmatter?.tags ?? []).join(",")}
-      data-mtime={String(mtimeMs ?? "")}
-      data-dirty={String(Boolean(dirty))}
-      data-branch={branch?.branch ?? ""}
-      onClick={() => onToggleCompact?.()}
-    >
-      docheader
-    </button>
+    <>
+      <button
+        data-testid="docheader-stub"
+        data-file={filePath}
+        data-compact={String(Boolean(compact))}
+        data-fm-null={String(frontmatter === null)}
+        data-fm-title={frontmatter?.title ?? ""}
+        data-fm-abstract={frontmatter?.abstract ?? ""}
+        data-fm-tags={(frontmatter?.tags ?? []).join(",")}
+        data-mtime={String(mtimeMs ?? "")}
+        data-dirty={String(Boolean(dirty))}
+        data-branch={branch?.branch ?? ""}
+        onClick={() => onToggleCompact?.()}
+      >
+        docheader
+      </button>
+      {/* Hook for the save-title flow: a test clicks this to drive
+          `onTitleSave` with a fixed value, exercising the full
+          `updateFrontmatterTitle` → `onChange` wiring without needing
+          to render the real input + debounce machinery. */}
+      {onTitleSave && (
+        <button
+          data-testid="docheader-stub-save-title"
+          onClick={() => onTitleSave("Renamed")}
+        >
+          save title
+        </button>
+      )}
+    </>
   );
 }
 
@@ -348,6 +364,44 @@ describe("DocHeaderedEditor", () => {
     rerender(<DocHeaderedEditor {...baseProps} dirty={false} />);
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(calls).toBe(initialCalls);
+  });
+
+  it("rewrites the doc and fires onChange when the title is committed", () => {
+    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
+    const onChange = vi.fn();
+    renderWithProviders(
+      <DocHeaderedEditor
+        {...baseProps}
+        content={"---\ntitle: Old\n---\nbody\n"}
+        onChange={onChange}
+      />,
+    );
+
+    screen.getByTestId("docheader-stub-save-title").click();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(
+      "---\ntitle: Renamed\n---\nbody\n",
+    );
+  });
+
+  it("prepends a new frontmatter when committing a title in virtual mode", () => {
+    mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
+    const onChange = vi.fn();
+    renderWithProviders(
+      <DocHeaderedEditor
+        {...baseProps}
+        content={"# Heading\n\nbody\n"}
+        onChange={onChange}
+      />,
+    );
+
+    screen.getByTestId("docheader-stub-save-title").click();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(
+      "---\ntitle: Renamed\n---\n\n# Heading\n\nbody\n",
+    );
   });
 
   it("does NOT refresh mtime on the clean → dirty falling edge", async () => {

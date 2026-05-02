@@ -10,7 +10,7 @@
 // stays outside the CM6 editor so it pushes the whole pane down on
 // stale-on-disk.
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Box } from "@chakra-ui/react";
 
 import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
@@ -21,6 +21,7 @@ import { useFileDocHeaderCompact } from "@/hooks/useFileDocHeaderCompact";
 import { useFileMtime } from "@/hooks/useFileMtime";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { extractFrontmatter } from "@/lib/blocks/extract-frontmatter-tags";
+import { updateFrontmatterTitle } from "@/lib/blocks/update-frontmatter";
 import type { DocHeaderFrontmatter } from "../docheader/docheader-derive";
 
 export interface DocHeaderedEditorProps {
@@ -107,6 +108,24 @@ export function DocHeaderedEditor({
     };
   }, [content]);
 
+  // Latest content + onChange refs so the title-save callback below can
+  // be stable across body keystrokes — without this the callback rebuilds
+  // on every render (content is in scope), which the editable input
+  // already tolerates via its onSaveRef but produces unnecessary portal
+  // re-renders. Refs flatten that to one render per title commit.
+  const contentRef = useRef(content);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    contentRef.current = content;
+    onChangeRef.current = onChange;
+  });
+
+  const onTitleSave = useCallback((title: string) => {
+    const next = updateFrontmatterTitle(contentRef.current, title);
+    if (next === contentRef.current) return;
+    onChangeRef.current(next);
+  }, []);
+
   const inlineHeader = useMemo<InlineDocHeader>(
     () => ({
       filePath,
@@ -118,8 +137,18 @@ export function DocHeaderedEditor({
       mtimeMs: mtime,
       dirty,
       branch,
+      onTitleSave,
     }),
-    [filePath, frontmatter, compact, setCompact, mtime, dirty, branch],
+    [
+      filePath,
+      frontmatter,
+      compact,
+      setCompact,
+      mtime,
+      dirty,
+      branch,
+      onTitleSave,
+    ],
   );
 
   return (
