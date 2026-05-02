@@ -174,36 +174,48 @@ function ChecklistRow({
       align="center"
       gap={2}
     >
-      <Box
+      <Flex
         as="button"
         type="button"
         data-testid="docheader-checklist-checkbox"
         data-checked={item.done || undefined}
         onClick={editable ? onToggle : undefined}
         disabled={!editable}
-        w="14px"
-        h="14px"
+        w="16px"
+        h="16px"
+        align="center"
+        justify="center"
         borderWidth="1px"
         borderColor={item.done ? "accent" : "line"}
         borderRadius="3px"
         bg={item.done ? "accent" : "transparent"}
         cursor={editable ? "pointer" : "default"}
         flexShrink={0}
-        position="relative"
-        _after={
-          item.done
-            ? {
-                content: '"✓"',
-                position: "absolute",
-                top: "-4px",
-                left: "1px",
-                color: "bg",
-                fontSize: "11px",
-                fontWeight: 700,
-              }
-            : undefined
-        }
-      />
+        p={0}
+        css={{
+          appearance: "none",
+          // Some user-agent stylesheets repaint <button> backgrounds
+          // when focus or hover is engaged — pin the bg explicitly so
+          // the green stays visible while the row is active.
+          "&[data-checked]": {
+            backgroundColor: "var(--chakra-colors-accent)",
+            borderColor: "var(--chakra-colors-accent)",
+          },
+        }}
+      >
+        {item.done && (
+          <Text
+            as="span"
+            fontSize="11px"
+            lineHeight="1"
+            color="bg"
+            fontWeight={700}
+            aria-hidden="true"
+          >
+            ✓
+          </Text>
+        )}
+      </Flex>
       {editable && editingText ? (
         <Box
           as="input"
