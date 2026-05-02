@@ -120,28 +120,47 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     onPreflightRecheck,
   } = props;
 
-  const showActionRow = !compact;
-  const showAbstract = !compact;
-  const showPreflight = !compact && (preflightItems?.length ?? 0) > 0;
+  // V2 / cenário 4.5: in editable mode (any save callback provided),
+  // compact is forcibly disabled — the legacy "click H1 to toggle"
+  // affordance went away when the title became an editable input, so
+  // a stale `docheader_compact: true` in workspace.toml would otherwise
+  // hide the abstract / tags / checklist with no way for the user to
+  // get them back. Static consumers (diff viewer, snapshots) keep the
+  // compact behavior intact.
+  const editableMode =
+    onTitleSave !== undefined ||
+    onAbstractSave !== undefined ||
+    onAddTag !== undefined ||
+    onRemoveTag !== undefined ||
+    onChecklistSave !== undefined;
+  const effectiveCompact = editableMode ? false : compact;
+
+  const showActionRow = !effectiveCompact;
+  const showAbstract = !effectiveCompact;
+  const showPreflight =
+    !effectiveCompact && (preflightItems?.length ?? 0) > 0;
   const showTags =
-    !compact &&
+    !effectiveCompact &&
     (onAddTag !== undefined ||
       onRemoveTag !== undefined ||
       (frontmatter?.tags?.length ?? 0) > 0);
   const showChecklist =
-    !compact &&
+    !effectiveCompact &&
     (onChecklistSave !== undefined ||
       (frontmatter?.preflight?.length ?? 0) > 0);
 
   return (
-    <Box data-testid="docheader-shell" data-compact={compact || undefined}>
+    <Box
+      data-testid="docheader-shell"
+      data-compact={effectiveCompact || undefined}
+    >
       <Box position="relative">
         <DocHeaderCard
           filePath={filePath}
           relativeFilePath={relativeFilePath}
           frontmatter={frontmatter}
           firstHeading={firstHeading}
-          compact={compact}
+          compact={effectiveCompact}
           onTitleClick={onToggleCompact}
           onBreadcrumbSelect={onBreadcrumbSelect}
           onTitleSave={onTitleSave}
