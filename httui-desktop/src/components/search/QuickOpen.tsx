@@ -58,13 +58,17 @@ function QuickOpenInner({ onClose }: { onClose: () => void }) {
         transform="translateX(-50%)"
         w="500px"
         maxW="90vw"
-        bg="bg.1"
+        backgroundColor="bg.1"
+        bgColor="bg.1"
         borderWidth="1px"
         borderColor="line"
         rounded="lg"
         shadow="2xl"
         zIndex={9999}
         overflow="hidden"
+        style={{
+          backgroundColor: "var(--chakra-colors-bg-1, #181c20)",
+        }}
       >
         <Box p={2}>
           <Input
