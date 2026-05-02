@@ -6,7 +6,7 @@
 // the integration tests live in `*.browser.test.tsx` files. See
 // `docs-llm/jaum-audit/022-markdown-editor-coverage-exclude.md`.
 import { useRef, useEffect, useMemo, useCallback, useState } from "react";
-import { Box, Flex } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { EditorView, keymap } from "@codemirror/view";
 import { Compartment, EditorSelection, Prec } from "@codemirror/state";
@@ -65,12 +65,6 @@ import {
   type vimState,
 } from "@replit/codemirror-vim";
 import { hybridRendering } from "@/lib/codemirror/cm-hybrid-rendering";
-import { EditorToolbar } from "@/components/layout/editor-toolbar/EditorToolbar";
-import { countExecutableBlocks } from "@/components/layout/editor-toolbar/blockCount";
-import {
-  usePaneStore,
-  selectActiveTabUnsaved,
-} from "@/stores/pane";
 import {
   slashCommands,
   slashCompletionSource,
@@ -518,52 +512,27 @@ export function MarkdownEditor({
     };
   }, [filePath]);
 
-  const blockCount = useMemo(
-    () => countExecutableBlocks(content),
-    [content],
-  );
-  const unsaved = usePaneStore(selectActiveTabUnsaved);
-  // Per-file auto-capture toggle. Local state for now — wires to a
-  // persisted `useFileAutoCapture` hook in a follow-up so the flag
-  // survives file/pane swaps. See V2 cenário 4 carry note.
-  const [autoCapture, setAutoCapture] = useState(false);
-
   return (
     <BlockContextProvider value={{ filePath }}>
-      <Flex direction="column" h="100%" overflow="hidden">
-        <EditorToolbar
-          filePath={filePath}
-          editedAt={null}
-          unsaved={unsaved}
-          blockCount={blockCount}
-          autoCapture={autoCapture}
-          onAutoCaptureChange={setAutoCapture}
+      <Box position="relative" h="100%" overflow="hidden" css={containerCss}>
+        <CodeMirror
+          key={filePath}
+          ref={cmRef}
+          value={content}
+          onChange={onChange}
+          extensions={extensions}
+          basicSetup={false}
+          theme="none"
+          height="100%"
+          onCreateEditor={handleCreateEditor}
         />
-        <Box
-          flex={1}
-          position="relative"
-          overflow="hidden"
-          css={containerCss}
-        >
-          <CodeMirror
-            key={filePath}
-            ref={cmRef}
-            value={content}
-            onChange={onChange}
-            extensions={extensions}
-            basicSetup={false}
-            theme="none"
-            height="100%"
-            onCreateEditor={handleCreateEditor}
-          />
-          {editorReady && viewRef.current && (
-            <>
-              <DbWidgetPortals view={viewRef.current} filePath={filePath} />
-              <HttpWidgetPortals view={viewRef.current} filePath={filePath} />
-            </>
-          )}
-        </Box>
-      </Flex>
+        {editorReady && viewRef.current && (
+          <>
+            <DbWidgetPortals view={viewRef.current} filePath={filePath} />
+            <HttpWidgetPortals view={viewRef.current} filePath={filePath} />
+          </>
+        )}
+      </Box>
     </BlockContextProvider>
   );
 }
