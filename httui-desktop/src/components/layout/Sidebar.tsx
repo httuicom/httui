@@ -1,6 +1,7 @@
 import { Box, HStack, Text, IconButton, Menu, Portal } from "@chakra-ui/react";
 import { FileTree } from "./file-tree";
 import { ConnectionsList } from "./connections/ConnectionsList";
+import { VariablesPanel } from "./VariablesPanel";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { LuPlus, LuFileText, LuFolder } from "react-icons/lu";
 
@@ -78,6 +79,11 @@ export function Sidebar({ width }: SidebarProps) {
       {/* Connections section */}
       <Box borderTopWidth="1px" borderColor="border">
         <ConnectionsList />
+      </Box>
+
+      {/* Variables section */}
+      <Box borderTopWidth="1px" borderColor="border">
+        <VariablesPanel />
       </Box>
     </Box>
   );
