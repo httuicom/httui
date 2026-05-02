@@ -6,7 +6,10 @@
 // `onSelect*` handler is supplied so the consumer can navigate to
 // the relevant panel (Git / History / etc.).
 
-import { Flex, Text } from "@chakra-ui/react";
+import { useState } from "react";
+import { Box, Flex, Text } from "@chakra-ui/react";
+
+import { gravatarUrl } from "@/lib/avatars/gravatar";
 
 import {
   authorInitialsFromFirstCommit,
@@ -209,6 +212,12 @@ function AuthorChip({
   const title = author.name
     ? `${author.name}${author.email ? ` <${author.email}>` : ""}`
     : "Unknown author";
+  // Gravatar with `d=404` returns a real 404 when the email has no
+  // associated account — `onError` fires and we render the colored
+  // initials circle instead. Skip the request entirely when there's
+  // no email at all.
+  const gravatar = gravatarUrl(author.email, { size: 20 });
+  const [gravatarOk, setGravatarOk] = useState<boolean>(gravatar !== null);
   return (
     <Flex
       as={onClick ? "button" : "span"}
@@ -220,24 +229,39 @@ function AuthorChip({
       cursor={onClick ? "pointer" : undefined}
       flexShrink={0}
     >
-      <Flex
-        align="center"
-        justify="center"
-        w="20px"
-        h="20px"
-        borderRadius="999px"
-        flexShrink={0}
-        css={{
-          backgroundColor: `oklch(0.62 0.14 ${hue})`,
-          color: "#ffffff",
-          fontFamily: "var(--chakra-fonts-mono)",
-          fontSize: "9px",
-          fontWeight: 700,
-          letterSpacing: "0.02em",
-        }}
-      >
-        {initials}
-      </Flex>
+      {gravatar && gravatarOk ? (
+        <Box
+          as="img"
+          data-testid="docheader-meta-author-avatar"
+          src={gravatar}
+          alt=""
+          w="20px"
+          h="20px"
+          borderRadius="999px"
+          flexShrink={0}
+          onError={() => setGravatarOk(false)}
+        />
+      ) : (
+        <Flex
+          data-testid="docheader-meta-author-fallback"
+          align="center"
+          justify="center"
+          w="20px"
+          h="20px"
+          borderRadius="999px"
+          flexShrink={0}
+          css={{
+            backgroundColor: `oklch(0.62 0.14 ${hue})`,
+            color: "#ffffff",
+            fontFamily: "var(--chakra-fonts-mono)",
+            fontSize: "9px",
+            fontWeight: 700,
+            letterSpacing: "0.02em",
+          }}
+        >
+          {initials}
+        </Flex>
+      )}
       <Text
         fontFamily="mono"
         fontSize="11px"

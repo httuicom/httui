@@ -22,17 +22,35 @@ describe("DocHeaderMetaStrip", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders the author chip with initials avatar + full name + title", () => {
+  it("renders the author chip with a Gravatar avatar when email is given", () => {
     renderWithProviders(
       <DocHeaderMetaStrip
         author={{ name: "Jane Doe", email: "jane@x.test" }}
       />,
     );
     const chip = screen.getByTestId("docheader-meta-author");
-    // Avatar circle holds the initials, name renders beside it.
-    expect(chip.textContent).toContain("JD");
+    // Gravatar img + the name beside it. The initials only appear in
+    // the fallback path (covered by the next test).
+    const avatar = screen.getByTestId(
+      "docheader-meta-author-avatar",
+    ) as HTMLImageElement;
+    expect(avatar.tagName).toBe("IMG");
+    expect(avatar.src).toContain("gravatar.com/avatar/");
     expect(chip.textContent).toContain("Jane Doe");
     expect(chip.getAttribute("title")).toBe("Jane Doe <jane@x.test>");
+  });
+
+  it("falls back to the initials circle when no email is available", () => {
+    renderWithProviders(
+      <DocHeaderMetaStrip author={{ name: "Jane Doe", email: null }} />,
+    );
+    const chip = screen.getByTestId("docheader-meta-author");
+    expect(
+      screen.queryByTestId("docheader-meta-author-avatar"),
+    ).not.toBeInTheDocument();
+    const fallback = screen.getByTestId("docheader-meta-author-fallback");
+    expect(fallback.textContent).toBe("JD");
+    expect(chip.textContent).toContain("Jane Doe");
   });
 
   it("renders the edited chip with mtime + dirty flag", () => {
