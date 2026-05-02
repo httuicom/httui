@@ -22,14 +22,16 @@ describe("DocHeaderMetaStrip", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders the author chip with initials and a name+email title", () => {
+  it("renders the author chip with initials avatar + full name + title", () => {
     renderWithProviders(
       <DocHeaderMetaStrip
         author={{ name: "Jane Doe", email: "jane@x.test" }}
       />,
     );
     const chip = screen.getByTestId("docheader-meta-author");
-    expect(chip.textContent).toBe("JD");
+    // Avatar circle holds the initials, name renders beside it.
+    expect(chip.textContent).toContain("JD");
+    expect(chip.textContent).toContain("Jane Doe");
     expect(chip.getAttribute("title")).toBe("Jane Doe <jane@x.test>");
   });
 

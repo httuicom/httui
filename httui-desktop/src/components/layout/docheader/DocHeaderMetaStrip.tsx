@@ -64,18 +64,10 @@ export function DocHeaderMetaStrip({
       flexWrap="wrap"
     >
       {author && (
-        <Chip
-          testId="docheader-meta-author"
-          tone="muted"
+        <AuthorChip
+          author={author}
           onClick={onSelectAuthor}
-          title={
-            author.name
-              ? `${author.name}${author.email ? ` <${author.email}>` : ""}`
-              : "Unknown author"
-          }
-        >
-          {authorInitialsFromFirstCommit(author)}
-        </Chip>
+        />
       )}
       {trimmedOwner && (
         <Chip
@@ -110,7 +102,11 @@ export function DocHeaderMetaStrip({
           {formatBranchSummary(branch)}
         </Chip>
       )}
-      {lastRun && (
+      {/* Hide last-run chip when the doc currently has no blocks —
+          stale `block_run_history` rows from earlier sessions would
+          otherwise surface confusing "1 block · 1 failed" copy on
+          a doc that has no executable blocks at all. */}
+      {lastRun && (typeof blockCount !== "number" || blockCount > 0) && (
         <Chip
           testId="docheader-meta-last-run"
           tone={lastRunTone(lastRun)}
@@ -173,4 +169,83 @@ function chipPalette(tone: ChipTone): { color: string } {
     default:
       return { color: "fg.2" };
   }
+}
+
+function authorDisplayName(info: AuthorInfo): string {
+  const name = info.name?.trim();
+  if (name && name.length > 0) return name;
+  const email = info.email?.trim();
+  if (email && email.length > 0) {
+    const local = email.split("@")[0];
+    if (local) return local;
+  }
+  return "?";
+}
+
+/**
+ * Pick a stable accent hue from the author's name/email so distinct
+ * authors get visually distinct avatar circles even when the underlying
+ * `--chakra-colors-accent` token resolves to the same value.
+ */
+function authorHue(info: AuthorInfo): number {
+  const seed = (info.name ?? info.email ?? "?").toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % 360;
+}
+
+function AuthorChip({
+  author,
+  onClick,
+}: {
+  author: AuthorInfo;
+  onClick?: () => void;
+}) {
+  const initials = authorInitialsFromFirstCommit(author);
+  const display = authorDisplayName(author);
+  const hue = authorHue(author);
+  const title = author.name
+    ? `${author.name}${author.email ? ` <${author.email}>` : ""}`
+    : "Unknown author";
+  return (
+    <Flex
+      as={onClick ? "button" : "span"}
+      data-testid="docheader-meta-author"
+      align="center"
+      gap={2}
+      title={title}
+      onClick={onClick}
+      cursor={onClick ? "pointer" : undefined}
+      flexShrink={0}
+    >
+      <Flex
+        align="center"
+        justify="center"
+        w="20px"
+        h="20px"
+        borderRadius="999px"
+        flexShrink={0}
+        css={{
+          backgroundColor: `oklch(0.62 0.14 ${hue})`,
+          color: "#ffffff",
+          fontFamily: "var(--chakra-fonts-mono)",
+          fontSize: "9px",
+          fontWeight: 700,
+          letterSpacing: "0.02em",
+        }}
+      >
+        {initials}
+      </Flex>
+      <Text
+        fontFamily="mono"
+        fontSize="11px"
+        color="fg.2"
+        _hover={onClick ? { color: "fg" } : undefined}
+      >
+        {display}
+      </Text>
+    </Flex>
+  );
 }
