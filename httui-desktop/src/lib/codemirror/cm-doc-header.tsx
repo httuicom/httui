@@ -11,6 +11,8 @@
 // one DocHeader). React mounts via `DocHeaderWidgetPortal.tsx`.
 
 import {
+  EditorSelection,
+  Prec,
   RangeSetBuilder,
   StateField,
   type EditorState,
@@ -21,8 +23,22 @@ import {
   Decoration,
   EditorView,
   WidgetType,
+  keymap,
   type DecorationSet,
+  type KeyBinding,
 } from "@codemirror/view";
+import { getCM } from "@replit/codemirror-vim";
+
+// Vim ownership guard — when vim is in normal / visual mode, hjkl /
+// arrows belong to vim and we MUST NOT intercept them. In insert mode
+// (or when vim is off entirely) the editor is in "regular text mode"
+// and our ArrowUp-at-body-start handler is fair game.
+function vimOwnsMotion(view: EditorView): boolean {
+  const cm = getCM(view);
+  const v = cm?.state.vim;
+  if (!v) return false;
+  return !v.insertMode;
+}
 
 // ───── Frontmatter detection ─────
 
@@ -75,6 +91,18 @@ export interface DocHeaderEntry {
   /** Whether the host doc currently has a frontmatter block. The portal
    *  uses this to know whether to render virtual-mode placeholders. */
   hasFrontmatter: boolean;
+  /** The CM6 view that owns this DocHeader. Set when the widget mounts;
+   *  the title input uses it to dispatch a back-to-body selection on
+   *  Enter / ArrowDown / Escape. */
+  view: EditorView | null;
+  /** Title input element. Registered by `DocHeaderTitleInput`; CM6
+   *  ArrowUp at body start focuses it. */
+  titleInput: HTMLInputElement | null;
+  /** Last cursor offset inside the body (after the frontmatter range).
+   *  Tracked by an `EditorView.updateListener` so leaving + re-entering
+   *  the body restores the previous position. Defaults to body start
+   *  when the user has never placed a cursor in the body. */
+  lastBodyOffset: number;
 }
 
 const entries = new Map<string, DocHeaderEntry>();
@@ -101,6 +129,21 @@ export function getDocHeaderEntries(): ReadonlyMap<string, DocHeaderEntry> {
   return entries;
 }
 
+function ensureEntry(id: string, container: HTMLElement): DocHeaderEntry {
+  const prev = entries.get(id);
+  if (prev) return prev;
+  const next: DocHeaderEntry = {
+    id,
+    container,
+    hasFrontmatter: false,
+    view: null,
+    titleInput: null,
+    lastBodyOffset: 0,
+  };
+  entries.set(id, next);
+  return next;
+}
+
 function registerContainer(
   id: string,
   container: HTMLElement,
@@ -114,7 +157,19 @@ function registerContainer(
   ) {
     return;
   }
-  entries.set(id, { id, container, hasFrontmatter });
+  if (prev) {
+    prev.container = container;
+    prev.hasFrontmatter = hasFrontmatter;
+  } else {
+    entries.set(id, {
+      id,
+      container,
+      hasFrontmatter,
+      view: null,
+      titleInput: null,
+      lastBodyOffset: 0,
+    });
+  }
   notify();
 }
 
@@ -122,6 +177,63 @@ function unregisterContainer(id: string) {
   if (!entries.has(id)) return;
   entries.delete(id);
   notify();
+}
+
+/** Bind the CM6 view that owns this DocHeader. The widget calls this
+ * during `toDOM` so React consumers can dispatch transactions back into
+ * the editor. Idempotent — re-binding the same view is a no-op. */
+function bindView(id: string, view: EditorView, container: HTMLElement) {
+  const entry = ensureEntry(id, container);
+  if (entry.view !== view) {
+    entry.view = view;
+  }
+}
+
+/** Register the DocHeader's title input element. Called by
+ * `DocHeaderTitleInput` on mount; the CM6 keymap reads this to focus
+ * the input on `ArrowUp` at body start. */
+export function registerDocHeaderTitleInput(
+  id: string,
+  input: HTMLInputElement | null,
+) {
+  const entry = entries.get(id);
+  if (!entry) return;
+  entry.titleInput = input;
+}
+
+/** Move the editor selection to the last body offset (or body start
+ * when the user hasn't placed a cursor in the body yet) and focus the
+ * view. Used by the title input to leave focus on Enter / ArrowDown /
+ * Escape. */
+export function returnFocusToBody(id: string) {
+  const entry = entries.get(id);
+  if (!entry || !entry.view) return;
+  const view = entry.view;
+  const value = view.state.field(getFieldFor(id), false);
+  const bodyStart = value?.range?.to ?? 0;
+  const target =
+    entry.lastBodyOffset >= bodyStart ? entry.lastBodyOffset : bodyStart;
+  const clamped = Math.min(Math.max(target, bodyStart), view.state.doc.length);
+  view.dispatch({
+    selection: EditorSelection.cursor(clamped),
+    scrollIntoView: true,
+  });
+  view.focus();
+}
+
+// Per-extension state field reference — the keymap and the
+// `returnFocusToBody` helper need it to read the frontmatter range out
+// of the live editor state.
+const fieldByInstance = new Map<
+  string,
+  StateField<{ decorations: DecorationSet; range: FrontmatterRange | null }>
+>();
+
+function getFieldFor(id: string) {
+  return fieldByInstance.get(id) as StateField<{
+    decorations: DecorationSet;
+    range: FrontmatterRange | null;
+  }>;
 }
 
 // ───── Per-extension instance IDs ─────
@@ -142,17 +254,19 @@ class DocHeaderWidget extends WidgetType {
     super();
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const div = document.createElement("div");
     div.className = "cm-doc-header-portal";
     div.setAttribute("data-doc-header-id", this.instanceId);
     div.contentEditable = "false";
     registerContainer(this.instanceId, div, this.hasFrontmatter);
+    bindView(this.instanceId, view, div);
     return div;
   }
 
-  updateDOM(dom: HTMLElement): boolean {
+  updateDOM(dom: HTMLElement, view: EditorView): boolean {
     registerContainer(this.instanceId, dom, this.hasFrontmatter);
+    bindView(this.instanceId, view, dom);
     return true;
   }
 
@@ -258,5 +372,61 @@ export function createDocHeaderExtension(): DocHeaderExtensionHandle {
     ],
   });
 
-  return { extension: [field], instanceId };
+  fieldByInstance.set(instanceId, field);
+
+  // Track the last cursor offset inside the body so leaving the editor
+  // (focus jumps to the title input on ArrowUp) and coming back
+  // restores the same position. The guard skips writes when the cursor
+  // is still inside the frontmatter range — atomicRanges normally
+  // prevents this, but during initial mount it can briefly happen.
+  const updateListener = EditorView.updateListener.of((u) => {
+    if (!u.selectionSet && !u.viewportChanged) return;
+    const value = u.state.field(field, false);
+    if (!value) return;
+    const head = u.state.selection.main.head;
+    const bodyStart = value.range?.to ?? 0;
+    if (head < bodyStart) return;
+    const entry = entries.get(instanceId);
+    if (entry) entry.lastBodyOffset = head;
+  });
+
+  // ArrowUp at body start → focus the title input. Bails when vim
+  // owns motion (normal / visual mode). High precedence so we run
+  // before the doc-line nav keymap in MarkdownEditor.
+  const navKeymap: KeyBinding[] = [
+    {
+      key: "ArrowUp",
+      run: (view) => {
+        if (vimOwnsMotion(view)) return false;
+        const sel = view.state.selection.main;
+        if (!sel.empty) return false;
+        const value = view.state.field(field, false);
+        if (!value) return false;
+        const bodyStart = value.range?.to ?? 0;
+        // Treat the line that starts at `bodyStart` as the first body
+        // line. The cursor is on it iff `head` falls within the
+        // doc-line that begins at `bodyStart`.
+        const headLine = view.state.doc.lineAt(sel.head);
+        const bodyLine = view.state.doc.lineAt(bodyStart);
+        if (headLine.number !== bodyLine.number) return false;
+        const entry = entries.get(instanceId);
+        const input = entry?.titleInput;
+        if (!input) return false;
+        // Remember where the cursor was so the input's
+        // back-to-body action can restore it.
+        if (entry) entry.lastBodyOffset = sel.head;
+        input.focus();
+        // Most browsers preserve the caret on a refocus. Move it to
+        // the end of the value for predictable Notion-like UX.
+        const len = input.value.length;
+        input.setSelectionRange(len, len);
+        return true;
+      },
+    },
+  ];
+
+  return {
+    extension: [field, updateListener, Prec.high(keymap.of(navKeymap))],
+    instanceId,
+  };
 }

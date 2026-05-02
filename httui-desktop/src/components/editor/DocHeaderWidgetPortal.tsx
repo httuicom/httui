@@ -14,6 +14,7 @@ import {
   getDocHeaderPortalVersion,
   subscribeToDocHeaderPortals,
 } from "@/lib/codemirror/cm-doc-header";
+import { DocHeaderContext } from "@/components/layout/docheader/doc-header-context";
 import {
   DocHeaderShell,
   type DocHeaderShellProps,
@@ -45,6 +46,13 @@ export function DocHeaderWidgetPortal({
     [version, instanceId],
   );
 
+  const ctx = useMemo(() => ({ instanceId }), [instanceId]);
+
   if (!entry) return null;
-  return createPortal(<DocHeaderShell {...inlineHeader} />, entry.container);
+  return createPortal(
+    <DocHeaderContext.Provider value={ctx}>
+      <DocHeaderShell {...inlineHeader} />
+    </DocHeaderContext.Provider>,
+    entry.container,
+  );
 }

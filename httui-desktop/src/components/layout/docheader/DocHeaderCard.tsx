@@ -11,9 +11,15 @@
 // firing the callback. Static H1 path is preserved for callers that
 // don't pass `onTitleSave` (kept the diff viewer + tests working).
 
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Box, Flex, Heading, Text } from "@chakra-ui/react";
 
+import {
+  registerDocHeaderTitleInput,
+  returnFocusToBody,
+} from "@/lib/codemirror/cm-doc-header";
+
+import { DocHeaderContext } from "./doc-header-context";
 import {
   deriveBreadcrumb,
   pickH1Title,
@@ -159,6 +165,8 @@ interface DocHeaderTitleInputProps {
 }
 
 function DocHeaderTitleInput({ value, onSave }: DocHeaderTitleInputProps) {
+  const { instanceId } = useContext(DocHeaderContext);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [local, setLocal] = useState(value);
   // Track the last `value` we sync'd from the parent so we can
   // detect a real external change without re-triggering on our own
@@ -191,15 +199,39 @@ function DocHeaderTitleInput({ value, onSave }: DocHeaderTitleInputProps) {
     return () => clearTimeout(timer);
   }, [local, value]);
 
+  // Register the live ref so the CM6 ArrowUp handler can focus us.
+  useEffect(() => {
+    if (!instanceId) return;
+    registerDocHeaderTitleInput(instanceId, inputRef.current);
+    return () => {
+      registerDocHeaderTitleInput(instanceId, null);
+    };
+  }, [instanceId]);
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Enter / ArrowDown / Escape leave the input and put focus back on
+    // the editor body. Enter also confirms (the input was typing) but
+    // we don't need a separate "commit now" — the debounce will fire
+    // after view focus changes; the Enter is purely a focus-out signal
+    // for the user.
+    if (e.key === "Enter" || e.key === "ArrowDown" || e.key === "Escape") {
+      e.preventDefault();
+      if (instanceId) returnFocusToBody(instanceId);
+      else inputRef.current?.blur();
+    }
+  };
+
   return (
     <Box
       as="input"
+      ref={inputRef}
       data-testid="docheader-title"
       type="text"
       value={local}
       onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
         setLocal(e.target.value)
       }
+      onKeyDown={onKeyDown}
       placeholder="Untitled"
       fontFamily="serif"
       fontSize="2.25rem"
@@ -212,8 +244,6 @@ function DocHeaderTitleInput({ value, onSave }: DocHeaderTitleInputProps) {
       m={0}
       p={0}
       _placeholder={{ color: "fg.3" }}
-      // Cursor stays the default text caret; remove any hover styling
-      // inherited from elsewhere.
     />
   );
 }
