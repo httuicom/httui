@@ -8,6 +8,7 @@
 // active file segment is a no-op (already focused).
 
 import { Box, HStack, Text, chakra } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 
 import { Dot } from "@/components/atoms";
 
@@ -20,8 +21,14 @@ export interface BreadcrumbNavProps {
   filePath: string | null;
   /** Whether the active tab has unsaved edits. */
   unsaved: boolean;
-  /** Optional click on the workspace segment (vault picker). */
+  /** Optional click on the workspace segment (vault picker). Ignored
+   *  when `workspaceSlot` is provided. */
   onWorkspaceClick?: () => void;
+  /** Optional override for the workspace segment. When provided,
+   *  replaces the plain button (e.g. with a vault-picker dropdown).
+   *  Receives no props — render with knowledge of `workspace` /
+   *  `isLeaf` from the consumer. */
+  workspaceSlot?: ReactNode;
 }
 
 function deriveSegments(filePath: string | null): string[] {
@@ -36,10 +43,11 @@ export function BreadcrumbNav({
   filePath,
   unsaved,
   onWorkspaceClick,
+  workspaceSlot,
 }: BreadcrumbNavProps) {
   const segments = deriveSegments(filePath);
 
-  if (!workspace) {
+  if (!workspace && !workspaceSlot) {
     return (
       <Text data-atom="breadcrumb" color="fg.3" fontSize="13px">
         no vault
@@ -56,25 +64,27 @@ export function BreadcrumbNav({
       overflow="hidden"
       flexShrink={1}
     >
-      <Segment
-        type="button"
-        data-segment="workspace"
-        onClick={onWorkspaceClick}
-        bg="transparent"
-        color={segments.length === 0 ? "fg" : "fg.2"}
-        fontWeight={500}
-        cursor={onWorkspaceClick ? "pointer" : "default"}
-        _hover={onWorkspaceClick ? { color: "fg" } : undefined}
-        px={1}
-        maxWidth="160px"
-        overflow="hidden"
-        textOverflow="ellipsis"
-        whiteSpace="nowrap"
-        title={workspace}
-        flexShrink={0}
-      >
-        {workspace}
-      </Segment>
+      {workspaceSlot ?? (
+        <Segment
+          type="button"
+          data-segment="workspace"
+          onClick={onWorkspaceClick}
+          bg="transparent"
+          color={segments.length === 0 ? "fg" : "fg.2"}
+          fontWeight={500}
+          cursor={onWorkspaceClick ? "pointer" : "default"}
+          _hover={onWorkspaceClick ? { color: "fg" } : undefined}
+          px={1}
+          maxWidth="160px"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          whiteSpace="nowrap"
+          title={workspace ?? undefined}
+          flexShrink={0}
+        >
+          {workspace}
+        </Segment>
+      )}
       {segments.map((seg, idx) => {
         const isLast = idx === segments.length - 1;
         return (

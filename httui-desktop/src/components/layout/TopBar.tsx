@@ -28,6 +28,7 @@ import {
 import { Brand } from "@/components/layout/topbar/Brand";
 import { BreadcrumbNav } from "@/components/layout/topbar/BreadcrumbNav";
 import { SegmentedEnvSwitcher } from "@/components/layout/topbar/SegmentedEnvSwitcher";
+import { WorkspaceMenu } from "@/components/layout/topbar/WorkspaceMenu";
 import { Btn, Kbd } from "@/components/atoms";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useGitStatus } from "@/hooks/useGitStatus";
@@ -83,7 +84,7 @@ export function TopBar({
   onToggleHistoryPanel,
   onSearch = defaultSearchTrigger,
 }: TopBarProps) {
-  const { vaultPath, switchVault, vaults } = useWorkspace();
+  const { vaultPath, switchVault, vaults, openVault } = useWorkspace();
   const openSettings = useSettingsStore((s) => s.openSettings);
 
   const activeFilePath = usePaneStore(selectActiveTabPath);
@@ -92,16 +93,20 @@ export function TopBar({
   const branchLabel = gitState?.branch ?? "main";
 
   const workspace = vaultPath ? vaultPath.split("/").pop() ?? vaultPath : null;
+  const isLeafSegment = !activeFilePath;
 
-  const handleWorkspaceClick =
-    vaults.length > 1
-      ? () => {
-          // Quick-cycle: pick the next vault in the list.
-          const idx = vaults.indexOf(vaultPath ?? "");
-          const next = vaults[(idx + 1) % vaults.length];
-          if (next && next !== vaultPath) void switchVault(next);
-        }
-      : undefined;
+  const workspaceSlot = workspace ? (
+    <WorkspaceMenu
+      workspace={workspace}
+      isLeaf={isLeafSegment}
+      vaults={vaults}
+      activeVault={vaultPath}
+      onSwitch={(path) => {
+        if (path !== vaultPath) void switchVault(path);
+      }}
+      onOpenOther={() => void openVault()}
+    />
+  ) : undefined;
 
   return (
     <HStack
@@ -134,7 +139,7 @@ export function TopBar({
         workspace={workspace}
         filePath={activeFilePath}
         unsaved={activeUnsaved}
-        onWorkspaceClick={handleWorkspaceClick}
+        workspaceSlot={workspaceSlot}
       />
 
       <Box flex={1} />

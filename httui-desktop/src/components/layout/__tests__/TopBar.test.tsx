@@ -216,7 +216,7 @@ describe("TopBar", () => {
       ).toContain("main");
     });
 
-    it("clicking the workspace breadcrumb cycles to the next vault when multi-vault", async () => {
+    it("workspace segment opens a vault picker dropdown (not a cycle)", async () => {
       const user = userEvent.setup();
       const switchVault = vi.fn(async () => {});
       renderWithWorkspace(<TopBar {...baseProps} />, {
@@ -224,7 +224,18 @@ describe("TopBar", () => {
         vaults: ["/v1", "/v2"],
         switchVault,
       });
-      await user.click(screen.getByText("v1"));
+
+      // Trigger renders as a button labelled by workspace name.
+      const trigger = screen.getByRole("button", { name: /Workspace v1/ });
+      await user.click(trigger);
+
+      // Dropdown lists every vault and the "Open other vault…" item.
+      expect(screen.getByText("/v1")).toBeInTheDocument();
+      expect(screen.getByText("/v2")).toBeInTheDocument();
+      expect(screen.getByText("Abrir outro vault…")).toBeInTheDocument();
+
+      // Picking the inactive vault triggers switchVault — no cycling.
+      await user.click(screen.getByText("v2"));
       expect(switchVault).toHaveBeenCalledWith("/v2");
     });
 
