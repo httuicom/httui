@@ -65,10 +65,8 @@ import {
   type vimState,
 } from "@replit/codemirror-vim";
 import { hybridRendering } from "@/lib/codemirror/cm-hybrid-rendering";
-import { numberedHeadings } from "@/lib/codemirror/cm-numbered-headings";
 import { EditorToolbar } from "@/components/layout/editor-toolbar/EditorToolbar";
 import { countExecutableBlocks } from "@/components/layout/editor-toolbar/blockCount";
-import type { BlockTemplate } from "@/components/layout/AddBlockMenu";
 import {
   usePaneStore,
   selectActiveTabUnsaved,
@@ -393,7 +391,6 @@ export function MarkdownEditor({
       ]),
       moveBlocksKeymap(),
       hybridRendering(),
-      numberedHeadings(),
       createDbBlockExtension(),
       createHttpBlockExtension(),
       createEditorBlockWidgets(),
@@ -531,35 +528,6 @@ export function MarkdownEditor({
   // survives file/pane swaps. See V2 cenário 4 carry note.
   const [autoCapture, setAutoCapture] = useState(false);
 
-  // Insert a fenced-code template at the current cursor. Falls back
-  // to end-of-doc when the editor isn't focused (e.g. user clicks
-  // the toolbar button before placing a cursor in the editor).
-  const handleAddBlock = useCallback(
-    (template: BlockTemplate) => {
-      const view = viewRef.current;
-      if (!view) return;
-      const sel = view.state.selection.main;
-      // If the cursor isn't sitting at a line break, prefix the
-      // insertion with a newline so the fence doesn't fuse with the
-      // preceding paragraph.
-      const docText = view.state.doc.toString();
-      const charBefore = sel.from > 0 ? docText.charAt(sel.from - 1) : "\n";
-      const insertText =
-        charBefore === "\n" ? template.insert : `\n${template.insert}`;
-      const insertAt = sel.from;
-      view.dispatch({
-        changes: { from: insertAt, to: sel.to, insert: insertText },
-        selection: {
-          anchor:
-            insertAt + insertText.length + (template.cursorOffset ?? 0),
-        },
-        scrollIntoView: true,
-      });
-      queueMicrotask(() => view.focus());
-    },
-    [],
-  );
-
   return (
     <BlockContextProvider value={{ filePath }}>
       <Flex direction="column" h="100%" overflow="hidden">
@@ -570,7 +538,6 @@ export function MarkdownEditor({
           blockCount={blockCount}
           autoCapture={autoCapture}
           onAutoCaptureChange={setAutoCapture}
-          onAddBlock={handleAddBlock}
         />
         <Box
           flex={1}
