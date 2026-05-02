@@ -113,6 +113,10 @@ export interface DocHeaderEntry {
    *  `editorContents` Map in the pane store. `null` mirrors the legacy
    *  "no frontmatter" sentinel from `DocHeaderedEditor`. */
   frontmatter: DocHeaderFrontmatter | null;
+  /** Number of executable fenced blocks in the body — tracked alongside
+   *  the frontmatter so the meta-strip "N blocks" chip stays live without
+   *  the portal needing to scan content itself. */
+  blockCount: number;
 }
 
 const entries = new Map<string, DocHeaderEntry>();
@@ -150,6 +154,7 @@ function ensureEntry(id: string, container: HTMLElement): DocHeaderEntry {
     titleInput: null,
     lastBodyOffset: 0,
     frontmatter: null,
+    blockCount: 0,
   };
   entries.set(id, next);
   return next;
@@ -180,6 +185,7 @@ function registerContainer(
       titleInput: null,
       lastBodyOffset: 0,
       frontmatter: null,
+      blockCount: 0,
     });
   }
   notify();
@@ -225,16 +231,49 @@ function frontmatterFromDoc(doc: string): DocHeaderFrontmatter | null {
   };
 }
 
-/** Set the live frontmatter for an entry and notify subscribers if the
- *  parsed shape actually changed. Called from the StateField on every
- *  doc change — gating on equality keeps the React portal from
- *  re-rendering on body keystrokes that didn't touch the frontmatter. */
+/** Count executable fenced blocks in the doc (`http`, `db-*`). Used
+ *  to keep the meta-strip "N blocks" chip live without forcing the
+ *  React portal to scan content itself. */
+function countExecutableBlocks(doc: string): number {
+  let count = 0;
+  let inFence = false;
+  for (const line of doc.split("\n")) {
+    if (inFence) {
+      if (line.startsWith("```")) inFence = false;
+      continue;
+    }
+    if (
+      line.startsWith("```http") ||
+      line.startsWith("```db-") ||
+      line === "```http" ||
+      line === "```db"
+    ) {
+      count += 1;
+      inFence = true;
+    } else if (line.startsWith("```")) {
+      // Non-executable fence — just track open/close so we don't
+      // miscount nested ``` inside markdown code blocks.
+      inFence = true;
+    }
+  }
+  return count;
+}
+
+/** Set the live frontmatter + block count for an entry and notify
+ *  subscribers if either changed. Called from the StateField on every
+ *  doc change — equality gating keeps the React portal from re-
+ *  rendering on body keystrokes that didn't touch the frontmatter
+ *  fields or the block layout. */
 function syncEntryFrontmatter(id: string, doc: string) {
   const entry = entries.get(id);
   if (!entry) return;
-  const next = frontmatterFromDoc(doc);
-  if (frontmatterEqual(entry.frontmatter, next)) return;
-  entry.frontmatter = next;
+  const nextFm = frontmatterFromDoc(doc);
+  const nextBlocks = countExecutableBlocks(doc);
+  const fmChanged = !frontmatterEqual(entry.frontmatter, nextFm);
+  const blocksChanged = entry.blockCount !== nextBlocks;
+  if (!fmChanged && !blocksChanged) return;
+  entry.frontmatter = nextFm;
+  entry.blockCount = nextBlocks;
   notify();
 }
 

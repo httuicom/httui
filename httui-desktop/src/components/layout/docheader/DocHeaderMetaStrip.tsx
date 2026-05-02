@@ -30,6 +30,9 @@ export interface DocHeaderMetaStripProps {
   /** `frontmatter.owner` from the Story 01 parser. Hidden when
    *  null / undefined / empty so consumer mounts unconditionally. */
   owner?: string | null;
+  /** Number of executable fenced blocks in the body. Hidden when
+   *  zero / undefined. */
+  blockCount?: number;
   onSelectAuthor?: () => void;
   onSelectEdited?: () => void;
   onSelectBranch?: () => void;
@@ -44,6 +47,7 @@ export function DocHeaderMetaStrip({
   branch,
   lastRun,
   owner,
+  blockCount,
   onSelectAuthor,
   onSelectEdited,
   onSelectBranch,
@@ -90,6 +94,11 @@ export function DocHeaderMetaStrip({
           onClick={onSelectEdited}
         >
           {formatEditedTime(mtimeMs ?? null, !!dirty)}
+        </Chip>
+      )}
+      {typeof blockCount === "number" && blockCount > 0 && (
+        <Chip testId="docheader-meta-blocks" tone="muted">
+          {blockCount === 1 ? "1 block" : `${blockCount} blocks`}
         </Chip>
       )}
       {branch && (

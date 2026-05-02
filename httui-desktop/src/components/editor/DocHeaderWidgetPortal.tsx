@@ -146,6 +146,7 @@ export function DocHeaderWidgetPortal({
       <DocHeaderShell
         {...inlineHeader}
         frontmatter={liveFrontmatter}
+        blockCount={entry.blockCount}
         onTitleSave={view ? onTitleSave : undefined}
         onAbstractSave={view ? onAbstractSave : undefined}
         onAddTag={view ? onAddTag : undefined}

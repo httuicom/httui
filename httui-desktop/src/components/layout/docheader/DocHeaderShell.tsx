@@ -64,6 +64,7 @@ export interface DocHeaderShellProps {
   dirty?: boolean;
   branch?: BranchSummaryData | null;
   lastRun?: LastRunSummary | null;
+  blockCount?: number;
   onSelectAuthor?: () => void;
   onSelectEdited?: () => void;
   onSelectBranch?: () => void;
@@ -104,6 +105,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     dirty,
     branch,
     lastRun,
+    blockCount,
     onSelectAuthor,
     onSelectEdited,
     onSelectBranch,
@@ -189,6 +191,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
             dirty={dirty}
             branch={branch}
             lastRun={lastRun}
+            blockCount={blockCount}
             onSelectAuthor={onSelectAuthor}
             onSelectEdited={onSelectEdited}
             onSelectBranch={onSelectBranch}

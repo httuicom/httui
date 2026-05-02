@@ -10,16 +10,22 @@
 // stays outside the CM6 editor so it pushes the whole pane down on
 // stale-on-disk.
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Box } from "@chakra-ui/react";
 
 import { MarkdownEditor } from "@/components/editor/MarkdownEditor";
 import type { InlineDocHeader } from "@/components/editor/DocHeaderWidgetPortal";
 import { ConflictBanner } from "../ConflictBanner";
-import type { BranchSummaryData } from "../docheader/docheader-meta";
+import type {
+  AuthorInfo,
+  BranchSummaryData,
+  LastRunSummary,
+} from "../docheader/docheader-meta";
 import { useFileDocHeaderCompact } from "@/hooks/useFileDocHeaderCompact";
 import { useFileMtime } from "@/hooks/useFileMtime";
 import { useGitStatus } from "@/hooks/useGitStatus";
+import { gitFirstCommitAuthor } from "@/lib/tauri/git";
+import { blockHistoryLastRunSummary } from "@/lib/tauri/block-history";
 
 export interface DocHeaderedEditorProps {
   filePath: string;
@@ -80,6 +86,72 @@ export function DocHeaderedEditor({
     };
   }, [gitStatus]);
 
+  // Vault-relative path for the breadcrumb + git lookup. `filePath` is
+  // absolute, `vaultPath` is the vault root absolute path; trimming
+  // the prefix gives the path the breadcrumb / git path-filter
+  // expects. POSIX separators only — the vault layer normalizes on
+  // open.
+  const relativeFilePath = useMemo<string | null>(() => {
+    if (!filePath) return null;
+    if (vaultPath && filePath.startsWith(vaultPath + "/")) {
+      return filePath.slice(vaultPath.length + 1);
+    }
+    return filePath;
+  }, [filePath, vaultPath]);
+
+  // Author chip: first-commit author of the file (follows renames).
+  // `null` while loading or when the file isn't tracked yet.
+  const [author, setAuthor] = useState<AuthorInfo | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!relativeFilePath || !vaultPath) {
+      setAuthor(null);
+      return;
+    }
+    gitFirstCommitAuthor(vaultPath, relativeFilePath)
+      .then((commit) => {
+        if (cancelled) return;
+        setAuthor(
+          commit
+            ? { name: commit.author_name, email: commit.author_email }
+            : null,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setAuthor(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [vaultPath, relativeFilePath]);
+
+  // Last-run chip: aggregated session summary from the
+  // `block_run_history` table. The 5s session window heuristic lives
+  // in Rust; we just map the raw shape and display.
+  const [lastRun, setLastRun] = useState<LastRunSummary | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!filePath) {
+      setLastRun(null);
+      return;
+    }
+    blockHistoryLastRunSummary(filePath)
+      .then((raw) => {
+        if (cancelled) return;
+        setLastRun({
+          ranAt: raw.ran_at,
+          blockCount: raw.block_count,
+          failedCount: raw.failed_count,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setLastRun(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath]);
+
   // The frontmatter and the editable callbacks live inside
   // `DocHeaderWidgetPortal` now — it dispatches transactions directly
   // into CM6 and reads the parsed frontmatter off the StateField,
@@ -89,6 +161,7 @@ export function DocHeaderedEditor({
   const inlineHeader = useMemo<InlineDocHeader>(
     () => ({
       filePath,
+      relativeFilePath,
       compact,
       onToggleCompact: () => {
         void setCompact(!compact);
@@ -96,8 +169,20 @@ export function DocHeaderedEditor({
       mtimeMs: mtime,
       dirty,
       branch,
+      author,
+      lastRun,
     }),
-    [filePath, compact, setCompact, mtime, dirty, branch],
+    [
+      filePath,
+      relativeFilePath,
+      compact,
+      setCompact,
+      mtime,
+      dirty,
+      branch,
+      author,
+      lastRun,
+    ],
   );
 
   return (
