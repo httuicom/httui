@@ -259,4 +259,35 @@ describe("DocHeader frontmatter guard (transactionFilter)", () => {
     expect(view.state.doc.toString()).toBe(" heading\nbody\n");
     view.destroy();
   });
+
+  // Cmd-A keymap binding can't be exercised in jsdom — synthetic
+  // KeyboardEvents don't route through CM6's keymap dispatcher
+  // reliably for Mod-prefixed combos. The behavior is covered by
+  // the static cases below: the user's "select all then delete"
+  // bug class is the doc-spanning change being blocked. We verify
+  // BOTH paths: unclipped (full doc range) gets blocked, clipped
+  // (body-only range, what the keymap produces) goes through.
+  it("blocks a doc-spanning delete when Cmd-A's clip didn't run", () => {
+    const view = createView("---\ntitle: x\n---\nbody one\nbody two\n");
+    const before = view.state.doc.toString();
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: "" },
+    });
+    // Guard rejects — frontmatter range overlaps.
+    expect(view.state.doc.toString()).toBe(before);
+    view.destroy();
+  });
+
+  it("body-clipped Cmd-A delete erases only the body", () => {
+    const view = createView("---\ntitle: x\n---\nbody one\nbody two\n");
+    // Body starts at offset 17. The Cmd-A keymap clips selection to
+    // [17, doc.length]; deleting that range hits no frontmatter
+    // bytes so the guard lets it pass.
+    const bodyStart = 17;
+    view.dispatch({
+      changes: { from: bodyStart, to: view.state.doc.length, insert: "" },
+    });
+    expect(view.state.doc.toString()).toBe("---\ntitle: x\n---\n");
+    view.destroy();
+  });
 });

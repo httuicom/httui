@@ -552,6 +552,25 @@ export function createDocHeaderExtension(): DocHeaderExtensionHandle {
         return true;
       },
     },
+    {
+      // Cmd/Ctrl-A — clip "select all" to the body range so a follow-
+      // up Delete doesn't try to chew through the hidden frontmatter
+      // (the guard would block it entirely, surprising the user). With
+      // no frontmatter, fall through to the default behavior.
+      key: "Mod-a",
+      run: (view) => {
+        if (vimOwnsMotion(view)) return false;
+        const value = view.state.field(field, false);
+        if (!value || !value.range) return false;
+        const bodyStart = value.range.to;
+        const docEnd = view.state.doc.length;
+        if (bodyStart >= docEnd) return false;
+        view.dispatch({
+          selection: EditorSelection.range(bodyStart, docEnd),
+        });
+        return true;
+      },
+    },
   ];
 
   // Block changes that would touch the hidden frontmatter range. This
