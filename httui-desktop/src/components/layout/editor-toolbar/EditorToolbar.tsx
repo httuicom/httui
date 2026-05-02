@@ -6,6 +6,7 @@
 //   • "edited Xm ago" derived from FS mtime + dirty flag
 //   • block count (executable blocks; HTTP / DB / etc.)
 //   • ⚡ auto-capture toggle (per-file persisted)
+//   • + Add block menu (md / http / sql / mongo / ws / gql / sh)
 //
 // Pure presentational: takes everything as props. The persistence
 // hook (`useFileAutoCapture`) and mtime poll wire later in PaneNode
@@ -14,6 +15,11 @@
 
 import { Box, HStack, Text, chakra } from "@chakra-ui/react";
 import { LuZap } from "react-icons/lu";
+
+import {
+  AddBlockMenu,
+  type BlockTemplate,
+} from "@/components/layout/AddBlockMenu";
 
 const ToggleButton = chakra("button");
 
@@ -32,6 +38,9 @@ export interface EditorToolbarProps {
   autoCapture: boolean;
   /** Toggle handler. */
   onAutoCaptureChange: (next: boolean) => void;
+  /** Optional handler for the "+ Add block" menu. When omitted, the
+   *  menu is hidden — convenient for the readonly diff viewer. */
+  onAddBlock?: (template: BlockTemplate) => void;
 }
 
 /** Last 2 segments of a path, ellipsis on the leading side when
@@ -68,6 +77,7 @@ export function EditorToolbar({
   blockCount,
   autoCapture,
   onAutoCaptureChange,
+  onAddBlock,
 }: EditorToolbarProps) {
   const editedLabel = unsaved
     ? `${formatRelativeTime(editedAt)} (unsaved)`
@@ -135,6 +145,13 @@ export function EditorToolbar({
         <LuZap size={10} />
         auto-capture
       </ToggleButton>
+
+      {onAddBlock && (
+        <AddBlockMenu
+          onInsert={onAddBlock}
+          ariaLabel="Add block to document"
+        />
+      )}
     </HStack>
   );
 }

@@ -127,11 +127,15 @@ export interface AddBlockMenuProps {
   onInsert: (template: BlockTemplate) => void;
   /** Optional aria-label on the trigger for screen readers. */
   ariaLabel?: string;
+  /** Trigger size (px). Default 32 for the standalone floating
+   *  button; pass 20 to fit inside the editor toolbar (28px tall). */
+  triggerSize?: number;
 }
 
 export function AddBlockMenu({
   onInsert,
   ariaLabel = "Add block",
+  triggerSize = 32,
 }: AddBlockMenuProps) {
   const handleSelect = useCallback(
     (kind: BlockKind) => {
@@ -140,6 +144,8 @@ export function AddBlockMenu({
     [onInsert],
   );
 
+  const iconSize = Math.round(triggerSize / 2);
+
   return (
     <Menu.Root>
       <Menu.Trigger asChild>
@@ -147,8 +153,8 @@ export function AddBlockMenu({
           type="button"
           data-atom="add-block-trigger"
           aria-label={ariaLabel}
-          h="32px"
-          w="32px"
+          h={`${triggerSize}px`}
+          w={`${triggerSize}px`}
           display="inline-flex"
           alignItems="center"
           justifyContent="center"
@@ -158,14 +164,22 @@ export function AddBlockMenu({
           bg="bg.2"
           color="fg.2"
           cursor="pointer"
+          flexShrink={0}
           _hover={{ bg: "bg.3", color: "fg" }}
         >
-          <LuPlus size={16} />
+          <LuPlus size={iconSize} />
         </Trigger>
       </Menu.Trigger>
       <Portal>
         <Menu.Positioner>
-          <Menu.Content data-testid="add-block-menu">
+          <Menu.Content
+            data-testid="add-block-menu"
+            bg="bg"
+            borderWidth="1px"
+            borderColor="line"
+            shadow="2xl"
+            minW="180px"
+          >
             {KIND_ORDER.map((kind) => {
               const t = BLOCK_TEMPLATES[kind];
               const Icon = ICONS[kind];
@@ -176,6 +190,10 @@ export function AddBlockMenu({
                   data-block-kind={kind}
                   data-executable={t.executable ? "true" : "false"}
                   onSelect={() => handleSelect(kind)}
+                  cursor="pointer"
+                  px={2}
+                  py={1.5}
+                  borderRadius="3px"
                 >
                   <Box display="inline-flex" alignItems="center" gap={2}>
                     <Icon size={14} />

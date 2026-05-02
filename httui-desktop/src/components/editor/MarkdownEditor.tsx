@@ -6,7 +6,7 @@
 // the integration tests live in `*.browser.test.tsx` files. See
 // `docs-llm/jaum-audit/022-markdown-editor-coverage-exclude.md`.
 import { useRef, useEffect, useMemo, useCallback, useState } from "react";
-import { Box } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { EditorView, keymap } from "@codemirror/view";
 import { Compartment, EditorSelection, Prec } from "@codemirror/state";
@@ -65,6 +65,14 @@ import {
   type vimState,
 } from "@replit/codemirror-vim";
 import { hybridRendering } from "@/lib/codemirror/cm-hybrid-rendering";
+import { numberedHeadings } from "@/lib/codemirror/cm-numbered-headings";
+import { EditorToolbar } from "@/components/layout/editor-toolbar/EditorToolbar";
+import { countExecutableBlocks } from "@/components/layout/editor-toolbar/blockCount";
+import type { BlockTemplate } from "@/components/layout/AddBlockMenu";
+import {
+  usePaneStore,
+  selectActiveTabUnsaved,
+} from "@/stores/pane";
 import {
   slashCommands,
   slashCompletionSource,
@@ -385,6 +393,7 @@ export function MarkdownEditor({
       ]),
       moveBlocksKeymap(),
       hybridRendering(),
+      numberedHeadings(),
       createDbBlockExtension(),
       createHttpBlockExtension(),
       createEditorBlockWidgets(),
@@ -512,27 +521,82 @@ export function MarkdownEditor({
     };
   }, [filePath]);
 
+  const blockCount = useMemo(
+    () => countExecutableBlocks(content),
+    [content],
+  );
+  const unsaved = usePaneStore(selectActiveTabUnsaved);
+  // Per-file auto-capture toggle. Local state for now — wires to a
+  // persisted `useFileAutoCapture` hook in a follow-up so the flag
+  // survives file/pane swaps. See V2 cenário 4 carry note.
+  const [autoCapture, setAutoCapture] = useState(false);
+
+  // Insert a fenced-code template at the current cursor. Falls back
+  // to end-of-doc when the editor isn't focused (e.g. user clicks
+  // the toolbar button before placing a cursor in the editor).
+  const handleAddBlock = useCallback(
+    (template: BlockTemplate) => {
+      const view = viewRef.current;
+      if (!view) return;
+      const sel = view.state.selection.main;
+      // If the cursor isn't sitting at a line break, prefix the
+      // insertion with a newline so the fence doesn't fuse with the
+      // preceding paragraph.
+      const docText = view.state.doc.toString();
+      const charBefore = sel.from > 0 ? docText.charAt(sel.from - 1) : "\n";
+      const insertText =
+        charBefore === "\n" ? template.insert : `\n${template.insert}`;
+      const insertAt = sel.from;
+      view.dispatch({
+        changes: { from: insertAt, to: sel.to, insert: insertText },
+        selection: {
+          anchor:
+            insertAt + insertText.length + (template.cursorOffset ?? 0),
+        },
+        scrollIntoView: true,
+      });
+      queueMicrotask(() => view.focus());
+    },
+    [],
+  );
+
   return (
     <BlockContextProvider value={{ filePath }}>
-      <Box position="relative" h="100%" overflow="hidden" css={containerCss}>
-        <CodeMirror
-          key={filePath}
-          ref={cmRef}
-          value={content}
-          onChange={onChange}
-          extensions={extensions}
-          basicSetup={false}
-          theme="none"
-          height="100%"
-          onCreateEditor={handleCreateEditor}
+      <Flex direction="column" h="100%" overflow="hidden">
+        <EditorToolbar
+          filePath={filePath}
+          editedAt={null}
+          unsaved={unsaved}
+          blockCount={blockCount}
+          autoCapture={autoCapture}
+          onAutoCaptureChange={setAutoCapture}
+          onAddBlock={handleAddBlock}
         />
-        {editorReady && viewRef.current && (
-          <>
-            <DbWidgetPortals view={viewRef.current} filePath={filePath} />
-            <HttpWidgetPortals view={viewRef.current} filePath={filePath} />
-          </>
-        )}
-      </Box>
+        <Box
+          flex={1}
+          position="relative"
+          overflow="hidden"
+          css={containerCss}
+        >
+          <CodeMirror
+            key={filePath}
+            ref={cmRef}
+            value={content}
+            onChange={onChange}
+            extensions={extensions}
+            basicSetup={false}
+            theme="none"
+            height="100%"
+            onCreateEditor={handleCreateEditor}
+          />
+          {editorReady && viewRef.current && (
+            <>
+              <DbWidgetPortals view={viewRef.current} filePath={filePath} />
+              <HttpWidgetPortals view={viewRef.current} filePath={filePath} />
+            </>
+          )}
+        </Box>
+      </Flex>
     </BlockContextProvider>
   );
 }
