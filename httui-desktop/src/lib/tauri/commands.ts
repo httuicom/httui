@@ -157,49 +157,14 @@ export function scaffoldVault(vaultPath: string): Promise<ScaffoldReport> {
   return invoke("scaffold_vault", { vaultPath });
 }
 
-// --- Clone vault (V1 vertical 1, cenário 2) ---
+// --- Vault operations (V1 vertical 1, cenários 2/3/4) ---
+//
+// `cloneVault`, `createVault`, `saveSecret` + their IPC types live
+// in `./vault-ops.ts` (extracted when commands.ts crossed 600L).
+// Re-exported here so existing consumers keep compiling.
 
-export interface CloneOutcome {
-  /** Absolute path of the cloned repo, ready for switchVault. */
-  destination: string;
-}
-
-/**
- * `git clone <url> <parent>/<repo-name>`. Auth (HTTPS PAT, SSH keys)
- * is delegated to the user's git credential helper / ssh-agent.
- *
- * `parent` is the *container* folder the user picked. When it is
- * `null` the backend defaults to `~/Documents`. The repo's leaf
- * name is always derived from the URL — picking `/tmp` clones into
- * `/tmp/<repo>` rather than overwriting `/tmp` itself.
- */
-export function cloneVault(
-  url: string,
-  parent: string | null,
-): Promise<CloneOutcome> {
-  return invoke("clone_vault_cmd", { url, parent });
-}
-
-// --- Create vault (V1 vertical 1, cenário 3) ---
-
-export interface CreateOutcome {
-  /** Absolute path of the new vault, ready for switchVault. */
-  destination: string;
-  /** What the scaffold actually wrote. */
-  scaffold: ScaffoldReport;
-}
-
-/**
- * Create a brand-new vault at `<parentPath>/<name>` — composes
- * mkdir + `git init` + scaffold. Backend rejects empty/path-traversal
- * names and refuses to overwrite an existing non-empty folder.
- */
-export function createVault(
-  parentPath: string,
-  name: string,
-): Promise<CreateOutcome> {
-  return invoke("create_vault_cmd", { parentPath, name });
-}
+export { cloneVault, createVault, saveSecret } from "./vault-ops";
+export type { CloneOutcome, CreateOutcome } from "./vault-ops";
 
 // --- Missing secrets scan (epic 18) ---
 
@@ -213,19 +178,6 @@ export interface MissingRef {
 /** Scan the vault for `{{keychain:...}}` refs missing from local OS keychain. */
 export function listMissingSecrets(vaultPath: string): Promise<MissingRef[]> {
   return invoke("list_missing_secrets", { vaultPath });
-}
-
-/**
- * Persist a secret in the OS keychain — V1 vertical 1, cenário 4.
- * Called once per `MissingRef` the user fills in inside the
- * first-run secrets modal. Empty key/value pairs are rejected at
- * the backend.
- */
-export function saveSecret(
-  keychainKey: string,
-  value: string,
-): Promise<void> {
-  return invoke("save_secret_cmd", { keychainKey, value });
 }
 
 // --- Filesystem ---
