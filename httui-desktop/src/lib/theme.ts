@@ -77,13 +77,6 @@ const config = defineConfig({
           "2": { value: pair(THEME_DARK.bg2, THEME_LIGHT.bg2) },
           "3": { value: pair(THEME_DARK.bg3, THEME_LIGHT.bg3) },
           hi: { value: pair(THEME_DARK.bgHi, THEME_LIGHT.bgHi) },
-          // Chakra v3's Menu / Popover / Tooltip recipes referenciam
-          // `colors.bg.panel` via a var `--menu-bg` (etc). Apontamos
-          // pro nosso `bg.hi` pra que popups herdem contraste forte
-          // sobre o canvas em vez do near-canvas default. Se algum
-          // popup específico precisar de outro tom, override por
-          // recipe lá em vez de inline.
-          panel: { value: pair(THEME_DARK.bgHi, THEME_LIGHT.bgHi) },
         },
         // Lines.
         line: {
@@ -111,6 +104,22 @@ const config = defineConfig({
         },
         // Selection.
         sel: { value: pair(THEME_DARK.sel, THEME_LIGHT.sel) },
+      },
+    },
+    slotRecipes: {
+      // Override Chakra v3's Menu recipe content slot — default `bg`
+      // resolves to `colors.bg.panel` which falls back to gray.950 /
+      // white from the Chakra default palette (não bate com nossa
+      // ramp Fuji `bg.hi`). Apontamos `--menu-bg` direto pro nosso
+      // token de contraste forte. Mesmo padrão recomendado em
+      // chakra-ui.com/docs/theming/recipes#extending-recipes.
+      menu: {
+        slots: ["content"],
+        base: {
+          content: {
+            "--menu-bg": "colors.bg.hi",
+          },
+        },
       },
     },
   },
