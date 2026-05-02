@@ -11,11 +11,12 @@
 // one DocHeader). React mounts via `DocHeaderWidgetPortal.tsx`.
 
 import {
+  Annotation,
   EditorSelection,
+  EditorState,
   Prec,
   RangeSetBuilder,
   StateField,
-  type EditorState,
   type Extension,
   type Text as CMText,
 } from "@codemirror/state";
@@ -238,6 +239,17 @@ function syncEntryFrontmatter(id: string, doc: string) {
 }
 
 /**
+ * Annotation tag set on transactions that intentionally rewrite the
+ * frontmatter (title / abstract / tags / checklist callbacks). The
+ * transactionFilter checks for this tag to allow the rewrite through;
+ * unannotated changes that touch the hidden frontmatter range get
+ * blocked — that's how Backspace / Delete / cut on the first body
+ * line stays safe, otherwise the user's hidden YAML would silently
+ * disappear.
+ */
+const FRONTMATTER_REWRITE = Annotation.define<true>();
+
+/**
  * Replace the editor's doc with `newContent`, dispatching a minimal
  * change record (computed from the longest common prefix / suffix) so
  * CM6 maps the user's body cursor automatically. Used by header
@@ -271,6 +283,7 @@ export function dispatchDocReplace(view: EditorView, newContent: string) {
       to: oldContent.length - suffix,
       insert: newContent.slice(prefix, newContent.length - suffix),
     },
+    annotations: FRONTMATTER_REWRITE.of(true),
   });
 }
 
@@ -541,8 +554,43 @@ export function createDocHeaderExtension(): DocHeaderExtensionHandle {
     },
   ];
 
+  // Block changes that would touch the hidden frontmatter range. This
+  // catches Backspace / Delete / cut at the body's first line — the
+  // cursor sits at `range.to`, so a default backspace would otherwise
+  // delete the trailing newline of the closing fence and silently
+  // start eating the YAML upward. Only programmatic header rewrites
+  // (annotated `FRONTMATTER_REWRITE`) are allowed through.
+  const guard = EditorState.transactionFilter.of((tr) => {
+    if (!tr.docChanged) return tr;
+    if (tr.annotation(FRONTMATTER_REWRITE)) return tr;
+    const value = tr.startState.field(field, false);
+    if (!value || !value.range) return tr;
+    const rFrom = value.range.from;
+    const rTo = value.range.to;
+    let touches = false;
+    tr.changes.iterChanges((from, to) => {
+      if (touches) return;
+      // Standard half-open range overlap check. Anything from the
+      // first frontmatter byte through (but not including) the body
+      // start counts as a hit.
+      if (from < rTo && to > rFrom) touches = true;
+    });
+    if (!touches) return tr;
+    // Drop the change but preserve the selection update if any —
+    // returning an empty array would also cancel selection moves the
+    // user might want (Backspace selecting the prev char visually,
+    // for instance). The simplest safe call is to return an empty
+    // transaction spec, which discards everything.
+    return [];
+  });
+
   return {
-    extension: [field, updateListener, Prec.high(keymap.of(navKeymap))],
+    extension: [
+      field,
+      guard,
+      updateListener,
+      Prec.high(keymap.of(navKeymap)),
+    ],
     instanceId,
   };
 }

@@ -4,6 +4,7 @@ import { EditorView } from "@codemirror/view";
 
 import {
   createDocHeaderExtension,
+  dispatchDocReplace,
   findFrontmatterRange,
   getDocHeaderEntries,
   registerDocHeaderTitleInput,
@@ -207,6 +208,55 @@ describe("DocHeader nav keymap (M3)", () => {
         new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
       );
     }).not.toThrow();
+    view.destroy();
+  });
+});
+
+describe("DocHeader frontmatter guard (transactionFilter)", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("blocks a Backspace that would delete the frontmatter close fence", () => {
+    const view = createView("---\ntitle: x\n---\nbody\n");
+    const before = view.state.doc.toString();
+    // Cursor at body start (offset 17). Default Backspace removes the
+    // char at 16 (the trailing \n of the closing fence).
+    view.dispatch({ selection: EditorSelection.cursor(17) });
+    view.dispatch({ changes: { from: 16, to: 17, insert: "" } });
+    expect(view.state.doc.toString()).toBe(before);
+    view.destroy();
+  });
+
+  it("blocks a range deletion that crosses the frontmatter boundary", () => {
+    const view = createView("---\ntitle: x\n---\nbody\n");
+    const before = view.state.doc.toString();
+    // Selection from inside the frontmatter (5) to inside the body
+    // (20) — full delete would chew through the YAML.
+    view.dispatch({ changes: { from: 5, to: 20, insert: "" } });
+    expect(view.state.doc.toString()).toBe(before);
+    view.destroy();
+  });
+
+  it("allows backspace inside the body (no frontmatter overlap)", () => {
+    const view = createView("---\ntitle: x\n---\nbody\n");
+    // Body chars: b(17) o(18) d(19) y(20). Delete the 'y' at 20.
+    view.dispatch({ changes: { from: 20, to: 21, insert: "" } });
+    expect(view.state.doc.toString()).toBe("---\ntitle: x\n---\nbod\n");
+    view.destroy();
+  });
+
+  it("allows programmatic frontmatter rewrites via dispatchDocReplace", () => {
+    const view = createView("---\ntitle: Old\n---\nbody\n");
+    dispatchDocReplace(view, "---\ntitle: New\n---\nbody\n");
+    expect(view.state.doc.toString()).toBe("---\ntitle: New\n---\nbody\n");
+    view.destroy();
+  });
+
+  it("allows changes when the doc has no frontmatter", () => {
+    const view = createView("# heading\nbody\n");
+    view.dispatch({ changes: { from: 0, to: 1, insert: "" } });
+    expect(view.state.doc.toString()).toBe(" heading\nbody\n");
     view.destroy();
   });
 });
