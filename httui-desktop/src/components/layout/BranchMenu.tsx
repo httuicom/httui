@@ -1,10 +1,10 @@
 // Status-bar branch picker — replaces the standalone branch button
 // in the TopBar. Trigger reads as a status-bar cell (branch label +
-// optional ↑↓~ counts); clicking opens a placeholder dropdown until
-// V10 wires the real branch switcher.
+// optional `↑a ↓b +n ~m -d` counts); clicking opens a placeholder
+// dropdown until V10 wires the real branch switcher.
 //
 // Pure presentational over `useGitStatus`: the parent passes the
-// label and counts in.
+// label and parsed counts in.
 
 import { Box, HStack, Menu, Portal, chakra } from "@chakra-ui/react";
 import { LuGitBranch } from "react-icons/lu";
@@ -19,18 +19,25 @@ export interface BranchMenuProps {
   ahead?: number;
   /** Commits behind upstream. */
   behind?: number;
-  /** Worktree changed-files count. */
-  changeCount?: number;
+  /** New / untracked files in the worktree (`+N`). */
+  added?: number;
+  /** Modified files in the worktree (`~M`). */
+  modified?: number;
+  /** Deleted files in the worktree (`-D`). */
+  deleted?: number;
 }
 
 export function BranchMenu({
   branch,
   ahead = 0,
   behind = 0,
-  changeCount = 0,
+  added = 0,
+  modified = 0,
+  deleted = 0,
 }: BranchMenuProps) {
   const label = branch ?? "—";
-  const hasCounts = ahead > 0 || behind > 0 || changeCount > 0;
+  const hasCounts =
+    ahead > 0 || behind > 0 || added > 0 || modified > 0 || deleted > 0;
 
   return (
     <Menu.Root>
@@ -60,7 +67,9 @@ export function BranchMenu({
             <Box as="span" color="fg.3" data-testid="status-changes">
               {ahead > 0 && `↑${ahead} `}
               {behind > 0 && `↓${behind} `}
-              {changeCount > 0 && `~${changeCount}`}
+              {added > 0 && `+${added} `}
+              {modified > 0 && `~${modified} `}
+              {deleted > 0 && `-${deleted}`}
             </Box>
           )}
         </Trigger>

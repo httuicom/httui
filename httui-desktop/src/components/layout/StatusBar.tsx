@@ -63,7 +63,19 @@ export function StatusBar({
 
   const ahead = gitState?.ahead ?? 0;
   const behind = gitState?.behind ?? 0;
-  const changeCount = gitState?.changed.length ?? 0;
+  // Categorize worktree changes into add / modify / delete buckets.
+  // Status codes follow `git status --short` (M, A, D, ??, R, C…).
+  // Untracked counts as "added" so a freshly-created file shows up
+  // under `+N` while still uncommitted.
+  let added = 0;
+  let modified = 0;
+  let deleted = 0;
+  for (const c of gitState?.changed ?? []) {
+    const code = c.status.trim().charAt(0);
+    if (c.untracked || code === "A" || code === "?") added += 1;
+    else if (code === "D") deleted += 1;
+    else modified += 1;
+  }
 
   return (
     <StatusBarShell data-testid="status-bar">
@@ -72,7 +84,9 @@ export function StatusBar({
         branch={gitState?.branch ?? null}
         ahead={ahead}
         behind={behind}
-        changeCount={changeCount}
+        added={added}
+        modified={modified}
+        deleted={deleted}
       />
 
       <Box w="1px" h="12px" bg="line" aria-hidden />

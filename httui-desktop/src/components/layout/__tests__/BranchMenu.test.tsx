@@ -20,19 +20,40 @@ describe("BranchMenu", () => {
     );
   });
 
-  it("hides the counts cell when ahead/behind/changes are all zero", () => {
+  it("hides the counts cell when every category is zero", () => {
     renderWithProviders(<BranchMenu branch="main" />);
     expect(screen.queryByTestId("status-changes")).toBeNull();
   });
 
-  it("renders ahead / behind / changes counts when nonzero", () => {
+  it("renders ahead/behind + add/modify/delete counts when nonzero", () => {
     renderWithProviders(
-      <BranchMenu branch="main" ahead={2} behind={1} changeCount={5} />,
+      <BranchMenu
+        branch="main"
+        ahead={2}
+        behind={1}
+        added={3}
+        modified={5}
+        deleted={1}
+      />,
     );
     const counts = screen.getByTestId("status-changes");
     expect(counts.textContent).toContain("↑2");
     expect(counts.textContent).toContain("↓1");
+    expect(counts.textContent).toContain("+3");
     expect(counts.textContent).toContain("~5");
+    expect(counts.textContent).toContain("-1");
+  });
+
+  it("only renders nonzero categories", () => {
+    renderWithProviders(
+      <BranchMenu branch="main" added={2} />,
+    );
+    const counts = screen.getByTestId("status-changes");
+    expect(counts.textContent).toContain("+2");
+    expect(counts.textContent).not.toContain("↑");
+    expect(counts.textContent).not.toContain("↓");
+    expect(counts.textContent).not.toContain("~");
+    expect(counts.textContent).not.toContain("-");
   });
 
   it("opens a placeholder dropdown on click", async () => {
