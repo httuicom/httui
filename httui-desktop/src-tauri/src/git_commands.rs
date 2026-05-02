@@ -2,9 +2,10 @@
 //! the panel UI calls these, the substantive logic lives in core.
 
 use httui_core::git::{
-    git_branch_list, git_checkout, git_checkout_b, git_checkout_conflict_path, git_commit,
-    git_diff, git_fetch, git_first_commit_author, git_log, git_pull, git_push, git_remote_list,
-    git_status, stage_path, unstage_path, BranchInfo, CommitInfo, ConflictSide, GitStatus, Remote,
+    git_branch_list, git_checkout, git_checkout_b, git_checkout_conflict_path, git_clone,
+    git_commit, git_diff, git_fetch, git_first_commit_author, git_log, git_pull, git_push,
+    git_remote_list, git_status, stage_path, unstage_path, BranchInfo, CloneOutcome, CommitInfo,
+    ConflictSide, GitStatus, Remote,
 };
 use std::path::PathBuf;
 
@@ -143,6 +144,25 @@ pub async fn git_push_cmd(
     branch: Option<String>,
 ) -> Result<String, String> {
     git_push(&PathBuf::from(vault_path), remote.as_deref(), branch.as_deref())
+}
+
+/// `git clone <url> <parent>/<repo-name>` — V1 vertical 1, cenário 2.
+///
+/// Auth (HTTPS PAT, SSH keys) is delegated to the user's git
+/// credential helper / ssh-agent. The `parent` arg is the *container*
+/// folder the user picked (or `None` to default to `~/Documents`).
+/// The repo's leaf name is always derived from the URL — never the
+/// caller's responsibility — so picking `/tmp` clones into
+/// `/tmp/<repo>` rather than overwriting `/tmp` itself.
+/// Returns the absolute path of the clone so the frontend can
+/// `switchVault` straight in.
+#[tauri::command]
+pub async fn clone_vault_cmd(
+    url: String,
+    parent: Option<String>,
+) -> Result<CloneOutcome, String> {
+    let parent = parent.map(PathBuf::from);
+    git_clone(&url, parent.as_deref())
 }
 
 #[cfg(test)]
@@ -384,5 +404,70 @@ mod tests {
         )
         .await
         .is_err());
+    }
+
+    #[tokio::test]
+    async fn clone_vault_cmd_rejects_empty_url() {
+        let dir = TempDir::new().unwrap();
+        let dest = dir.path().join("repo");
+        let err = clone_vault_cmd(
+            "".into(),
+            Some(dest.to_string_lossy().into()),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("vazia"), "got: {err}");
+    }
+
+    #[tokio::test]
+    async fn clone_vault_cmd_round_trip_against_local_bare() {
+        // Set up a local bare remote with one seeded commit.
+        let bare = TempDir::new().unwrap();
+        let mut init = Command::new("git");
+        init.arg("init").arg("--bare").arg(bare.path());
+        let _ = init.output();
+
+        let work = TempDir::new().unwrap();
+        for args in [
+            vec!["init", work.path().to_str().unwrap()],
+            vec!["-C", work.path().to_str().unwrap(), "config", "user.email", "t@t"],
+            vec!["-C", work.path().to_str().unwrap(), "config", "user.name", "t"],
+            vec!["-C", work.path().to_str().unwrap(), "config", "commit.gpgsign", "false"],
+        ] {
+            let _ = Command::new("git").args(args).output();
+        }
+        std::fs::write(work.path().join("README.md"), "hi").unwrap();
+        for args in [
+            vec!["-C", work.path().to_str().unwrap(), "add", "-A"],
+            vec!["-C", work.path().to_str().unwrap(), "commit", "-m", "init"],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "remote",
+                "add",
+                "origin",
+                bare.path().to_str().unwrap(),
+            ],
+            vec!["-C", work.path().to_str().unwrap(), "push", "origin", "HEAD:main"],
+        ] {
+            let _ = Command::new("git").args(args).output();
+        }
+
+        // Pass the parent dir; backend derives the leaf from the URL.
+        let parent = TempDir::new().unwrap();
+        let outcome = clone_vault_cmd(
+            bare.path().to_string_lossy().into(),
+            Some(parent.path().to_string_lossy().into()),
+        )
+        .await
+        .unwrap();
+        // Outcome destination is `<parent>/<leaf>`, where leaf is
+        // derived from the bare repo's path.
+        assert!(
+            outcome.destination.starts_with(parent.path()),
+            "destination should sit under the picked parent",
+        );
+        assert!(outcome.destination.join(".git").is_dir());
+        assert!(outcome.destination.join("README.md").is_file());
     }
 }

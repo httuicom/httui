@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Box, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 
 import { useWorkspaceStore } from "@/stores/workspace";
-import { scaffoldVault, writeNote } from "@/lib/tauri/commands";
+import { cloneVault, scaffoldVault, writeNote } from "@/lib/tauri/commands";
 import { EmptyVaultSidebar } from "@/components/layout/empty-vault/EmptyVaultSidebar";
 import { OpenVaultCard } from "@/components/layout/empty-vault/OpenVaultCard";
 import { CloneVaultCard } from "@/components/layout/empty-vault/CloneVaultCard";
@@ -63,12 +63,21 @@ export function EmptyVaultScreen() {
   }, [openVault]);
 
   const handleClone = useCallback(
-    async (_url: string, _destination: string | null) => {
-      throw new Error(
-        "Clone ainda não está disponível — chega na próxima vertical (cenário 2).",
-      );
+    async (url: string, parent: string | null) => {
+      // Clone errors render inline inside the card; only the busy
+      // flag is global. Re-throw so the card's local error state
+      // catches it without doubling up the screen-level banner.
+      setFlow({ busy: true, error: null });
+      try {
+        const outcome = await cloneVault(url, parent);
+        await switchVault(outcome.destination);
+      } catch (err) {
+        setFlow({ busy: false, error: null });
+        throw err;
+      }
+      setFlow({ busy: false, error: null });
     },
-    [],
+    [switchVault],
   );
 
   const handleCreate = useCallback(
@@ -150,12 +159,12 @@ export function EmptyVaultScreen() {
     };
   }, [handleCreateWithUrl]);
 
-  const pickClonePath = useCallback(
-    () => pickDirectory("Choose destination for cloned vault"),
+  const pickCloneParent = useCallback(
+    () => pickDirectory("Escolha a pasta pai para clonar"),
     [],
   );
   const pickCreateParent = useCallback(
-    () => pickDirectory("Choose parent folder for new vault"),
+    () => pickDirectory("Escolha a pasta pai do novo vault"),
     [],
   );
 
@@ -225,7 +234,7 @@ export function EmptyVaultScreen() {
             <OpenVaultCard onOpenClick={handleOpen} busy={flow.busy} />
             <CloneVaultCard
               onClone={handleClone}
-              onPickDestination={pickClonePath}
+              onPickParent={pickCloneParent}
               busy={flow.busy}
             />
             <CreateVaultCard

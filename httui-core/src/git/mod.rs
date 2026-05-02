@@ -13,6 +13,7 @@
 //! that will land alongside the panel UI.
 
 pub mod checkout;
+pub mod clone;
 pub mod log;
 pub mod remote;
 pub mod remote_host;
@@ -21,6 +22,7 @@ pub mod status;
 pub mod sync;
 
 pub use checkout::{git_checkout, git_checkout_b, git_checkout_conflict_path, ConflictSide};
+pub use clone::{git_clone, CloneOutcome};
 pub use log::{git_first_commit_author, git_log, CommitInfo};
 pub use remote::{git_remote_list, Remote};
 pub use remote_host::{parse_remote_url, ParsedRemote, RemoteHost};

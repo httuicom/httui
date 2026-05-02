@@ -6,15 +6,15 @@ import { CloneVaultCard } from "@/components/layout/empty-vault/CloneVaultCard";
 
 function setup(over: Partial<Parameters<typeof CloneVaultCard>[0]> = {}) {
   const onClone = vi.fn(async () => {});
-  const onPickDestination = vi.fn(async () => null as string | null);
+  const onPickParent = vi.fn(async () => null as string | null);
   const utils = renderWithProviders(
     <CloneVaultCard
       onClone={onClone}
-      onPickDestination={onPickDestination}
+      onPickParent={onPickParent}
       {...over}
     />,
   );
-  return { ...utils, onClone, onPickDestination };
+  return { ...utils, onClone, onPickParent };
 }
 
 describe("CloneVaultCard — collapsed state", () => {
@@ -56,7 +56,7 @@ describe("CloneVaultCard — expanded state", () => {
     expect(onClone).not.toHaveBeenCalled();
   });
 
-  it("submits trimmed URL with no destination by default", async () => {
+  it("submits trimmed URL with null parent by default (~/Documents)", async () => {
     const { user, onClone } = await expand();
     await user.type(
       screen.getByTestId("clone-vault-url"),
@@ -67,13 +67,13 @@ describe("CloneVaultCard — expanded state", () => {
     expect(onClone).toHaveBeenCalledWith("https://github.com/x/y.git", null);
   });
 
-  it("picks destination via onPickDestination and forwards it", async () => {
-    const { user, onClone, onPickDestination } = await expand();
-    onPickDestination.mockResolvedValueOnce("/tmp/clone-here");
-    await user.click(screen.getByTestId("clone-vault-pick-destination"));
+  it("picks parent via onPickParent and forwards it as the container", async () => {
+    const { user, onClone, onPickParent } = await expand();
+    onPickParent.mockResolvedValueOnce("/tmp/parent-here");
+    await user.click(screen.getByTestId("clone-vault-pick-parent"));
     await waitFor(() =>
-      expect(screen.getByTestId("clone-vault-destination").textContent).toContain(
-        "/tmp/clone-here",
+      expect(screen.getByTestId("clone-vault-parent").textContent).toContain(
+        "/tmp/parent-here",
       ),
     );
     await user.type(
@@ -84,7 +84,7 @@ describe("CloneVaultCard — expanded state", () => {
     await waitFor(() => expect(onClone).toHaveBeenCalledTimes(1));
     expect(onClone).toHaveBeenCalledWith(
       "git@github.com:x/y.git",
-      "/tmp/clone-here",
+      "/tmp/parent-here",
     );
   });
 
@@ -103,10 +103,10 @@ describe("CloneVaultCard — expanded state", () => {
     );
   });
 
-  it("surfaces onPickDestination rejection inline", async () => {
-    const { user, onPickDestination } = await expand();
-    onPickDestination.mockRejectedValueOnce(new Error("picker boom"));
-    await user.click(screen.getByTestId("clone-vault-pick-destination"));
+  it("surfaces onPickParent rejection inline", async () => {
+    const { user, onPickParent } = await expand();
+    onPickParent.mockRejectedValueOnce(new Error("picker boom"));
+    await user.click(screen.getByTestId("clone-vault-pick-parent"));
     await waitFor(() =>
       expect(screen.getByTestId("clone-vault-error").textContent).toContain(
         "picker boom",
@@ -117,11 +117,11 @@ describe("CloneVaultCard — expanded state", () => {
   it("busy disables the expand CTA", async () => {
     const user = userEvent.setup();
     const onClone = vi.fn(async () => {});
-    const onPickDestination = vi.fn(async () => null as string | null);
+    const onPickParent = vi.fn(async () => null as string | null);
     renderWithProviders(
       <CloneVaultCard
         onClone={onClone}
-        onPickDestination={onPickDestination}
+        onPickParent={onPickParent}
         busy
       />,
     );
@@ -129,5 +129,15 @@ describe("CloneVaultCard — expanded state", () => {
     expect(cta.disabled).toBe(true);
     await user.click(cta);
     expect(screen.queryByTestId("clone-vault-form")).toBeNull();
+  });
+
+  it("default parent label reads '~/Documents'", async () => {
+    const utils = setup();
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("clone-vault-expand"));
+    expect(screen.getByTestId("clone-vault-parent").textContent).toContain(
+      "~/Documents",
+    );
+    expect(utils.onClone).not.toHaveBeenCalled();
   });
 });

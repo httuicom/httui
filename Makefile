@@ -1,4 +1,4 @@
-.PHONY: dev build release install install-deps install-app uninstall lint fmt check clean test test-rust test-front test-tui front icons sidecar tui tui-build tui-help coverage-check coverage-rust coverage-fe size-check quality-check setup-hooks
+.PHONY: dev build release install install-deps install-app uninstall lint fmt check clean wipe-config test test-rust test-front test-tui front icons sidecar tui tui-build tui-help coverage-check coverage-rust coverage-fe size-check quality-check setup-hooks
 
 # Development — frontend (Vite HMR) + backend (Rust rebuild on change)
 dev: sidecar
@@ -122,6 +122,23 @@ setup-hooks:
 clean:
 	rm -rf httui-desktop/dist
 	cargo clean
+
+# Limpar estado persistente do app (configs + cache). Útil pra
+# voltar ao empty state entre testes manuais. Mantém keychain
+# (use `security delete-generic-password -s httui-notes` em loop
+# se precisar limpar secrets também). Vaults no disco NÃO são
+# tocados. Feche o app antes.
+#
+# Paths usados pelo app (productName=httui em tauri.conf.json):
+#   ~/.config/httui                            (notes.db)
+#   ~/Library/Application Support/httui        (user.toml — Mac)
+#   ~/Library/Caches/httui-notes               (WebKit cache)
+wipe-config:
+	@echo "Wiping httui app config..."
+	@rm -rf "$$HOME/.config/httui"
+	@rm -rf "$$HOME/Library/Application Support/httui"
+	@rm -rf "$$HOME/Library/Caches/httui-notes"
+	@echo "Done. App opens with empty state on next launch."
 
 # Gerar icones placeholder
 icons:

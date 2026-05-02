@@ -1,9 +1,12 @@
 // "Clone vault" card — V1 vertical 1.
 //
 // Expandable card: collapsed state shows the icon/title/body and a
-// CTA pill; expanded state shows a URL input + optional destination
-// picker + Clone submit. The consumer wires `onClone(url, dest)` to
-// the Tauri `clone_vault` command (V1 cenário 2).
+// CTA pill; expanded state shows a URL input + optional parent
+// folder picker + Clone submit. The consumer wires
+// `onClone(url, parent)` to the Tauri `clone_vault_cmd` command;
+// the backend always derives the leaf folder name from the URL,
+// so `parent` is just the *container* (defaults to `~/Documents`
+// when null).
 
 import { useState, useCallback } from "react";
 import { Box, HStack, Stack, Text, chakra } from "@chakra-ui/react";
@@ -13,23 +16,25 @@ import { Btn, Input } from "@/components/atoms";
 const CardBox = chakra("div");
 
 export interface CloneVaultCardProps {
-  /** `(url, destination)` → consumer runs the clone + switchVault. */
-  onClone: (url: string, destination: string | null) => Promise<void>;
-  /** Open a directory picker for the destination. Returns absolute
+  /** `(url, parent)` → consumer runs the clone + switchVault.
+   * `parent` is the container folder; the leaf is always derived
+   * from the URL on the backend. */
+  onClone: (url: string, parent: string | null) => Promise<void>;
+  /** Open a directory picker for the parent folder. Returns absolute
    * path or `null` when the user cancels. */
-  onPickDestination: () => Promise<string | null>;
+  onPickParent: () => Promise<string | null>;
   /** Disable while another card is mid-flow. */
   busy?: boolean;
 }
 
 export function CloneVaultCard({
   onClone,
-  onPickDestination,
+  onPickParent,
   busy = false,
 }: CloneVaultCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [url, setUrl] = useState("");
-  const [destination, setDestination] = useState<string | null>(null);
+  const [parent, setParent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,12 +45,12 @@ export function CloneVaultCard({
 
   const handlePick = useCallback(async () => {
     try {
-      const picked = await onPickDestination();
-      if (picked) setDestination(picked);
+      const picked = await onPickParent();
+      if (picked) setParent(picked);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [onPickDestination]);
+  }, [onPickParent]);
 
   const handleSubmit = useCallback(async () => {
     const trimmed = url.trim();
@@ -56,13 +61,13 @@ export function CloneVaultCard({
     setSubmitting(true);
     setError(null);
     try {
-      await onClone(trimmed, destination);
+      await onClone(trimmed, parent);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
     }
-  }, [url, destination, onClone]);
+  }, [url, parent, onClone]);
 
   const disabled = busy || submitting;
 
@@ -144,7 +149,7 @@ export function CloneVaultCard({
             <HStack gap={2}>
               <chakra.button
                 type="button"
-                data-testid="clone-vault-pick-destination"
+                data-testid="clone-vault-pick-parent"
                 onClick={handlePick}
                 disabled={disabled}
                 h="24px"
@@ -158,16 +163,16 @@ export function CloneVaultCard({
                 cursor={disabled ? "not-allowed" : "pointer"}
                 _hover={disabled ? undefined : { bg: "bg.3" }}
               >
-                Choose…
+                Pasta pai…
               </chakra.button>
               <Text
                 flex={1}
                 fontSize="11px"
                 color="fg.3"
                 truncate
-                data-testid="clone-vault-destination"
+                data-testid="clone-vault-parent"
               >
-                {destination ?? "(destino padrão: pasta atual)"}
+                {parent ?? "(padrão: ~/Documents)"}
               </Text>
             </HStack>
             {error && (

@@ -74,8 +74,20 @@ describe("EmptyVaultScreen", () => {
     );
   });
 
-  it("Clone card surfaces 'not implemented yet' inline (cenário 2 work)", async () => {
+  it("Clone card calls clone_vault_cmd with null parent and switches into derived path", async () => {
     const user = userEvent.setup();
+    type CloneArgs = { url: string; parent: string | null };
+    const cloneArgsRef: { current: CloneArgs | null } = { current: null };
+    mockTauriCommand("clone_vault_cmd", (args) => {
+      cloneArgsRef.current = args as CloneArgs;
+      return { destination: "/Users/me/Documents/y" };
+    });
+    mockTauriCommand("set_active_vault", () => null);
+    mockTauriCommand("list_workspace", () => []);
+    mockTauriCommand("start_watching", () => null);
+    mockTauriCommand("rebuild_search_index", () => null);
+    mockTauriCommand("stop_watching", () => null);
+
     renderWithProviders(<EmptyVaultScreen />);
     await user.click(screen.getByTestId("clone-vault-expand"));
     await user.type(
@@ -83,13 +95,42 @@ describe("EmptyVaultScreen", () => {
       "https://github.com/x/y.git",
     );
     await user.click(screen.getByTestId("clone-vault-submit"));
+
     await waitFor(() =>
-      expect(screen.getByTestId("clone-vault-error").textContent).toContain(
-        "Clone ainda não está disponível",
+      expect(useWorkspaceStore.getState().vaultPath).toBe(
+        "/Users/me/Documents/y",
       ),
     );
-    // App must not have crashed and Open card must still be functional.
+    expect(cloneArgsRef.current).toEqual({
+      url: "https://github.com/x/y.git",
+      parent: null,
+    });
+  });
+
+  it("Clone card surfaces backend error inline without doubling the global banner", async () => {
+    const user = userEvent.setup();
+    mockTauriCommand("clone_vault_cmd", () => {
+      throw new Error("fatal: repository 'foo' not found");
+    });
+
+    renderWithProviders(<EmptyVaultScreen />);
+    await user.click(screen.getByTestId("clone-vault-expand"));
+    await user.type(
+      screen.getByTestId("clone-vault-url"),
+      "https://nope.invalid/x.git",
+    );
+    await user.click(screen.getByTestId("clone-vault-submit"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("clone-vault-error").textContent).toContain(
+        "fatal",
+      ),
+    );
+    // Inline-only — the screen-level banner stays hidden so the
+    // user doesn't read the same message twice.
+    expect(screen.queryByTestId("empty-vault-error")).toBeNull();
     expect(screen.getByTestId("open-vault-card")).toBeInTheDocument();
+    expect(useWorkspaceStore.getState().vaultPath).toBeNull();
   });
 
   it("Create card surfaces 'not implemented yet' inline (cenário 3 work)", async () => {
