@@ -12,7 +12,7 @@
 //! and correct; the long-lived `Arc<Store>` cache pattern arrives with
 //! the cutover in epic 19.
 
-use httui_core::secrets::Keychain;
+use httui_core::secrets::{Keychain, SecretBackend};
 use httui_core::vault_config::create::{create_new_vault, CreateOutcome};
 use httui_core::vault_config::gitignore::{ensure_local_overrides_in_gitignore, GitignoreOutcome};
 use httui_core::vault_config::migration::{
@@ -130,6 +130,23 @@ pub async fn scaffold_vault(vault_path: String) -> Result<ScaffoldReport, String
 pub async fn list_missing_secrets(vault_path: String) -> Result<Vec<MissingRef>, String> {
     let path = PathBuf::from(vault_path);
     scan_missing_secrets(&path, &Keychain)
+}
+
+/// Persist a secret value under `keychain_key` in the OS keychain
+/// — V1 vertical 1, cenário 4. The first-run secrets modal calls
+/// this once per pending entry the user fills in. Empty values are
+/// rejected so the modal can't silently store blanks (the modal
+/// validates client-side too, this is the belt-and-suspenders).
+#[tauri::command]
+pub async fn save_secret_cmd(keychain_key: String, value: String) -> Result<(), String> {
+    let key = keychain_key.trim();
+    if key.is_empty() {
+        return Err("keychain_key não pode ser vazio".into());
+    }
+    if value.is_empty() {
+        return Err("valor não pode ser vazio".into());
+    }
+    Keychain.store(key, &value)
 }
 
 /// Create a brand-new vault at `<parent>/<name>` — V1 vertical 1,
@@ -316,6 +333,30 @@ mod tests {
             .unwrap_err();
         assert!(err.contains("'.'") || err.contains("'/'"), "got: {err}");
     }
+
+    #[tokio::test]
+    async fn save_secret_cmd_rejects_empty_key() {
+        let err = save_secret_cmd("  ".into(), "v".into())
+            .await
+            .unwrap_err();
+        assert!(err.contains("keychain_key"), "got: {err}");
+    }
+
+    #[tokio::test]
+    async fn save_secret_cmd_rejects_empty_value() {
+        let err = save_secret_cmd("conn:abc:password".into(), "".into())
+            .await
+            .unwrap_err();
+        assert!(err.contains("valor"), "got: {err}");
+    }
+
+    // Round-trip against the real OS keychain isn't covered here —
+    // the in-memory test mock + `KEYCHAIN_TEST_LOCK` are gated on
+    // `#[cfg(test)]` inside httui-core and not visible cross-crate.
+    // The substantive round-trip test lives in
+    // `httui-core::secrets::tests::keychain_round_trips_via_trait_object`.
+    // Here we only assert the input-validation behaviour the wrapper
+    // adds on top of the trait.
 
     #[tokio::test]
     async fn file_settings_round_trip_via_commands() {

@@ -16,12 +16,16 @@
 //   • ⚡ chained — placeholder until block-context is reachable
 //   • Version pill (`v0.1.0`) — Vite-time inject from package.json
 
-import { Box, Text } from "@chakra-ui/react";
+import { Box, Text, chakra } from "@chakra-ui/react";
+import { LuLink, LuTriangleAlert } from "react-icons/lu";
 
 import { Dot, type DotVariant, StatusBarShell } from "@/components/atoms";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { useEnvironmentStore } from "@/stores/environment";
+import { usePendingSecretsStore } from "@/stores/pendingSecrets";
 import { useWorkspaceStore } from "@/stores/workspace";
+
+const PendingButton = chakra("button");
 
 // `__APP_VERSION__` injected by `vite.config.ts` `define`. Tests run
 // outside Vite — fall back to "dev" if not defined.
@@ -54,6 +58,11 @@ export function StatusBar({
   const { status: gitState } = useGitStatus(vaultPath);
   const activeEnvironment = useEnvironmentStore((s) => s.activeEnvironment);
   const activeConnection = useWorkspaceStore((s) => s.activeConnection);
+  const pendingSecretsCount = usePendingSecretsStore(
+    (s) => s.pending.length,
+  );
+  const pendingModalOpen = usePendingSecretsStore((s) => s.modalOpen);
+  const reopenPendingSecrets = usePendingSecretsStore((s) => s.reopen);
 
   const branchLabel = gitState?.branch ?? "—";
   const ahead = gitState?.ahead ?? 0;
@@ -107,13 +116,51 @@ export function StatusBar({
         </>
       )}
 
+      {/* Pending secrets badge — V1 vertical 1, cenário 4. Hidden when
+       * count is 0 or modal is currently visible (would just stack the
+       * same surface on top of itself). Click reopens the modal. */}
+      {pendingSecretsCount > 0 && !pendingModalOpen && (
+        <>
+          <Box w="1px" h="12px" bg="line" aria-hidden />
+          <PendingButton
+            type="button"
+            data-testid="status-pending-secrets"
+            onClick={reopenPendingSecrets}
+            display="inline-flex"
+            alignItems="center"
+            gap={1.5}
+            bg="transparent"
+            color="orange.400"
+            cursor="pointer"
+            fontSize="11px"
+            fontFamily="mono"
+            _hover={{ color: "orange.300" }}
+          >
+            <LuTriangleAlert size={11} aria-hidden />
+            <Text>
+              {pendingSecretsCount} secret
+              {pendingSecretsCount === 1 ? "" : "s"} pendente
+              {pendingSecretsCount === 1 ? "" : "s"}
+            </Text>
+          </PendingButton>
+        </>
+      )}
+
       <Box flex={1} />
 
       {/* Right cluster — cursor + encoding + chained + version */}
       {chained && (
-        <Text color="accent" data-testid="status-chained" title="Chained">
-          ⚡ chained
-        </Text>
+        <Box
+          color="accent"
+          data-testid="status-chained"
+          title="Chained"
+          display="inline-flex"
+          alignItems="center"
+          gap={1}
+        >
+          <LuLink size={11} aria-hidden />
+          <Text>chained</Text>
+        </Box>
       )}
       <Text data-testid="status-cursor">
         Ln {cursorLine}, Col {cursorCol}

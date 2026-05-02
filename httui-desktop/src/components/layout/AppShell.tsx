@@ -26,6 +26,8 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { EmptyVaultScreen } from "./EmptyVaultScreen";
 import { MigrationBannerHost } from "./empty-vault/MigrationBannerHost";
 import { ColorModeSync } from "./ColorModeSync";
+import { PendingSecretsModal } from "./PendingSecretsModal";
+import { usePendingSecretsScan } from "@/hooks/usePendingSecretsScan";
 
 export function AppShell() {
   const sidebarOpen = useSettingsStore((s) => s.sidebarOpen);
@@ -63,6 +65,7 @@ export function AppShell() {
   // Hooks
   useAutoUpdate();
   useSessionPersistence();
+  usePendingSecretsScan();
   const {
     sidebarWidth,
     isResizing: isSidebarResizing,
@@ -245,6 +248,7 @@ export function AppShell() {
 
         <EnvironmentManager />
         <SettingsDrawer />
+        <PendingSecretsModal />
       </Flex>
     </WorkspaceContext.Provider>
   );

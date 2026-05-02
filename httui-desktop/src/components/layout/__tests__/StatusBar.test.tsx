@@ -2,9 +2,20 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
 
+import userEvent from "@testing-library/user-event";
+
 import { StatusBar } from "@/components/layout/StatusBar";
 import { useEnvironmentStore } from "@/stores/environment";
+import { usePendingSecretsStore } from "@/stores/pendingSecrets";
 import { useWorkspaceStore } from "@/stores/workspace";
+import type { MissingRef } from "@/lib/tauri/commands";
+
+const PENDING_REF: MissingRef = {
+  source_file: "connections.toml",
+  label: "postgres-prod",
+  keychain_key: "conn:abc:password",
+  kind: "connection",
+};
 
 vi.mock("@/lib/theme/apply", () => ({ applyTheme: vi.fn() }));
 
@@ -32,6 +43,7 @@ beforeEach(() => {
   useEnvironmentStore.setState({
     activeEnvironment: null,
   } as never);
+  usePendingSecretsStore.getState().reset();
 });
 
 afterEach(() => {
@@ -118,12 +130,12 @@ describe("StatusBar", () => {
     expect(screen.getByTestId("status-encoding").textContent).toBe("UTF-8");
   });
 
-  it("⚡ chained indicator hidden by default", () => {
+  it("chained indicator hidden by default", () => {
     renderWithProviders(<StatusBar />);
     expect(screen.queryByTestId("status-chained")).toBeNull();
   });
 
-  it("⚡ chained indicator visible when chained=true", () => {
+  it("chained indicator visible when chained=true", () => {
     renderWithProviders(<StatusBar chained />);
     expect(screen.getByTestId("status-chained")).toBeInTheDocument();
   });
@@ -133,5 +145,54 @@ describe("StatusBar", () => {
     expect(screen.getByTestId("status-version").textContent).toMatch(
       /^v[\w.-]+/,
     );
+  });
+});
+
+describe("StatusBar — pending secrets badge", () => {
+  it("hides the badge when there are no pending secrets", () => {
+    renderWithProviders(<StatusBar />);
+    expect(screen.queryByTestId("status-pending-secrets")).toBeNull();
+  });
+
+  it("hides the badge while the modal is currently open", () => {
+    usePendingSecretsStore.getState().setPending([PENDING_REF]);
+    renderWithProviders(<StatusBar />);
+    expect(screen.queryByTestId("status-pending-secrets")).toBeNull();
+  });
+
+  it("shows the badge with singular label after dismiss", () => {
+    usePendingSecretsStore.getState().setPending([PENDING_REF]);
+    usePendingSecretsStore.getState().dismiss();
+    renderWithProviders(<StatusBar />);
+    expect(
+      screen.getByTestId("status-pending-secrets").textContent,
+    ).toContain("1 secret pendente");
+  });
+
+  it("shows pluralized label for 2+ pending refs", () => {
+    usePendingSecretsStore.getState().setPending([
+      PENDING_REF,
+      {
+        ...PENDING_REF,
+        keychain_key: "env:local:STRIPE_KEY",
+        label: "STRIPE_KEY",
+        kind: "env",
+      },
+    ]);
+    usePendingSecretsStore.getState().dismiss();
+    renderWithProviders(<StatusBar />);
+    expect(
+      screen.getByTestId("status-pending-secrets").textContent,
+    ).toContain("2 secrets pendentes");
+  });
+
+  it("clicking the badge reopens the modal", async () => {
+    const user = userEvent.setup();
+    usePendingSecretsStore.getState().setPending([PENDING_REF]);
+    usePendingSecretsStore.getState().dismiss();
+    renderWithProviders(<StatusBar />);
+    expect(usePendingSecretsStore.getState().modalOpen).toBe(false);
+    await user.click(screen.getByTestId("status-pending-secrets"));
+    expect(usePendingSecretsStore.getState().modalOpen).toBe(true);
   });
 });

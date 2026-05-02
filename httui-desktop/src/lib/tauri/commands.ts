@@ -215,6 +215,19 @@ export function listMissingSecrets(vaultPath: string): Promise<MissingRef[]> {
   return invoke("list_missing_secrets", { vaultPath });
 }
 
+/**
+ * Persist a secret in the OS keychain — V1 vertical 1, cenário 4.
+ * Called once per `MissingRef` the user fills in inside the
+ * first-run secrets modal. Empty key/value pairs are rejected at
+ * the backend.
+ */
+export function saveSecret(
+  keychainKey: string,
+  value: string,
+): Promise<void> {
+  return invoke("save_secret_cmd", { keychainKey, value });
+}
+
 // --- Filesystem ---
 
 export function listWorkspace(vaultPath: string): Promise<FileEntry[]> {
