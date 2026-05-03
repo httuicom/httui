@@ -537,6 +537,7 @@ fn main() {
             httui_notes::commands::connections::update_connection,
             httui_notes::commands::connections::delete_connection,
             httui_notes::commands::connections::test_connection,
+            httui_notes::commands::connections::find_connection_uses_cmd,
             httui_notes::commands::schema::introspect_schema,
             httui_notes::commands::schema::get_cached_schema,
             httui_notes::commands::environments::list_environments,

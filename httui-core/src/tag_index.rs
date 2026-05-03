@@ -36,6 +36,12 @@ const SKIP_DIRS: &[&str] = &[
     "__pycache__",
 ];
 
+/// Public accessor — other vault walkers (e.g. connection_uses)
+/// share the skip list so the same noise is filtered consistently.
+pub fn skip_dirs() -> &'static [&'static str] {
+    SKIP_DIRS
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct TagEntry {
     /// Path relative to the vault root, normalized to forward

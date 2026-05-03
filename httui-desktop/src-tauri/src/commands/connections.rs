@@ -29,6 +29,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePool;
 use tauri::State;
 
+use std::path::PathBuf;
+
+use httui_core::connection_uses::{find_connection_uses, ConnectionUse};
 use httui_core::db::connections::PoolManager;
 use httui_core::vault_config::connection_views::ConnectionPublic as FileConnectionPublic;
 use httui_core::vault_config::connections_store::{CreateConnectionInput, UpdateConnectionInput};
@@ -241,6 +244,19 @@ pub async fn test_connection(
     id: String,
 ) -> Result<(), String> {
     conn_manager.test_connection(&id).await
+}
+
+/// Vault-wide grep for db-block fences referencing `connection=<name>`.
+/// Powers the "Used in runbooks" panel in ConnectionsPage (V4 cenário
+/// 7). Wraps `httui_core::connection_uses::find_connection_uses` —
+/// substantive logic + tests live there.
+#[tauri::command]
+pub async fn find_connection_uses_cmd(
+    vault_path: String,
+    connection_name: String,
+) -> Result<Vec<ConnectionUse>, String> {
+    let root = PathBuf::from(vault_path);
+    Ok(find_connection_uses(&root, &connection_name))
 }
 
 #[cfg(test)]
