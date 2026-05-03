@@ -1,4 +1,4 @@
-> [!IMPORTANT]  
+> [!WARNING]  
 > Deprecated version
 
 <img src="assets/hero.png" alt="httui" style="width: 100%" />
