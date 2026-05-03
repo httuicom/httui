@@ -8,6 +8,7 @@
 // Pure presentational; counts come from the consumer.
 
 import { Box, Flex, HStack, Heading, Stack, Text } from "@chakra-ui/react";
+import { LuPlay, LuPlus } from "react-icons/lu";
 
 import { Btn } from "@/components/atoms";
 import {
@@ -100,14 +101,14 @@ export function ConnectionsListPanel({
             data-testid="connections-test-all"
             onClick={onTestAll}
           >
-            ▶ Test all
+            <LuPlay size={12} /> Test all
           </Btn>
           <Btn
             variant="primary"
             data-testid="connections-create-new"
             onClick={onCreateNew}
           >
-            + Nova
+            <LuPlus size={12} /> Nova
           </Btn>
         </HStack>
       </Flex>

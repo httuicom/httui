@@ -13,8 +13,9 @@
 //
 // Pure presentational: form value + slots lifted to the consumer.
 
-import { Box, Flex, Grid, Text, chakra } from "@chakra-ui/react";
+import { Box, Flex, Grid, HStack, Text, chakra } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+import { LuKey } from "react-icons/lu";
 
 import { Input } from "@/components/atoms";
 
@@ -200,7 +201,7 @@ function Field({
 
 function KeychainSuffix() {
   return (
-    <Box
+    <HStack
       data-testid="new-connection-keychain-suffix"
       flexShrink={0}
       fontSize="10px"
@@ -211,8 +212,10 @@ function KeychainSuffix() {
       borderRadius="999px"
       px="8px"
       py="2px"
+      gap={1}
     >
-      🔑 keychain
-    </Box>
+      <LuKey size={10} />
+      <Text as="span">keychain</Text>
+    </HStack>
   );
 }

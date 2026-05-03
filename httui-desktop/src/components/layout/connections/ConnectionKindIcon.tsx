@@ -23,6 +23,7 @@ export function ConnectionKindIcon({
   size = 18,
 }: ConnectionKindIconProps) {
   const meta = CONNECTION_KINDS[kind];
+  const Icon = meta.Icon;
   return (
     <Box
       data-atom="connection-kind-icon"
@@ -35,12 +36,11 @@ export function ConnectionKindIcon({
       justifyContent="center"
       h={`${size}px`}
       w={`${size}px`}
-      fontSize={`${Math.round(size * 0.78)}px`}
       lineHeight={1}
       color={kindColor(kind)}
       flexShrink={0}
     >
-      {meta.icon}
+      <Icon size={Math.round(size * 0.78)} />
     </Box>
   );
 }

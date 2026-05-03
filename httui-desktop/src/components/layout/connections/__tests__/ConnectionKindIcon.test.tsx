@@ -22,8 +22,9 @@ describe("ConnectionKindIcon", () => {
     expect(screen.getByRole("img").getAttribute("title")).toBe("PostgreSQL");
   });
 
-  it("renders the icon glyph from the kind metadata", () => {
+  it("renders an SVG icon from the kind metadata (lucide)", () => {
     renderWithProviders(<ConnectionKindIcon kind="mysql" />);
-    expect(screen.getByRole("img").textContent).toBe("🐬");
+    const svg = screen.getByRole("img").querySelector("svg");
+    expect(svg).toBeTruthy();
   });
 });

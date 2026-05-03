@@ -17,6 +17,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Box, Flex, Portal, Text } from "@chakra-ui/react";
+import { LuPlay } from "react-icons/lu";
 
 import { Btn, Tabbar, type TabItem } from "@/components/atoms";
 
@@ -178,7 +179,8 @@ export function NewConnectionModal({
 
           <Flex direction="column" minW={0} h="full" overflow="hidden">
             <ModalHeader
-              icon={meta.icon}
+              Icon={meta.Icon}
+              iconColor={`oklch(${meta.hue})`}
               label={meta.label}
               sub={KIND_SUB_LABEL[selectedKind]}
             />
@@ -227,11 +229,13 @@ export function NewConnectionModal({
 }
 
 function ModalHeader({
-  icon,
+  Icon,
+  iconColor,
   label,
   sub,
 }: {
-  icon: string;
+  Icon: import("react-icons").IconType;
+  iconColor: string;
   label: string;
   sub: string;
 }) {
@@ -245,8 +249,16 @@ function ModalHeader({
       borderBottomWidth="1px"
       borderBottomColor="border"
     >
-      <Box aria-hidden fontSize="32px" lineHeight={1} flexShrink={0}>
-        {icon}
+      <Box
+        aria-hidden
+        lineHeight={1}
+        flexShrink={0}
+        color={iconColor}
+        display="inline-flex"
+        alignItems="center"
+        justifyContent="center"
+      >
+        <Icon size={26} />
       </Box>
       <Box flex={1} minW={0}>
         <Text
@@ -326,7 +338,7 @@ function ModalFooter({
         disabled={!onTest}
         onClick={onTest}
       >
-        ▶ Testar conexão
+        <LuPlay size={12} /> Testar conexão
       </Btn>
     </Flex>
   );

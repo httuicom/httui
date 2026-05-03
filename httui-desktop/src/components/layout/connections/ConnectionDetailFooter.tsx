@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
+import { LuPlay } from "react-icons/lu";
 
 import { Btn } from "@/components/atoms";
 
@@ -132,7 +133,13 @@ export function ConnectionDetailFooter({
             onClick={handleTest}
             disabled={testResult.kind === "running"}
           >
-            {testResult.kind === "running" ? "Testing…" : "▶ Test"}
+            {testResult.kind === "running" ? (
+              "Testing…"
+            ) : (
+              <>
+                <LuPlay size={12} /> Test
+              </>
+            )}
           </Btn>
           <Btn
             variant="ghost"

@@ -19,6 +19,8 @@ import {
   chakra,
 } from "@chakra-ui/react";
 
+import { LuKey } from "react-icons/lu";
+
 import { Btn } from "@/components/atoms";
 import type {
   Connection,
@@ -260,7 +262,8 @@ export function ConnectionDetailCredentials({
             data-testid="credentials-rotate"
             onClick={startRotate}
           >
-            🔑 Rotate password
+            <LuKey size={12} />
+            Rotate password
           </Btn>
         ) : (
           <Stack gap={2}>

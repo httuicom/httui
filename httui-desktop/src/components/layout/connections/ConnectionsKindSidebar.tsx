@@ -10,6 +10,7 @@
 // consumer (ConnectionsPage) so this component stays test-light.
 
 import { Box, Stack, Flex, Text, chakra } from "@chakra-ui/react";
+import { LuKey } from "react-icons/lu";
 
 import { ConnectionKindIcon } from "./ConnectionKindIcon";
 import {
@@ -193,9 +194,9 @@ export function ConnectionsKindSidebar({
           p={2.5}
           mt="auto"
         >
-          <Text as="span" mr={1} aria-hidden>
-            🔑
-          </Text>
+          <Box as="span" mr={1} display="inline-flex" verticalAlign="middle" aria-hidden>
+            <LuKey size={11} />
+          </Box>
           <Text as="span" fontWeight={600}>
             Credenciais locais —
           </Text>{" "}
