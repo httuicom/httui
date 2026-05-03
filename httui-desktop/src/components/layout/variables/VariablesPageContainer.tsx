@@ -212,6 +212,33 @@ export function VariablesPageContainer({
     [envByName, selectedRow, setVariable],
   );
 
+  // V5 cenário 4 — flip the is_secret flag for every env that defines
+  // this key. Prompts in both directions: promotion moves the
+  // cleartext into the keychain, demotion writes it back to the TOML.
+  // For demotion we resolve via `resolveEnvVariables` because
+  // `row.values[env]` is masked once the var is secret.
+  const handleToggleSecret = useCallback(
+    async (next: boolean) => {
+      if (!selectedRow) return;
+      const message = next
+        ? `Move "${selectedRow.key}" to the keychain? Value(s) will be removed from envs/*.toml.`
+        : `Remove "${selectedRow.key}" from the keychain? Value(s) will be written as plaintext to envs/*.toml.`;
+      if (!window.confirm(message)) return;
+      for (const [envName, currentValue] of Object.entries(selectedRow.values)) {
+        if (currentValue === undefined) continue;
+        const e = envByName.get(envName);
+        if (!e) continue;
+        let valueToWrite = currentValue;
+        if (selectedRow.isSecret && !next) {
+          const resolved = await resolveEnvVariables(e.id).catch(() => ({}));
+          valueToWrite = resolved[selectedRow.key] ?? "";
+        }
+        await setVariable(e.id, selectedRow.key, valueToWrite, next);
+      }
+    },
+    [envByName, selectedRow, setVariable],
+  );
+
   const overridesByEnv = useMemo(() => {
     if (!selectedRow) return {};
     const out: Record<string, string> = {};
@@ -231,6 +258,7 @@ export function VariablesPageContainer({
       onSetOverride={(env, next) => setOverride(env, selectedRow.key, next)}
       onClearOverride={(env) => clearOverride(env, selectedRow.key)}
       overridesByEnv={overridesByEnv}
+      onToggleSecret={handleToggleSecret}
       usedInBlocksSlot={
         <UsedInBlocksList
           entries={usesEntriesByKey[selectedRow.key]}

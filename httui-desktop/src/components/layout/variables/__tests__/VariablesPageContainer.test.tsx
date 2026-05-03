@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 
 import { VariablesPageContainer } from "@/components/layout/variables/VariablesPageContainer";
@@ -223,5 +223,70 @@ describe("VariablesPageContainer", () => {
         useSessionOverrideStore.getState().getOverride("local", "API_BASE"),
       ).toBeUndefined();
     });
+  });
+
+  it("flipping is_secret prompts then re-sets every env with the new flag", async () => {
+    const setEnvVarCalls: Array<{
+      environmentId: string;
+      key: string;
+      value: string;
+      isSecret: boolean;
+    }> = [];
+    mockTauriCommand("set_env_variable", (args) => {
+      setEnvVarCalls.push(
+        args as {
+          environmentId: string;
+          key: string;
+          value: string;
+          isSecret: boolean;
+        },
+      );
+      return v({ id: "v-new" });
+    });
+    const confirmSpy = vi
+      .spyOn(window, "confirm")
+      .mockReturnValue(true);
+
+    renderWithProviders(<VariablesPageContainer />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("variables-row-API_BASE"));
+
+    await user.click(
+      await screen.findByTestId("variable-secret-toggle-switch"),
+    );
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      const flags = setEnvVarCalls.map((c) => c.isSecret);
+      expect(flags).toContain(true);
+      expect(flags.length).toBe(2);
+    });
+    confirmSpy.mockRestore();
+  });
+
+  it("rejecting the is_secret confirm leaves the flag untouched", async () => {
+    let setVarCalls = 0;
+    mockTauriCommand("set_env_variable", () => {
+      setVarCalls += 1;
+      return v({ id: "v-new" });
+    });
+    const confirmSpy = vi
+      .spyOn(window, "confirm")
+      .mockReturnValue(false);
+
+    renderWithProviders(<VariablesPageContainer />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("variables-row-API_BASE"));
+    await user.click(
+      await screen.findByTestId("variable-secret-toggle-switch"),
+    );
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled();
+    });
+    expect(setVarCalls).toBe(0);
+    confirmSpy.mockRestore();
   });
 });
