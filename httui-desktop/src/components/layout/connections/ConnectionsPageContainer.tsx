@@ -6,6 +6,7 @@
 // don't invent a workspace tab to host it.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 
 import {
   createConnection,
@@ -21,7 +22,7 @@ import { useSchemaCacheStore } from "@/stores/schemaCache";
 import { useWorkspaceStore } from "@/stores/workspace";
 import type { RunbookUsage } from "./connection-usages";
 import { ConnectionsPage } from "./ConnectionsPage";
-import { NewConnectionModal } from "./NewConnectionModal";
+import { NewConnectionModalContainer } from "./NewConnectionModalContainer";
 
 interface ConnectionsPageContainerProps {
   onNavigateFile?: (filePath: string) => void;
@@ -52,6 +53,35 @@ export function ConnectionsPageContainer({
 
   useEffect(() => {
     void reload();
+  }, [reload]);
+
+  // V4 cenário 8 — react to external `connections.toml` edits via the
+  // file watcher (Epic 11). Backend emits `config-changed` with
+  // `category: "connections"` whenever the file (or its `.local`
+  // sibling) changes; we just trigger a reload — store handles
+  // dedup against in-flight UI mutations.
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | null = null;
+    void (async () => {
+      const fn = await listen<{ category: string }>(
+        "config-changed",
+        (e) => {
+          if (e.payload.category === "connections") {
+            void reload();
+          }
+        },
+      );
+      if (cancelled) {
+        fn();
+      } else {
+        unlisten = fn;
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, [reload]);
 
   // Pre-fetch schema + usages on selection change so the detail
@@ -175,15 +205,11 @@ export function ConnectionsPageContainer({
           );
         }}
       />
-      <NewConnectionModal
+      <NewConnectionModalContainer
         open={newOpen}
-        onCancel={() => setNewOpen(false)}
-        onSave={async () => {
-          // Cenário 3 plumbs the form state lift here. Cenário 1+2
-          // ships with the create flow stubbed — modal opens, user
-          // can pick kind / tab, dismisses with Cancel.
-          setNewOpen(false);
-          await reload();
+        onClose={() => setNewOpen(false)}
+        onCreated={() => {
+          void reload();
         }}
       />
     </>
