@@ -154,7 +154,7 @@ export function CloneEnvironmentForm({
 
         <Flex justify="space-between" align="center">
           <Text fontSize="11px" color="fg.subtle" data-testid="clone-target-hint">
-            cria{" "}
+            creates{" "}
             <Text as="span" fontFamily="mono">
               envs/{targetFilename}
             </Text>

@@ -16,6 +16,9 @@ export interface EnvironmentsPageProps {
   envs: ReadonlyArray<EnvironmentSummary>;
   onActivate?: (filename: string) => void;
   onCreateNew?: () => void;
+  onClone?: (filename: string) => void;
+  onRename?: (filename: string) => void;
+  onDelete?: (filename: string) => void;
   /** Slot for the inline "+ New environment" form (Story 02). */
   inlineFormSlot?: ReactNode;
 }
@@ -24,6 +27,9 @@ export function EnvironmentsPage({
   envs,
   onActivate,
   onCreateNew,
+  onClone,
+  onRename,
+  onDelete,
   inlineFormSlot,
 }: EnvironmentsPageProps) {
   const sorted = sortEnvironments(envs);
@@ -83,6 +89,9 @@ export function EnvironmentsPage({
                 key={env.filename}
                 env={env}
                 onActivate={onActivate}
+                onClone={onClone}
+                onRename={onRename}
+                onDelete={onDelete}
               />
             ))}
           </Grid>

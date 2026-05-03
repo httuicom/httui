@@ -52,13 +52,15 @@ describe("envNameFromFilename", () => {
 });
 
 describe("sortEnvironments", () => {
-  it("puts the active env first then sorts the rest alphabetically", () => {
+  it("sorts alphabetically (case-insensitive) regardless of isActive", () => {
+    // V5 cenário 6: cards stay anchored so the FLIP swap of the
+    // ACTIVE pill across positions actually reads as motion.
     const out = sortEnvironments([
       env({ name: "zeta", filename: "zeta.toml" }),
       env({ name: "Alpha", filename: "alpha.toml" }),
       env({ name: "beta", filename: "beta.toml", isActive: true }),
     ]);
-    expect(out.map((e) => e.name)).toEqual(["beta", "Alpha", "zeta"]);
+    expect(out.map((e) => e.name)).toEqual(["Alpha", "beta", "zeta"]);
   });
 
   it("does not mutate the input", () => {

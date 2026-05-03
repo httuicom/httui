@@ -6,14 +6,26 @@
 // Mirrors VariablesPageContainer / ConnectionsPageContainer:
 // presentational page stays prop-driven, data + IPC live here.
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { listen } from "@tauri-apps/api/event";
 
 import { useEnvironmentStore } from "@/stores/environment";
 import { listEnvVariables, type Environment } from "@/lib/tauri/commands";
 
+import {
+  CloneEnvironmentForm,
+  type CloneEnvironmentPayload,
+} from "./CloneEnvironmentForm";
 import { EnvironmentsPage } from "./EnvironmentsPage";
 import type { EnvironmentSummary } from "./envs-meta";
+import { envNameFromFilename } from "./envs-meta";
 
 /** Map a backend Environment + its variable count into the
  * EnvironmentSummary the EnvironmentsPage expects.
@@ -45,11 +57,28 @@ export function EnvironmentsPageContainer({
   onCreateNew,
 }: EnvironmentsPageContainerProps) {
   const environments = useEnvironmentStore((s) => s.environments);
+  const activeEnvironment = useEnvironmentStore((s) => s.activeEnvironment);
   const refreshEnvs = useEnvironmentStore((s) => s.refresh);
   const switchEnvironment = useEnvironmentStore((s) => s.switchEnvironment);
+  const duplicateEnvironment = useEnvironmentStore(
+    (s) => s.duplicateEnvironment,
+  );
   const variablesVersion = useEnvironmentStore((s) => s.variablesVersion);
 
+  // FLIP swap of the ACTIVE pill across cards: capture the old
+  // pill's bounding rect before switchEnvironment fires, then in
+  // useLayoutEffect (post-commit, pre-paint) translate the new pill
+  // back to the old position and animate it to its real spot.
+  const oldPillRectRef = useRef<DOMRect | null>(null);
+  const prevActiveNameRef = useRef<string | null>(
+    activeEnvironment?.name ?? null,
+  );
+
   const [summaries, setSummaries] = useState<EnvironmentSummary[]>([]);
+  const [cloning, setCloning] = useState<{
+    filename: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     void refreshEnvs();
@@ -97,23 +126,106 @@ export function EnvironmentsPageContainer({
     };
   }, [environments, variablesVersion]);
 
+  const envByFilename = useMemo(() => {
+    const m = new Map<string, Environment>();
+    for (const e of environments) {
+      m.set(`${e.name}.toml`, e);
+    }
+    return m;
+  }, [environments]);
+
   const handleActivate = useCallback(
     (filename: string) => {
-      // EnvironmentSummary identity is the filename — strip the
-      // `.toml` (or `.local.toml`) suffix and find the matching env.
-      const base = filename.replace(/\.local\.toml$/i, "").replace(/\.toml$/i, "");
+      const base = envNameFromFilename(filename);
       const target = environments.find((e) => e.name === base);
       if (!target) return;
+      // Capture the current pill's position BEFORE the state flip so
+      // the FLIP effect below can animate from old → new.
+      const oldPill = document.querySelector<HTMLElement>(
+        '[data-env-active-pill="true"]',
+      );
+      oldPillRectRef.current = oldPill?.getBoundingClientRect() ?? null;
       void switchEnvironment(target.id);
     },
     [environments, switchEnvironment],
   );
+
+  // FLIP — runs after every commit. Fires only when the active env
+  // actually changed AND the local `summaries` already reflects the
+  // new sort (so the new pill is mounted in its real DOM position).
+  // Depending on `summaries` (not `activeEnvironment`) ensures we
+  // only animate after the per-var refetch has flushed the cards.
+  useLayoutEffect(() => {
+    const nextName =
+      summaries.find((s) => s.isActive)?.name ??
+      activeEnvironment?.name ??
+      null;
+    if (nextName === prevActiveNameRef.current) return;
+    prevActiveNameRef.current = nextName;
+    const oldRect = oldPillRectRef.current;
+    oldPillRectRef.current = null;
+    if (!oldRect || !nextName) return;
+    const newPill = document.querySelector<HTMLElement>(
+      '[data-env-active-pill="true"]',
+    );
+    if (!newPill) return;
+    const newRect = newPill.getBoundingClientRect();
+    const dx = oldRect.left - newRect.left;
+    const dy = oldRect.top - newRect.top;
+    if (dx === 0 && dy === 0) return;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (reduced) return;
+    newPill.style.transition = "none";
+    newPill.style.transform = `translate(${dx}px, ${dy}px)`;
+    requestAnimationFrame(() => {
+      newPill.style.transition =
+        "transform 360ms cubic-bezier(0.22, 1, 0.36, 1)";
+      newPill.style.transform = "translate(0, 0)";
+    });
+  }, [summaries, activeEnvironment]);
+
+  const handleRequestClone = useCallback(
+    (filename: string) => {
+      const target = envByFilename.get(filename);
+      if (!target) return;
+      setCloning({ filename, name: target.name });
+    },
+    [envByFilename],
+  );
+
+  // V5 cenário 7 — backend `duplicate_environment` only accepts
+  // (source_id, new_name) and copies plain vars by default. The form's
+  // `copyConnectionsUsed` / `markTemporary` / `markPersonal`
+  // checkboxes stay UI-only until the backend grows the parameters.
+  const handleCloneSubmit = useCallback(
+    async (payload: CloneEnvironmentPayload) => {
+      const source = envByFilename.get(payload.sourceFilename);
+      if (!source) return;
+      await duplicateEnvironment(source.id, payload.name);
+      setCloning(null);
+    },
+    [duplicateEnvironment, envByFilename],
+  );
+
+  const inlineFormSlot = cloning ? (
+    <CloneEnvironmentForm
+      sourceFilename={cloning.filename}
+      sourceName={cloning.name}
+      existingFilenames={summaries.map((s) => s.filename)}
+      onSubmit={handleCloneSubmit}
+      onCancel={() => setCloning(null)}
+    />
+  ) : null;
 
   return (
     <EnvironmentsPage
       envs={summaries}
       onActivate={handleActivate}
       onCreateNew={onCreateNew}
+      onClone={handleRequestClone}
+      inlineFormSlot={inlineFormSlot}
     />
   );
 }

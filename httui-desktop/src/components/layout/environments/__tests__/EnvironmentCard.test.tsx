@@ -95,14 +95,15 @@ describe("EnvironmentCard", () => {
     );
   });
 
-  it("becomes a button and fires onActivate(filename) when onActivate is provided", async () => {
+  it("renders an inner activate button that fires onActivate(filename)", async () => {
     const onActivate = vi.fn();
     renderWithProviders(
       <EnvironmentCard env={env()} onActivate={onActivate} />,
     );
     const card = screen.getByTestId("environment-card-local.toml");
-    expect(card.tagName).toBe("BUTTON");
-    await userEvent.setup().click(card);
+    const activateBtn = card.querySelector("button");
+    expect(activateBtn).not.toBeNull();
+    await userEvent.setup().click(activateBtn!);
     expect(onActivate).toHaveBeenCalledWith("local.toml");
   });
 

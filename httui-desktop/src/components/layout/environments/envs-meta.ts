@@ -41,12 +41,14 @@ export function envNameFromFilename(filename: string): string {
   return filename;
 }
 
-/** Sort: active first, then alpha by display name (case-insensitive). */
+/** Sort: alpha by display name (case-insensitive). The active env is
+ * not pinned to position 0 — keeping cards anchored lets the FLIP
+ * animation in EnvironmentsPageContainer slide the ACTIVE pill from
+ * one position to another without the cards shuffling under it. */
 export function sortEnvironments(
   envs: ReadonlyArray<EnvironmentSummary>,
 ): ReadonlyArray<EnvironmentSummary> {
-  return [...envs].sort((a, b) => {
-    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
-    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-  });
+  return [...envs].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
 }

@@ -33,7 +33,7 @@ describe("EnvironmentsPage", () => {
     expect(screen.queryByTestId("environments-grid")).not.toBeInTheDocument();
   });
 
-  it("renders one card per env in the grid sorted (active first, then alpha)", () => {
+  it("renders one card per env in alphabetical order regardless of isActive", () => {
     renderWithProviders(
       <EnvironmentsPage
         envs={[
@@ -51,8 +51,8 @@ describe("EnvironmentsPage", () => {
         (id): id is string => !!id && /^environment-card-[^-]+$/.test(id),
       );
     expect(cards).toEqual([
-      "environment-card-beta.toml",
       "environment-card-alpha.toml",
+      "environment-card-beta.toml",
       "environment-card-zeta.toml",
     ]);
   });
@@ -84,9 +84,9 @@ describe("EnvironmentsPage", () => {
         onActivate={onActivate}
       />,
     );
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("environment-card-staging.toml"));
+    const card = screen.getByTestId("environment-card-staging.toml");
+    const activateBtn = card.querySelector("button");
+    await userEvent.setup().click(activateBtn!);
     expect(onActivate).toHaveBeenCalledWith("staging.toml");
   });
 
