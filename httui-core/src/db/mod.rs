@@ -37,6 +37,8 @@ const MIGRATION_010_SQL: &str = include_str!("../../migrations/010_block_setting
 const MIGRATION_011_SQL: &str = include_str!("../../migrations/011_block_examples.sql");
 const MIGRATION_012_SQL: &str =
     include_str!("../../migrations/012_block_run_history_plan.sql");
+const MIGRATION_013_SQL: &str =
+    include_str!("../../migrations/013_schema_cache_drop_fk.sql");
 
 pub async fn init_db(app_data_dir: &Path) -> Result<SqlitePool, sqlx::Error> {
     std::fs::create_dir_all(app_data_dir).ok();
@@ -240,6 +242,27 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
             let _ = sqlx::query(trimmed).execute(pool).await;
+        }
+    }
+
+    // V4 fix: schema_cache.connection_id FK still pointed at the
+    // legacy SQLite `connections` table (now empty after Epic 12).
+    // Migration recreates the table without the FK. Not idempotent
+    // at the SQL layer (DROP + RENAME), so guard at the Rust layer
+    // by inspecting pragma_foreign_key_list — only re-run while the
+    // FK is still present.
+    let fk_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM pragma_foreign_key_list('schema_cache')",
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
+    if fk_count > 0 {
+        for statement in MIGRATION_013_SQL.split(';') {
+            let trimmed = statement.trim();
+            if !trimmed.is_empty() {
+                sqlx::query(trimmed).execute(pool).await?;
+            }
         }
     }
 
