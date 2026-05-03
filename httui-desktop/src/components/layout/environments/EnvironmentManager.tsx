@@ -43,6 +43,7 @@ export function EnvironmentManager() {
   );
   const loadVariables = useEnvironmentStore((s) => s.loadVariables);
   const setVariable = useEnvironmentStore((s) => s.setVariable);
+  const deleteVariable = useEnvironmentStore((s) => s.deleteVariable);
 
   const [selectedEnvId, setSelectedEnvId] = useState<string | null>(null);
   const [variables, setVariables] = useState<EnvVariable[]>([]);
@@ -291,6 +292,7 @@ export function EnvironmentManager() {
                     <VariableValueRow
                       key={v.id}
                       env={selectedEnv.name}
+                      keyLabel={v.key}
                       value={v.is_secret ? undefined : v.value}
                       isSecret={v.is_secret}
                       fetchSecret={async () => {
@@ -300,6 +302,10 @@ export function EnvironmentManager() {
                       onCommit={(env, next) =>
                         handleCommitValue(env, v.key, next, v.is_secret)
                       }
+                      onDelete={async () => {
+                        await deleteVariable(v.id);
+                        await refreshVars();
+                      }}
                     />
                   ))}
                 </Box>

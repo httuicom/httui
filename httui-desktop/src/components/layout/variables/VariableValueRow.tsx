@@ -10,8 +10,9 @@
 // keychain resolution and `onCommit` to persist the edit
 // (`EnvironmentsStore::set_var` lands at the page mount).
 
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
 import { useState } from "react";
+import { LuX } from "react-icons/lu";
 
 import { Btn, Input } from "@/components/atoms";
 
@@ -21,6 +22,11 @@ const SECRET_MASK = "••••••••";
 
 export interface VariableValueRowProps {
   env: string;
+  /** Optional variable key shown at the start of the row. When the
+   * row is rendered as one-of-many for the same env (e.g. the
+   * EnvironmentManager drawer), the key disambiguates them. The
+   * detail panel omits it because the header already carries the key. */
+  keyLabel?: string;
   /** Ground-truth value from `row.values[env]`. Undefined → em-dash. */
   value: string | undefined;
   isSecret: boolean;
@@ -37,6 +43,9 @@ export interface VariableValueRowProps {
   override?: string;
   /** Click handler for the TEMPORARY chip. Required to make the chip interactive. */
   onClearOverride?: () => void;
+  /** Delete the underlying variable (drawer-only path — when omitted
+   * the close icon is hidden). */
+  onDelete?: () => void;
 }
 
 type RevealState =
@@ -49,6 +58,7 @@ type EditMode = "commit" | "override" | null;
 
 export function VariableValueRow({
   env,
+  keyLabel,
   value,
   isSecret,
   fetchSecret,
@@ -56,6 +66,7 @@ export function VariableValueRow({
   onSetOverride,
   override,
   onClearOverride,
+  onDelete,
 }: VariableValueRowProps) {
   const [reveal, setReveal] = useState<RevealState>({ kind: "masked" });
   const [editing, setEditing] = useState<EditMode>(null);
@@ -135,18 +146,35 @@ export function VariableValueRow({
       borderBottomWidth="1px"
       borderBottomColor="border"
     >
-      <Text
-        as="span"
-        fontFamily="mono"
-        fontSize="11px"
-        color="fg.muted"
-        w="68px"
-        flexShrink={0}
-        truncate
-        data-testid={`variable-value-row-${env}-env-label`}
-      >
-        {env}
-      </Text>
+      {keyLabel ? (
+        <Text
+          as="span"
+          fontFamily="mono"
+          fontSize="11px"
+          color="fg"
+          fontWeight="bold"
+          flexShrink={0}
+          truncate
+          w="140px"
+          data-testid={`variable-value-row-${env}-key-label`}
+          title={keyLabel}
+        >
+          {keyLabel}
+        </Text>
+      ) : (
+        <Text
+          as="span"
+          fontFamily="mono"
+          fontSize="11px"
+          color="fg.muted"
+          w="68px"
+          flexShrink={0}
+          truncate
+          data-testid={`variable-value-row-${env}-env-label`}
+        >
+          {env}
+        </Text>
+      )}
       {editing ? (
         <ValueEditor
           env={env}
@@ -209,6 +237,19 @@ export function VariableValueRow({
             >
               Override
             </Btn>
+          )}
+          {onDelete && (
+            <IconButton
+              aria-label="Delete variable"
+              data-testid={`variable-value-row-${env}-delete`}
+              size="2xs"
+              variant="ghost"
+              colorPalette="red"
+              onClick={onDelete}
+              title="Delete this variable"
+            >
+              <LuX />
+            </IconButton>
           )}
         </>
       )}
