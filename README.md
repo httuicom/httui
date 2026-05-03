@@ -1,3 +1,6 @@
+> [!IMPORTANT]  
+> Deprecated version
+
 <img src="assets/hero.png" alt="httui" style="width: 100%" />
 
 # Overview
