@@ -25,6 +25,7 @@ import {
   LuListTree,
   LuClock,
   LuPlug,
+  LuKeyRound,
 } from "react-icons/lu";
 
 import { Brand } from "@/components/layout/topbar/Brand";
@@ -87,6 +88,7 @@ export function TopBar({
   const { vaultPath, switchVault, vaults, openVault } = useWorkspace();
   const openSettings = useSettingsStore((s) => s.openSettings);
   const openConnectionsTab = usePaneStore((s) => s.openConnectionsTab);
+  const openVariablesTab = usePaneStore((s) => s.openVariablesTab);
 
   const activeFilePath = usePaneStore(selectActiveTabPath);
   const activeUnsaved = usePaneStore(selectActiveTabUnsaved);
@@ -216,6 +218,14 @@ export function TopBar({
         onClick={openConnectionsTab}
       >
         <LuPlug />
+      </IconButton>
+      <IconButton
+        aria-label="Open Variables"
+        variant="ghost"
+        size="xs"
+        onClick={openVariablesTab}
+      >
+        <LuKeyRound />
       </IconButton>
       <IconButton
         aria-label={schemaPanelOpen ? "Close schema panel" : "Open schema panel"}

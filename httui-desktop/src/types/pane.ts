@@ -2,7 +2,7 @@ export interface TabState {
   filePath: string;
   vaultPath: string;
   unsaved: boolean;
-  kind?: "file" | "diff" | "connections";
+  kind?: "file" | "diff" | "connections" | "variables" | "environments";
   // Diff tab fields
   diffId?: string;
   permissionId?: string;
@@ -14,6 +14,12 @@ export interface TabState {
  * pane store dedupes new opens by this value so only one
  * Connections tab can exist per pane. */
 export const CONNECTIONS_TAB_PATH = "__connections__";
+
+/** Sentinel filePath for the singleton Variables tab (V5). */
+export const VARIABLES_TAB_PATH = "__variables__";
+
+/** Sentinel filePath for the singleton Environments tab (V5). */
+export const ENVIRONMENTS_TAB_PATH = "__environments__";
 
 export function getTabId(tab: TabState): string {
   return tab.diffId ?? tab.filePath;

@@ -3,7 +3,12 @@ import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import { listen } from "@tauri-apps/api/event";
 import type { PaneLayout, LeafPane, TabState } from "@/types/pane";
-import { createLeafPane, CONNECTIONS_TAB_PATH } from "@/types/pane";
+import {
+  createLeafPane,
+  CONNECTIONS_TAB_PATH,
+  VARIABLES_TAB_PATH,
+  ENVIRONMENTS_TAB_PATH,
+} from "@/types/pane";
 import { forceReloadFile } from "@/lib/tauri/commands";
 
 // --- Types ---
@@ -41,6 +46,10 @@ interface PaneState {
    * If a Connections tab already exists in the pane, focuses it
    * instead of opening a duplicate. */
   openConnectionsTab: () => void;
+  /** Open the singleton Variables tab in the active pane (V5). */
+  openVariablesTab: () => void;
+  /** Open the singleton Environments tab in the active pane (V5). */
+  openEnvironmentsTab: () => void;
   selectTab: (paneId: string, index: number) => void;
   closeTab: (paneId: string, index: number) => void;
   closeOthers: (paneId: string, index: number) => void;
@@ -133,6 +142,50 @@ export function replacePaneInLayout(
       replacePaneInLayout(node.children[1], id, replacement),
     ],
   };
+}
+
+// --- Singleton tab helper ---
+
+type SingletonTabKind = "connections" | "variables" | "environments";
+
+function openSingletonTab(
+  set: (
+    fn: (state: PaneState) => PaneState | Partial<PaneState>,
+  ) => void,
+  get: () => PaneState,
+  kind: SingletonTabKind,
+  filePath: string,
+): void {
+  const { activePaneId } = get();
+  set((state) => {
+    const leaf = findLeaf(state.layout, activePaneId);
+    if (!leaf) return state;
+    // Singleton: focus existing tab of same kind in this pane instead
+    // of duplicating. Identity = (pane, kind); the sentinel filePath
+    // also serves as the editor-content map key.
+    const existing = leaf.tabs.findIndex((t) => t.kind === kind);
+    if (existing >= 0) {
+      return {
+        layout: updateLeaf(state.layout, activePaneId, (l) => ({
+          ...l,
+          activeTab: existing,
+        })),
+      };
+    }
+    const tab: TabState = {
+      filePath,
+      vaultPath: "",
+      unsaved: false,
+      kind,
+    };
+    return {
+      layout: updateLeaf(state.layout, activePaneId, (l) => ({
+        ...l,
+        tabs: [...l.tabs, tab],
+        activeTab: l.tabs.length,
+      })),
+    };
+  });
 }
 
 // --- Store ---
@@ -371,40 +424,12 @@ export const usePaneStore = create<PaneState>()(
         });
       },
 
-      openConnectionsTab: () => {
-        const { activePaneId } = get();
-        set((state) => {
-          const leaf = findLeaf(state.layout, activePaneId);
-          if (!leaf) return state;
-          // Singleton: if a Connections tab already lives here, focus
-          // it instead of opening a duplicate. Identity = filePath
-          // sentinel; one Connections tab per pane.
-          const existing = leaf.tabs.findIndex(
-            (t) => t.kind === "connections",
-          );
-          if (existing >= 0) {
-            return {
-              layout: updateLeaf(state.layout, activePaneId, (l) => ({
-                ...l,
-                activeTab: existing,
-              })),
-            };
-          }
-          const tab: TabState = {
-            filePath: CONNECTIONS_TAB_PATH,
-            vaultPath: "",
-            unsaved: false,
-            kind: "connections",
-          };
-          return {
-            layout: updateLeaf(state.layout, activePaneId, (l) => ({
-              ...l,
-              tabs: [...l.tabs, tab],
-              activeTab: l.tabs.length,
-            })),
-          };
-        });
-      },
+      openConnectionsTab: () =>
+        openSingletonTab(set, get, "connections", CONNECTIONS_TAB_PATH),
+      openVariablesTab: () =>
+        openSingletonTab(set, get, "variables", VARIABLES_TAB_PATH),
+      openEnvironmentsTab: () =>
+        openSingletonTab(set, get, "environments", ENVIRONMENTS_TAB_PATH),
 
       closeDiffTab: (permissionId) => {
         const diffId = `diff-${permissionId}`;

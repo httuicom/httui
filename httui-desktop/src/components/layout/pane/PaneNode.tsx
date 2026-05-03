@@ -3,6 +3,7 @@ import { Box, Flex, Text } from "@chakra-ui/react";
 import { TabBar } from "../TabBar";
 import { DiffViewer } from "@/components/editor/DiffViewer";
 import { ConnectionsPageContainer } from "@/components/layout/connections/ConnectionsPageContainer";
+import { VariablesPageContainer } from "@/components/layout/variables/VariablesPageContainer";
 import { DocHeaderedEditor } from "./DocHeaderedEditor";
 import { usePaneStore } from "@/stores/pane";
 import { useSettingsStore } from "@/stores/settings";
@@ -50,7 +51,13 @@ export function PaneNode({
   useEffect(() => {
     if (layout.type !== "leaf") return;
     for (const tab of layout.tabs) {
-      if (tab.kind === "diff" || tab.kind === "connections") continue;
+      if (
+        tab.kind === "diff" ||
+        tab.kind === "connections" ||
+        tab.kind === "variables" ||
+        tab.kind === "environments"
+      )
+        continue;
       const cached = editorContents.get(tab.filePath);
       if (
         cached &&
@@ -98,6 +105,10 @@ export function PaneNode({
           ) : activeTab.kind === "connections" ? (
             <Box flex={1} overflow="hidden">
               <ConnectionsPageContainer onNavigateFile={onNavigateFile} />
+            </Box>
+          ) : activeTab.kind === "variables" ? (
+            <Box flex={1} overflow="hidden">
+              <VariablesPageContainer onNavigateFile={onNavigateFile} />
             </Box>
           ) : (
             <DocHeaderedEditor
