@@ -117,7 +117,7 @@ describe("EnvironmentManager", () => {
     await waitFor(() => expect(varCalls).toBeGreaterThan(1));
   });
 
-  it("'New environment' creator: enter name, confirm → IPC create called", async () => {
+  it("'New env' creator: enter name + Enter → IPC create called", async () => {
     const user = userEvent.setup();
     let createdName: unknown = "";
     mockTauriCommand("create_environment", (args) => {
@@ -128,15 +128,14 @@ describe("EnvironmentManager", () => {
     useEnvironmentStore.setState({ managerOpen: true });
     renderWithProviders(<EnvironmentManager />);
 
-    await user.click(screen.getByText("New environment"));
-    const input = screen.getByPlaceholderText("Name...");
-    await user.type(input, "qa");
-    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await user.click(screen.getByText("+ New env"));
+    const input = screen.getByTestId("env-mgr-new-env-name");
+    await user.type(input, "qa{Enter}");
 
     await waitFor(() => expect(createdName).toBe("qa"));
   });
 
-  it("'New environment' creator does nothing on empty name", async () => {
+  it("'New env' creator does nothing on empty name + Enter", async () => {
     const user = userEvent.setup();
     let called = false;
     mockTauriCommand("create_environment", () => {
@@ -146,8 +145,8 @@ describe("EnvironmentManager", () => {
     useEnvironmentStore.setState({ managerOpen: true });
     renderWithProviders(<EnvironmentManager />);
 
-    await user.click(screen.getByText("New environment"));
-    await user.click(screen.getByRole("button", { name: /confirm/i }));
+    await user.click(screen.getByText("+ New env"));
+    await user.type(screen.getByTestId("env-mgr-new-env-name"), "{Enter}");
 
     expect(called).toBe(false);
   });
@@ -157,10 +156,10 @@ describe("EnvironmentManager", () => {
     useEnvironmentStore.setState({ managerOpen: true });
     renderWithProviders(<EnvironmentManager />);
 
-    await user.click(screen.getByText("New environment"));
-    expect(screen.getByPlaceholderText("Name...")).toBeInTheDocument();
+    await user.click(screen.getByText("+ New env"));
+    expect(screen.getByTestId("env-mgr-new-env-name")).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
-    expect(screen.queryByPlaceholderText("Name...")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("env-mgr-new-env-name")).not.toBeInTheDocument();
   });
 });

@@ -1,21 +1,34 @@
-import { useState, useEffect, useCallback } from "react";
+// Environment manager drawer (V5 cenário 10 — refactor).
+//
+// Quick-edit drawer kept as a UX shortcut alongside the dedicated
+// Environments tab. Sidebar lists envs (click to switch focus),
+// main area renders the V5 components: a `VariableValueRow` per
+// variable + an inline `NewVariableForm` for adding new ones. Same
+// store / IPC stack as the full Environments page — no logic
+// duplication, just a different surface.
+
+import { useCallback, useEffect, useState } from "react";
 import {
+  Badge,
   Box,
   Flex,
-  VStack,
-  Text,
-  Input,
+  HStack,
   IconButton,
-  Badge,
   Portal,
+  Text,
+  VStack,
 } from "@chakra-ui/react";
-import { LuPlus, LuX, LuCheck } from "react-icons/lu";
+import { LuCopy, LuTrash2, LuX } from "react-icons/lu";
+
+import { Btn, Input } from "@/components/atoms";
 import { useEnvironmentStore } from "@/stores/environment";
 import {
   resolveEnvVariables,
   type EnvVariable,
 } from "@/lib/tauri/commands";
-import { VariablesEditor } from "./VariablesEditor";
+
+import { NewVariableForm } from "../variables/NewVariableForm";
+import { VariableValueRow } from "../variables/VariableValueRow";
 
 export function EnvironmentManager() {
   const environments = useEnvironmentStore((s) => s.environments);
@@ -30,18 +43,13 @@ export function EnvironmentManager() {
   );
   const loadVariables = useEnvironmentStore((s) => s.loadVariables);
   const setVariable = useEnvironmentStore((s) => s.setVariable);
-  const deleteVariable = useEnvironmentStore((s) => s.deleteVariable);
 
   const [selectedEnvId, setSelectedEnvId] = useState<string | null>(null);
   const [variables, setVariables] = useState<EnvVariable[]>([]);
-  const [resolvedValues, setResolvedValues] = useState<Record<string, string>>(
-    {},
-  );
-  const [newEnvName, setNewEnvName] = useState("");
   const [creating, setCreating] = useState(false);
-  const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
+  const [newEnvName, setNewEnvName] = useState("");
+  const [newEnvCreating, setNewEnvCreating] = useState(false);
 
-  // Select first environment on open or when list changes
   useEffect(() => {
     if (!managerOpen) return;
     if (selectedEnvId && environments.some((e) => e.id === selectedEnvId))
@@ -49,97 +57,85 @@ export function EnvironmentManager() {
     setSelectedEnvId(environments[0]?.id ?? null);
   }, [managerOpen, environments, selectedEnvId]);
 
-  // Load variables when selected environment changes — also fetch
-  // the keychain-resolved map so the reveal eye has real values to
-  // surface. Reset revealedKeys per env switch so secrets don't
-  // leak across envs by accident.
-  useEffect(() => {
-    setRevealedKeys(new Set());
+  const refreshVars = useCallback(async () => {
     if (!selectedEnvId) {
       setVariables([]);
-      setResolvedValues({});
       return;
     }
+    const vars = await loadVariables(selectedEnvId);
+    setVariables(vars);
+  }, [selectedEnvId, loadVariables]);
+
+  useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      loadVariables(selectedEnvId),
-      resolveEnvVariables(selectedEnvId).catch(() => ({})),
-    ]).then(([vars, resolved]) => {
+    void refreshVars().then(() => {
       if (cancelled) return;
-      setVariables(vars);
-      setResolvedValues(resolved);
     });
     return () => {
       cancelled = true;
     };
-  }, [selectedEnvId, loadVariables]);
+  }, [refreshVars]);
 
-  const refreshVariables = useCallback(async () => {
-    if (!selectedEnvId) return;
-    const [vars, resolved] = await Promise.all([
-      loadVariables(selectedEnvId),
-      resolveEnvVariables(selectedEnvId).catch(() => ({})),
-    ]);
-    setVariables(vars);
-    setResolvedValues(resolved);
-  }, [selectedEnvId, loadVariables]);
+  const selectedEnv = environments.find((e) => e.id === selectedEnvId) ?? null;
 
-  const handleCreate = useCallback(async () => {
-    if (!newEnvName.trim()) return;
-    await createEnvironment(newEnvName.trim());
+  const handleCreateEnv = useCallback(async () => {
+    const name = newEnvName.trim();
+    if (!name) return;
+    await createEnvironment(name);
     setNewEnvName("");
-    setCreating(false);
+    setNewEnvCreating(false);
   }, [newEnvName, createEnvironment]);
 
-  const handleDuplicate = useCallback(
-    async (id: string, name: string) => {
-      await duplicateEnvironment(id, `${name} (copy)`);
+  const handleDeleteEnv = useCallback(async () => {
+    if (!selectedEnv) return;
+    await deleteEnvironment(selectedEnv.id);
+    setSelectedEnvId(null);
+  }, [selectedEnv, deleteEnvironment]);
+
+  const handleDuplicateEnv = useCallback(async () => {
+    if (!selectedEnv) return;
+    await duplicateEnvironment(selectedEnv.id, `${selectedEnv.name}-copy`);
+  }, [selectedEnv, duplicateEnvironment]);
+
+  const fetchSecret = useCallback(async (): Promise<string | undefined> => {
+    if (!selectedEnv) return undefined;
+    const map = await resolveEnvVariables(selectedEnv.id);
+    return undefined; // Resolved per-key via VariableValueRow callback below.
+    // (This shell is unused; per-row fetchSecret is wired inline.)
+    void map;
+  }, [selectedEnv]);
+  void fetchSecret;
+
+  const handleCommitValue = useCallback(
+    async (env: string, key: string, next: string, isSecret: boolean) => {
+      const target = environments.find((e) => e.name === env);
+      if (!target) return;
+      await setVariable(target.id, key, next, isSecret);
+      await refreshVars();
     },
-    [duplicateEnvironment],
+    [environments, setVariable, refreshVars],
   );
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      await deleteEnvironment(id);
-      if (selectedEnvId === id) setSelectedEnvId(null);
+  const handleNewVariable = useCallback(
+    async (payload: {
+      name: string;
+      value: string;
+      isSecret: boolean;
+      env: string;
+    }) => {
+      const target = environments.find((e) => e.name === payload.env);
+      if (!target) return;
+      await setVariable(target.id, payload.name, payload.value, payload.isSecret);
+      setCreating(false);
+      await refreshVars();
     },
-    [deleteEnvironment, selectedEnvId],
+    [environments, setVariable, refreshVars],
   );
-
-  const handleSetVariable = useCallback(
-    async (key: string, value: string, isSecret?: boolean) => {
-      if (!selectedEnvId || !key.trim()) return;
-      await setVariable(selectedEnvId, key, value, isSecret);
-      await refreshVariables();
-    },
-    [selectedEnvId, setVariable, refreshVariables],
-  );
-
-  const handleDeleteVariable = useCallback(
-    async (id: string) => {
-      await deleteVariable(id);
-      await refreshVariables();
-    },
-    [deleteVariable, refreshVariables],
-  );
-
-  const toggleReveal = (varId: string) => {
-    setRevealedKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(varId)) {
-        next.delete(varId);
-      } else {
-        next.add(varId);
-      }
-      return next;
-    });
-  };
 
   if (!managerOpen) return null;
 
   return (
     <Portal>
-      {/* Backdrop */}
       <Box
         position="fixed"
         inset={0}
@@ -147,7 +143,6 @@ export function EnvironmentManager() {
         zIndex={1400}
         onClick={closeManager}
       />
-      {/* Panel */}
       <Box
         position="fixed"
         top={0}
@@ -162,7 +157,6 @@ export function EnvironmentManager() {
         display="flex"
         flexDirection="column"
       >
-        {/* Header */}
         <Flex
           align="center"
           justify="space-between"
@@ -185,7 +179,6 @@ export function EnvironmentManager() {
         </Flex>
 
         <Flex flex={1} overflow="hidden">
-          {/* Sidebar: environment list */}
           <VStack
             w="180px"
             flexShrink={0}
@@ -220,72 +213,127 @@ export function EnvironmentManager() {
               </Flex>
             ))}
 
-            {creating ? (
+            {newEnvCreating ? (
               <Flex gap={1} align="center">
                 <Input
-                  size="xs"
-                  placeholder="Name..."
+                  data-testid="env-mgr-new-env-name"
+                  placeholder="Name…"
                   value={newEnvName}
                   onChange={(e) => setNewEnvName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleCreate();
-                    if (e.key === "Escape") setCreating(false);
+                    if (e.key === "Enter") void handleCreateEnv();
+                    if (e.key === "Escape") setNewEnvCreating(false);
                   }}
                   autoFocus
                 />
-                <IconButton
-                  aria-label="Confirm"
-                  size="2xs"
-                  variant="ghost"
-                  colorPalette="green"
-                  onClick={handleCreate}
-                >
-                  <LuCheck />
-                </IconButton>
               </Flex>
             ) : (
-              <Flex
-                align="center"
-                gap={1}
-                px={2}
-                py={1}
-                cursor="pointer"
-                color="fg.muted"
-                fontSize="xs"
-                _hover={{ bg: "bg.subtle" }}
-                rounded="md"
-                onClick={() => setCreating(true)}
+              <Btn
+                variant="ghost"
+                size="xs"
+                onClick={() => setNewEnvCreating(true)}
               >
-                <LuPlus size={12} />
-                New environment
-              </Flex>
+                + New env
+              </Btn>
             )}
           </VStack>
 
-          {/* Main: variables for selected environment */}
-          <Box flex={1} overflow="auto" p={3}>
-            {selectedEnvId ? (
-              <VariablesEditor
-                envName={
-                  environments.find((e) => e.id === selectedEnvId)?.name ?? ""
-                }
-                isActive={activeEnvironment?.id === selectedEnvId}
-                variables={variables}
-                revealedKeys={revealedKeys}
-                resolvedValues={resolvedValues}
-                onSetActive={() => switchEnvironment(selectedEnvId)}
-                onDuplicate={() =>
-                  handleDuplicate(
-                    selectedEnvId,
-                    environments.find((e) => e.id === selectedEnvId)?.name ??
-                      "",
-                  )
-                }
-                onDelete={() => handleDelete(selectedEnvId)}
-                onSetVariable={handleSetVariable}
-                onDeleteVariable={handleDeleteVariable}
-                onToggleReveal={toggleReveal}
-              />
+          <Box flex={1} overflow="auto">
+            {selectedEnv ? (
+              <Box>
+                <Flex
+                  align="center"
+                  gap={2}
+                  px={4}
+                  py={3}
+                  borderBottomWidth="1px"
+                  borderColor="border"
+                >
+                  <Text fontWeight="semibold" fontSize="sm">
+                    {selectedEnv.name}
+                  </Text>
+                  {selectedEnv.is_active ? (
+                    <Badge colorPalette="green" variant="subtle" size="sm">
+                      active
+                    </Badge>
+                  ) : (
+                    <Btn
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => switchEnvironment(selectedEnv.id)}
+                    >
+                      Set active
+                    </Btn>
+                  )}
+                  <HStack gap={0} ml="auto">
+                    <IconButton
+                      aria-label="Duplicate"
+                      size="xs"
+                      variant="ghost"
+                      onClick={handleDuplicateEnv}
+                    >
+                      <LuCopy />
+                    </IconButton>
+                    <IconButton
+                      aria-label="Delete"
+                      size="xs"
+                      variant="ghost"
+                      colorPalette="red"
+                      onClick={handleDeleteEnv}
+                    >
+                      <LuTrash2 />
+                    </IconButton>
+                  </HStack>
+                </Flex>
+
+                <Box>
+                  {variables.map((v) => (
+                    <VariableValueRow
+                      key={v.id}
+                      env={selectedEnv.name}
+                      value={v.is_secret ? undefined : v.value}
+                      isSecret={v.is_secret}
+                      fetchSecret={async () => {
+                        const map = await resolveEnvVariables(selectedEnv.id);
+                        return map[v.key];
+                      }}
+                      onCommit={(env, next) =>
+                        handleCommitValue(env, v.key, next, v.is_secret)
+                      }
+                    />
+                  ))}
+                </Box>
+
+                <Box mt={3}>
+                  {creating ? (
+                    <NewVariableForm
+                      activeEnv={selectedEnv.name}
+                      existingNames={variables.map((v) => v.key)}
+                      onSubmit={handleNewVariable}
+                      onCancel={() => setCreating(false)}
+                    />
+                  ) : (
+                    <Box px={4} py={2}>
+                      <Btn
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => setCreating(true)}
+                      >
+                        + New variable
+                      </Btn>
+                    </Box>
+                  )}
+                </Box>
+
+                <Text fontSize="xs" color="fg.muted" px={4} py={3}>
+                  Use{" "}
+                  <Text as="span" fontFamily="mono">
+                    {"{{KEY}}"}
+                  </Text>{" "}
+                  in HTTP / DB blocks to reference variables from the active
+                  environment.
+                </Text>
+              </Box>
             ) : (
               <Flex
                 align="center"
