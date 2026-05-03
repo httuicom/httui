@@ -25,13 +25,13 @@ export function NewConnectionSshTab() {
         py={3}
       >
         <Text fontFamily="serif" fontSize="14px" fontWeight={500} color="fg">
-          SSH tunnel — em breve
+          SSH tunnel — coming soon
         </Text>
         <Text fontSize="12px" color="fg.muted" mt={1}>
-          O assistente nativo (host, porta, jump-host, key file) entra
-          numa próxima versão. No v1, conecte-se via tunnel local
-          (<Mono>ssh -L</Mono>) e aponte a connection string para{" "}
-          <Mono>localhost:&lt;porta-local&gt;</Mono>.
+          The native assistant (host, port, jump-host, key file) ships
+          in a future release. For v1, open a local tunnel
+          (<Mono>ssh -L</Mono>) and point the connection at{" "}
+          <Mono>localhost:&lt;local-port&gt;</Mono>.
         </Text>
       </Box>
 
@@ -47,15 +47,15 @@ export function NewConnectionSshTab() {
         fontSize="11px"
         color="fg.muted"
       >
-        # cria o túnel local antes de salvar a conexão
+        # open the local tunnel before saving the connection
         <br />
         ssh -L 6432:db.prod.internal:5432 bastion.example.com -N
       </Box>
 
       <Text fontSize="11px" color="fg.subtle">
-        Quando o SSH nativo entrar, suas conexões existentes não vão
-        precisar de migração — o túnel passa a ser apenas um detalhe da
-        conexão, e o resto do formulário continua igual.
+        When native SSH lands, existing connections won't need
+        migration — the tunnel becomes just another connection detail
+        and the rest of the form stays the same.
       </Text>
     </Flex>
   );

@@ -99,7 +99,7 @@ describe("buildListRows", () => {
     });
     expect(rows[2]).toMatchObject({
       id: "c",
-      kind: null,
+      kind: "sqlite",
       env: null,
       uses: 0,
       status: "untested",

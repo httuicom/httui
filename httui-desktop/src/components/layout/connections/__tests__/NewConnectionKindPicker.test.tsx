@@ -13,8 +13,8 @@ describe("NewConnectionKindPicker", () => {
         onSelectKind={vi.fn()}
       />,
     );
-    expect(screen.getByText("Nova conexão")).toBeInTheDocument();
-    expect(screen.getByText("Escolha o tipo")).toBeInTheDocument();
+    expect(screen.getByText("New connection")).toBeInTheDocument();
+    expect(screen.getByText("Pick the kind")).toBeInTheDocument();
   });
 
   it("renders one row per kind in canvas order", () => {

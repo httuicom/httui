@@ -43,7 +43,7 @@ export interface ConnectionsListPanelProps {
   emptyHint?: string;
 }
 
-const SEARCH_PLACEHOLDER = "Buscar por nome, host, env… ⌘K";
+const SEARCH_PLACEHOLDER = "Search by name, host, env… ⌘K";
 
 export function ConnectionsListPanel({
   status,
@@ -108,7 +108,7 @@ export function ConnectionsListPanel({
             data-testid="connections-create-new"
             onClick={onCreateNew}
           >
-            <LuPlus size={12} /> Nova
+            <LuPlus size={12} /> New
           </Btn>
         </HStack>
       </Flex>

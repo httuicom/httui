@@ -22,7 +22,7 @@ describe("NewConnectionTestBanner", () => {
     expect(
       screen.getByTestId("dot-running"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Testando…")).toBeInTheDocument();
+    expect(screen.getByText("Testing…")).toBeInTheDocument();
   });
 
   it("renders the ok banner with detail line + latency", () => {
@@ -33,7 +33,7 @@ describe("NewConnectionTestBanner", () => {
     );
     const banner = screen.getByTestId("new-connection-test-banner-ok");
     expect(banner).toBeInTheDocument();
-    expect(banner.textContent).toContain("Conexão OK");
+    expect(banner.textContent).toContain("Connection OK");
     expect(banner.textContent).toContain("postgres 15.4 · 47 tables");
     expect(banner.textContent).toContain("18ms");
     expect(screen.getByTestId("dot-ok")).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe("NewConnectionTestBanner", () => {
     );
     const banner = screen.getByTestId("new-connection-test-banner-err");
     expect(banner).toBeInTheDocument();
-    expect(banner.textContent).toContain("Falhou");
+    expect(banner.textContent).toContain("Failed");
     expect(banner.textContent).toContain("ECONNREFUSED");
     expect(screen.getByTestId("dot-err")).toBeInTheDocument();
   });

@@ -74,7 +74,7 @@ export function NewConnectionSslTab({
       direction="column"
       gap={4}
     >
-      <Field label="sslmode" hint="Escolha como o cliente negocia TLS.">
+      <Field label="sslmode" hint="Choose how the client negotiates TLS.">
         <ModeSelect
           value={value.mode}
           onChange={(next) => patch("mode", next)}
@@ -83,7 +83,7 @@ export function NewConnectionSslTab({
 
       <Field
         label="Root cert"
-        hint="Arquivo PEM da CA que assinou o servidor (opcional para `prefer`)."
+        hint="PEM file for the CA that signed the server (optional for `prefer`)."
       >
         <Input
           data-testid="new-connection-ssl-root-cert"
@@ -123,9 +123,9 @@ export function NewConnectionSslTab({
         px={3}
         py={2}
       >
-        Caminhos absolutos resolvem do disco do app no momento da conexão.
-        Caminhos relativos resolvem a partir do vault. Em `verify-full`, o
-        host do certificado precisa bater com o host configurado.
+        Absolute paths resolve from the app disk at connection time.
+        Relative paths resolve from the vault. In `verify-full`, the
+        cert host must match the configured host.
       </Box>
     </Flex>
   );

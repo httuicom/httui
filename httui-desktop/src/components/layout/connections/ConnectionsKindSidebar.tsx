@@ -134,11 +134,11 @@ export function ConnectionsKindSidebar({
             color="fg.muted"
             mb={2}
           >
-            Por ambiente
+            By environment
           </Text>
           {envs.length === 0 ? (
             <Text fontSize="12px" color="fg.subtle" px={2}>
-              Sem ambientes
+              No environments
             </Text>
           ) : (
             <Stack gap={0.5} align="stretch">
@@ -198,9 +198,9 @@ export function ConnectionsKindSidebar({
             <LuKey size={11} />
           </Box>
           <Text as="span" fontWeight={600}>
-            Credenciais locais —
+            Local credentials —
           </Text>{" "}
-          Senhas vivem no keychain. Conexão é só nome + host.
+          Passwords live in the keychain. Connection is just name + host.
         </Box>
       </Stack>
     </Box>

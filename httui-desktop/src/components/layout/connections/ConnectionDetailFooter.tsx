@@ -216,7 +216,7 @@ function TestResultBanner({ result }: { result: TestResult }) {
             bg="green.solid"
             aria-hidden
           />
-          <Text fontWeight={500}>Conexão OK</Text>
+          <Text fontWeight={500}>Connection OK</Text>
           <Text fontFamily="mono" color="green.fg">
             {result.latencyMs}ms
           </Text>
@@ -245,7 +245,7 @@ function TestResultBanner({ result }: { result: TestResult }) {
           bg="red.solid"
           aria-hidden
         />
-        <Text fontWeight={500}>Falhou</Text>
+        <Text fontWeight={500}>Failed</Text>
         <Text fontFamily="mono" color="red.fg" truncate>
           {result.message}
         </Text>

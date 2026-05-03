@@ -37,22 +37,23 @@ export const NEW_CONNECTION_TABS: ReadonlyArray<{
   id: NewConnectionTabId;
   label: string;
 }> = [
-  { id: "form", label: "Formulário" },
+  { id: "form", label: "Form" },
   { id: "connection-string", label: "Connection string" },
   { id: "ssh-tunnel", label: "SSH tunnel" },
   { id: "ssl", label: "SSL" },
 ];
 
 const KIND_SUB_LABEL: Record<ConnectionKind, string> = {
-  postgres: "Suporta versões 11+. SSH tunnel disponível.",
-  mysql: "Suporta MySQL 5.7+ / MariaDB 10.3+.",
-  mongo: "MongoDB 4.4+. Driver oficial.",
+  postgres: "Supports versions 11+. SSH tunnel available.",
+  mysql: "Supports MySQL 5.7+ / MariaDB 10.3+.",
+  sqlite: "Local file-based database. No host or credentials.",
+  mongo: "MongoDB 4.4+. Official driver.",
   bigquery: "Auth via service account JSON.",
-  grpc: "Carrega proto via reflexão ou arquivo.",
-  graphql: "Endpoint GraphQL com introspecção.",
-  http: "Base URL para chamadas HTTP / REST.",
-  ws: "WebSocket bidirecional.",
-  shell: "Comandos shell em sessão local.",
+  grpc: "Loads proto via reflection or file.",
+  graphql: "GraphQL endpoint with introspection.",
+  http: "Base URL for HTTP / REST calls.",
+  ws: "Bidirectional WebSocket.",
+  shell: "Shell commands in a local session.",
 };
 
 export interface NewConnectionModalProps {
@@ -89,6 +90,11 @@ export interface NewConnectionModalProps {
   }) => ReactNode;
   /** Disables Save (e.g. invalid form). */
   saveDisabled?: boolean;
+  /** Subset of kinds the consumer can actually create. Kinds outside
+   * this list render a "Coming soon" empty state in the modal body
+   * with the tabs + Save / Test footer hidden. Defaults to all kinds
+   * supported (legacy behavior). */
+  supportedKinds?: ReadonlyArray<ConnectionKind>;
 }
 
 export function NewConnectionModal({
@@ -103,6 +109,7 @@ export function NewConnectionModal({
   onTest,
   renderTabBody,
   saveDisabled = false,
+  supportedKinds,
 }: NewConnectionModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const [internalKind, setInternalKind] =
@@ -132,6 +139,8 @@ export function NewConnectionModal({
   if (!open) return null;
 
   const meta = CONNECTION_KINDS[selectedKind];
+  const isSupported =
+    supportedKinds === undefined || supportedKinds.includes(selectedKind);
 
   function handleOverlayClick(e: React.MouseEvent) {
     if (e.target === overlayRef.current) onCancel();
@@ -185,42 +194,51 @@ export function NewConnectionModal({
               sub={KIND_SUB_LABEL[selectedKind]}
             />
 
-            <Tabbar
-              data-testid="new-connection-tabs"
-              tabs={tabItems}
-              activeId={activeTab}
-              onSelect={(id) => setActiveTab(id as NewConnectionTabId)}
-              px={5}
-            />
+            {isSupported ? (
+              <>
+                <Tabbar
+                  data-testid="new-connection-tabs"
+                  tabs={tabItems}
+                  activeId={activeTab}
+                  onSelect={(id) => setActiveTab(id as NewConnectionTabId)}
+                  px={5}
+                />
 
-            <Box
-              data-testid="new-connection-tab-body"
-              flex={1}
-              minH={0}
-              overflowY="auto"
-              p={5}
-            >
-              {renderTabBody ? (
-                renderTabBody({ kind: selectedKind, tab: activeTab })
-              ) : (
-                <TabPlaceholder tab={activeTab} />
-              )}
-            </Box>
+                <Box
+                  data-testid="new-connection-tab-body"
+                  flex={1}
+                  minH={0}
+                  overflowY="auto"
+                  p={5}
+                >
+                  {renderTabBody ? (
+                    renderTabBody({ kind: selectedKind, tab: activeTab })
+                  ) : (
+                    <TabPlaceholder tab={activeTab} />
+                  )}
+                </Box>
 
-            <ModalFooter
-              saveDisabled={saveDisabled}
-              onSave={
-                onSave
-                  ? () => onSave({ kind: selectedKind, tab: activeTab })
-                  : undefined
-              }
-              onTest={
-                onTest
-                  ? () => onTest({ kind: selectedKind, tab: activeTab })
-                  : undefined
-              }
-              onCancel={onCancel}
-            />
+                <ModalFooter
+                  saveDisabled={saveDisabled}
+                  onSave={
+                    onSave
+                      ? () => onSave({ kind: selectedKind, tab: activeTab })
+                      : undefined
+                  }
+                  onTest={
+                    onTest
+                      ? () => onTest({ kind: selectedKind, tab: activeTab })
+                      : undefined
+                  }
+                  onCancel={onCancel}
+                />
+              </>
+            ) : (
+              <ComingSoonState
+                kindLabel={meta.label}
+                onCancel={onCancel}
+              />
+            )}
           </Flex>
         </Box>
       </Box>
@@ -286,7 +304,7 @@ function ModalHeader({
         py={1}
         flexShrink={0}
       >
-        ⌥ Cole uma{" "}
+        ⌥ Paste a{" "}
         <Text as="span" fontFamily="mono">
           connection string
         </Text>
@@ -322,14 +340,14 @@ function ModalFooter({
         disabled={saveDisabled || !onSave}
         onClick={onSave}
       >
-        Salvar conexão
+        Save connection
       </Btn>
       <Btn
         variant="ghost"
         data-testid="new-connection-cancel"
         onClick={onCancel}
       >
-        Cancelar
+        Cancel
       </Btn>
       <Box flex={1} />
       <Btn
@@ -338,8 +356,42 @@ function ModalFooter({
         disabled={!onTest}
         onClick={onTest}
       >
-        <LuPlay size={12} /> Testar conexão
+        <LuPlay size={12} /> Test connection
       </Btn>
+    </Flex>
+  );
+}
+
+function ComingSoonState({
+  kindLabel,
+  onCancel,
+}: {
+  kindLabel: string;
+  onCancel: () => void;
+}) {
+  return (
+    <Flex
+      data-testid="new-connection-coming-soon"
+      direction="column"
+      align="center"
+      justify="center"
+      gap={3}
+      flex={1}
+      px={6}
+      textAlign="center"
+    >
+      <Text fontFamily="serif" fontSize="20px" color="fg" fontWeight={500}>
+        {kindLabel} — coming soon
+      </Text>
+      <Text fontSize="13px" color="fg.muted" maxW="360px">
+        Support for {kindLabel} connections lands in a future release.
+        Pick another kind on the left or close this dialog.
+      </Text>
+      <Box mt={2}>
+        <Btn variant="ghost" onClick={onCancel}>
+          Close
+        </Btn>
+      </Box>
     </Flex>
   );
 }
@@ -352,7 +404,7 @@ function TabPlaceholder({ tab }: { tab: NewConnectionTabId }) {
       fontSize="12px"
       color="fg.subtle"
     >
-      Conteúdo da aba “{label}” virá aqui.
+      Tab “{label}” content coming soon.
     </Box>
   );
 }

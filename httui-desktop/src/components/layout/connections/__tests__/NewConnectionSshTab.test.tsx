@@ -13,7 +13,7 @@ describe("NewConnectionSshTab", () => {
     expect(
       screen.getByTestId("new-connection-ssh-example"),
     ).toBeInTheDocument();
-    expect(screen.getByText(/SSH tunnel — em breve/)).toBeInTheDocument();
+    expect(screen.getByText(/SSH tunnel — coming soon/)).toBeInTheDocument();
     expect(screen.getByText(/ssh -L 6432/)).toBeInTheDocument();
   });
 });

@@ -20,7 +20,10 @@ import { NewConnectionStringTab } from "./NewConnectionStringTab";
 import { NewConnectionSshTab } from "./NewConnectionSshTab";
 import { NewConnectionSslTab, EMPTY_SSL_VALUE } from "./NewConnectionSslTab";
 import type { SslFormValue } from "./NewConnectionSslTab";
-import type { ConnectionKind } from "./connection-kinds";
+import {
+  SUPPORTED_NEW_CONNECTION_KINDS,
+  type ConnectionKind,
+} from "./connection-kinds";
 
 interface NewConnectionModalContainerProps {
   open: boolean;
@@ -30,10 +33,9 @@ interface NewConnectionModalContainerProps {
   onCreated: () => void;
 }
 
-const SUPPORTED_DRIVERS: ReadonlySet<ConnectionKind> = new Set([
-  "postgres",
-  "mysql",
-]);
+const SUPPORTED_DRIVERS: ReadonlySet<ConnectionKind> = new Set(
+  SUPPORTED_NEW_CONNECTION_KINDS,
+);
 
 export function NewConnectionModalContainer({
   open,
@@ -59,18 +61,29 @@ export function NewConnectionModalContainer({
 
   const handleSave = async () => {
     if (!SUPPORTED_DRIVERS.has(kind)) return;
-    const portNum = Number(form.port);
-    const input: CreateConnectionInput = {
-      name: form.name.trim(),
-      driver: kind as "postgres" | "mysql",
-      host: form.host.trim() || undefined,
-      port: Number.isFinite(portNum) && portNum > 0 ? portNum : undefined,
-      database_name: form.database.trim() || undefined,
-      username: form.username.trim() || undefined,
-      password: form.password || undefined,
-      ssl_mode: ssl.mode || undefined,
-    };
-    if (!input.name) return;
+    if (form.name.trim().length === 0) return;
+
+    let input: CreateConnectionInput;
+    if (kind === "sqlite") {
+      // SQLite is file-based: only name + database (file path).
+      input = {
+        name: form.name.trim(),
+        driver: "sqlite",
+        database_name: form.database.trim() || undefined,
+      };
+    } else {
+      const portNum = Number(form.port);
+      input = {
+        name: form.name.trim(),
+        driver: kind as "postgres" | "mysql",
+        host: form.host.trim() || undefined,
+        port: Number.isFinite(portNum) && portNum > 0 ? portNum : undefined,
+        database_name: form.database.trim() || undefined,
+        username: form.username.trim() || undefined,
+        password: form.password || undefined,
+        ssl_mode: ssl.mode || undefined,
+      };
+    }
     await createConnection(input);
     reset();
     onCreated();
@@ -122,6 +135,7 @@ export function NewConnectionModalContainer({
       saveDisabled={saveDisabled}
       onSave={handleSave}
       onCancel={handleClose}
+      supportedKinds={SUPPORTED_NEW_CONNECTION_KINDS}
     />
   );
 }

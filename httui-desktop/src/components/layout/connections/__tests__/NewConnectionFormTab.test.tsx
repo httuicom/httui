@@ -32,7 +32,7 @@ describe("NewConnectionFormTab", () => {
       ).toBeInTheDocument();
     }
     expect(
-      screen.getByText(/Salva apenas no seu keychain/),
+      screen.getByText(/Saved only in your local keychain/),
     ).toBeInTheDocument();
     expect(
       screen.getByTestId("new-connection-keychain-suffix"),

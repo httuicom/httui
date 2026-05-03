@@ -6,7 +6,7 @@ describe("parseConnectionString", () => {
   it("rejects an empty string", () => {
     const result = parseConnectionString("   ");
     expect(result.ok).toBe(false);
-    expect(result.ok ? "" : result.error).toMatch(/Cole/);
+    expect(result.ok ? "" : result.error).toMatch(/Paste/);
   });
 
   it("rejects a string without scheme", () => {

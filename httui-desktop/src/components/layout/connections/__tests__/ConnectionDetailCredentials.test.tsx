@@ -220,7 +220,7 @@ describe("ConnectionDetailCredentials — rotate password", () => {
     expect(onRotatePassword).not.toHaveBeenCalled();
     expect(
       screen.getByTestId("credentials-rotate-error").textContent,
-    ).toContain("vazia");
+    ).toContain("empty");
   });
 
   it("dispatches onRotatePassword with the new password and closes the section", async () => {

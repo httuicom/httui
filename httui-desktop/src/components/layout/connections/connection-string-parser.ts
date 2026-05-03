@@ -37,6 +37,7 @@ const SCHEME_TO_KIND: Record<string, ConnectionKind> = {
 const DEFAULT_PORT: Record<ConnectionKind, string> = {
   postgres: "5432",
   mysql: "3306",
+  sqlite: "",
   mongo: "27017",
   bigquery: "",
   grpc: "",
@@ -51,7 +52,7 @@ export function parseConnectionString(
 ): ConnectionStringParseResult {
   const trimmed = input.trim();
   if (!trimmed) {
-    return { ok: false, error: "Cole uma connection string para começar." };
+    return { ok: false, error: "Paste a connection string to begin." };
   }
 
   const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(trimmed);

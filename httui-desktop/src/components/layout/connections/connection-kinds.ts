@@ -13,6 +13,7 @@ import {
   LuDatabase,
   LuDatabaseZap,
   LuDiamond,
+  LuFileText,
   LuGlobe,
   LuLeaf,
   LuTerminal,
@@ -22,6 +23,7 @@ import {
 export type ConnectionKind =
   | "postgres"
   | "mysql"
+  | "sqlite"
   | "mongo"
   | "bigquery"
   | "grpc"
@@ -52,6 +54,12 @@ export const CONNECTION_KINDS: Readonly<
     label: "MySQL / MariaDB",
     Icon: LuDatabaseZap,
     hue: "0.62 0.10 215",
+  },
+  sqlite: {
+    kind: "sqlite",
+    label: "SQLite",
+    Icon: LuFileText,
+    hue: "0.62 0.10 200",
   },
   mongo: {
     kind: "mongo",
@@ -101,6 +109,7 @@ export const CONNECTION_KINDS: Readonly<
 export const CONNECTION_KIND_ORDER: ReadonlyArray<ConnectionKind> = [
   "postgres",
   "mysql",
+  "sqlite",
   "mongo",
   "bigquery",
   "grpc",
@@ -110,20 +119,30 @@ export const CONNECTION_KIND_ORDER: ReadonlyArray<ConnectionKind> = [
   "shell",
 ];
 
+/** Drivers that the V1 NewConnectionModal can actually create. Other
+ * kinds surface a "Coming soon" empty state in the modal body and
+ * hide the Form/Connection-string/SSH/SSL tabs. */
+export const SUPPORTED_NEW_CONNECTION_KINDS: ReadonlyArray<ConnectionKind> = [
+  "postgres",
+  "mysql",
+  "sqlite",
+];
+
 /** `oklch(hue)` wrapper — convenience for inline style consumers. */
 export function kindColor(kind: ConnectionKind): string {
   return `oklch(${CONNECTION_KINDS[kind].hue})`;
 }
 
 /** Map the legacy `Connection.driver` (postgres / mysql / sqlite) to
- * the canvas-§5 `ConnectionKind`. Sqlite has no slot in the canvas
- * spec; consumers render a fallback icon when this returns `null`. */
+ * the canvas-§5 `ConnectionKind`. */
 export function kindFromDriver(driver: string): ConnectionKind | null {
   switch (driver) {
     case "postgres":
       return "postgres";
     case "mysql":
       return "mysql";
+    case "sqlite":
+      return "sqlite";
     default:
       return null;
   }

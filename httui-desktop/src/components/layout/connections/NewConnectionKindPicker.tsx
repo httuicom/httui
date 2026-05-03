@@ -48,10 +48,10 @@ export function NewConnectionKindPicker({
             color="fg"
             lineHeight={1.2}
           >
-            Nova conexão
+            New connection
           </Text>
           <Text fontSize="11px" color="fg.muted" mt={0.5}>
-            Escolha o tipo
+            Pick the kind
           </Text>
         </Box>
 

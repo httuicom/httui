@@ -74,17 +74,17 @@ describe("ConnectionsKindSidebar", () => {
     expect(screen.getByTestId("env-row-prod").textContent).toContain("2");
   });
 
-  it("shows 'Sem ambientes' when envs is empty", () => {
+  it("shows 'No environments' when envs is empty", () => {
     renderWithProviders(
       <ConnectionsKindSidebar {...defaults()} envs={[]} />,
     );
-    expect(screen.getByText("Sem ambientes")).toBeInTheDocument();
+    expect(screen.getByText("No environments")).toBeInTheDocument();
   });
 
   it("renders the keychain hint card with the canvas copy", () => {
     renderWithProviders(<ConnectionsKindSidebar {...defaults()} />);
     const hint = screen.getByTestId("connections-keychain-hint");
-    expect(hint.textContent).toContain("Credenciais locais");
+    expect(hint.textContent).toContain("Local credentials");
     expect(hint.textContent).toContain("keychain");
   });
 });

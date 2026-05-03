@@ -22,7 +22,7 @@ import { Input } from "@/components/atoms";
 import type { ConnectionKind } from "./connection-kinds";
 
 const KEYCHAIN_HINT =
-  "Salva apenas no seu keychain. Outro device → recadastrar.";
+  "Saved only in your local keychain. New device → re-register.";
 
 /** Field set covered by the Postgres-shape form. Other kinds may
  * map onto a subset (e.g. shell ignores host/port/database). The
@@ -62,6 +62,42 @@ export function NewConnectionFormTab({
   envBinder,
   testBanner,
 }: NewConnectionFormTabProps) {
+  if (kind === "sqlite") {
+    return (
+      <Flex
+        data-testid="new-connection-form-tab-sqlite"
+        direction="column"
+        gap={4}
+      >
+        <Field label="Name">
+          <Input
+            data-testid="new-connection-field-name"
+            value={value.name}
+            onChange={(e) => patch("name", e.target.value)}
+            placeholder="local-cache"
+          />
+        </Field>
+        <Field
+          label="Database file path"
+          hint="Absolute or vault-relative path to the .sqlite file."
+        >
+          <Input
+            data-testid="new-connection-field-database"
+            value={value.database}
+            onChange={(e) => patch("database", e.target.value)}
+            placeholder="~/data/cache.sqlite"
+          />
+        </Field>
+        {envBinder && (
+          <Box data-testid="new-connection-form-env-slot">{envBinder}</Box>
+        )}
+        {testBanner && (
+          <Box data-testid="new-connection-form-test-slot">{testBanner}</Box>
+        )}
+      </Flex>
+    );
+  }
+
   if (kind !== "postgres" && kind !== "mysql") {
     return (
       <Box
@@ -69,7 +105,7 @@ export function NewConnectionFormTab({
         fontSize="12px"
         color="fg.subtle"
       >
-        Form para “{kind}” virá em uma fase futura.
+        Form for “{kind}” coming in a future phase.
       </Box>
     );
   }
@@ -87,7 +123,7 @@ export function NewConnectionFormTab({
       direction="column"
       gap={4}
     >
-      <Field label="Nome">
+      <Field label="Name">
         <Input
           data-testid="new-connection-field-name"
           value={value.name}
@@ -105,7 +141,7 @@ export function NewConnectionFormTab({
             placeholder="db.internal"
           />
         </Field>
-        <Field label="Porta">
+        <Field label="Port">
           <Input
             data-testid="new-connection-field-port"
             value={value.port}
@@ -125,7 +161,7 @@ export function NewConnectionFormTab({
             placeholder="orders"
           />
         </Field>
-        <Field label="Usuário">
+        <Field label="User">
           <Input
             data-testid="new-connection-field-username"
             value={value.username}
@@ -135,7 +171,7 @@ export function NewConnectionFormTab({
         </Field>
       </Grid>
 
-      <Field label="Senha" hint={KEYCHAIN_HINT}>
+      <Field label="Password" hint={KEYCHAIN_HINT}>
         <Flex align="center" gap={2}>
           <Input
             data-testid="new-connection-field-password"

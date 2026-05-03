@@ -52,7 +52,7 @@ export function NewConnectionTestBanner({
             aria-hidden
           />
           <Text fontWeight={500} color="fg">
-            Testando…
+            Testing…
           </Text>
         </Flex>
       </Box>
@@ -81,7 +81,7 @@ export function NewConnectionTestBanner({
             bg="green.solid"
             aria-hidden
           />
-          <Text fontWeight={500}>Conexão OK</Text>
+          <Text fontWeight={500}>Connection OK</Text>
           <Text fontFamily="mono" color="green.fg" truncate>
             {state.detail} · {state.latencyMs}ms
           </Text>
@@ -98,7 +98,7 @@ export function NewConnectionTestBanner({
               cursor="pointer"
               _hover={{ textDecoration: "underline" }}
             >
-              Re-testar
+              Re-test
             </RetryButton>
           )}
         </Flex>
@@ -127,7 +127,7 @@ export function NewConnectionTestBanner({
           bg="red.solid"
           aria-hidden
         />
-        <Text fontWeight={500}>Falhou</Text>
+        <Text fontWeight={500}>Failed</Text>
         <Text fontFamily="mono" color="red.fg" truncate>
           {state.message}
         </Text>
@@ -144,7 +144,7 @@ export function NewConnectionTestBanner({
             cursor="pointer"
             _hover={{ textDecoration: "underline" }}
           >
-            Re-testar
+            Re-test
           </RetryButton>
         )}
       </Flex>

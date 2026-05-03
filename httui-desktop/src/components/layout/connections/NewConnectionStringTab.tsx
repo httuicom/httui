@@ -60,10 +60,10 @@ export function NewConnectionStringTab({
       gap={3}
     >
       <Text fontSize="11px" color="fg.muted">
-        Cole uma URL do tipo <Mono>postgres://</Mono>, <Mono>postgresql://</Mono>{" "}
-        ou <Mono>mysql://</Mono>. Os campos do formulário e os parâmetros{" "}
-        <Mono>sslmode</Mono> /<Mono>sslrootcert</Mono> são preenchidos a
-        partir da URL.
+        Paste a URL like <Mono>postgres://</Mono>, <Mono>postgresql://</Mono>{" "}
+        or <Mono>mysql://</Mono>. Form fields and the{" "}
+        <Mono>sslmode</Mono> /<Mono>sslrootcert</Mono> params are filled
+        from the URL.
       </Text>
 
       <Textarea
@@ -81,7 +81,7 @@ export function NewConnectionStringTab({
           onClick={handleParse}
           disabled={text.trim().length === 0}
         >
-          Preencher formulário
+          Fill form
         </Btn>
         <Box flex={1} />
         {result?.ok && (
@@ -90,7 +90,7 @@ export function NewConnectionStringTab({
             fontSize="11px"
             color="ok"
           >
-            Pronto · campos atualizados a partir da URL.
+            Done · fields filled from the URL.
           </Text>
         )}
       </Flex>

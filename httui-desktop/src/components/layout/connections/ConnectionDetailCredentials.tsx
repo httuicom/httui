@@ -126,7 +126,7 @@ export function ConnectionDetailCredentials({
 
   async function handleRotate() {
     if (rotatePassword.length === 0) {
-      setRotateError("Senha não pode ser vazia");
+      setRotateError("Password cannot be empty");
       return;
     }
     setRotateBusy(true);
