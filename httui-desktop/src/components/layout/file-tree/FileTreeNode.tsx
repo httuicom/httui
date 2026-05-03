@@ -5,6 +5,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { usePaneStore } from "@/stores/pane";
 import type { FileEntry } from "@/lib/tauri/commands";
 import { InlineInput } from "./InlineInput";
+import { FileTreeTagDots } from "./FileTreeTagDots";
 import {
   LuFolder,
   LuFolderOpen,
@@ -180,6 +181,11 @@ export function FileTreeNode({
             >
               {entry.is_dir ? entry.name : entry.name.replace(".md", "")}
             </Text>
+            {!entry.is_dir && (
+              <Box ml="auto" pl={1}>
+                <FileTreeTagDots filePath={entry.path} />
+              </Box>
+            )}
           </HStack>
         </Menu.ContextTrigger>
         <Portal>
