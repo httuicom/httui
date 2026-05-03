@@ -74,13 +74,40 @@ describe("DocHeaderShell", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("forwards onToggleCompact through to the title click", async () => {
+  it("forwards onToggleCompact through to the title click (legacy fallback)", async () => {
     const onToggleCompact = vi.fn();
     renderWithProviders(
       <DocHeaderShell filePath="x.md" onToggleCompact={onToggleCompact} />,
     );
     await userEvent.setup().click(screen.getByTestId("docheader-title"));
     expect(onToggleCompact).toHaveBeenCalledTimes(1);
+  });
+
+  it("title click prefers onTitleNavigateToBody over onToggleCompact (V6 cenário 3)", async () => {
+    const onToggleCompact = vi.fn();
+    const onTitleNavigateToBody = vi.fn();
+    renderWithProviders(
+      <DocHeaderShell
+        filePath="x.md"
+        onToggleCompact={onToggleCompact}
+        onTitleNavigateToBody={onTitleNavigateToBody}
+      />,
+    );
+    await userEvent.setup().click(screen.getByTestId("docheader-title"));
+    expect(onTitleNavigateToBody).toHaveBeenCalledTimes(1);
+    expect(onToggleCompact).not.toHaveBeenCalled();
+  });
+
+  it("onTitleNavigateToBody alone wires the title click (V6 cenário 3)", async () => {
+    const onTitleNavigateToBody = vi.fn();
+    renderWithProviders(
+      <DocHeaderShell
+        filePath="x.md"
+        onTitleNavigateToBody={onTitleNavigateToBody}
+      />,
+    );
+    await userEvent.setup().click(screen.getByTestId("docheader-title"));
+    expect(onTitleNavigateToBody).toHaveBeenCalledTimes(1);
   });
 
   it("renders the meta strip when meta props are provided", () => {

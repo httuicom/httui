@@ -20,6 +20,7 @@ import {
   dispatchDocReplace,
   getDocHeaderEntries,
   getDocHeaderPortalVersion,
+  returnFocusToBody,
   subscribeToDocHeaderPortals,
 } from "@/lib/codemirror/cm-doc-header";
 import { DocHeaderContext } from "@/components/layout/docheader/doc-header-context";
@@ -47,6 +48,7 @@ export type InlineDocHeader = Omit<
   | "onAddTag"
   | "onRemoveTag"
   | "onChecklistSave"
+  | "onTitleNavigateToBody"
 >;
 
 interface DocHeaderWidgetPortalProps {
@@ -140,6 +142,15 @@ export function DocHeaderWidgetPortal({
     [entry],
   );
 
+  // V6 / cenário 3 — clicking the static H1 (used by snapshot / diff
+  // viewer surfaces, and by inline mode whenever the editor is not in
+  // editable input mode) jumps to the first body line and focuses the
+  // cursor there. The keyboard equivalent (Enter / ArrowDown / Escape
+  // on the editable input) ships with V2 cenário 4.5.
+  const onTitleNavigateToBody = useCallback(() => {
+    returnFocusToBody(instanceId);
+  }, [instanceId]);
+
   if (!entry) return null;
   return createPortal(
     <DocHeaderContext.Provider value={ctx}>
@@ -152,6 +163,7 @@ export function DocHeaderWidgetPortal({
         onAddTag={view ? onAddTag : undefined}
         onRemoveTag={view ? onRemoveTag : undefined}
         onChecklistSave={view ? onChecklistSave : undefined}
+        onTitleNavigateToBody={view ? onTitleNavigateToBody : undefined}
       />
     </DocHeaderContext.Provider>,
     entry.container,

@@ -39,8 +39,16 @@ export interface DocHeaderShellProps {
   /** True when the card is collapsed to H1 + meta strip only.
    *  Driven by the consumer (reads from workspace.toml). */
   compact?: boolean;
-  /** Click-on-title toggle. Consumer flips compact + persists. */
+  /** Click-on-title toggle. Consumer flips compact + persists. Used by
+   *  static consumers (diff viewer, snapshots) only — V6 cenário 3
+   *  prefers `onTitleNavigateToBody` for the inline editor since
+   *  toggling compact is a no-op in editable mode. */
   onToggleCompact?: () => void;
+  /** V6 / cenário 3 — click on the (static) H1 navigates to the first
+   *  body line and focuses the cursor there. Wired by the inline editor
+   *  consumer (`DocHeaderWidgetPortal`) to `returnFocusToBody`. Takes
+   *  precedence over `onToggleCompact` when both are provided. */
+  onTitleNavigateToBody?: () => void;
   onBreadcrumbSelect?: (path: string) => void;
   /** When provided, the H1 becomes an editable input (Notion-mode).
    *  See DocHeaderCard for debounce + sync semantics. */
@@ -93,6 +101,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     firstHeading,
     compact,
     onToggleCompact,
+    onTitleNavigateToBody,
     onBreadcrumbSelect,
     onTitleSave,
     onAbstractSave,
@@ -163,7 +172,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
           frontmatter={frontmatter}
           firstHeading={firstHeading}
           compact={effectiveCompact}
-          onTitleClick={onToggleCompact}
+          onTitleClick={onTitleNavigateToBody ?? onToggleCompact}
           onBreadcrumbSelect={onBreadcrumbSelect}
           onTitleSave={onTitleSave}
         />
