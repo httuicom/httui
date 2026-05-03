@@ -28,6 +28,10 @@ export interface VariableValueRowProps {
   fetchSecret?: (env: string) => Promise<string | undefined>;
   /** Called on Save with the new draft. Consumer wires the store/Tauri write. */
   onCommit?: (env: string, next: string) => void;
+  /** Called when the user picks Override → Save with the override
+   * value. Consumer wires the in-memory `useSessionOverrideStore`.
+   * When omitted, the Override button is hidden. */
+  onSetOverride?: (env: string, next: string) => void;
   /** Active session override for this env. When set, wins over `value` and
    * `fetchSecret` — the chip is shown and reveal/edit are bypassed. */
   override?: string;
@@ -41,17 +45,20 @@ type RevealState =
   | { kind: "revealed"; value: string }
   | { kind: "error"; message: string };
 
+type EditMode = "commit" | "override" | null;
+
 export function VariableValueRow({
   env,
   value,
   isSecret,
   fetchSecret,
   onCommit,
+  onSetOverride,
   override,
   onClearOverride,
 }: VariableValueRowProps) {
   const [reveal, setReveal] = useState<RevealState>({ kind: "masked" });
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<EditMode>(null);
   const [draft, setDraft] = useState("");
   const isOverridden = override !== undefined;
 
@@ -81,27 +88,46 @@ export function VariableValueRow({
     } else {
       return;
     }
-    setEditing(true);
+    setEditing("commit");
+  }
+
+  function handleOverride() {
+    // Override never reveals the keychain value (it lives elsewhere
+    // and the override is its own ephemeral string). Start with the
+    // current cleartext when we already have it, otherwise blank.
+    if (isSecret && reveal.kind === "revealed") {
+      setDraft(reveal.value);
+    } else if (!isSecret) {
+      setDraft(value ?? "");
+    } else {
+      setDraft("");
+    }
+    setEditing("override");
   }
 
   function handleSave() {
-    onCommit?.(env, draft);
-    if (isSecret && reveal.kind === "revealed") {
-      setReveal({ kind: "revealed", value: draft });
+    if (editing === "override") {
+      onSetOverride?.(env, draft);
+    } else {
+      onCommit?.(env, draft);
+      if (isSecret && reveal.kind === "revealed") {
+        setReveal({ kind: "revealed", value: draft });
+      }
     }
-    setEditing(false);
+    setEditing(null);
   }
 
   function handleCancel() {
-    setEditing(false);
+    setEditing(null);
   }
 
   const canEdit = !isSecret || reveal.kind === "revealed";
+  const canOverride = !!onSetOverride;
 
   return (
     <Flex
       data-testid={`variable-value-row-${env}`}
-      data-mode={editing ? "edit" : isOverridden ? "override" : "view"}
+      data-mode={editing ?? (isOverridden ? "override" : "view")}
       align="center"
       gap={2}
       px={4}
@@ -124,6 +150,7 @@ export function VariableValueRow({
       {editing ? (
         <ValueEditor
           env={env}
+          mode={editing}
           draft={draft}
           onChangeDraft={setDraft}
           onSave={handleSave}
@@ -171,6 +198,16 @@ export function VariableValueRow({
               onClick={handleEdit}
             >
               Edit
+            </Btn>
+          )}
+          {canOverride && (
+            <Btn
+              variant="ghost"
+              data-testid={`variable-value-row-${env}-override`}
+              onClick={handleOverride}
+              title="Set a session-only override (not persisted)"
+            >
+              Override
             </Btn>
           )}
         </>
@@ -296,17 +333,20 @@ function SecretToggle({
 
 function ValueEditor({
   env,
+  mode,
   draft,
   onChangeDraft,
   onSave,
   onCancel,
 }: {
   env: string;
+  mode: "commit" | "override";
   draft: string;
   onChangeDraft: (v: string) => void;
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const saveLabel = mode === "override" ? "Override" : "Save";
   return (
     <>
       <Box flex={1} minW={0}>
@@ -331,7 +371,7 @@ function ValueEditor({
         data-testid={`variable-value-row-${env}-save`}
         onClick={onSave}
       >
-        Save
+        {saveLabel}
       </Btn>
       <Btn
         variant="ghost"

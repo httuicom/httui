@@ -206,7 +206,7 @@ describe("VariableValueRow (edit mode)", () => {
     expect(input.value).toBe("http://localhost");
     expect(
       screen.getByTestId("variable-value-row-local").getAttribute("data-mode"),
-    ).toBe("edit");
+    ).toBe("commit");
   });
 
   it("commits the draft on Save and returns to view mode", async () => {

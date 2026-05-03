@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import userEvent from "@testing-library/user-event";
 
 import { VariablesPageContainer } from "@/components/layout/variables/VariablesPageContainer";
 import { mergeCrossEnvVariables } from "@/components/layout/variables/VariablesPageContainer";
 import type { Environment, EnvVariable } from "@/lib/tauri/commands";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { useEnvironmentStore } from "@/stores/environment";
+import { useSessionOverrideStore } from "@/stores/sessionOverride";
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
 
@@ -129,6 +131,7 @@ afterEach(() => {
     activeEnvironment: null,
     variablesVersion: 0,
   });
+  useSessionOverrideStore.getState().clearAll();
 });
 
 describe("VariablesPageContainer", () => {
@@ -177,5 +180,48 @@ describe("VariablesPageContainer", () => {
     });
     const usesCell = screen.getByTestId("variables-row-API_BASE-uses");
     expect(usesCell.textContent).toBe("—");
+  });
+
+  it("opens the detail panel and writes a session override on Save", async () => {
+    renderWithProviders(<VariablesPageContainer />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByTestId("variables-row-API_BASE"));
+    await user.click(
+      await screen.findByTestId("variable-value-row-local-override"),
+    );
+    const input = (await screen.findByTestId(
+      "variable-value-row-local-input",
+    )) as HTMLInputElement;
+    await user.clear(input);
+    await user.type(input, "http://override.local");
+    await user.click(screen.getByTestId("variable-value-row-local-save"));
+
+    await waitFor(() => {
+      expect(
+        useSessionOverrideStore.getState().getOverride("local", "API_BASE"),
+      ).toBe("http://override.local");
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("temporary-chip")).toBeTruthy();
+    });
+  });
+
+  it("clearing the TEMPORARY chip drops the override", async () => {
+    useSessionOverrideStore
+      .getState()
+      .setOverride("local", "API_BASE", "http://from-store");
+    renderWithProviders(<VariablesPageContainer />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByTestId("variables-row-API_BASE"));
+    const chip = await screen.findByTestId("temporary-chip");
+    await user.click(chip);
+
+    await waitFor(() => {
+      expect(
+        useSessionOverrideStore.getState().getOverride("local", "API_BASE"),
+      ).toBeUndefined();
+    });
   });
 });

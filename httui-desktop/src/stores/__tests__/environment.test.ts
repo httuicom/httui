@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { useEnvironmentStore } from "@/stores/environment";
+import { useSessionOverrideStore } from "@/stores/sessionOverride";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
 import type { Environment, EnvVariable } from "@/lib/tauri/commands";
 
@@ -277,6 +278,27 @@ describe("environmentStore", () => {
 
       const result = await useEnvironmentStore.getState().getActiveVariables();
       expect(result).toEqual({ TOKEN: "abc" });
+    });
+
+    it("session overrides for the active env shadow the resolved values (V5)", async () => {
+      useEnvironmentStore.setState({
+        activeEnvironment: mkEnv("a", "dev", true),
+      });
+      mockTauriCommand("resolve_active_env_variables", () => ({
+        TOKEN: "from-vault",
+        URL: "https://example.com",
+      }));
+      useSessionOverrideStore
+        .getState()
+        .setOverride("dev", "TOKEN", "from-override");
+
+      const result = await useEnvironmentStore.getState().getActiveVariables();
+
+      expect(result).toEqual({
+        TOKEN: "from-override",
+        URL: "https://example.com",
+      });
+      useSessionOverrideStore.getState().clearAll();
     });
   });
 });

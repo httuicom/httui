@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 
 import { useEnvironmentStore } from "@/stores/environment";
+import { useSessionOverrideStore } from "@/stores/sessionOverride";
 import { useWorkspaceStore } from "@/stores/workspace";
 import {
   listEnvVariables,
@@ -76,6 +77,9 @@ export function VariablesPageContainer({
   const refreshEnvs = useEnvironmentStore((s) => s.refresh);
   const setVariable = useEnvironmentStore((s) => s.setVariable);
   const variablesVersion = useEnvironmentStore((s) => s.variablesVersion);
+  const overrides = useSessionOverrideStore((s) => s.overrides);
+  const setOverride = useSessionOverrideStore((s) => s.setOverride);
+  const clearOverride = useSessionOverrideStore((s) => s.clearOverride);
 
   const [rows, setRows] = useState<VariableRow[]>([]);
   const [usesEntriesByKey, setUsesEntriesByKey] = useState<
@@ -208,12 +212,25 @@ export function VariablesPageContainer({
     [envByName, selectedRow, setVariable],
   );
 
+  const overridesByEnv = useMemo(() => {
+    if (!selectedRow) return {};
+    const out: Record<string, string> = {};
+    for (const env of envColumnNames) {
+      const v = overrides[env]?.[selectedRow.key];
+      if (v !== undefined) out[env] = v;
+    }
+    return out;
+  }, [overrides, selectedRow, envColumnNames]);
+
   const detailSlot = selectedRow ? (
     <VariableDetailContent
       row={selectedRow}
       envNames={envColumnNames}
       fetchSecret={fetchSecret}
       onCommitValue={handleCommitValue}
+      onSetOverride={(env, next) => setOverride(env, selectedRow.key, next)}
+      onClearOverride={(env) => clearOverride(env, selectedRow.key)}
+      overridesByEnv={overridesByEnv}
       usedInBlocksSlot={
         <UsedInBlocksList
           entries={usesEntriesByKey[selectedRow.key]}

@@ -12,6 +12,7 @@ import {
   deleteEnvVariable as deleteEnvVarCmd,
   resolveActiveEnvVariables,
 } from "@/lib/tauri/commands";
+import { useSessionOverrideStore } from "./sessionOverride";
 
 // --- Types ---
 
@@ -107,18 +108,25 @@ export const useEnvironmentStore = create<EnvironmentState>()(
         // from the keychain. The plain `listEnvVariables` masks
         // secrets to empty strings — using it here would silently
         // collapse `{{SECRET_KEY}}` to nothing on every request.
+        let resolved: Record<string, string>;
         try {
-          return await resolveActiveEnvVariables();
+          resolved = await resolveActiveEnvVariables();
         } catch {
           // Fall back to the masked list so the request still goes
           // out (with secrets unresolved) rather than failing.
           const vars = await listEnvVariables(activeEnvironment.id);
-          const result: Record<string, string> = {};
+          resolved = {};
           for (const v of vars) {
-            result[v.key] = v.value;
+            resolved[v.key] = v.value;
           }
-          return result;
         }
+        // V5 cenário 3 — apply session overrides for the active env on
+        // top of the resolved values so block runs see the TEMPORARY
+        // value the user set, not the vault-stored one.
+        const overrides =
+          useSessionOverrideStore.getState().overrides[activeEnvironment.name] ??
+          {};
+        return { ...resolved, ...overrides };
       },
     }),
     { name: "environment-store" },

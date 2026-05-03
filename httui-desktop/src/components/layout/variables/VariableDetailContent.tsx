@@ -25,6 +25,14 @@ export interface VariableDetailContentProps {
   fetchSecret?: (env: string) => Promise<string | undefined>;
   /** Per-env value commit (consumer wires `EnvironmentsStore::set_var`). */
   onCommitValue?: (env: string, next: string) => void;
+  /** Per-env session override (consumer wires
+   * `useSessionOverrideStore.setOverride`). When omitted, the
+   * Override button is hidden in every row. */
+  onSetOverride?: (env: string, next: string) => void;
+  /** Drop a session override for `env`. Wired by the TEMPORARY chip click. */
+  onClearOverride?: (env: string) => void;
+  /** Active overrides keyed by env name — drives the TEMPORARY chip. */
+  overridesByEnv?: Readonly<Record<string, string>>;
   /** is_secret flip (consumer owns keychain↔TOML migration). */
   onToggleSecret?: (next: boolean) => void;
   /** Demotion confirmation gate (secret → public). */
@@ -38,6 +46,9 @@ export function VariableDetailContent({
   envNames,
   fetchSecret,
   onCommitValue,
+  onSetOverride,
+  onClearOverride,
+  overridesByEnv,
   onToggleSecret,
   confirmDemote,
   usedInBlocksSlot,
@@ -69,6 +80,11 @@ export function VariableDetailContent({
               isSecret={row.isSecret}
               fetchSecret={fetchSecret}
               onCommit={onCommitValue}
+              onSetOverride={onSetOverride}
+              override={overridesByEnv?.[env]}
+              onClearOverride={
+                onClearOverride ? () => onClearOverride(env) : undefined
+              }
             />
           ))
         )}
