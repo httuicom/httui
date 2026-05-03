@@ -123,4 +123,48 @@ describe("FileTree", () => {
       expect(toggle.getAttribute("data-show-archived")).toBe("true");
     });
   });
+
+  describe("inline create at root", () => {
+    it("renders the inline input when inlineCreate.dirPath is empty", () => {
+      renderTree({
+        entries: [note],
+        inlineCreate: { type: "note", dirPath: "" },
+      });
+      expect(screen.getByRole("textbox")).toBeInTheDocument();
+    });
+
+    it("dispatches handleCreateNote on confirm", () => {
+      const handleCreateNote = vi.fn(async () => {});
+      renderTree({
+        entries: [],
+        inlineCreate: { type: "note", dirPath: "" },
+        handleCreateNote,
+      });
+      const input = screen.getByRole("textbox") as HTMLInputElement;
+      fireEvent.change(input, { target: { value: "new.md" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(handleCreateNote).toHaveBeenCalledWith("", "new.md");
+    });
+
+    it("dispatches handleCreateFolder when type is folder", () => {
+      const handleCreateFolder = vi.fn(async () => {});
+      renderTree({
+        entries: [],
+        inlineCreate: { type: "folder", dirPath: "" },
+        handleCreateFolder,
+      });
+      const input = screen.getByRole("textbox") as HTMLInputElement;
+      fireEvent.change(input, { target: { value: "newdir" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(handleCreateFolder).toHaveBeenCalledWith("", "newdir");
+    });
+
+    it("hides 'Empty vault' when an inline create is active even with no entries", () => {
+      renderTree({
+        entries: [],
+        inlineCreate: { type: "note", dirPath: "" },
+      });
+      expect(screen.queryByText("Empty vault")).not.toBeInTheDocument();
+    });
+  });
 });

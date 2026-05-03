@@ -14,6 +14,7 @@ import { useArchiveFilterStore } from "@/stores/archiveFilter";
 import { useTagIndexStore } from "@/stores/tagIndex";
 import { FileTreeNode } from "./FileTreeNode";
 import { InlineInput } from "./InlineInput";
+import { resolveFileTreeDrop } from "./file-tree-drag";
 
 export function FileTree() {
   const {
@@ -31,18 +32,9 @@ export function FileTree() {
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-
-      const sourcePath = active.data.current?.path as string | undefined;
-      const targetDir = over.data.current?.dirPath as string | undefined;
-      if (!sourcePath || targetDir === undefined) return;
-
-      // Prevent dropping into self or descendant
-      if (sourcePath === targetDir || targetDir.startsWith(sourcePath + "/"))
-        return;
-
-      handleMoveFile(sourcePath, targetDir);
+      const drop = resolveFileTreeDrop(event);
+      if (!drop) return;
+      handleMoveFile(drop.sourcePath, drop.targetDir);
     },
     [handleMoveFile],
   );
