@@ -56,7 +56,7 @@ describe("QuickOpen", () => {
 
   it("renders the search input when open", () => {
     renderWithWorkspace(<QuickOpen open onClose={vi.fn()} />);
-    expect(screen.getByPlaceholderText("Buscar arquivo...")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Buscar arquivo… ou #tag")).toBeInTheDocument();
   });
 
   it('shows "Nenhum resultado" when query has no matches', () => {
@@ -107,7 +107,7 @@ describe("QuickOpen", () => {
   it("typing in the input dispatches handleSearch", async () => {
     const user = userEvent.setup();
     renderWithWorkspace(<QuickOpen open onClose={vi.fn()} />);
-    await user.type(screen.getByPlaceholderText("Buscar arquivo..."), "lo");
+    await user.type(screen.getByPlaceholderText("Buscar arquivo… ou #tag"), "lo");
     expect(mockState.handleSearch).toHaveBeenCalled();
   });
 });

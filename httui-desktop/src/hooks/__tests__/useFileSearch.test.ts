@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useFileSearch } from "@/hooks/useFileSearch";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
+import { useTagIndexStore } from "@/stores/tagIndex";
 import type { SearchResult } from "@/lib/tauri/commands";
 
 const VAULT = "/test/vault";
@@ -15,11 +16,13 @@ const mkResult = (name: string, score = 1): SearchResult => ({
 describe("useFileSearch", () => {
   beforeEach(() => {
     clearTauriMocks();
+    useTagIndexStore.getState().clearAll();
     vi.useFakeTimers();
   });
 
   afterEach(() => {
     clearTauriMocks();
+    useTagIndexStore.getState().clearAll();
     vi.useRealTimers();
   });
 
@@ -290,5 +293,157 @@ describe("useFileSearch", () => {
     });
 
     expect(result.current.results).toEqual([]);
+  });
+
+  describe("tag mode (V6 cenário 4)", () => {
+    it("`#payments` lists files with the payments tag from the store", async () => {
+      // Bootstrap two tagged files in the store; search_files is mocked
+      // but should NOT be called for tag queries.
+      useTagIndexStore
+        .getState()
+        .setTagsForFile(`${VAULT}/runbooks/refund.md`, ["payments", "api"]);
+      useTagIndexStore
+        .getState()
+        .setTagsForFile(`${VAULT}/notes/billing.md`, ["payments"]);
+      useTagIndexStore
+        .getState()
+        .setTagsForFile(`${VAULT}/notes/other.md`, ["misc"]);
+
+      const searchFilesCalls = { n: 0 };
+      mockTauriCommand("search_files", () => {
+        searchFilesCalls.n++;
+        return [];
+      });
+
+      const { result } = renderHook(() =>
+        useFileSearch({
+          vaultPath: VAULT,
+          onSelect: vi.fn(),
+          onClose: vi.fn(),
+        }),
+      );
+      // Drain the mount-load (loadOnMount calls search_files with "")
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      const callsAfterMount = searchFilesCalls.n;
+
+      act(() => result.current.handleSearch("#payments"));
+      await flush();
+
+      expect(searchFilesCalls.n).toBe(callsAfterMount);
+      expect(result.current.results.map((r) => r.path).sort()).toEqual([
+        `${VAULT}/notes/billing.md`,
+        `${VAULT}/runbooks/refund.md`,
+      ]);
+      // `name` is the leaf without `.md` for cleaner display.
+      expect(result.current.results.find((r) => r.path.endsWith("billing.md"))?.name)
+        .toBe("billing");
+    });
+
+    it("`#missing` returns empty without hitting search_files", async () => {
+      const searchFilesCalls = { n: 0 };
+      mockTauriCommand("search_files", () => {
+        searchFilesCalls.n++;
+        return [];
+      });
+
+      const { result } = renderHook(() =>
+        useFileSearch({
+          vaultPath: VAULT,
+          onSelect: vi.fn(),
+          onClose: vi.fn(),
+        }),
+      );
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      const callsAfterMount = searchFilesCalls.n;
+
+      act(() => result.current.handleSearch("#missing"));
+      await flush();
+
+      expect(searchFilesCalls.n).toBe(callsAfterMount);
+      expect(result.current.results).toEqual([]);
+    });
+
+    it("`#a AND #b` intersects the two tag sets", async () => {
+      useTagIndexStore
+        .getState()
+        .setTagsForFile(`${VAULT}/x.md`, ["a", "b"]);
+      useTagIndexStore.getState().setTagsForFile(`${VAULT}/y.md`, ["a"]);
+      useTagIndexStore.getState().setTagsForFile(`${VAULT}/z.md`, ["b"]);
+      mockTauriCommand("search_files", () => []);
+
+      const { result } = renderHook(() =>
+        useFileSearch({
+          vaultPath: VAULT,
+          onSelect: vi.fn(),
+          onClose: vi.fn(),
+        }),
+      );
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      act(() => result.current.handleSearch("#a AND #b"));
+      await flush();
+
+      expect(result.current.results.map((r) => r.path)).toEqual([
+        `${VAULT}/x.md`,
+      ]);
+    });
+
+    it("non-tag query still routes to search_files", async () => {
+      const all = [mkResult("foo.md")];
+      let lastQuery: string | null = null;
+      mockTauriCommand("search_files", (args) => {
+        lastQuery = (args as { query: string }).query;
+        return all;
+      });
+
+      const { result } = renderHook(() =>
+        useFileSearch({
+          vaultPath: VAULT,
+          onSelect: vi.fn(),
+          onClose: vi.fn(),
+        }),
+      );
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      act(() => result.current.handleSearch("foo"));
+      await flush();
+
+      expect(lastQuery).toBe("foo");
+      expect(result.current.results).toEqual(all);
+    });
+
+    it("tag mode works without a vaultPath (store is vault-agnostic)", async () => {
+      useTagIndexStore
+        .getState()
+        .setTagsForFile("/elsewhere/note.md", ["api"]);
+      mockTauriCommand("search_files", () => []);
+
+      const { result } = renderHook(() =>
+        useFileSearch({
+          vaultPath: null,
+          onSelect: vi.fn(),
+          onClose: vi.fn(),
+        }),
+      );
+
+      act(() => result.current.handleSearch("#api"));
+      await flush();
+
+      expect(result.current.results.map((r) => r.path)).toEqual([
+        "/elsewhere/note.md",
+      ]);
+    });
   });
 });

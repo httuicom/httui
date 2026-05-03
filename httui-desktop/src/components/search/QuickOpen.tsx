@@ -69,7 +69,7 @@ function QuickOpenInner({ onClose }: { onClose: () => void }) {
         <Box p={2}>
           <Input
             ref={inputRef}
-            placeholder="Buscar arquivo..."
+            placeholder="Buscar arquivo… ou #tag"
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
             onKeyDown={handleKeyDown}
