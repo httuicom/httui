@@ -85,6 +85,12 @@ export interface ConnectionsPageProps {
   onTestConnection?: (id: string) => Promise<number>;
   onDuplicateConnection?: (id: string) => Promise<void> | void;
   onDeleteConnection?: (id: string) => Promise<void> | void;
+  /** Controlled selection (V4). When provided, the page becomes a
+   * controlled component and emits changes via `onSelectId`.
+   * Omit both to keep the legacy uncontrolled behaviour (used by
+   * the Story 02-05 test suite). */
+  selectedId?: string | null;
+  onSelectId?: (id: string | null) => void;
 }
 
 export function ConnectionsPage({
@@ -106,12 +112,22 @@ export function ConnectionsPage({
   onTestConnection,
   onDuplicateConnection,
   onDeleteConnection,
+  selectedId: selectedIdProp,
+  onSelectId,
 }: ConnectionsPageProps) {
   const [selectedKind, setSelectedKind] = useState<ConnectionKind | null>(
     null,
   );
   const [searchValue, setSearchValue] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [internalSelectedId, setInternalSelectedId] = useState<string | null>(
+    null,
+  );
+  const isControlled = selectedIdProp !== undefined;
+  const selectedId = isControlled ? selectedIdProp : internalSelectedId;
+  const setSelectedId = (id: string | null) => {
+    if (!isControlled) setInternalSelectedId(id);
+    onSelectId?.(id);
+  };
 
   const countsByKind = useMemo(
     () => countsByKindOverride ?? deriveCountsByKind(connections),

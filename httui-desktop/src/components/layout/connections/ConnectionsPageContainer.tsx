@@ -1,0 +1,191 @@
+// Smart wrapper around <ConnectionsPage /> (V4). Owns data fetching,
+// IPC dispatch, and cross-store wiring; the presentational page
+// stays prop-driven and trivially testable.
+//
+// V3 lesson: keep this lean. If a feature doesn't have a clean home,
+// don't invent a workspace tab to host it.
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  createConnection,
+  deleteConnection,
+  findConnectionUses,
+  listConnections,
+  testConnection,
+  updateConnection,
+  type Connection,
+  type UpdateConnectionInput,
+} from "@/lib/tauri/connections";
+import { useSchemaCacheStore } from "@/stores/schemaCache";
+import { useWorkspaceStore } from "@/stores/workspace";
+import type { RunbookUsage } from "./connection-usages";
+import { ConnectionsPage } from "./ConnectionsPage";
+import { NewConnectionModal } from "./NewConnectionModal";
+
+interface ConnectionsPageContainerProps {
+  onNavigateFile?: (filePath: string) => void;
+}
+
+export function ConnectionsPageContainer({
+  onNavigateFile,
+}: ConnectionsPageContainerProps) {
+  const vaultPath = useWorkspaceStore((s) => s.vaultPath);
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [usagesByConnection, setUsagesByConnection] = useState<
+    Record<string, RunbookUsage[]>
+  >({});
+  const [usagesLoading, setUsagesLoading] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [newOpen, setNewOpen] = useState(false);
+
+  const ensureSchema = useSchemaCacheStore((s) => s.ensureLoaded);
+  const refreshSchema = useSchemaCacheStore((s) => s.refresh);
+  const schemaByConn = useSchemaCacheStore((s) => s.byConnection);
+
+  const reload = useCallback(async () => {
+    const list = await listConnections();
+    setConnections(list);
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  // Pre-fetch schema + usages on selection change so the detail
+  // panel renders without an extra click. Backend grep is fast and
+  // the user can't outrun it via repeated selects.
+  useEffect(() => {
+    if (!selectedId || !vaultPath) return;
+    const conn = connections.find((c) => c.id === selectedId);
+    if (!conn) return;
+    void ensureSchema(selectedId);
+    setUsagesLoading((m) => ({ ...m, [conn.name]: true }));
+    findConnectionUses(vaultPath, conn.name)
+      .then((r) => {
+        const usages: RunbookUsage[] = r.map((u) => ({
+          filePath: u.file,
+          line: u.line,
+          preview: null,
+        }));
+        setUsagesByConnection((m) => ({ ...m, [conn.name]: usages }));
+      })
+      .finally(() => {
+        setUsagesLoading((m) => ({ ...m, [conn.name]: false }));
+      });
+  }, [selectedId, connections, vaultPath, ensureSchema]);
+
+  const handleSaveCredentials = useCallback(
+    async (id: string, input: UpdateConnectionInput) => {
+      await updateConnection(id, input);
+      await reload();
+    },
+    [reload],
+  );
+
+  const handleRotatePassword = useCallback(
+    async (id: string, newPassword: string) => {
+      await updateConnection(id, { password: newPassword });
+      await reload();
+    },
+    [reload],
+  );
+
+  const handleTestConnection = useCallback(
+    async (id: string): Promise<number> => {
+      const start = performance.now();
+      await testConnection(id);
+      return performance.now() - start;
+    },
+    [],
+  );
+
+  const handleDuplicate = useCallback(
+    async (id: string) => {
+      const src = connections.find((c) => c.id === id);
+      if (!src) return;
+      await createConnection({
+        name: `${src.name}-copy`,
+        driver: src.driver,
+        host: src.host ?? undefined,
+        port: src.port ?? undefined,
+        database_name: src.database_name ?? undefined,
+        username: src.username ?? undefined,
+        ssl_mode: src.ssl_mode ?? undefined,
+        is_readonly: src.is_readonly,
+      });
+      await reload();
+    },
+    [connections, reload],
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      await deleteConnection(id);
+      if (selectedId === id) setSelectedId(null);
+      await reload();
+    },
+    [reload, selectedId],
+  );
+
+  // Slice the schemaCache map to the shape ConnectionsPage expects.
+  const schemaProp = useMemo(() => {
+    const out: Record<
+      string,
+      {
+        schema: (typeof schemaByConn)[string]["schema"];
+        loading: boolean;
+        error: string | null;
+      }
+    > = {};
+    for (const [id, entry] of Object.entries(schemaByConn)) {
+      out[id] = {
+        schema: entry.schema,
+        loading: entry.loading,
+        error: entry.error,
+      };
+    }
+    return out;
+  }, [schemaByConn]);
+
+  return (
+    <>
+      <ConnectionsPage
+        connections={connections}
+        selectedId={selectedId}
+        onSelectId={setSelectedId}
+        onSaveCredentials={handleSaveCredentials}
+        onRotatePassword={handleRotatePassword}
+        onTestConnection={handleTestConnection}
+        onDuplicateConnection={handleDuplicate}
+        onDeleteConnection={handleDelete}
+        schemaByConnection={schemaProp}
+        onRefreshSchema={(id) => {
+          void refreshSchema(id);
+        }}
+        usagesByConnection={usagesByConnection}
+        usagesLoadingByConnection={usagesLoading}
+        onOpenUsage={(filePath) => onNavigateFile?.(filePath)}
+        onCreateNew={() => setNewOpen(true)}
+        onTestAll={() => {
+          void Promise.all(connections.map((c) => testConnection(c.id))).then(
+            () => reload(),
+          );
+        }}
+      />
+      <NewConnectionModal
+        open={newOpen}
+        onCancel={() => setNewOpen(false)}
+        onSave={async () => {
+          // Cenário 3 plumbs the form state lift here. Cenário 1+2
+          // ships with the create flow stubbed — modal opens, user
+          // can pick kind / tab, dismisses with Cancel.
+          setNewOpen(false);
+          await reload();
+        }}
+      />
+    </>
+  );
+}

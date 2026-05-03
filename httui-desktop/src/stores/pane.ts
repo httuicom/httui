@@ -3,7 +3,7 @@ import { devtools } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import { listen } from "@tauri-apps/api/event";
 import type { PaneLayout, LeafPane, TabState } from "@/types/pane";
-import { createLeafPane } from "@/types/pane";
+import { createLeafPane, CONNECTIONS_TAB_PATH } from "@/types/pane";
 import { forceReloadFile } from "@/lib/tauri/commands";
 
 // --- Types ---
@@ -37,6 +37,10 @@ interface PaneState {
   openFile: (filePath: string, content: string, vaultPath: string) => void;
   openDiffTab: (params: DiffTabParams) => void;
   closeDiffTab: (permissionId: string) => void;
+  /** Open the singleton Connections tab in the active pane (V4).
+   * If a Connections tab already exists in the pane, focuses it
+   * instead of opening a duplicate. */
+  openConnectionsTab: () => void;
   selectTab: (paneId: string, index: number) => void;
   closeTab: (paneId: string, index: number) => void;
   closeOthers: (paneId: string, index: number) => void;
@@ -356,6 +360,41 @@ export const usePaneStore = create<PaneState>()(
             permissionId: params.permissionId,
             originalContent: params.originalContent,
             proposedContent: params.proposedContent,
+          };
+          return {
+            layout: updateLeaf(state.layout, activePaneId, (l) => ({
+              ...l,
+              tabs: [...l.tabs, tab],
+              activeTab: l.tabs.length,
+            })),
+          };
+        });
+      },
+
+      openConnectionsTab: () => {
+        const { activePaneId } = get();
+        set((state) => {
+          const leaf = findLeaf(state.layout, activePaneId);
+          if (!leaf) return state;
+          // Singleton: if a Connections tab already lives here, focus
+          // it instead of opening a duplicate. Identity = filePath
+          // sentinel; one Connections tab per pane.
+          const existing = leaf.tabs.findIndex(
+            (t) => t.kind === "connections",
+          );
+          if (existing >= 0) {
+            return {
+              layout: updateLeaf(state.layout, activePaneId, (l) => ({
+                ...l,
+                activeTab: existing,
+              })),
+            };
+          }
+          const tab: TabState = {
+            filePath: CONNECTIONS_TAB_PATH,
+            vaultPath: "",
+            unsaved: false,
+            kind: "connections",
           };
           return {
             layout: updateLeaf(state.layout, activePaneId, (l) => ({

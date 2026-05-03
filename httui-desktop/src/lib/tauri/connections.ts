@@ -78,6 +78,22 @@ export function testConnection(id: string): Promise<void> {
   return invoke("test_connection", { id });
 }
 
+/** Vault-grep for db-block fences using `connection=<name>`. Powers
+ * the "Used in runbooks" panel of ConnectionsPage (V4 cenário 7). */
+export interface ConnectionUse {
+  /** Vault-relative path with posix separators. */
+  file: string;
+  /** 1-based line number of the fence opener. */
+  line: number;
+}
+
+export function findConnectionUses(
+  vaultPath: string,
+  connectionName: string,
+): Promise<ConnectionUse[]> {
+  return invoke("find_connection_uses_cmd", { vaultPath, connectionName });
+}
+
 // --- Schema introspection ---
 
 export interface SchemaEntry {

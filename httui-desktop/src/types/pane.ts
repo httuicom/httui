@@ -2,13 +2,18 @@ export interface TabState {
   filePath: string;
   vaultPath: string;
   unsaved: boolean;
-  kind?: "file" | "diff";
+  kind?: "file" | "diff" | "connections";
   // Diff tab fields
   diffId?: string;
   permissionId?: string;
   originalContent?: string;
   proposedContent?: string;
 }
+
+/** Sentinel filePath for the singleton Connections tab (V4). The
+ * pane store dedupes new opens by this value so only one
+ * Connections tab can exist per pane. */
+export const CONNECTIONS_TAB_PATH = "__connections__";
 
 export function getTabId(tab: TabState): string {
   return tab.diffId ?? tab.filePath;

@@ -179,6 +179,51 @@ describe("paneStore — extended coverage", () => {
   });
 
   // ──────────────────────────────────────────────
+  // Connections tab (V4)
+  // ──────────────────────────────────────────────
+  describe("connections tab", () => {
+    it("openConnectionsTab adds a singleton tab to the active pane", () => {
+      usePaneStore.getState().openConnectionsTab();
+      const layout = usePaneStore.getState().layout;
+      if (layout.type === "leaf") {
+        expect(layout.tabs).toHaveLength(1);
+        expect(layout.tabs[0].kind).toBe("connections");
+        expect(layout.tabs[0].filePath).toBe("__connections__");
+      }
+    });
+
+    it("opening twice focuses the existing tab instead of duplicating", () => {
+      usePaneStore.getState().openConnectionsTab();
+      usePaneStore.getState().openFile("other.md", "x", VAULT);
+      usePaneStore.getState().openConnectionsTab();
+
+      const layout = usePaneStore.getState().layout;
+      if (layout.type === "leaf") {
+        expect(layout.tabs).toHaveLength(2);
+        expect(
+          layout.tabs.filter((t) => t.kind === "connections"),
+        ).toHaveLength(1);
+        expect(layout.activeTab).toBe(0);
+      }
+    });
+
+    it("singleton survives closing other tabs without duplication", () => {
+      usePaneStore.getState().openConnectionsTab();
+      usePaneStore.getState().openFile("other.md", "x", VAULT);
+      const paneId = usePaneStore.getState().activePaneId;
+      usePaneStore.getState().closeTab(paneId, 1);
+      usePaneStore.getState().openConnectionsTab();
+
+      const layout = usePaneStore.getState().layout;
+      if (layout.type === "leaf") {
+        expect(
+          layout.tabs.filter((t) => t.kind === "connections"),
+        ).toHaveLength(1);
+      }
+    });
+  });
+
+  // ──────────────────────────────────────────────
   // Splits + tab close edge cases
   // ──────────────────────────────────────────────
   describe("split / close edge cases", () => {
