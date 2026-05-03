@@ -26,7 +26,16 @@ import {
 import { extractFrontmatter } from "@/lib/blocks/extract-frontmatter-tags";
 import type { DocHeaderFrontmatter } from "@/components/layout/docheader/docheader-derive";
 
-import type { FrontmatterRange } from "./cm-doc-header-types";
+// Shared type for the DocHeader frontmatter range. Defined here so the
+// CM6 extension factory (`cm-doc-header.tsx`) can import it from the
+// state module without a circular import.
+export interface FrontmatterRange {
+  /** Inclusive start offset (always 0 — frontmatter must be at top). */
+  from: number;
+  /** Exclusive end offset, including the trailing newline of the closing
+   * fence. Use this directly as the upper bound of `Decoration.replace`. */
+  to: number;
+}
 
 // ───── Registry types ─────
 

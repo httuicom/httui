@@ -39,8 +39,8 @@ import {
   setFieldForInstance,
   syncEntryFrontmatter,
   unregisterContainer,
+  type FrontmatterRange,
 } from "./cm-doc-header-state";
-import type { FrontmatterRange } from "./cm-doc-header-types";
 
 // Re-export the public registry surface so existing call sites keep
 // importing from `cm-doc-header` without churn.
@@ -52,8 +52,8 @@ export {
   returnFocusToBody,
   subscribeToDocHeaderPortals,
   type DocHeaderEntry,
+  type FrontmatterRange,
 } from "./cm-doc-header-state";
-export type { FrontmatterRange } from "./cm-doc-header-types";
 
 // Vim ownership guard — when vim is in normal / visual mode, hjkl /
 // arrows belong to vim and we MUST NOT intercept them. In insert mode
