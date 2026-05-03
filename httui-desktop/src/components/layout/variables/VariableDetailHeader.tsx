@@ -1,10 +1,11 @@
 // Canvas §6 Variables — detail panel header (Epic 43 Story 02 slice 1).
 //
 // Renders the selected variable's identity strip at the top of the
-// 380px detail panel: scope glyph + serif key + scope label, with a
-// 🔒 lock chip when the var is a secret. Pure presentational.
+// 380px detail panel: scope icon + serif key + scope label, with a
+// lock chip when the var is a secret. Pure presentational.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
+import { LuLock } from "react-icons/lu";
 
 import type { VariableRow } from "./variable-derive";
 import { VARIABLE_SCOPE_META } from "./variable-scopes";
@@ -27,15 +28,15 @@ export function VariableDetailHeader({ row }: VariableDetailHeaderProps) {
       py={3}
     >
       <Flex align="center" gap={2}>
-        <Text
+        <Box
           as="span"
           aria-hidden
-          fontSize="14px"
           color="fg.muted"
           data-testid="variable-detail-header-glyph"
+          display="inline-flex"
         >
-          {meta.glyph}
-        </Text>
+          <meta.icon size={14} />
+        </Box>
         <Text
           as="span"
           fontFamily="mono"
@@ -48,9 +49,11 @@ export function VariableDetailHeader({ row }: VariableDetailHeaderProps) {
           {row.key}
         </Text>
         {row.isSecret && (
-          <Box
+          <Flex
             as="span"
             data-testid="variable-detail-header-secret-chip"
+            align="center"
+            gap={1}
             fontFamily="mono"
             fontSize="10px"
             color="fg.muted"
@@ -61,8 +64,9 @@ export function VariableDetailHeader({ row }: VariableDetailHeaderProps) {
             px={2}
             py={0.5}
           >
-            🔒 secret
-          </Box>
+            <LuLock size={10} />
+            secret
+          </Flex>
         )}
       </Flex>
       <Text

@@ -32,11 +32,15 @@ describe("VariablesScopesSidebar", () => {
       />,
     );
     expect(
-      screen.getByTestId("variables-scope-secret").getAttribute("data-active"),
+      screen
+        .getByTestId("variables-scope-secret")
+        .getAttribute("data-selected"),
     ).toBe("true");
     expect(
-      screen.getByTestId("variables-scope-all").getAttribute("data-active"),
-    ).toBeNull();
+      screen
+        .getByTestId("variables-scope-all")
+        .getAttribute("data-selected"),
+    ).toBe("false");
     expect(screen.getByTestId("variables-scope-all-count").textContent).toBe(
       "8",
     );
@@ -85,6 +89,6 @@ describe("VariablesScopesSidebar", () => {
       ).toBeInTheDocument();
     }
     expect(screen.getByTestId("variables-secrets-hint")).toBeInTheDocument();
-    expect(screen.getByText(/Secrets locais/)).toBeInTheDocument();
+    expect(screen.getByText(/Local secrets/)).toBeInTheDocument();
   });
 });

@@ -15,20 +15,20 @@ export function validateVariableName(
 ): NameValidationResult {
   const trimmed = name.trim();
   if (!trimmed) {
-    return { ok: false, reason: "Nome é obrigatório" };
+    return { ok: false, reason: "Name is required" };
   }
   if (/\s/.test(trimmed)) {
-    return { ok: false, reason: "Não pode conter espaços" };
+    return { ok: false, reason: "Cannot contain whitespace" };
   }
   if (trimmed.includes(".")) {
     return {
       ok: false,
-      reason: "Não pode conter ponto (path separator de referência)",
+      reason: "Cannot contain a dot (reference path separator)",
     };
   }
   const lower = trimmed.toLowerCase();
   if (existing.some((n) => n.trim().toLowerCase() === lower)) {
-    return { ok: false, reason: "Já existe uma variável com esse nome" };
+    return { ok: false, reason: "A variable with this name already exists" };
   }
   return { ok: true };
 }

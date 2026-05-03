@@ -9,8 +9,15 @@
 // per-vault counting + env-presence aggregation lives in the
 // consumer (ConnectionsPage) so this component stays test-light.
 
-import { Box, Stack, Flex, Text, chakra } from "@chakra-ui/react";
+import { Box, Stack, Flex, Text } from "@chakra-ui/react";
 import { LuKey } from "react-icons/lu";
+
+import {
+  MASTER_DETAIL_SIDEBAR_WIDTH,
+  MasterDetailSidebarRow,
+  SectionLabel,
+  SidebarHintCard,
+} from "@/components/layout/shared";
 
 import { ConnectionKindIcon } from "./ConnectionKindIcon";
 import {
@@ -18,8 +25,6 @@ import {
   CONNECTION_KINDS,
   type ConnectionKind,
 } from "./connection-kinds";
-
-const KindRowButton = chakra("button");
 
 export interface EnvSummary {
   name: string;
@@ -55,7 +60,7 @@ export function ConnectionsKindSidebar({
   return (
     <Box
       data-testid="connections-kind-sidebar"
-      w="220px"
+      w={MASTER_DETAIL_SIDEBAR_WIDTH}
       h="full"
       borderRightWidth="1px"
       borderRightColor="border"
@@ -65,77 +70,29 @@ export function ConnectionsKindSidebar({
     >
       <Stack gap={4} align="stretch">
         <Box>
-          <Text
-            fontFamily="mono"
-            fontSize="11px"
-            fontWeight="bold"
-            letterSpacing="0.08em"
-            textTransform="uppercase"
-            color="fg.muted"
-            mb={2}
-          >
-            Kind
-          </Text>
+          <SectionLabel mb={2}>Kind</SectionLabel>
           <Stack gap={0.5} align="stretch">
             {CONNECTION_KIND_ORDER.map((kind) => {
               const meta = CONNECTION_KINDS[kind];
               const count = countsByKind[kind] ?? 0;
               const selected = selectedKind === kind;
               return (
-                <KindRowButton
+                <MasterDetailSidebarRow
                   key={kind}
-                  type="button"
-                  data-testid={`kind-row-${kind}`}
-                  data-selected={selected ? "true" : "false"}
+                  testId={`kind-row-${kind}`}
+                  iconSlot={<ConnectionKindIcon kind={kind} size={18} />}
+                  label={meta.label}
+                  count={count}
+                  selected={selected}
                   onClick={() => onSelectKind(selected ? null : kind)}
-                  display="flex"
-                  alignItems="center"
-                  gap={2}
-                  px={2}
-                  py="6px"
-                  borderRadius="6px"
-                  bg={selected ? "bg.emphasized" : "transparent"}
-                  cursor="pointer"
-                  textAlign="left"
-                  border="none"
-                  _hover={{ bg: selected ? "bg.emphasized" : "bg.muted" }}
-                >
-                  <ConnectionKindIcon kind={kind} size={18} />
-                  <Text
-                    flex={1}
-                    fontSize="13px"
-                    fontWeight={selected ? 600 : 500}
-                    color="fg"
-                  >
-                    {meta.label}
-                  </Text>
-                  <Text
-                    fontFamily="mono"
-                    fontSize="11px"
-                    color="fg.subtle"
-                    minW="22px"
-                    textAlign="right"
-                  >
-                    {count}
-                  </Text>
-                </KindRowButton>
+                />
               );
             })}
           </Stack>
         </Box>
 
         <Box>
-          <Text
-            fontFamily="mono"
-            fontSize="11px"
-            fontWeight="bold"
-            letterSpacing="0.08em"
-            textTransform="uppercase"
-            color="fg.muted"
-            mb={2}
-          >
-            By environment
-          </Text>
+          <SectionLabel mb={2}>By environment</SectionLabel>
           {envs.length === 0 ? (
             <Text fontSize="12px" color="fg.subtle" px={2}>
               No environments
@@ -182,25 +139,14 @@ export function ConnectionsKindSidebar({
           )}
         </Box>
 
-        <Box
-          data-testid="connections-keychain-hint"
-          fontSize="10px"
-          lineHeight={1.4}
-          color="fg.muted"
-          bg="bg.muted"
-          borderWidth="1px"
-          borderColor="border"
-          borderRadius="6px"
-          p={2.5}
-          mt="auto"
-        >
-          <Box as="span" mr={1} display="inline-flex" verticalAlign="middle" aria-hidden>
-            <LuKey size={11} />
-          </Box>
-          <Text as="span" fontWeight={600}>
-            Local credentials —
-          </Text>{" "}
-          Passwords live in the keychain. Connection is just name + host.
+        <Box mt="auto">
+          <SidebarHintCard
+            icon={LuKey}
+            title="Local credentials"
+            testId="connections-keychain-hint"
+          >
+            Passwords live in the keychain. Connection is just name + host.
+          </SidebarHintCard>
         </Box>
       </Stack>
     </Box>

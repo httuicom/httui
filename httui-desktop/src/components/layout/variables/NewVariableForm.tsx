@@ -109,7 +109,7 @@ export function NewVariableForm({
           <Box flex={1}>
             <Input
               data-testid="new-variable-value"
-              placeholder="valor"
+              placeholder="value"
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {

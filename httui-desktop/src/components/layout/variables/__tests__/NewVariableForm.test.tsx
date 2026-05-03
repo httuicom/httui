@@ -62,7 +62,7 @@ describe("NewVariableForm", () => {
     await user.click(screen.getByTestId("new-variable-save"));
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId("new-variable-name-error").textContent).toMatch(
-      /obrigat/,
+      /required/i,
     );
   });
 
@@ -80,7 +80,7 @@ describe("NewVariableForm", () => {
     await user.click(screen.getByTestId("new-variable-save"));
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId("new-variable-name-error").textContent).toMatch(
-      /Já existe/,
+      /already exists/i,
     );
   });
 

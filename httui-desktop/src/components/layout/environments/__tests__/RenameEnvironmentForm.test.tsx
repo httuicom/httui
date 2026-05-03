@@ -109,7 +109,7 @@ describe("RenameEnvironmentForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(
       screen.getByTestId("rename-environment-name-error").textContent,
-    ).toMatch(/obrigat/);
+    ).toMatch(/required/i);
   });
 
   it("ignores the source filename when checking duplicates", async () => {
@@ -151,7 +151,7 @@ describe("RenameEnvironmentForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(
       screen.getByTestId("rename-environment-name-error").textContent,
-    ).toMatch(/Já existe/);
+    ).toMatch(/already exists/i);
   });
 
   it("submits on Enter inside the input", async () => {

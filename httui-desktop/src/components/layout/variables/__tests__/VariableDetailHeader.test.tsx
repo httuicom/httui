@@ -16,14 +16,17 @@ function row(over: Partial<VariableRow> = {}): VariableRow {
 }
 
 describe("VariableDetailHeader", () => {
-  it("renders the variable key with the scope glyph", () => {
+  it("renders the variable key with the scope icon", () => {
     renderWithProviders(<VariableDetailHeader row={row()} />);
     expect(screen.getByTestId("variable-detail-header-key").textContent).toBe(
       "API_BASE",
     );
-    expect(screen.getByTestId("variable-detail-header-glyph").textContent).toBe(
-      "🌐",
-    );
+    // Lucide renders the icon as an inline SVG inside the slot.
+    expect(
+      screen
+        .getByTestId("variable-detail-header-glyph")
+        .querySelector("svg"),
+    ).not.toBeNull();
   });
 
   it("uses the secret scope when isSecret is true (regardless of scope discriminator)", () => {

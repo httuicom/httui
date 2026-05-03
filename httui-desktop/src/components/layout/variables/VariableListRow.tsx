@@ -5,6 +5,7 @@
 // undefined; ●●●● mask on secret), col 4 = USES count.
 
 import { Box, Flex, Grid, Text } from "@chakra-ui/react";
+import { LuLock } from "react-icons/lu";
 
 import type { VariableRow } from "./variable-derive";
 import { VARIABLE_SCOPE_META } from "./variable-scopes";
@@ -54,16 +55,16 @@ export function VariableListRow({
       alignItems="center"
     >
       <Flex gap={2} align="center" minW={0}>
-        <Text
+        <Box
           as="span"
           aria-hidden
-          fontSize="11px"
           color="fg.subtle"
           title={scopeMeta.hint}
           data-testid={`variables-row-${row.key}-scope-glyph`}
+          display="inline-flex"
         >
-          {scopeMeta.glyph}
-        </Text>
+          <scopeMeta.icon size={11} />
+        </Box>
         <Text
           as="span"
           fontFamily="mono"
@@ -76,15 +77,15 @@ export function VariableListRow({
           {row.key}
         </Text>
         {row.isSecret && (
-          <Text
+          <Box
             as="span"
             aria-label="secret"
-            fontSize="10px"
             color="fg.subtle"
             data-testid={`variables-row-${row.key}-lock`}
+            display="inline-flex"
           >
-            🔒
-          </Text>
+            <LuLock size={10} />
+          </Box>
         )}
       </Flex>
 

@@ -7,10 +7,11 @@
 //
 // Pure presentational; counts come from the consumer.
 
-import { Box, Flex, HStack, Heading, Stack, Text } from "@chakra-ui/react";
+import { Flex, HStack, Stack, Text } from "@chakra-ui/react";
 import { LuPlus } from "react-icons/lu";
 
-import { Btn } from "@/components/atoms";
+import { Btn, Input } from "@/components/atoms";
+import { MasterDetailListHeader } from "@/components/layout/shared";
 import {
   ConnectionListRow,
   type ListRowItem,
@@ -73,20 +74,11 @@ export function ConnectionsListPanel({
       align="stretch"
       overflowY="auto"
     >
-      <Flex align="flex-start" justify="space-between" gap={4}>
-        <Box>
-          <Heading
-            as="h1"
-            fontFamily="serif"
-            fontSize="26px"
-            fontWeight={500}
-            lineHeight={1.1}
-          >
-            Connections
-          </Heading>
+      <MasterDetailListHeader
+        title="Connections"
+        subtitleSlot={
           <HStack
             gap={1}
-            mt={1}
             data-testid="connections-list-status"
             fontFamily="mono"
             fontSize="11px"
@@ -99,8 +91,8 @@ export function ConnectionsListPanel({
             <Text color="fg.subtle">·</Text>
             <Text color="red.fg">{status.down} down</Text>
           </HStack>
-        </Box>
-        <HStack gap={2} flexShrink={0}>
+        }
+        actionsSlot={
           <Btn
             variant="primary"
             data-testid="connections-create-new"
@@ -108,11 +100,10 @@ export function ConnectionsListPanel({
           >
             <LuPlus size={12} /> New
           </Btn>
-        </HStack>
-      </Flex>
+        }
+      />
 
-      <Box
-        as="input"
+      <Input
         data-testid="connections-search"
         type="text"
         value={searchValue}
@@ -120,17 +111,6 @@ export function ConnectionsListPanel({
         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
           onSearchChange(e.target.value)
         }
-        h="32px"
-        px={3}
-        fontSize="12px"
-        fontFamily="mono"
-        bg="bg.muted"
-        color="fg"
-        borderWidth="1px"
-        borderColor="border"
-        borderRadius="6px"
-        outline="none"
-        _focus={{ borderColor: "brand.fg" }}
       />
 
       {rows && rows.length > 0 ? (

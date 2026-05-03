@@ -15,7 +15,7 @@ describe("VariablesListPanel", () => {
     renderWithProviders(<VariablesListPanel {...defaultProps} />);
     expect(screen.getByText("Variables")).toBeInTheDocument();
     expect(screen.getByTestId("variables-resolution-hint").textContent).toMatch(
-      /bloco/,
+      /block/,
     );
     expect(screen.getByTestId("variables-import-dotenv")).toBeInTheDocument();
     expect(screen.getByTestId("variables-create-new")).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe("VariablesListPanel", () => {
   it("renders the footer keymap hint", () => {
     renderWithProviders(<VariablesListPanel {...defaultProps} />);
     expect(screen.getByTestId("variables-footer-hint").textContent).toMatch(
-      /⌘⇧V nova/,
+      /⌘⇧V new/,
     );
   });
 });

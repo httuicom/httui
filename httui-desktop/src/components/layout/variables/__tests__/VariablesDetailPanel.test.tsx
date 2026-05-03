@@ -7,7 +7,7 @@ describe("VariablesDetailPanel", () => {
   it("renders the empty state when no key is selected", () => {
     renderWithProviders(<VariablesDetailPanel />);
     expect(screen.getByTestId("variables-detail-empty")).toBeInTheDocument();
-    expect(screen.getByText(/Selecione uma variável/)).toBeInTheDocument();
+    expect(screen.getByText(/Select a variable/)).toBeInTheDocument();
   });
 
   it("renders the empty state when key is selected but no children supplied", () => {

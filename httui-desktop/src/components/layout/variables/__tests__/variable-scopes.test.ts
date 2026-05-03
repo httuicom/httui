@@ -19,13 +19,13 @@ describe("variable-scopes metadata", () => {
     ]);
   });
 
-  it("each scope has matching meta with id/label/glyph/hint", () => {
+  it("each scope has matching meta with id/label/icon/hint", () => {
     for (const scope of VARIABLE_SCOPES) {
       const meta = VARIABLE_SCOPE_META[scope];
       expect(meta).toBeDefined();
       expect(meta.id).toBe(scope);
       expect(meta.label.length).toBeGreaterThan(0);
-      expect(meta.glyph.length).toBeGreaterThan(0);
+      expect(typeof meta.icon).toBe("function");
       expect(meta.hint.length).toBeGreaterThan(0);
     }
   });
@@ -36,7 +36,7 @@ describe("variable-scopes metadata", () => {
   });
 
   it("ships the canvas resolution chain hint", () => {
-    expect(VAR_RESOLUTION_HINT).toMatch(/bloco.*env.*workspace.*secret/);
+    expect(VAR_RESOLUTION_HINT).toMatch(/block.*env.*workspace.*secret/);
   });
 
   it("exports 4 helper functions per canvas spec", () => {

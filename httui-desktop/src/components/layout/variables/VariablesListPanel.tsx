@@ -7,8 +7,10 @@
 
 import { Box, Flex, Grid, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+import { LuPlus } from "react-icons/lu";
 
 import { Btn, Input } from "@/components/atoms";
+import { MasterDetailListHeader } from "@/components/layout/shared";
 
 import { VAR_RESOLUTION_HINT } from "./variable-scopes";
 
@@ -45,43 +47,45 @@ export function VariablesListPanel({
       minW={0}
       h="full"
     >
-      <Flex align="flex-end" justify="space-between" px={5} pt={5} gap={3}>
-        <Box>
-          <Text fontFamily="serif" fontSize="26px" fontWeight={500} color="fg">
-            Variables
-          </Text>
-          <Text
-            fontSize="11px"
-            color="fg.muted"
-            data-testid="variables-resolution-hint"
-          >
-            {VAR_RESOLUTION_HINT}
-          </Text>
-        </Box>
-        <Flex gap={2}>
-          <Btn
-            variant="ghost"
-            data-testid="variables-import-dotenv"
-            onClick={onImportDotenv}
-            disabled={!onImportDotenv}
-          >
-            📋 Importar .env
-          </Btn>
-          <Btn
-            variant="primary"
-            data-testid="variables-create-new"
-            onClick={onCreateNew}
-            disabled={!onCreateNew}
-          >
-            + Nova
-          </Btn>
-        </Flex>
-      </Flex>
+      <Box px={5} pt={4}>
+        <MasterDetailListHeader
+          title="Variables"
+          subtitleSlot={
+            <Text
+              fontSize="11px"
+              color="fg.muted"
+              data-testid="variables-resolution-hint"
+            >
+              {VAR_RESOLUTION_HINT}
+            </Text>
+          }
+          actionsSlot={
+            <>
+              <Btn
+                variant="ghost"
+                data-testid="variables-import-dotenv"
+                onClick={onImportDotenv}
+                disabled={!onImportDotenv}
+              >
+                Import .env
+              </Btn>
+              <Btn
+                variant="primary"
+                data-testid="variables-create-new"
+                onClick={onCreateNew}
+                disabled={!onCreateNew}
+              >
+                <LuPlus size={12} /> New
+              </Btn>
+            </>
+          }
+        />
+      </Box>
 
       <Flex px={5} py={3} gap={3} align="center">
         <Input
           data-testid="variables-search"
-          placeholder="Buscar key, valor, scope…"
+          placeholder="Search key, value, scope…"
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           flex={1}
@@ -119,7 +123,7 @@ export function VariablesListPanel({
         textAlign="center"
         py={2}
       >
-        ⌘⇧V nova · ⌘. override de sessão · click para detalhe
+        ⌘⇧V new · ⌘. session override · click row for detail
       </Text>
     </Flex>
   );
@@ -176,11 +180,11 @@ function EmptyHint() {
       fontSize="12px"
       px={5}
     >
-      Nenhuma variável encontrada nessa visão. Crie uma com{" "}
+      No variables found in this view. Create one with{" "}
       <Text as="span" fontFamily="mono" mx={1}>
-        + Nova
+        + New
       </Text>
-      ou ajuste o escopo na sidebar.
+      or adjust the scope in the sidebar.
     </Flex>
   );
 }

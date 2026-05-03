@@ -19,24 +19,27 @@ export function validateEnvName(
 ): EnvNameValidation {
   const trimmed = name.trim();
   if (!trimmed) {
-    return { ok: false, reason: "Nome é obrigatório" };
+    return { ok: false, reason: "Name is required" };
   }
   if (/\s/.test(trimmed)) {
-    return { ok: false, reason: "Não pode conter espaços" };
+    return { ok: false, reason: "Cannot contain whitespace" };
   }
   if (trimmed.includes("/") || trimmed.includes("\\")) {
-    return { ok: false, reason: "Não pode conter / ou \\" };
+    return { ok: false, reason: "Cannot contain / or \\" };
   }
   if (trimmed.startsWith(".")) {
-    return { ok: false, reason: "Não pode começar com ponto" };
+    return { ok: false, reason: "Cannot start with a dot" };
   }
   if (trimmed.toLowerCase().endsWith(".toml")) {
-    return { ok: false, reason: "Sem .toml — adicionado automaticamente" };
+    return { ok: false, reason: "Drop .toml — added automatically" };
   }
   const lower = trimmed.toLowerCase();
   for (const filename of existingFilenames) {
     if (envNameFromFilename(filename).trim().toLowerCase() === lower) {
-      return { ok: false, reason: "Já existe um ambiente com esse nome" };
+      return {
+        ok: false,
+        reason: "An environment with this name already exists",
+      };
     }
   }
   return { ok: true };

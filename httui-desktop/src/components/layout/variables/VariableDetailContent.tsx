@@ -1,14 +1,16 @@
 // Canvas §6 Variables — detail panel composer (Epic 43 Story 02).
 //
 // Four sections inside the 380px detail slot: header (key + scope +
-// secret chip), VALORES POR AMBIENTE list (one row per env, with
-// Show/Hide + Edit/Save/Cancel for secrets), is_secret toggle
-// (slice 3), USED IN BLOCKS slot (slice 4 plugs the references list
-// here). Pure presentational; consumer plugs `fetchSecret`,
-// `onCommitValue`, `onToggleSecret`, and `confirmDemote`.
+// secret chip), VALUE PER ENV list (one row per env, with Show/Hide
+// + Edit/Save/Cancel for secrets), is_secret toggle (slice 3), USED
+// IN BLOCKS slot (slice 4 plugs the references list here). Pure
+// presentational; consumer plugs `fetchSecret`, `onCommitValue`,
+// `onToggleSecret`, and `confirmDemote`.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { SectionLabel } from "@/components/layout/shared";
 
 import type { VariableRow } from "./variable-derive";
 import { VariableDetailHeader } from "./VariableDetailHeader";
@@ -50,7 +52,9 @@ export function VariableDetailContent({
       <VariableDetailHeader row={row} />
 
       <Box flex={1} overflowY="auto">
-        <SectionLabel>VALORES POR AMBIENTE</SectionLabel>
+        <SectionLabel px={4} py={2}>
+          VALUE PER ENV
+        </SectionLabel>
         {envNames.length === 0 ? (
           <EmptyEnvsHint />
         ) : (
@@ -72,35 +76,12 @@ export function VariableDetailContent({
           confirmDemote={confirmDemote}
         />
 
-        <SectionLabel mt={3}>USED IN BLOCKS</SectionLabel>
+        <SectionLabel px={4} py={2} mt={3}>
+          USED IN BLOCKS
+        </SectionLabel>
         {usedInBlocksSlot ?? <UsesPlaceholder usesCount={row.usesCount} />}
       </Box>
     </Flex>
-  );
-}
-
-function SectionLabel({
-  children,
-  ...rest
-}: {
-  children: ReactNode;
-  [k: string]: unknown;
-}) {
-  return (
-    <Text
-      as="div"
-      fontFamily="mono"
-      fontSize="10px"
-      fontWeight="bold"
-      letterSpacing="0.06em"
-      textTransform="uppercase"
-      color="fg.subtle"
-      px={4}
-      py={2}
-      {...rest}
-    >
-      {children}
-    </Text>
   );
 }
 
@@ -113,7 +94,7 @@ function EmptyEnvsHint() {
       px={4}
       py={2}
     >
-      Nenhum ambiente definido em <code>envs/*.toml</code>.
+      No environment defined in <code>envs/*.toml</code>.
     </Text>
   );
 }
@@ -128,8 +109,8 @@ function UsesPlaceholder({ usesCount }: { usesCount: number }) {
       py={2}
     >
       {usesCount > 0
-        ? `${usesCount} referência${usesCount === 1 ? "" : "s"} no vault — lista carrega na slice 4.`
-        : "Nenhuma referência encontrada no vault."}
+        ? `${usesCount} reference${usesCount === 1 ? "" : "s"} in the vault — list loads in slice 4.`
+        : "No references found in the vault."}
     </Text>
   );
 }

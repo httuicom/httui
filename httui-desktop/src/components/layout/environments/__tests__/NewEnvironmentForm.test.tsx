@@ -41,7 +41,7 @@ describe("NewEnvironmentForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(
       screen.getByTestId("new-environment-name-error").textContent,
-    ).toMatch(/obrigat/);
+    ).toMatch(/required/i);
   });
 
   it("blocks submit on duplicate name", async () => {
@@ -58,7 +58,7 @@ describe("NewEnvironmentForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(
       screen.getByTestId("new-environment-name-error").textContent,
-    ).toMatch(/Já existe/);
+    ).toMatch(/already exists/i);
   });
 
   it("submits on Enter when valid", async () => {

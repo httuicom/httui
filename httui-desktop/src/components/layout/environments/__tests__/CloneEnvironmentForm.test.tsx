@@ -78,7 +78,7 @@ describe("CloneEnvironmentForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(
       screen.getByTestId("clone-environment-name-error").textContent,
-    ).toMatch(/obrigat/);
+    ).toMatch(/required/i);
   });
 
   it("blocks submit on duplicate (case-insensitive) against existingFilenames", async () => {
@@ -93,7 +93,7 @@ describe("CloneEnvironmentForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(
       screen.getByTestId("clone-environment-name-error").textContent,
-    ).toMatch(/Já existe/);
+    ).toMatch(/already exists/i);
   });
 
   it("toggles every checkbox independently", async () => {

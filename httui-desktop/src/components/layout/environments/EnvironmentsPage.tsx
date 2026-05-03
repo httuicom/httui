@@ -53,7 +53,7 @@ export function EnvironmentsPage({
             color="fg.muted"
             data-testid="environments-page-subtitle"
           >
-            workspace de envs em <code>envs/*.toml</code> · personais em{" "}
+            workspace envs in <code>envs/*.toml</code> · personal in{" "}
             <code>*.local.toml</code> (gitignored)
           </Text>
         </Box>
@@ -103,18 +103,18 @@ function EmptyHint() {
       gap={2}
     >
       <Text fontFamily="serif" fontSize="16px" color="fg.muted">
-        Nenhum ambiente ainda
+        No environments yet
       </Text>
       <Text fontSize="11px" color="fg.subtle" textAlign="center" maxW="420px">
         Use{" "}
         <Text as="span" fontFamily="mono">
           + New environment
         </Text>{" "}
-        ou crie um arquivo em{" "}
+        or create a file in{" "}
         <Text as="span" fontFamily="mono">
           envs/&lt;name&gt;.toml
         </Text>{" "}
-        manualmente — o file watcher pega.
+        manually — the file watcher picks it up.
       </Text>
     </Flex>
   );

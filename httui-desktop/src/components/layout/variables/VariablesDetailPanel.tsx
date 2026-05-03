@@ -1,11 +1,15 @@
-// Canvas §6 Variables — 380px detail panel (Epic 43 Story 01 slice 1).
+// Canvas §6 Variables — detail panel (Epic 43 Story 01 slice 1).
 //
 // Slice 1 ships the empty-state container only. Slices 2/3/4 layer
-// the header / valor-por-ambiente / override / used-in-blocks
-// sections via the `children` slot — keeping this file size-honest.
+// the header / value-per-env / override / used-in-blocks sections
+// via the `children` slot — keeping this file size-honest.
+// Width comes from `MASTER_DETAIL_DETAIL_WIDTH` so the V5 page lines
+// up pixel-for-pixel with V4 Connections.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { MASTER_DETAIL_DETAIL_WIDTH } from "@/components/layout/shared";
 
 export interface VariablesDetailPanelProps {
   /** Selected variable key. When undefined, the empty state shows. */
@@ -22,11 +26,11 @@ export function VariablesDetailPanel({
     <Flex
       data-testid="variables-detail-panel"
       direction="column"
-      w="380px"
-      minW="380px"
+      w={MASTER_DETAIL_DETAIL_WIDTH}
+      minW={MASTER_DETAIL_DETAIL_WIDTH}
       borderLeftWidth="1px"
       borderLeftColor="border"
-      bg="bg.muted"
+      bg="bg.subtle"
       h="full"
       overflowY="auto"
     >
@@ -53,11 +57,11 @@ function EmptyState() {
       gap={2}
     >
       <Text fontFamily="serif" fontSize="16px" color="fg.muted">
-        Selecione uma variável
+        Select a variable
       </Text>
       <Text fontSize="11px" color="fg.subtle" textAlign="center" lineHeight={1.5}>
-        Clique em uma linha à esquerda para ver e editar o valor por ambiente,
-        configurar override de sessão e listar os blocos que a usam.
+        Click a row on the left to view and edit the value per env,
+        configure a session override, and list the blocks that use it.
       </Text>
     </Flex>
   );

@@ -70,7 +70,7 @@ describe("VariableDetailContent", () => {
     );
     expect(
       screen.getByTestId("variable-detail-uses-placeholder").textContent,
-    ).toMatch(/5 referências/);
+    ).toMatch(/5 references/);
   });
 
   it("uses singular wording when usesCount === 1", () => {
@@ -82,7 +82,7 @@ describe("VariableDetailContent", () => {
     );
     expect(
       screen.getByTestId("variable-detail-uses-placeholder").textContent,
-    ).toMatch(/1 referência\b/);
+    ).toMatch(/1 reference\b/);
   });
 
   it("renders the no-references variant when usesCount === 0", () => {
@@ -94,7 +94,7 @@ describe("VariableDetailContent", () => {
     );
     expect(
       screen.getByTestId("variable-detail-uses-placeholder").textContent,
-    ).toMatch(/Nenhuma referência/);
+    ).toMatch(/No references/);
   });
 
   it("renders usedInBlocksSlot in place of the placeholder when supplied", () => {
