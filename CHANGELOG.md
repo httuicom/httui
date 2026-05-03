@@ -21,6 +21,19 @@ launch checklist (Epic 38, Story 03).
 
 ### Added
 
+- **Connections page (master-detail)** — página dedicada (TopBar
+  `LuPlug` ou via tab) substitui o drawer legado: lista filtrada por
+  kind/env/status com status dot + latência, painel detail com
+  credentials + schema preview + "Used in runbooks" (file:line link
+  com navegação), modal "New connection" com tabs per-kind
+  (Form / Connection string / SSL — SSH placeholder), file picker
+  nativo para SQLite db / cert / key paths, ⋮ menu de row
+  (Edit / Test / Duplicate / Delete) e config-changed listener
+  refletindo edição manual de `connections.toml`. (V4 cenários 1-8)
+- **`find_connection_uses_cmd` Tauri command** — vault-grep
+  on-demand (`httui_core::connection_uses`) que walk `*.md` e
+  retorna `{file, line}` de cada referência `db-<connection>` no
+  vault. (V4 cenário 7)
 - **Workbench shell + design system** — top bar com logo, breadcrumb
   (workspace › project › file), segmented env switcher, ⌘K search e
   branch button substituem a topbar legada. Sidebar nova reúne Files,

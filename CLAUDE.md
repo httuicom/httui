@@ -139,7 +139,7 @@ Only one survives:
 
 - `src/components/layout/file-tree/` — FileTree (with @dnd-kit drag-drop), FileTreeNode, InlineInput
 - `src/components/layout/pane/` — PaneContainer, PaneNode, SplitView
-- `src/components/layout/connections/` — ConnectionForm, ConnectionsList
+- `src/components/layout/connections/` — `ConnectionsPage` master-detail (rendered as a singleton `TabState.kind = "connections"` pane tab opened from the TopBar `LuPlug` button) plus the legacy sidebar `ConnectionsList` + drawer `ConnectionForm` (kept — popover quick-edit in V11 builds on top of the sidebar)
 - `src/components/layout/environments/` — EnvironmentManager (drawer with env list + key-value editor + secret toggle)
 - `src/components/layout/settings/` — settings panels (Audit, Theme, Editor, About)
 - `src/components/layout/ConflictBanner.tsx` — banner for externally modified files
