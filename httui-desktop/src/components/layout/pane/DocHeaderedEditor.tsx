@@ -221,7 +221,11 @@ export function DocHeaderedEditor({
       preflightItems,
       preflightRechecking,
       onPreflightRecheck: preflightRecheck,
-      onRunAll: () => triggerRunAll(),
+      // V6 / cenário 10 — `onRunAll` intentionally not threaded into
+      // the Action Row. Per `feedback_no_run_all_topbar`, the user
+      // dropped the ▶ Run all button from the workspace chrome (TopBar
+      // + DocHeader); the gate triggers only via ⌘⇧R keyboard shortcut.
+      // The Action Row hides Run-all entirely when the prop is absent.
     }),
     [
       filePath,
@@ -236,7 +240,6 @@ export function DocHeaderedEditor({
       preflightItems,
       preflightRechecking,
       preflightRecheck,
-      triggerRunAll,
     ],
   );
 
