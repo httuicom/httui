@@ -22,11 +22,19 @@ const KindRowButton = chakra("button");
 export interface NewConnectionKindPickerProps {
   selectedKind: ConnectionKind;
   onSelectKind: (kind: ConnectionKind) => void;
+  /** When true (edit mode), the picker locks selection — driver is
+   * the natural key paired with name and can't change post-create.
+   * Non-selected rows render with reduced opacity and ignore clicks. */
+  disabled?: boolean;
+  /** Header copy varies by mode. */
+  mode?: "create" | "edit";
 }
 
 export function NewConnectionKindPicker({
   selectedKind,
   onSelectKind,
+  disabled = false,
+  mode = "create",
 }: NewConnectionKindPickerProps) {
   return (
     <Box
@@ -48,10 +56,10 @@ export function NewConnectionKindPicker({
             color="fg"
             lineHeight={1.2}
           >
-            New connection
+            {mode === "edit" ? "Edit connection" : "New connection"}
           </Text>
           <Text fontSize="11px" color="fg.muted" mt={0.5}>
-            Pick the kind
+            {mode === "edit" ? "Driver locked" : "Pick the kind"}
           </Text>
         </Box>
 
@@ -59,14 +67,20 @@ export function NewConnectionKindPicker({
           {CONNECTION_KIND_ORDER.map((kind) => {
             const meta = CONNECTION_KINDS[kind];
             const selected = selectedKind === kind;
+            const isDisabled = disabled && !selected;
             return (
               <KindRowButton
                 key={kind}
                 type="button"
                 data-testid={`new-connection-kind-${kind}`}
                 data-selected={selected ? "true" : "false"}
+                data-disabled={isDisabled ? "true" : undefined}
                 aria-pressed={selected}
-                onClick={() => onSelectKind(kind)}
+                aria-disabled={isDisabled}
+                onClick={() => {
+                  if (isDisabled) return;
+                  onSelectKind(kind);
+                }}
                 display="flex"
                 alignItems="center"
                 gap={2}
@@ -77,10 +91,15 @@ export function NewConnectionKindPicker({
                 borderLeftWidth="2px"
                 borderLeftStyle="solid"
                 borderLeftColor={selected ? "brand.fg" : "transparent"}
-                cursor="pointer"
+                cursor={isDisabled ? "not-allowed" : "pointer"}
+                opacity={isDisabled ? 0.4 : 1}
                 textAlign="left"
                 border="none"
-                _hover={{ bg: selected ? "bg.emphasized" : "bg.muted" }}
+                _hover={
+                  isDisabled
+                    ? undefined
+                    : { bg: selected ? "bg.emphasized" : "bg.muted" }
+                }
               >
                 <ConnectionKindIcon kind={kind} size={18} />
                 <Text

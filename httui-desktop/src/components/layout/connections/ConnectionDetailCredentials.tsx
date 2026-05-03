@@ -33,6 +33,10 @@ export interface ConnectionDetailCredentialsProps {
   connection: Connection;
   onSave: (input: UpdateConnectionInput) => Promise<void> | void;
   onRotatePassword: (newPassword: string) => Promise<void> | void;
+  /** When provided, the Edit button delegates to this callback
+   * (opens the full NewConnectionModal in edit mode) instead of
+   * entering inline edit. Single source of truth for edit. */
+  onRequestEdit?: () => void;
 }
 
 interface DraftState {
@@ -57,6 +61,7 @@ export function ConnectionDetailCredentials({
   connection,
   onSave,
   onRotatePassword,
+  onRequestEdit,
 }: ConnectionDetailCredentialsProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<DraftState>(draftFrom(connection));
@@ -79,6 +84,10 @@ export function ConnectionDetailCredentials({
   }, [connection]);
 
   function startEdit() {
+    if (onRequestEdit) {
+      onRequestEdit();
+      return;
+    }
     setDraft(draftFrom(connection));
     setSaveError(null);
     setEditing(true);

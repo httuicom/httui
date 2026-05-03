@@ -200,6 +200,8 @@ export function NewConnectionModal({
           <NewConnectionKindPicker
             selectedKind={selectedKind}
             onSelectKind={setSelectedKind}
+            disabled={mode === "edit"}
+            mode={mode}
           />
 
           <Flex direction="column" minW={0} h="full" overflow="hidden">

@@ -60,6 +60,9 @@ export interface ConnectionsPageProps {
   ) => Promise<void> | void;
   /** Rotate-password handler (Story 02). */
   onRotatePassword?: (id: string, newPassword: string) => Promise<void> | void;
+  /** When provided, the detail panel "Edit" delegates to this
+   * (opens the modal in edit mode) instead of inline edit. */
+  onRequestEditCredentials?: (id: string) => void;
   /** Story 03 — schema state for the selected connection. */
   schemaByConnection?: Record<
     string,
@@ -108,6 +111,7 @@ export function ConnectionsPage({
   onDeleteRow,
   onSaveCredentials,
   onRotatePassword,
+  onRequestEditCredentials,
   schemaByConnection,
   hotTablesByConnection,
   onRefreshSchema,
@@ -206,6 +210,11 @@ export function ConnectionsPage({
         onRotatePassword={
           selectedConnection && onRotatePassword
             ? (pw) => onRotatePassword(selectedConnection.id, pw)
+            : undefined
+        }
+        onRequestEdit={
+          selectedConnection && onRequestEditCredentials
+            ? () => onRequestEditCredentials(selectedConnection.id)
             : undefined
         }
         schema={

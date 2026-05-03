@@ -206,6 +206,7 @@ export function ConnectionsPageContainer({
         onOpenUsage={(filePath) => onNavigateFile?.(filePath)}
         onCreateNew={() => setNewOpen(true)}
         onEditRow={setEditingId}
+        onRequestEditCredentials={setEditingId}
         onTestRow={(id) => {
           void testConnection(id);
         }}

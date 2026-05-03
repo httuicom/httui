@@ -37,6 +37,9 @@ export interface ConnectionsDetailPanelProps {
    * keychain and update the `{{keychain:…}}` ref in
    * `connections.toml` (Story 02). */
   onRotatePassword?: (newPassword: string) => Promise<void> | void;
+  /** When provided, the Edit button delegates to the modal instead
+   * of entering inline edit. */
+  onRequestEdit?: () => void;
   /** Story 03 — pre-fetched schema (consumer drives via
    * `useSchemaCacheStore.ensureLoaded`). */
   schema?: ConnectionSchema | null;
@@ -65,6 +68,7 @@ export function ConnectionsDetailPanel({
   selectedConnection = null,
   onSaveCredentials,
   onRotatePassword,
+  onRequestEdit,
   schema = null,
   schemaLoading = false,
   schemaError = null,
@@ -113,6 +117,7 @@ export function ConnectionsDetailPanel({
             connection={selectedConnection}
             onSave={onSaveCredentials ?? (() => {})}
             onRotatePassword={onRotatePassword ?? (() => {})}
+            onRequestEdit={onRequestEdit}
           />
           <ConnectionDetailSchemaPreview
             schema={schema}
