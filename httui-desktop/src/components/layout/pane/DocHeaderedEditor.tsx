@@ -25,6 +25,7 @@ import { useFileDocHeaderCompact } from "@/hooks/useFileDocHeaderCompact";
 import { useFileMtime } from "@/hooks/useFileMtime";
 import { useFilePreflight } from "@/hooks/useFilePreflight";
 import { useGitStatus } from "@/hooks/useGitStatus";
+import { useRunAllPreflightGate } from "@/hooks/useRunAllPreflightGate";
 import { gitFirstCommitAuthor } from "@/lib/tauri/git";
 import { blockHistoryLastRunSummary } from "@/lib/tauri/block-history";
 
@@ -158,6 +159,46 @@ export function DocHeaderedEditor({
     };
   }, [filePath]);
 
+  // V6 / cenário 10 — Run-all gate. The actual block execution flow
+  // (Epic 39) hooks in via `onRunAll`; for now we log + the audit
+  // note carries the override status forward when the future Run-all
+  // report lands. The dialog open/close state lives in the hook.
+  const { trigger: triggerRunAll, dialog: runAllDialog } =
+    useRunAllPreflightGate({
+      items: preflightItems,
+      onRunAll: (decision) => {
+        // Placeholder for the Run-all execution. The cenário 10 spec
+        // gates on the dialog appearing; the actual block run is
+        // tracked by Epic 39. Surface decision metadata so a future
+        // listener (custom event / store) can pick it up.
+        // eslint-disable-next-line no-console
+        console.info(
+          `[run-all] ${filePath} — failed=${decision.failedCount} skipped=${decision.skippedCount} note=${decision.auditNote ?? "(none)"}`,
+        );
+      },
+    });
+
+  // ⌘⇧R triggers the Run-all gate from anywhere in the app while
+  // this DocHeaderedEditor is mounted. Multi-pane safety: only the
+  // pane whose root contains the active focus target reacts.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || !e.shiftKey) return;
+      if (e.key !== "R" && e.key !== "r") return;
+      // Only run when this pane has focus (or the whole app is
+      // focusless and this is the only mounted pane).
+      const root = rootRef.current;
+      const focus = document.activeElement;
+      if (root && focus && !root.contains(focus)) return;
+      e.preventDefault();
+      triggerRunAll();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [triggerRunAll]);
+
   // The frontmatter and the editable callbacks live inside
   // `DocHeaderWidgetPortal` now — it dispatches transactions directly
   // into CM6 and reads the parsed frontmatter off the StateField,
@@ -180,6 +221,7 @@ export function DocHeaderedEditor({
       preflightItems,
       preflightRechecking,
       onPreflightRecheck: preflightRecheck,
+      onRunAll: () => triggerRunAll(),
     }),
     [
       filePath,
@@ -194,11 +236,13 @@ export function DocHeaderedEditor({
       preflightItems,
       preflightRechecking,
       preflightRecheck,
+      triggerRunAll,
     ],
   );
 
   return (
     <Box
+      ref={rootRef}
       data-testid="doc-headered-editor"
       flex={1}
       overflow="hidden"
@@ -222,6 +266,7 @@ export function DocHeaderedEditor({
           inlineHeader={inlineHeader}
         />
       </Box>
+      {runAllDialog}
     </Box>
   );
 }
