@@ -10,8 +10,8 @@ describe("NewVariableForm", () => {
     expect(screen.getByTestId("new-variable-name")).toBeInTheDocument();
     expect(screen.getByTestId("new-variable-value")).toBeInTheDocument();
     expect(screen.getByTestId("new-variable-is-secret")).toBeInTheDocument();
-    expect(screen.getByTestId("new-variable-active-env").textContent).toBe(
-      "local",
+    expect(screen.getByTestId("new-variable-hint").textContent).toMatch(
+      /local/,
     );
     expect(screen.getByTestId("new-variable-save")).toBeInTheDocument();
     expect(screen.getByTestId("new-variable-cancel")).toBeInTheDocument();
@@ -21,7 +21,7 @@ describe("NewVariableForm", () => {
     renderWithProviders(<NewVariableForm activeEnv="local" />);
     expect(
       screen.getByTestId("new-variable-is-secret-label").textContent,
-    ).toMatch(/Public/);
+    ).toMatch(/public/i);
   });
 
   it("flips the is_secret label when toggled", async () => {
@@ -29,7 +29,7 @@ describe("NewVariableForm", () => {
     await userEvent.setup().click(screen.getByTestId("new-variable-is-secret"));
     expect(
       screen.getByTestId("new-variable-is-secret-label").textContent,
-    ).toMatch(/Secret/);
+    ).toMatch(/secret/i);
   });
 
   it("submits the trimmed name with value + isSecret + active env on Save click", async () => {

@@ -24,6 +24,7 @@ import {
 } from "@/lib/tauri/commands";
 import { grepVarUses, type VarUseEntry } from "@/lib/tauri/var-uses";
 
+import { NewVariableForm } from "./NewVariableForm";
 import { UsedInBlocksList } from "./UsedInBlocksList";
 import { VariableDetailContent } from "./VariableDetailContent";
 import { VariablesPage } from "./VariablesPage";
@@ -86,6 +87,7 @@ export function VariablesPageContainer({
     Record<string, VarUseEntry[]>
   >({});
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   // Initial env load — store does not auto-refresh on mount.
   useEffect(() => {
@@ -249,6 +251,34 @@ export function VariablesPageContainer({
     return out;
   }, [overrides, selectedRow, envColumnNames]);
 
+  const existingNames = useMemo(() => rows.map((r) => r.key), [rows]);
+
+  const handleCreateSubmit = useCallback(
+    async (payload: {
+      name: string;
+      value: string;
+      isSecret: boolean;
+      env: string;
+    }) => {
+      const e = envByName.get(payload.env);
+      if (!e) return;
+      await setVariable(e.id, payload.name, payload.value, payload.isSecret);
+      setCreating(false);
+      setSelectedKey(payload.name);
+    },
+    [envByName, setVariable],
+  );
+
+  const inlineFormSlot =
+    creating && activeEnvironment ? (
+      <NewVariableForm
+        activeEnv={activeEnvironment.name}
+        existingNames={existingNames}
+        onSubmit={handleCreateSubmit}
+        onCancel={() => setCreating(false)}
+      />
+    ) : null;
+
   const detailSlot = selectedRow ? (
     <VariableDetailContent
       row={selectedRow}
@@ -275,7 +305,11 @@ export function VariablesPageContainer({
       rows={rows}
       selectedKey={selectedKey}
       onSelectKey={handleSelectKey}
+      onCreateNew={
+        activeEnvironment ? () => setCreating(true) : undefined
+      }
       detailSlot={detailSlot}
+      inlineFormSlot={inlineFormSlot}
     />
   );
 }

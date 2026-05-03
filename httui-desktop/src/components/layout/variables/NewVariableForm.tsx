@@ -1,16 +1,16 @@
 // Canvas §6 Variables — new-variable inline form (Epic 43 Story 05).
 //
-// Compact form rendered above the variable list. Three fields: name,
-// value (for the active env only — empty cells in other envs stay
-// undefined per the story spec, so the var doesn't shadow OS env in
-// other envs), and is_secret toggle. Save dispatches the parsed
-// payload; the consumer wires the actual store write. Cancel discards.
+// Single table-style row inserted above the variable list, inspired
+// by the legacy environments drawer footer: [KEY input] [VALUE input]
+// [lock toggle] [+ save] [× cancel]. Error message + visibility hint
+// surface below the row. Save dispatches the parsed payload; the
+// consumer wires the actual store write.
 
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
 import { useState } from "react";
+import { LuLock, LuLockOpen, LuPlus, LuX } from "react-icons/lu";
 
-import { Btn, Input } from "@/components/atoms";
-import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/atoms";
 
 import { validateVariableName } from "./variable-name";
 
@@ -59,17 +59,21 @@ export function NewVariableForm({
   return (
     <Box
       data-testid="new-variable-form"
-      px={5}
-      py={3}
-      borderBottomWidth="1px"
-      borderBottomColor="border"
-      bg="bg.muted"
+      mx={5}
+      my={2}
     >
-      <Flex direction="column" gap={2}>
-        <Box>
+      <Flex
+        align="stretch"
+        borderWidth="1px"
+        borderColor="brand.fg"
+        borderRadius="6px"
+        bg="bg"
+        overflow="hidden"
+      >
+        <Box flex="0 0 38%" minW={0}>
           <Input
             data-testid="new-variable-name"
-            placeholder="API_BASE_URL"
+            placeholder="KEY"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -80,88 +84,130 @@ export function NewVariableForm({
             }}
             autoFocus
             aria-invalid={showError}
+            css={{
+              border: "none",
+              borderRadius: 0,
+              fontFamily: "var(--chakra-fonts-mono)",
+              fontSize: "12px",
+            }}
           />
-          {showError && !validation.ok && (
+        </Box>
+        <Box
+          w="1px"
+          bg="border"
+          flexShrink={0}
+        />
+        <Box flex={1} minW={0}>
+          <Input
+            data-testid="new-variable-value"
+            placeholder={isSecret ? "secret value" : "value"}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSubmit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                onCancel?.();
+              }
+            }}
+            css={{
+              border: "none",
+              borderRadius: 0,
+              fontFamily: "var(--chakra-fonts-mono)",
+              fontSize: "12px",
+            }}
+          />
+        </Box>
+        <Flex
+          align="center"
+          gap={1}
+          px={2}
+          borderLeftWidth="1px"
+          borderLeftColor="border"
+          bg="bg.subtle"
+          flexShrink={0}
+        >
+          <IconButton
+            aria-label={isSecret ? "Mark as public" : "Mark as secret"}
+            title={
+              isSecret
+                ? "Secret — value lives in keychain"
+                : "Public — value lives in envs/*.toml"
+            }
+            data-testid="new-variable-is-secret"
+            data-is-secret={isSecret || undefined}
+            size="2xs"
+            variant="ghost"
+            color={isSecret ? "brand.fg" : "fg.subtle"}
+            onClick={() => setIsSecret((v) => !v)}
+          >
+            {isSecret ? <LuLock /> : <LuLockOpen />}
+          </IconButton>
+          <IconButton
+            aria-label="Save variable"
+            title="Save"
+            data-testid="new-variable-save"
+            size="2xs"
+            variant="ghost"
+            colorPalette="green"
+            onClick={handleSubmit}
+            disabled={touched && !validation.ok}
+          >
+            <LuPlus />
+          </IconButton>
+          <IconButton
+            aria-label="Cancel"
+            title="Cancel"
+            data-testid="new-variable-cancel"
+            size="2xs"
+            variant="ghost"
+            color="fg.subtle"
+            onClick={onCancel}
+          >
+            <LuX />
+          </IconButton>
+        </Flex>
+      </Flex>
+
+      <Flex justify="space-between" mt={1.5} px={1} gap={3}>
+        <Box minW={0}>
+          {showError && !validation.ok ? (
             <Text
               fontSize="11px"
               color="error"
-              mt={1}
               data-testid="new-variable-name-error"
+              truncate
             >
               {validation.reason}
             </Text>
+          ) : (
+            <Text fontSize="11px" color="fg.subtle" data-testid="new-variable-hint">
+              landing in env{" "}
+              <Text as="span" fontFamily="mono" color="fg.muted">
+                {activeEnv}
+              </Text>{" "}
+              ·{" "}
+              <Text
+                as="span"
+                fontFamily="mono"
+                color={isSecret ? "brand.fg" : "fg.muted"}
+                data-testid="new-variable-is-secret-label"
+              >
+                {isSecret ? "secret (keychain)" : "public (envs/*.toml)"}
+              </Text>
+            </Text>
           )}
         </Box>
-
-        <Flex align="center" gap={2}>
-          <Text
-            as="span"
-            fontFamily="mono"
-            fontSize="11px"
-            color="fg.muted"
-            w="68px"
-            flexShrink={0}
-            truncate
-            data-testid="new-variable-active-env"
-          >
-            {activeEnv}
-          </Text>
-          <Box flex={1}>
-            <Input
-              data-testid="new-variable-value"
-              placeholder="value"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSubmit();
-                } else if (e.key === "Escape") {
-                  e.preventDefault();
-                  onCancel?.();
-                }
-              }}
-            />
-          </Box>
-        </Flex>
-
-        <Flex align="center" justify="space-between">
-          <Flex align="center" gap={2}>
-            <Switch
-              size="sm"
-              checked={isSecret}
-              data-testid="new-variable-is-secret"
-              onCheckedChange={(e: { checked: boolean }) =>
-                setIsSecret(e.checked)
-              }
-              aria-label="is_secret"
-            />
-            <Text
-              fontSize="11px"
-              color="fg.muted"
-              data-testid="new-variable-is-secret-label"
-            >
-              {isSecret ? "Secret (keychain)" : "Public (envs/*.toml)"}
-            </Text>
-          </Flex>
-          <Flex gap={2}>
-            <Btn
-              variant="ghost"
-              data-testid="new-variable-cancel"
-              onClick={onCancel}
-            >
-              Cancel
-            </Btn>
-            <Btn
-              variant="primary"
-              data-testid="new-variable-save"
-              onClick={handleSubmit}
-              disabled={touched && !validation.ok}
-            >
-              Save
-            </Btn>
-          </Flex>
-        </Flex>
+        <Text
+          fontFamily="mono"
+          fontSize="10px"
+          color="fg.subtle"
+          flexShrink={0}
+        >
+          ↵ save · esc cancel
+        </Text>
       </Flex>
     </Box>
   );

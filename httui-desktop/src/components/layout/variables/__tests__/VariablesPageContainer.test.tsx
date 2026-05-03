@@ -289,4 +289,56 @@ describe("VariablesPageContainer", () => {
     expect(setVarCalls).toBe(0);
     confirmSpy.mockRestore();
   });
+
+  it("opens the inline new-variable form and saves to the active env", async () => {
+    useEnvironmentStore.setState({
+      environments: [
+        env({ id: "env-local", name: "local", is_active: true }),
+        env({ id: "env-prod", name: "prod" }),
+      ],
+      activeEnvironment: env({
+        id: "env-local",
+        name: "local",
+        is_active: true,
+      }),
+    });
+    const captured: Array<{
+      environmentId: string;
+      key: string;
+      value: string;
+      isSecret: boolean;
+    }> = [];
+    mockTauriCommand("set_env_variable", (args) => {
+      captured.push(
+        args as {
+          environmentId: string;
+          key: string;
+          value: string;
+          isSecret: boolean;
+        },
+      );
+      return v({ id: "v-fresh" });
+    });
+
+    renderWithProviders(<VariablesPageContainer />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByTestId("variables-create-new"));
+    await user.type(
+      await screen.findByTestId("new-variable-name"),
+      "FRESH_KEY",
+    );
+    await user.type(screen.getByTestId("new-variable-value"), "fresh-value");
+    await user.click(screen.getByTestId("new-variable-save"));
+
+    await waitFor(() => {
+      expect(captured.length).toBe(1);
+    });
+    expect(captured[0]).toMatchObject({
+      environmentId: "env-local",
+      key: "FRESH_KEY",
+      value: "fresh-value",
+      isSecret: false,
+    });
+  });
 });
