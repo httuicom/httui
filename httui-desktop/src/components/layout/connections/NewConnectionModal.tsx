@@ -96,6 +96,12 @@ export interface NewConnectionModalProps {
    * with the tabs + Save / Test footer hidden. Defaults to all kinds
    * supported (legacy behavior). */
   supportedKinds?: ReadonlyArray<ConnectionKind>;
+  /** "create" (default) shows the kind picker; "edit" shows it
+   * disabled with a single-row read-only header — driver/name is the
+   * natural key, can't change. Title and Save label adapt. */
+  mode?: "create" | "edit";
+  /** When in edit mode, used in the title (e.g. "Edit connection: payments-db"). */
+  editingName?: string;
 }
 
 export function NewConnectionModal({
@@ -111,6 +117,8 @@ export function NewConnectionModal({
   renderTabBody,
   saveDisabled = false,
   supportedKinds,
+  mode = "create",
+  editingName,
 }: NewConnectionModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const [internalKind, setInternalKind] =
@@ -198,7 +206,11 @@ export function NewConnectionModal({
             <ModalHeader
               Icon={meta.Icon}
               iconColor={`oklch(${meta.hue})`}
-              label={meta.label}
+              label={
+                mode === "edit" && editingName
+                  ? `Edit ${editingName}`
+                  : meta.label
+              }
               sub={KIND_SUB_LABEL[selectedKind]}
             />
 
@@ -230,6 +242,9 @@ export function NewConnectionModal({
 
                 <ModalFooter
                   saveDisabled={saveDisabled}
+                  saveLabel={
+                    mode === "edit" ? "Save changes" : "Save connection"
+                  }
                   onSave={
                     onSave
                       ? () => onSave({ kind: selectedKind, tab: effectiveTab })
@@ -325,11 +340,13 @@ function ModalHeader({
 
 function ModalFooter({
   saveDisabled,
+  saveLabel = "Save connection",
   onSave,
   onTest,
   onCancel,
 }: {
   saveDisabled: boolean;
+  saveLabel?: string;
   onSave?: () => void;
   onTest?: () => void;
   onCancel: () => void;
@@ -350,7 +367,7 @@ function ModalFooter({
         disabled={saveDisabled || !onSave}
         onClick={onSave}
       >
-        Save connection
+        {saveLabel}
       </Btn>
       <Btn
         variant="ghost"

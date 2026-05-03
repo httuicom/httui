@@ -41,6 +41,7 @@ export function ConnectionsPageContainer({
     {},
   );
   const [newOpen, setNewOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const ensureSchema = useSchemaCacheStore((s) => s.ensureLoaded);
   const refreshSchema = useSchemaCacheStore((s) => s.refresh);
@@ -180,6 +181,11 @@ export function ConnectionsPageContainer({
     return out;
   }, [schemaByConn]);
 
+  const editing = editingId
+    ? connections.find((c) => c.id === editingId) ?? null
+    : null;
+  const modalOpen = newOpen || Boolean(editing);
+
   return (
     <>
       <ConnectionsPage
@@ -199,15 +205,20 @@ export function ConnectionsPageContainer({
         usagesLoadingByConnection={usagesLoading}
         onOpenUsage={(filePath) => onNavigateFile?.(filePath)}
         onCreateNew={() => setNewOpen(true)}
-        onTestAll={() => {
-          void Promise.all(connections.map((c) => testConnection(c.id))).then(
-            () => reload(),
-          );
+        onEditRow={setEditingId}
+        onTestRow={(id) => {
+          void testConnection(id);
         }}
+        onDuplicateRow={handleDuplicate}
+        onDeleteRow={handleDelete}
       />
       <NewConnectionModalContainer
-        open={newOpen}
-        onClose={() => setNewOpen(false)}
+        open={modalOpen}
+        editing={editing}
+        onClose={() => {
+          setNewOpen(false);
+          setEditingId(null);
+        }}
         onCreated={() => {
           void reload();
         }}

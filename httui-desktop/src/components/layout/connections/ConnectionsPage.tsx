@@ -47,9 +47,12 @@ export interface ConnectionsPageProps {
   /** Override env summary list. When omitted, derives from
    * `enrichment`. */
   envs?: EnvSummary[];
-  onTestAll?: () => void;
   onCreateNew?: () => void;
-  onMoreRow?: (id: string) => void;
+  /** ⋮ row-menu handlers. */
+  onEditRow?: (id: string) => void;
+  onTestRow?: (id: string) => void;
+  onDuplicateRow?: (id: string) => void;
+  onDeleteRow?: (id: string) => void;
   /** Save handler for the credentials Edit/Save flow (Story 02). */
   onSaveCredentials?: (
     id: string,
@@ -98,9 +101,11 @@ export function ConnectionsPage({
   enrichment = [],
   countsByKind: countsByKindOverride,
   envs: envsOverride,
-  onTestAll,
   onCreateNew,
-  onMoreRow,
+  onEditRow,
+  onTestRow,
+  onDuplicateRow,
+  onDeleteRow,
   onSaveCredentials,
   onRotatePassword,
   schemaByConnection,
@@ -159,10 +164,6 @@ export function ConnectionsPage({
 
   const selectedConnectionName = selectedConnection?.name ?? null;
 
-  const handleTestAll = useMemo(
-    () => onTestAll ?? (() => {}),
-    [onTestAll],
-  );
   const handleCreateNew = useMemo(
     () => onCreateNew ?? (() => {}),
     [onCreateNew],
@@ -185,12 +186,14 @@ export function ConnectionsPage({
         status={status}
         searchValue={searchValue}
         onSearchChange={setSearchValue}
-        onTestAll={handleTestAll}
         onCreateNew={handleCreateNew}
         rows={rows}
         selectedId={selectedId}
         onSelectRow={setSelectedId}
-        onMoreRow={onMoreRow}
+        onEditRow={onEditRow}
+        onTestRow={onTestRow}
+        onDuplicateRow={onDuplicateRow}
+        onDeleteRow={onDeleteRow}
       />
       <ConnectionsDetailPanel
         selectedConnectionName={selectedConnectionName}

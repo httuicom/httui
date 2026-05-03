@@ -8,7 +8,7 @@
 // Pure presentational; counts come from the consumer.
 
 import { Box, Flex, HStack, Heading, Stack, Text } from "@chakra-ui/react";
-import { LuPlay, LuPlus } from "react-icons/lu";
+import { LuPlus } from "react-icons/lu";
 
 import { Btn } from "@/components/atoms";
 import {
@@ -27,7 +27,6 @@ export interface ConnectionsListPanelProps {
   status: ListStatusCounts;
   searchValue: string;
   onSearchChange: (value: string) => void;
-  onTestAll: () => void;
   onCreateNew: () => void;
   /** Compact list rows. Empty array → empty-state hint renders.
    * Slice 1 left this region as a placeholder; slice 2 wires it to
@@ -37,8 +36,12 @@ export interface ConnectionsListPanelProps {
   selectedId?: string | null;
   /** Click on a row → caller updates selection. */
   onSelectRow?: (id: string) => void;
-  /** ⋮ row-action menu trigger (slice 2 = no-op consumer). */
-  onMoreRow?: (id: string) => void;
+  /** ⋮ row-actions. Each is optional — if all omitted the menu
+   * trigger is hidden. */
+  onEditRow?: (id: string) => void;
+  onTestRow?: (id: string) => void;
+  onDuplicateRow?: (id: string) => void;
+  onDeleteRow?: (id: string) => void;
   /** Empty-state hint shown when `rows` is empty / undefined. */
   emptyHint?: string;
 }
@@ -49,12 +52,14 @@ export function ConnectionsListPanel({
   status,
   searchValue,
   onSearchChange,
-  onTestAll,
   onCreateNew,
   rows,
   selectedId = null,
   onSelectRow,
-  onMoreRow,
+  onEditRow,
+  onTestRow,
+  onDuplicateRow,
+  onDeleteRow,
   emptyHint = "Select a connection or create a new one",
 }: ConnectionsListPanelProps) {
   return (
@@ -96,13 +101,6 @@ export function ConnectionsListPanel({
           </HStack>
         </Box>
         <HStack gap={2} flexShrink={0}>
-          <Btn
-            variant="ghost"
-            data-testid="connections-test-all"
-            onClick={onTestAll}
-          >
-            <LuPlay size={12} /> Test all
-          </Btn>
           <Btn
             variant="primary"
             data-testid="connections-create-new"
@@ -149,7 +147,10 @@ export function ConnectionsListPanel({
               item={row}
               selected={row.id === selectedId}
               onSelect={(id) => onSelectRow?.(id)}
-              onMore={onMoreRow}
+              onEdit={onEditRow}
+              onTest={onTestRow}
+              onDuplicate={onDuplicateRow}
+              onDelete={onDeleteRow}
             />
           ))}
         </Stack>
@@ -166,15 +167,6 @@ export function ConnectionsListPanel({
         </Flex>
       )}
 
-      <Text
-        data-testid="connections-list-footer"
-        fontSize="10px"
-        color="fg.subtle"
-        textAlign="center"
-        mt={1}
-      >
-        ⌘P abre quick-edit · ⌘⇧N nova · ⌘⌥T testar todas
-      </Text>
     </Stack>
   );
 }

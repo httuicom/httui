@@ -68,16 +68,12 @@ describe("ConnectionsPage", () => {
     expect(row.getAttribute("data-selected")).toBe("true");
   });
 
-  it("forwards onTestAll + onCreateNew when supplied", async () => {
-    const onTestAll = vi.fn();
+  it("forwards onCreateNew when supplied", async () => {
     const onCreateNew = vi.fn();
-    renderWithProviders(
-      <ConnectionsPage onTestAll={onTestAll} onCreateNew={onCreateNew} />,
-    );
-    const user = userEvent.setup();
-    await user.click(screen.getByTestId("connections-test-all"));
-    await user.click(screen.getByTestId("connections-create-new"));
-    expect(onTestAll).toHaveBeenCalledTimes(1);
+    renderWithProviders(<ConnectionsPage onCreateNew={onCreateNew} />);
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("connections-create-new"));
     expect(onCreateNew).toHaveBeenCalledTimes(1);
   });
 

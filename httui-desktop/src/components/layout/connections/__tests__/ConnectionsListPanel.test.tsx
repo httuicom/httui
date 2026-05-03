@@ -9,7 +9,6 @@ function defaults() {
     status: { total: 16, ok: 14, slow: 1, down: 1 },
     searchValue: "",
     onSearchChange: vi.fn(),
-    onTestAll: vi.fn(),
     onCreateNew: vi.fn(),
   };
 }
@@ -25,21 +24,23 @@ describe("ConnectionsListPanel", () => {
     expect(status.textContent).toContain("1 down");
   });
 
-  it("Test all + Nova buttons dispatch their handlers", async () => {
-    const onTestAll = vi.fn();
+  it("New button dispatches its handler", async () => {
     const onCreateNew = vi.fn();
     renderWithProviders(
       <ConnectionsListPanel
         {...defaults()}
-        onTestAll={onTestAll}
         onCreateNew={onCreateNew}
       />,
     );
-    const user = userEvent.setup();
-    await user.click(screen.getByTestId("connections-test-all"));
-    await user.click(screen.getByTestId("connections-create-new"));
-    expect(onTestAll).toHaveBeenCalledTimes(1);
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("connections-create-new"));
     expect(onCreateNew).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render the legacy Test all button", () => {
+    renderWithProviders(<ConnectionsListPanel {...defaults()} />);
+    expect(screen.queryByTestId("connections-test-all")).toBeNull();
   });
 
   it("dispatches onSearchChange as the user types", async () => {
@@ -71,11 +72,8 @@ describe("ConnectionsListPanel", () => {
     ).toContain("No matches");
   });
 
-  it("renders the footer hint with the keymap labels", () => {
+  it("legacy footer hint is gone", () => {
     renderWithProviders(<ConnectionsListPanel {...defaults()} />);
-    const footer = screen.getByTestId("connections-list-footer");
-    expect(footer.textContent).toContain("⌘P");
-    expect(footer.textContent).toContain("⌘⇧N");
-    expect(footer.textContent).toContain("⌘⌥T");
+    expect(screen.queryByTestId("connections-list-footer")).toBeNull();
   });
 });

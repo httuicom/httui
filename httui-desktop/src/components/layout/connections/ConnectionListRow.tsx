@@ -1,8 +1,25 @@
 // Canvas §5 — compact connection list row.
 // Grid: 26px icon / 1.5fr name+chip / 1.4fr host / 80px env / 70px
-// status / 60px uses + ⋮. Selected: 2px accent left border + bg.
+// status / 60px uses + ⋮ menu. Selected: 2px accent left border + bg.
 
-import { Box, Flex, HStack, Text, chakra } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  HStack,
+  IconButton,
+  Menu,
+  Portal,
+  Text,
+  chakra,
+} from "@chakra-ui/react";
+import {
+  LuCopy,
+  LuDatabase,
+  LuEllipsisVertical,
+  LuPencil,
+  LuPlay,
+  LuTrash2,
+} from "react-icons/lu";
 
 import { ConnectionKindIcon } from "./ConnectionKindIcon";
 import type { ConnectionKind } from "./connection-kinds";
@@ -33,9 +50,12 @@ export interface ConnectionListRowProps {
   item: ListRowItem;
   selected: boolean;
   onSelect: (id: string) => void;
-  /** ⋮ menu trigger. Slice 2 wires no-op handler; slice 3+
-   * surfaces Test / Rotate / Duplicate / Delete. */
-  onMore?: (id: string) => void;
+  /** ⋮ row-actions. Each is optional — if none provided, the menu
+   * trigger is hidden entirely. */
+  onEdit?: (id: string) => void;
+  onTest?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 const STATUS_DOT = {
@@ -65,11 +85,10 @@ function fallbackIcon() {
       display="inline-flex"
       alignItems="center"
       justifyContent="center"
-      fontSize="14px"
       color="fg.subtle"
       flexShrink={0}
     >
-      🗄
+      <LuDatabase size={14} />
     </Box>
   );
 }
@@ -78,8 +97,12 @@ export function ConnectionListRow({
   item,
   selected,
   onSelect,
-  onMore,
+  onEdit,
+  onTest,
+  onDuplicate,
+  onDelete,
 }: ConnectionListRowProps) {
+  const hasActions = Boolean(onEdit || onTest || onDuplicate || onDelete);
   return (
     <RowButton
       type="button"
@@ -170,23 +193,64 @@ export function ConnectionListRow({
         <Text fontFamily="mono" fontSize="11px" color="fg.subtle">
           {item.uses} uses
         </Text>
-        <Box
-          as="span"
-          data-testid={`connection-row-${item.id}-more`}
-          onClick={(e: React.MouseEvent) => {
-            e.stopPropagation();
-            onMore?.(item.id);
-          }}
-          cursor="pointer"
-          color="fg.subtle"
-          fontSize="14px"
-          px="3px"
-          _hover={{ color: "fg.muted" }}
-          aria-label="Row actions"
-          role="button"
-        >
-          ⋮
-        </Box>
+        {hasActions && (
+          <Menu.Root positioning={{ placement: "bottom-end" }}>
+            <Menu.Trigger asChild>
+              <IconButton
+                data-testid={`connection-row-${item.id}-more`}
+                aria-label="Row actions"
+                variant="ghost"
+                size="xs"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <LuEllipsisVertical />
+              </IconButton>
+            </Menu.Trigger>
+            <Portal>
+              <Menu.Positioner>
+                <Menu.Content>
+                  {onEdit && (
+                    <Menu.Item
+                      value="edit"
+                      onSelect={() => onEdit(item.id)}
+                    >
+                      <LuPencil />
+                      Edit
+                    </Menu.Item>
+                  )}
+                  {onTest && (
+                    <Menu.Item
+                      value="test"
+                      onSelect={() => onTest(item.id)}
+                    >
+                      <LuPlay />
+                      Test
+                    </Menu.Item>
+                  )}
+                  {onDuplicate && (
+                    <Menu.Item
+                      value="duplicate"
+                      onSelect={() => onDuplicate(item.id)}
+                    >
+                      <LuCopy />
+                      Duplicate
+                    </Menu.Item>
+                  )}
+                  {onDelete && (
+                    <Menu.Item
+                      value="delete"
+                      onSelect={() => onDelete(item.id)}
+                      color="red.fg"
+                    >
+                      <LuTrash2 />
+                      Delete
+                    </Menu.Item>
+                  )}
+                </Menu.Content>
+              </Menu.Positioner>
+            </Portal>
+          </Menu.Root>
+        )}
       </Flex>
     </RowButton>
   );

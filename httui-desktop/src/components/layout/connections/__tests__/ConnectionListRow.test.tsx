@@ -124,22 +124,29 @@ describe("ConnectionListRow", () => {
     expect(onSelect).toHaveBeenCalledWith("c1");
   });
 
-  it("clicking ⋮ dispatches onMore without bubbling to onSelect", async () => {
+  it("opens the row actions menu without bubbling to onSelect", async () => {
     const onSelect = vi.fn();
-    const onMore = vi.fn();
+    const onEdit = vi.fn();
     renderWithProviders(
       <ConnectionListRow
         item={item()}
         selected={false}
         onSelect={onSelect}
-        onMore={onMore}
+        onEdit={onEdit}
       />,
     );
     await userEvent
       .setup()
       .click(screen.getByTestId("connection-row-c1-more"));
-    expect(onMore).toHaveBeenCalledWith("c1");
+    // Trigger click should not select the row.
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("does not render the actions menu when no handlers are provided", () => {
+    renderWithProviders(
+      <ConnectionListRow item={item()} selected={false} onSelect={vi.fn()} />,
+    );
+    expect(screen.queryByTestId("connection-row-c1-more")).toBeNull();
   });
 
   it("marks selected via data-selected", () => {

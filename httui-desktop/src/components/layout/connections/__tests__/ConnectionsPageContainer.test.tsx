@@ -87,22 +87,12 @@ describe("ConnectionsPageContainer", () => {
     expect(screen.getByTestId("new-connection-modal")).toBeTruthy();
   });
 
-  it("test-all dispatches one test_connection per row", async () => {
-    let testCalls = 0;
-    mockTauriCommand("test_connection", () => {
-      testCalls += 1;
-      return undefined;
-    });
+  it("does not render the legacy Test all button", async () => {
     renderWithProviders(<ConnectionsPageContainer />);
     await waitFor(() => {
       expect(screen.getByTestId("connections-page")).toBeTruthy();
     });
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("connections-test-all"));
-    await waitFor(() => {
-      expect(testCalls).toBeGreaterThanOrEqual(1);
-    });
+    expect(screen.queryByTestId("connections-test-all")).toBeNull();
   });
 
   it("reacts to config-changed events for connections by reloading", async () => {
