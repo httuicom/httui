@@ -45,6 +45,21 @@ export const EMPTY_POSTGRES_VALUE: PostgresFormValue = {
   password: "",
 };
 
+/** Per-kind defaults for the network-shape form. Keeps port + sample
+ * placeholders honest when the user switches between drivers. */
+export function emptyFormValueForKind(
+  kind: ConnectionKind,
+): PostgresFormValue {
+  switch (kind) {
+    case "mysql":
+      return { ...EMPTY_POSTGRES_VALUE, port: "3306" };
+    case "sqlite":
+      return { ...EMPTY_POSTGRES_VALUE, host: "", port: "" };
+    default:
+      return EMPTY_POSTGRES_VALUE;
+  }
+}
+
 export interface NewConnectionFormTabProps {
   kind: ConnectionKind;
   value: PostgresFormValue;
@@ -147,7 +162,7 @@ export function NewConnectionFormTab({
             value={value.port}
             onChange={(e) => patch("port", e.target.value)}
             inputMode="numeric"
-            placeholder="5432"
+            placeholder={kind === "mysql" ? "3306" : "5432"}
           />
         </Field>
       </Grid>

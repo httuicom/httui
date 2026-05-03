@@ -31,14 +31,24 @@ export interface NewConnectionStringTabProps {
   initial?: string;
   /** Dispatched when the parsed result is applied to the form. */
   onApply: (args: NewConnectionStringApplyArgs) => void;
+  /** Kind currently selected — drives the placeholder and hint copy
+   * so MySQL doesn't show a `postgres://` example. */
+  kind?: ConnectionKind;
 }
 
-const PLACEHOLDER =
+const POSTGRES_EXAMPLE =
   "postgres://orders_app:hunter2@db.internal:5432/orders?sslmode=require";
+const MYSQL_EXAMPLE =
+  "mysql://orders_app:hunter2@db.internal:3306/orders?ssl-mode=REQUIRED";
+
+function exampleForKind(kind: ConnectionKind | undefined): string {
+  return kind === "mysql" ? MYSQL_EXAMPLE : POSTGRES_EXAMPLE;
+}
 
 export function NewConnectionStringTab({
   initial = "",
   onApply,
+  kind,
 }: NewConnectionStringTabProps) {
   const [text, setText] = useState(initial);
   const [result, setResult] = useState<
@@ -53,6 +63,8 @@ export function NewConnectionStringTab({
     }
   }
 
+  const isMysql = kind === "mysql";
+
   return (
     <Flex
       data-testid="new-connection-string-tab"
@@ -60,17 +72,26 @@ export function NewConnectionStringTab({
       gap={3}
     >
       <Text fontSize="11px" color="fg.muted">
-        Paste a URL like <Mono>postgres://</Mono>, <Mono>postgresql://</Mono>{" "}
-        or <Mono>mysql://</Mono>. Form fields and the{" "}
-        <Mono>sslmode</Mono> /<Mono>sslrootcert</Mono> params are filled
-        from the URL.
+        {isMysql ? (
+          <>
+            Paste a <Mono>mysql://</Mono> URL. Form fields and the{" "}
+            <Mono>ssl-mode</Mono> param are filled from the URL.
+          </>
+        ) : (
+          <>
+            Paste a <Mono>postgres://</Mono> or{" "}
+            <Mono>postgresql://</Mono> URL. Form fields and the{" "}
+            <Mono>sslmode</Mono> /<Mono>sslrootcert</Mono> params are
+            filled from the URL.
+          </>
+        )}
       </Text>
 
       <Textarea
         data-testid="new-connection-string-input"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={PLACEHOLDER}
+        placeholder={exampleForKind(kind)}
         rows={6}
       />
 

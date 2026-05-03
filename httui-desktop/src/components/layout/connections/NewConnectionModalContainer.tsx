@@ -14,7 +14,11 @@ import {
   NewConnectionModal,
   type NewConnectionTabId,
 } from "./NewConnectionModal";
-import { NewConnectionFormTab, EMPTY_POSTGRES_VALUE } from "./NewConnectionFormTab";
+import {
+  NewConnectionFormTab,
+  EMPTY_POSTGRES_VALUE,
+  emptyFormValueForKind,
+} from "./NewConnectionFormTab";
 import type { PostgresFormValue } from "./NewConnectionFormTab";
 import { NewConnectionStringTab } from "./NewConnectionStringTab";
 import { NewConnectionSshTab } from "./NewConnectionSshTab";
@@ -57,6 +61,16 @@ export function NewConnectionModalContainer({
   const handleClose = () => {
     reset();
     onClose();
+  };
+
+  /** When the user picks a different kind, swap the kind defaults
+   * (port mostly) UNLESS they've started typing a name — preserves
+   * mid-edit state. */
+  const handleKindChange = (next: ConnectionKind) => {
+    setKind(next);
+    if (form.name.trim().length === 0) {
+      setForm(emptyFormValueForKind(next));
+    }
   };
 
   const handleSave = async () => {
@@ -106,6 +120,7 @@ export function NewConnectionModalContainer({
       case "connection-string":
         return (
           <NewConnectionStringTab
+            kind={args.kind}
             onApply={({ kind: parsedKind, value, ssl: parsedSsl }) => {
               setKind(parsedKind);
               setForm(value);
@@ -128,7 +143,7 @@ export function NewConnectionModalContainer({
     <NewConnectionModal
       open={open}
       kind={kind}
-      onKindChange={setKind}
+      onKindChange={handleKindChange}
       activeTab={tab}
       onTabChange={setTab}
       renderTabBody={renderTabBody}
