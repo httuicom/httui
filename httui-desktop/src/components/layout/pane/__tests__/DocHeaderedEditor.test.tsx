@@ -301,4 +301,64 @@ describe("DocHeaderedEditor", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(calls).toBe(initialCalls);
   });
+
+  describe("Run-all preflight gate (V6 cenário 10)", () => {
+    it("ignores Cmd+R without shift", async () => {
+      mockTauriCommand("evaluate_preflight_cmd", () => [
+        {
+          kind: "command",
+          label: "psql",
+          result: { outcome: "fail", reason: "missing" },
+        },
+      ]);
+      renderWithProviders(<DocHeaderedEditor {...baseProps} />);
+      await new Promise((r) => setTimeout(r, 30));
+
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "R", metaKey: true }),
+      );
+      await new Promise((r) => setTimeout(r, 20));
+      expect(
+        screen.queryByTestId("preflight-run-all-confirm"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("ignores Shift+R without modifier (no Cmd / Ctrl)", async () => {
+      mockTauriCommand("evaluate_preflight_cmd", () => [
+        {
+          kind: "command",
+          label: "psql",
+          result: { outcome: "fail", reason: "missing" },
+        },
+      ]);
+      renderWithProviders(<DocHeaderedEditor {...baseProps} />);
+      await new Promise((r) => setTimeout(r, 30));
+
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "R", shiftKey: true }),
+      );
+      await new Promise((r) => setTimeout(r, 20));
+      expect(
+        screen.queryByTestId("preflight-run-all-confirm"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("Cmd+Shift+R does not open the dialog when no preflight items", async () => {
+      mockTauriCommand("evaluate_preflight_cmd", () => []);
+      renderWithProviders(<DocHeaderedEditor {...baseProps} />);
+      await new Promise((r) => setTimeout(r, 30));
+
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "R",
+          metaKey: true,
+          shiftKey: true,
+        }),
+      );
+      await new Promise((r) => setTimeout(r, 20));
+      expect(
+        screen.queryByTestId("preflight-run-all-confirm"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });
