@@ -8,9 +8,9 @@ edition = "2021"
 rust-version = "1.80"
 license = "MIT"
 authors = ["João Ferreira <joao@httui.com>"]
-repository = "https://github.com/gandarfh/httui-notes"
+repository = "https://github.com/httuicom/httui"
 homepage = "https://httui.com"
-documentation = "https://github.com/gandarfh/httui-notes#readme"
+documentation = "https://github.com/httuicom/httui#readme"
 
 # Slimmer dev-time artifacts. `line-tables-only` keeps panic backtraces
 # pointing at file:line but drops the heavy DWARF type info that pushes

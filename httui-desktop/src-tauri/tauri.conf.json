@@ -38,7 +38,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZEQkZGMEM4NjU1QUE5RUYKUldUdnFWcGx5UEMvL2JSdUY0QTlFQ3h1MkdCc1pUWnFDUVNuQzVsVnpTQ2hkN2hGSXN5ci9lcUkK",
       "endpoints": [
-        "https://github.com/gandarfh/httui-notes/releases/latest/download/latest.json"
+        "https://github.com/httuicom/httui/releases/latest/download/latest.json"
       ]
     }
   },

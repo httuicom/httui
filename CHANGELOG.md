@@ -214,4 +214,4 @@ launch checklist (Epic 38, Story 03).
   blocked on real hardware testing. Until then, the keychain prompt
   in dev/unsigned builds is documented but accepted (see audit-008).
 
-[Unreleased]: https://github.com/gandarfh/httui-notes/commits/main
+[Unreleased]: https://github.com/httuicom/httui/commits/main

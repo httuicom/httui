@@ -162,8 +162,8 @@ Keep branches short-lived and rebased onto `main`.
 
 ## Where to ask
 
-- **Bugs / regressions** — open a [GitHub issue](https://github.com/gandarfh/httui-notes/issues).
-- **Feature ideas / design questions** — open a [GitHub discussion](https://github.com/gandarfh/httui-notes/discussions).
+- **Bugs / regressions** — open a [GitHub issue](https://github.com/httuicom/httui/issues).
+- **Feature ideas / design questions** — open a [GitHub discussion](https://github.com/httuicom/httui/discussions).
 - **Security issues** — see [SECURITY.md](./SECURITY.md). Do **not** open a public issue.
 
 ## Code of Conduct

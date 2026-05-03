@@ -22,7 +22,7 @@ source.
 | Linux | AppImage + `.deb` |
 | Windows | MSI |
 
-Download from the [GitHub Releases page](https://github.com/gandarfh/httui-notes/releases),
+Download from the [GitHub Releases page](https://github.com/httuicom/httui/releases),
 double-click to install. The DMG and MSI ship code-signed once
 Epic 34 (developer cert work) lands; until then macOS may show
 a Gatekeeper prompt and Windows SmartScreen may warn on first
@@ -42,8 +42,8 @@ You'll need:
   <https://v2.tauri.app/start/prerequisites/>
 
 ```bash
-git clone https://github.com/gandarfh/httui-notes
-cd httui-notes
+git clone https://github.com/httuicom/httui
+cd httui
 make install-deps
 make build              # production .app on macOS
 # or

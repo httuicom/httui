@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const REPO = "gandarfh/httui";
+const REPO = "httuicom/httui";
 const CACHE_KEY = `httui:gh-stats:${REPO}:v1`;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
 

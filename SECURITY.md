@@ -11,7 +11,7 @@ Use one of the following channels instead:
 - E-mail [joao@httui.com](mailto:joao@httui.com) with the subject
   prefix `[security]`.
 - Open a private advisory via GitHub:
-  <https://github.com/gandarfh/httui-notes/security/advisories/new>.
+  <https://github.com/httuicom/httui/security/advisories/new>.
 
 Include in your report:
 

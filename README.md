@@ -4,7 +4,7 @@
 
 A desktop markdown editor with a runtime inside. Write the doc, hit run, ship the proof.
 
-[Website](https://httui.com) · [Releases](https://github.com/gandarfh/httui-notes/releases) · [Contributing](./CONTRIBUTING.md) · [Security](./SECURITY.md)
+[Website](https://httui.com) · [Releases](https://github.com/httuicom/httui/releases) · [Contributing](./CONTRIBUTING.md) · [Security](./SECURITY.md)
 
 ## What is httui?
 
@@ -43,7 +43,7 @@ Everything serializes to standard `.md` files. Read them in vim, diff them in gi
 
 ## 5-minute tour
 
-1. Download the latest release from [Releases](https://github.com/gandarfh/httui-notes/releases) and open a folder of markdown files.
+1. Download the latest release from [Releases](https://github.com/httuicom/httui/releases) and open a folder of markdown files.
 2. In any `.md` file, type `/http` to insert a request block:
    ```http alias=octocat
    GET https://api.github.com/users/octocat
