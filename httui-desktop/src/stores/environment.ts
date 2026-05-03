@@ -6,6 +6,7 @@ import {
   createEnvironment as createEnvCmd,
   deleteEnvironment as deleteEnvCmd,
   duplicateEnvironment as duplicateEnvCmd,
+  renameEnvironment as renameEnvCmd,
   setActiveEnvironment as setActiveEnvCmd,
   listEnvVariables,
   setEnvVariable as setEnvVarCmd,
@@ -30,6 +31,7 @@ interface EnvironmentState {
   createEnvironment: (name: string) => Promise<void>;
   deleteEnvironment: (id: string) => Promise<void>;
   duplicateEnvironment: (sourceId: string, newName: string) => Promise<void>;
+  renameEnvironment: (oldId: string, newName: string) => Promise<void>;
   loadVariables: (environmentId: string) => Promise<EnvVariable[]>;
   setVariable: (
     environmentId: string,
@@ -83,6 +85,11 @@ export const useEnvironmentStore = create<EnvironmentState>()(
 
       duplicateEnvironment: async (sourceId, newName) => {
         await duplicateEnvCmd(sourceId, newName);
+        await get().refresh();
+      },
+
+      renameEnvironment: async (oldId, newName) => {
+        await renameEnvCmd(oldId, newName);
         await get().refresh();
       },
 

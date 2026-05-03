@@ -52,14 +52,23 @@ describe("DeleteEnvironmentConfirm", () => {
     expect(body).toMatch(/gitignored/);
   });
 
-  it("fires onConfirm with the source filename on Delete click", async () => {
+  it("blocks Delete until the user types the env name into the confirm input", async () => {
     const onConfirm = vi.fn();
     renderWithProviders(
       <DeleteEnvironmentConfirm env={env()} onConfirm={onConfirm} />,
     );
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("delete-environment-confirm-submit"));
+    const submit = screen.getByTestId(
+      "delete-environment-confirm-submit",
+    ) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByTestId("delete-environment-confirm-input"),
+      "staging",
+    );
+    expect(submit.disabled).toBe(false);
+    await user.click(submit);
     expect(onConfirm).toHaveBeenCalledWith("staging.toml");
   });
 

@@ -14,7 +14,7 @@ use std::time::SystemTime;
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-use crate::db::keychain::{delete_secret, env_var_key};
+use crate::db::keychain::{delete_secret, env_var_key, get_secret, store_secret};
 
 use super::atomic::{read_toml, write_toml};
 use super::envs::{EnvFile, EnvMeta};
@@ -254,8 +254,88 @@ impl EnvironmentsStore {
             }
         }
         std::fs::remove_file(&path).map_err(|e| format!("delete {}: {e}", path.display()))?;
+        // Drop the local override file too so a stale `<name>.local.toml`
+        // doesn't resurrect the env on next load.
+        let local = Self::local_path_for(&path);
+        if local != path && local.exists() {
+            let _ = std::fs::remove_file(&local);
+        }
         let mut cache = self.cache.write().await;
         cache.remove(name);
+        Ok(())
+    }
+
+    /// Rename `old_name` → `new_name`. Migrates the keychain entries
+    /// for every secret (so users don't have to re-enter values) and
+    /// preserves `<name>.local.toml` overrides under the new key. If
+    /// the renamed env was the active one, the active pointer is
+    /// updated atomically.
+    pub async fn rename_env(
+        &self,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<(), String> {
+        let new = new_name.trim();
+        if new.is_empty() {
+            return Err("environment name is required".to_string());
+        }
+        if !is_valid_env_name(new) {
+            return Err(format!(
+                "invalid environment name '{new}' — use letters, digits, '-', '_'"
+            ));
+        }
+        if new == old_name {
+            return Ok(());
+        }
+        let old_path = self.env_file_path(old_name);
+        if !old_path.exists() {
+            return Err(format!("environment '{old_name}' not found"));
+        }
+        let new_path = self.env_file_path(new);
+        if new_path.exists() {
+            return Err(format!("environment '{new}' already exists"));
+        }
+        // Migrate keychain entries first (most fragile step). Best-
+        // effort: a missing/failing entry doesn't abort the rename
+        // because the file move below is the user-visible side effect.
+        if let Some(file) = self.load_env(old_name).await? {
+            for key in file.secrets.keys() {
+                let kc_old = env_var_key(old_name, key);
+                let kc_new = env_var_key(new, key);
+                if let Ok(Some(value)) = get_secret(&kc_old) {
+                    let _ = store_secret(&kc_new, &value);
+                    let _ = delete_secret(&kc_old);
+                }
+            }
+        }
+        std::fs::rename(&old_path, &new_path).map_err(|e| {
+            format!(
+                "rename {} → {}: {e}",
+                old_path.display(),
+                new_path.display()
+            )
+        })?;
+        let old_local = Self::local_path_for(&old_path);
+        let new_local = Self::local_path_for(&new_path);
+        if old_local != old_path && old_local.exists() {
+            std::fs::rename(&old_local, &new_local).map_err(|e| {
+                format!(
+                    "rename {} → {}: {e}",
+                    old_local.display(),
+                    new_local.display()
+                )
+            })?;
+        }
+        {
+            let mut cache = self.cache.write().await;
+            cache.remove(old_name);
+            cache.remove(new);
+        }
+        if let Ok(Some(active)) = self.active_env().await {
+            if active == old_name {
+                self.set_active_env(Some(new)).await?;
+            }
+        }
         Ok(())
     }
 
@@ -631,6 +711,76 @@ mod tests {
 
         let err = store.delete_env(&env_name).await.unwrap_err();
         assert!(err.contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn rename_env_moves_file_and_preserves_vars() {
+        let (store, t) = fresh_store();
+        let old_name = unique_name("renold");
+        let new_name = unique_name("rennew");
+        store.create_env(&old_name).await.unwrap();
+        store
+            .set_var(SetVarInput {
+                env_name: old_name.clone(),
+                key: "API_BASE".into(),
+                value: "x".into(),
+                is_secret: false,
+            })
+            .await
+            .unwrap();
+
+        store.rename_env(&old_name, &new_name).await.unwrap();
+
+        assert!(!t.path().join(format!("envs/{old_name}.toml")).exists());
+        assert!(t.path().join(format!("envs/{new_name}.toml")).exists());
+
+        let vars = store.list_vars(&new_name).await.unwrap();
+        assert_eq!(vars.len(), 1);
+        assert_eq!(vars[0].key, "API_BASE");
+        assert_eq!(vars[0].value, "x");
+    }
+
+    #[tokio::test]
+    async fn rename_env_rejects_existing_target_and_invalid_name() {
+        let (store, _t) = fresh_store();
+        let a = unique_name("rena");
+        let b = unique_name("renb");
+        store.create_env(&a).await.unwrap();
+        store.create_env(&b).await.unwrap();
+
+        let err = store.rename_env(&a, &b).await.unwrap_err();
+        assert!(err.contains("already exists"));
+
+        let err = store.rename_env(&a, "has spaces").await.unwrap_err();
+        assert!(err.contains("invalid environment name"));
+
+        let err = store.rename_env(&a, "").await.unwrap_err();
+        assert!(err.contains("required"));
+    }
+
+    #[tokio::test]
+    async fn rename_env_updates_active_pointer_when_renaming_active() {
+        let (store, _t) = fresh_store();
+        let old_name = unique_name("renactold");
+        let new_name = unique_name("renactnew");
+        store.create_env(&old_name).await.unwrap();
+        store.set_active_env(Some(&old_name)).await.unwrap();
+
+        store.rename_env(&old_name, &new_name).await.unwrap();
+
+        assert_eq!(
+            store.active_env().await.unwrap().as_deref(),
+            Some(new_name.as_str())
+        );
+    }
+
+    #[tokio::test]
+    async fn rename_env_no_op_when_same_name() {
+        let (store, _t) = fresh_store();
+        let name = unique_name("renoop");
+        store.create_env(&name).await.unwrap();
+        store.rename_env(&name, &name).await.unwrap();
+        assert!(store.get_env(&name).await.unwrap().is_some());
     }
 
     #[tokio::test]

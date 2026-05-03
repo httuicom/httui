@@ -115,9 +115,9 @@ export function RenameEnvironmentForm({
             color="fg.subtle"
             data-testid="rename-environment-target-hint"
           >
-            renomeia para{" "}
+            renames to{" "}
             <Text as="span" fontFamily="mono">
-              envs/{name.trim() || "<nome>"}
+              envs/{name.trim() || "<name>"}
               {env.isPersonal ? ".local.toml" : ".toml"}
             </Text>
           </Text>

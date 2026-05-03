@@ -544,6 +544,7 @@ fn main() {
             httui_notes::commands::environments::create_environment,
             httui_notes::commands::environments::delete_environment,
             httui_notes::commands::environments::duplicate_environment,
+            httui_notes::commands::environments::rename_environment,
             httui_notes::commands::environments::set_active_environment,
             httui_notes::commands::environments::list_env_variables,
             httui_notes::commands::environments::set_env_variable,

@@ -170,6 +170,38 @@ pub async fn duplicate_environment(
     })
 }
 
+/// Rename an environment (envs/old.toml → envs/new.toml). Migrates
+/// keychain entries for every secret so users keep their values
+/// across rename. The active pointer follows along.
+#[tauri::command]
+pub async fn rename_environment(
+    pool: State<'_, SqlitePool>,
+    registry: State<'_, Arc<VaultStoreRegistry>>,
+    old_id: String,
+    new_name: String,
+) -> Result<Environment, String> {
+    let stores = registry.for_active_vault(&pool).await?;
+    stores
+        .environments
+        .rename_env(&old_id, &new_name)
+        .await?;
+    let active = stores.environments.active_env().await?;
+    let envs = stores.environments.list_envs().await?;
+    let renamed = envs
+        .into_iter()
+        .find(|e| e.name == new_name.trim())
+        .ok_or_else(|| "renamed environment vanished".to_string())?;
+    Ok(Environment {
+        id: renamed.name.clone(),
+        is_active: active.as_deref() == Some(renamed.name.as_str()),
+        description: renamed.description.clone(),
+        temporary: renamed.temporary,
+        connections_used: renamed.connections_used.clone(),
+        name: renamed.name,
+        created_at: String::new(),
+    })
+}
+
 /// Mark an environment as active (or `None` to clear).
 #[tauri::command]
 pub async fn set_active_environment(

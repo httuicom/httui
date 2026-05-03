@@ -23,9 +23,14 @@ import {
   CloneEnvironmentForm,
   type CloneEnvironmentPayload,
 } from "./CloneEnvironmentForm";
+import { DeleteEnvironmentConfirm } from "./DeleteEnvironmentConfirm";
 import { EnvironmentsPage } from "./EnvironmentsPage";
 import type { EnvironmentSummary } from "./envs-meta";
 import { envNameFromFilename } from "./envs-meta";
+import {
+  RenameEnvironmentForm,
+  type RenameEnvironmentPayload,
+} from "./RenameEnvironmentForm";
 
 /** Map a backend Environment + its variable count into the
  * EnvironmentSummary the EnvironmentsPage expects.
@@ -63,6 +68,8 @@ export function EnvironmentsPageContainer({
   const duplicateEnvironment = useEnvironmentStore(
     (s) => s.duplicateEnvironment,
   );
+  const renameEnvironment = useEnvironmentStore((s) => s.renameEnvironment);
+  const deleteEnvironment = useEnvironmentStore((s) => s.deleteEnvironment);
   const variablesVersion = useEnvironmentStore((s) => s.variablesVersion);
 
   // FLIP swap of the ACTIVE pill across cards: capture the old
@@ -79,6 +86,9 @@ export function EnvironmentsPageContainer({
     filename: string;
     name: string;
   } | null>(null);
+  const [renaming, setRenaming] = useState<EnvironmentSummary | null>(null);
+  const [deleting, setDeleting] = useState<EnvironmentSummary | null>(null);
+  const [secretCounts, setSecretCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     void refreshEnvs();
@@ -105,21 +115,32 @@ export function EnvironmentsPageContainer({
     };
   }, [refreshEnvs]);
 
-  // Load varCount per env in parallel, then assemble summaries.
+  // Load varCount + secretCount per env in parallel, then assemble
+  // summaries.
   useEffect(() => {
     let cancelled = false;
     if (environments.length === 0) {
       setSummaries([]);
+      setSecretCounts({});
       return;
     }
     void Promise.all(
       environments.map(async (env) => {
         const vars = await listEnvVariables(env.id).catch(() => []);
-        return envToSummary(env, vars.length);
+        const secrets = vars.filter((v) => v.is_secret).length;
+        return {
+          summary: envToSummary(env, vars.length),
+          secrets,
+        };
       }),
-    ).then((next) => {
+    ).then((rows) => {
       if (cancelled) return;
-      setSummaries(next);
+      setSummaries(rows.map((r) => r.summary));
+      setSecretCounts(
+        Object.fromEntries(
+          rows.map(({ summary, secrets }) => [summary.filename, secrets]),
+        ),
+      );
     });
     return () => {
       cancelled = true;
@@ -191,8 +212,32 @@ export function EnvironmentsPageContainer({
       const target = envByFilename.get(filename);
       if (!target) return;
       setCloning({ filename, name: target.name });
+      setRenaming(null);
+      setDeleting(null);
     },
     [envByFilename],
+  );
+
+  const handleRequestRename = useCallback(
+    (filename: string) => {
+      const summary = summaries.find((s) => s.filename === filename);
+      if (!summary) return;
+      setRenaming(summary);
+      setCloning(null);
+      setDeleting(null);
+    },
+    [summaries],
+  );
+
+  const handleRequestDelete = useCallback(
+    (filename: string) => {
+      const summary = summaries.find((s) => s.filename === filename);
+      if (!summary) return;
+      setDeleting(summary);
+      setCloning(null);
+      setRenaming(null);
+    },
+    [summaries],
   );
 
   // V5 cenário 7 — backend `duplicate_environment` only accepts
@@ -209,7 +254,27 @@ export function EnvironmentsPageContainer({
     [duplicateEnvironment, envByFilename],
   );
 
-  const inlineFormSlot = cloning ? (
+  const handleRenameSubmit = useCallback(
+    async (payload: RenameEnvironmentPayload) => {
+      const source = envByFilename.get(payload.sourceFilename);
+      if (!source) return;
+      await renameEnvironment(source.id, payload.newName);
+      setRenaming(null);
+    },
+    [envByFilename, renameEnvironment],
+  );
+
+  const handleDeleteConfirm = useCallback(
+    async (filename: string) => {
+      const target = envByFilename.get(filename);
+      if (!target) return;
+      await deleteEnvironment(target.id);
+      setDeleting(null);
+    },
+    [deleteEnvironment, envByFilename],
+  );
+
+  const activeForm = cloning ? (
     <CloneEnvironmentForm
       sourceFilename={cloning.filename}
       sourceName={cloning.name}
@@ -217,7 +282,29 @@ export function EnvironmentsPageContainer({
       onSubmit={handleCloneSubmit}
       onCancel={() => setCloning(null)}
     />
+  ) : renaming ? (
+    <RenameEnvironmentForm
+      env={renaming}
+      existingFilenames={summaries.map((s) => s.filename)}
+      onSubmit={handleRenameSubmit}
+      onCancel={() => setRenaming(null)}
+    />
+  ) : deleting ? (
+    <DeleteEnvironmentConfirm
+      env={deleting}
+      secretCount={secretCounts[deleting.filename] ?? 0}
+      onConfirm={handleDeleteConfirm}
+      onCancel={() => setDeleting(null)}
+    />
   ) : null;
+
+  const activeFilename =
+    cloning?.filename ?? renaming?.filename ?? deleting?.filename ?? null;
+  const closeAllForms = () => {
+    setCloning(null);
+    setRenaming(null);
+    setDeleting(null);
+  };
 
   return (
     <EnvironmentsPage
@@ -225,7 +312,11 @@ export function EnvironmentsPageContainer({
       onActivate={handleActivate}
       onCreateNew={onCreateNew}
       onClone={handleRequestClone}
-      inlineFormSlot={inlineFormSlot}
+      onRename={handleRequestRename}
+      onDelete={handleRequestDelete}
+      anchoredForm={activeForm}
+      anchoredFilename={activeFilename}
+      onCloseAnchoredForm={closeAllForms}
     />
   );
 }

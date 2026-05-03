@@ -372,6 +372,13 @@ export function duplicateEnvironment(
   return invoke("duplicate_environment", { sourceId, newName });
 }
 
+export function renameEnvironment(
+  oldId: string,
+  newName: string,
+): Promise<Environment> {
+  return invoke("rename_environment", { oldId, newName });
+}
+
 export function setActiveEnvironment(id: string | null): Promise<void> {
   return invoke("set_active_environment", { id });
 }
