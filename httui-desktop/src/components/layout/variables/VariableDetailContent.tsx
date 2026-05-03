@@ -59,8 +59,11 @@ export function VariableDetailContent({
           <EmptyEnvsHint />
         ) : (
           envNames.map((env) => (
+            // Key includes `row.key` so switching variables forces a
+            // remount — the per-row reveal/edit local state would
+            // otherwise leak the previous variable's cleartext.
             <VariableValueRow
-              key={env}
+              key={`${row.key}:${env}`}
               env={env}
               value={row.values[env]}
               isSecret={row.isSecret}

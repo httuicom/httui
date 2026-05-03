@@ -195,7 +195,7 @@ function ValueDisplay({
   if (reveal.kind === "loading") {
     return (
       <Text fontFamily="mono" fontSize="11px" color="fg.subtle" data-testid={testId}>
-        carregando…
+        loading…
       </Text>
     );
   }
@@ -231,7 +231,7 @@ function ValueDisplay({
       >
         {reveal.value || (
           <Text as="span" color="fg.subtle">
-            {"(vazio)"}
+            {"(empty)"}
           </Text>
         )}
       </Text>

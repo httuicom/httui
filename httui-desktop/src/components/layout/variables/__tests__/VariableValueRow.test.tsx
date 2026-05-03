@@ -122,7 +122,7 @@ describe("VariableValueRow (read-only + reveal)", () => {
       .click(screen.getByTestId("variable-value-row-staging-show"));
     expect(
       screen.getByTestId("variable-value-row-staging-display").textContent,
-    ).toMatch(/vazio/);
+    ).toMatch(/empty/i);
   });
 
   it("normalizes a non-Error rejection to its string form", async () => {
@@ -160,7 +160,7 @@ describe("VariableValueRow (read-only + reveal)", () => {
       .click(screen.getByTestId("variable-value-row-staging-show"));
     expect(
       screen.getByTestId("variable-value-row-staging-display").textContent,
-    ).toMatch(/vazio/);
+    ).toMatch(/empty/i);
   });
 });
 

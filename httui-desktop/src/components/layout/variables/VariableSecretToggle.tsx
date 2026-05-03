@@ -74,8 +74,8 @@ export function VariableSecretToggle({
             data-testid="variable-secret-toggle-hint"
           >
             {isSecret
-              ? "Valor vive no keychain — não vai pra envs/*.toml."
-              : "Valor é gravado em envs/*.toml — qualquer um com o vault vê."}
+              ? "Value lives in the keychain — never written to envs/*.toml."
+              : "Value is written to envs/*.toml — visible to anyone with the vault."}
           </Text>
         </Box>
         <Switch

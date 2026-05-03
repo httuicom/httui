@@ -32,7 +32,7 @@ export function UsedInBlocksList({
         px={4}
         py={2}
       >
-        Buscando referências…
+        Searching references…
       </Text>
     );
   }
@@ -58,7 +58,7 @@ export function UsedInBlocksList({
         px={4}
         py={2}
       >
-        Nenhuma referência encontrada no vault.
+        No references found in the vault.
       </Text>
     );
   }
