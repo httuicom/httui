@@ -233,6 +233,30 @@ describe("EnvironmentManager", () => {
     expect(dupCalled).toMatchObject({ sourceId: "a", newName: "dev-copy" });
   });
 
+  it("per-var X icon dispatches delete_env_variable", async () => {
+    let deletedId: { id?: string } | null = null;
+    mockTauriCommand("list_env_variables", () => [
+      mkVar("v1", "a", "API_BASE", "x"),
+    ]);
+    mockTauriCommand("delete_env_variable", (args) => {
+      deletedId = args as { id: string };
+      return undefined;
+    });
+    useEnvironmentStore.setState({
+      managerOpen: true,
+      environments: [mkEnv("a", "dev")],
+    });
+    renderWithProviders(<EnvironmentManager />);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByTestId("variable-value-row-dev-delete"),
+    );
+    await waitFor(() => {
+      expect(deletedId).not.toBeNull();
+    });
+    expect((deletedId as { id: string }).id).toBe("v1");
+  });
+
   it("Escape key cancels the inline creator", async () => {
     const user = userEvent.setup();
     useEnvironmentStore.setState({ managerOpen: true });
