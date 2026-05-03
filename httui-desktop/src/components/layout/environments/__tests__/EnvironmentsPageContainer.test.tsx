@@ -167,6 +167,64 @@ describe("EnvironmentsPageContainer", () => {
     expect(setActiveCalled).toEqual({ id: "env-prod" });
   });
 
+  it("Rename menu opens the form and dispatches rename_environment", async () => {
+    let captured: { oldId?: string; newName?: string } | null = null;
+    mockTauriCommand("rename_environment", (args) => {
+      captured = args as { oldId: string; newName: string };
+      return env({ id: "env-prod-renamed", name: "prod-renamed" });
+    });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    renderWithProviders(<EnvironmentsPageContainer />);
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByTestId("environment-card-prod.toml-more"),
+    );
+    await user.click(await screen.findByText("Rename"));
+    const input = (await screen.findByTestId(
+      "rename-environment-name",
+    )) as HTMLInputElement;
+    await user.clear(input);
+    await user.type(input, "prod-renamed");
+    await user.click(screen.getByTestId("rename-environment-save"));
+
+    await waitFor(() => {
+      expect(captured).not.toBeNull();
+    });
+    expect(captured).toMatchObject({
+      oldId: "env-prod",
+      newName: "prod-renamed",
+    });
+  });
+
+  it("Delete menu type-to-confirm dispatches delete_environment", async () => {
+    let deleteCalled: { id?: string } | null = null;
+    mockTauriCommand("delete_environment", (args) => {
+      deleteCalled = args as { id: string };
+      return undefined;
+    });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    renderWithProviders(<EnvironmentsPageContainer />);
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByTestId("environment-card-prod.toml-more"),
+    );
+    await user.click(await screen.findByText("Delete"));
+    await user.type(
+      await screen.findByTestId("delete-environment-confirm-input"),
+      "prod",
+    );
+    await user.click(
+      screen.getByTestId("delete-environment-confirm-submit"),
+    );
+
+    await waitFor(() => {
+      expect(deleteCalled).not.toBeNull();
+    });
+    expect(deleteCalled).toEqual({ id: "env-prod" });
+  });
+
   it("Clone form Cancel closes the inline slot without dispatching", async () => {
     let dupeCalls = 0;
     mockTauriCommand("duplicate_environment", () => {

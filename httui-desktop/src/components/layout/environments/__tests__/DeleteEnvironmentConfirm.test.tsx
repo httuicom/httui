@@ -91,4 +91,39 @@ describe("DeleteEnvironmentConfirm", () => {
         .getAttribute("data-target"),
     ).toBe("staging.toml");
   });
+
+  it("body mentions the secret count when supplied", () => {
+    renderWithProviders(
+      <DeleteEnvironmentConfirm env={env({ varCount: 5 })} secretCount={2} />,
+    );
+    const body = screen.getByTestId(
+      "delete-environment-confirm-body",
+    ).textContent;
+    expect(body).toMatch(/5 vars/);
+    expect(body).toMatch(/2 secrets/);
+  });
+
+  it("Enter inside the confirm input fires onConfirm when matched", async () => {
+    const onConfirm = vi.fn();
+    renderWithProviders(
+      <DeleteEnvironmentConfirm env={env()} onConfirm={onConfirm} />,
+    );
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByTestId("delete-environment-confirm-input"),
+      "staging{Enter}",
+    );
+    expect(onConfirm).toHaveBeenCalledWith("staging.toml");
+  });
+
+  it("Escape inside the confirm input fires onCancel", async () => {
+    const onCancel = vi.fn();
+    renderWithProviders(
+      <DeleteEnvironmentConfirm env={env()} onCancel={onCancel} />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("delete-environment-confirm-input"));
+    await user.keyboard("{Escape}");
+    expect(onCancel).toHaveBeenCalled();
+  });
 });
