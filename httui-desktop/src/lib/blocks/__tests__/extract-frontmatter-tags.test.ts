@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   extractFrontmatter,
+  extractFrontmatterArchived,
   extractFrontmatterTags,
 } from "@/lib/blocks/extract-frontmatter-tags";
 
@@ -281,5 +282,62 @@ describe("extractFrontmatter — error path (V6 cenário 6)", () => {
     // mistake — the comment is benign and the user has no value yet.
     const doc = "---\ntags:\n  # placeholder\ntitle: foo\n---\n";
     expect(extractFrontmatter(doc).error).toBeUndefined();
+  });
+});
+
+describe("extractFrontmatter — status (V6 cenário 8)", () => {
+  it("returns undefined when status: is absent", () => {
+    expect(extractFrontmatter("---\ntitle: x\n---\n").status).toBeUndefined();
+  });
+
+  it("extracts status: archived", () => {
+    expect(
+      extractFrontmatter("---\nstatus: archived\n---\n").status,
+    ).toBe("archived");
+  });
+
+  it("normalizes case and trims whitespace", () => {
+    expect(
+      extractFrontmatter("---\nstatus:   ARCHIVED   \n---\n").status,
+    ).toBe("archived");
+  });
+
+  it("preserves forward-compat unknown values (lower-cased)", () => {
+    expect(
+      extractFrontmatter("---\nstatus: review\n---\n").status,
+    ).toBe("review");
+  });
+
+  it("unquotes both quote styles", () => {
+    expect(
+      extractFrontmatter('---\nstatus: "archived"\n---\n').status,
+    ).toBe("archived");
+    expect(
+      extractFrontmatter("---\nstatus: 'draft'\n---\n").status,
+    ).toBe("draft");
+  });
+
+  it("first-wins on duplicate status: lines", () => {
+    expect(
+      extractFrontmatter(
+        "---\nstatus: draft\nstatus: archived\n---\n",
+      ).status,
+    ).toBe("draft");
+  });
+});
+
+describe("extractFrontmatterArchived", () => {
+  it("true when status: archived", () => {
+    expect(
+      extractFrontmatterArchived("---\nstatus: archived\n---\n"),
+    ).toBe(true);
+  });
+
+  it("false for any other status (or none)", () => {
+    expect(
+      extractFrontmatterArchived("---\nstatus: draft\n---\n"),
+    ).toBe(false);
+    expect(extractFrontmatterArchived("---\ntitle: x\n---\n")).toBe(false);
+    expect(extractFrontmatterArchived("# no fence\n")).toBe(false);
   });
 });

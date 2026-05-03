@@ -3,6 +3,8 @@ import { Box, Text, HStack, VStack, Menu, Portal } from "@chakra-ui/react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { usePaneStore } from "@/stores/pane";
+import { useTagIndexStore } from "@/stores/tagIndex";
+import { useArchiveFilterStore } from "@/stores/archiveFilter";
 import type { FileEntry } from "@/lib/tauri/commands";
 import { InlineInput } from "./InlineInput";
 import { FileTreeTagDots } from "./FileTreeTagDots";
@@ -59,6 +61,14 @@ export function FileTreeNode({
       : null;
   const isActive = !entry.is_dir && entry.path === activeFile;
 
+  // V6 / cenário 8 — files with `status: archived` in their frontmatter
+  // are hidden from the default tree; the Sidebar toggle reveals them
+  // again with an inline badge so they're identifiable at a glance.
+  const isArchived = useTagIndexStore(
+    (s) => !entry.is_dir && s.archivedFiles[entry.path] === true,
+  );
+  const showArchived = useArchiveFilterStore((s) => s.showArchived);
+
   const showChildInline =
     inlineCreate && entry.is_dir && inlineCreate.dirPath === entry.path;
 
@@ -71,6 +81,10 @@ export function FileTreeNode({
       handleFileSelect(entry.path);
     }
   }, [entry, handleFileSelect]);
+
+  // Run after every hook above is unconditionally invoked so React's
+  // hook-ordering invariants stay intact across renders.
+  if (isArchived && !showArchived) return null;
 
   if (renaming) {
     return (
@@ -178,10 +192,32 @@ export function FileTreeNode({
               truncate
               color={isActive ? "fg" : "fg.muted"}
               fontWeight={isActive ? "medium" : "normal"}
+              opacity={isArchived ? 0.6 : 1}
             >
               {entry.is_dir ? entry.name : entry.name.replace(".md", "")}
             </Text>
-            {!entry.is_dir && (
+            {!entry.is_dir && isArchived && (
+              <Box
+                data-testid="file-tree-archived-badge"
+                ml="auto"
+                px={1.5}
+                py="1px"
+                fontSize="9px"
+                fontFamily="mono"
+                lineHeight="1.2"
+                letterSpacing="0.04em"
+                textTransform="uppercase"
+                color="fg.subtle"
+                bg="bg.muted"
+                borderRadius="3px"
+                borderWidth="1px"
+                borderColor="border.2"
+                flexShrink={0}
+              >
+                archived
+              </Box>
+            )}
+            {!entry.is_dir && !isArchived && (
               <Box ml="auto" pl={1}>
                 <FileTreeTagDots filePath={entry.path} />
               </Box>

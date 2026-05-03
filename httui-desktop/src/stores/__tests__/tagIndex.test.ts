@@ -260,4 +260,72 @@ describe("tagIndex store", () => {
     expect(tags).toEqual([]);
     expect(useTagIndexStore.getState().byFile["a.md"]).toEqual([]);
   });
+
+  describe("archived files (V6 cenário 8)", () => {
+    it("starts with no archived files", () => {
+      expect(useTagIndexStore.getState().archivedFiles).toEqual({});
+      expect(useTagIndexStore.getState().isArchived("a.md")).toBe(false);
+    });
+
+    it("setArchivedForFile flips the per-file archived flag", () => {
+      const s = useTagIndexStore.getState();
+      s.setArchivedForFile("a.md", true);
+      expect(useTagIndexStore.getState().isArchived("a.md")).toBe(true);
+      s.setArchivedForFile("a.md", false);
+      expect(useTagIndexStore.getState().isArchived("a.md")).toBe(false);
+    });
+
+    it("setArchivedForFile is idempotent (no state churn when unchanged)", () => {
+      const s = useTagIndexStore.getState();
+      s.setArchivedForFile("a.md", true);
+      const snapshot = useTagIndexStore.getState().archivedFiles;
+      s.setArchivedForFile("a.md", true);
+      expect(useTagIndexStore.getState().archivedFiles).toBe(snapshot);
+    });
+
+    it("refreshTagsForFile sets archived when status: archived", () => {
+      useTagIndexStore
+        .getState()
+        .refreshTagsForFile("a.md", "---\nstatus: archived\n---\n");
+      expect(useTagIndexStore.getState().isArchived("a.md")).toBe(true);
+    });
+
+    it("refreshTagsForFile clears archived when status changes away", () => {
+      const s = useTagIndexStore.getState();
+      s.refreshTagsForFile("a.md", "---\nstatus: archived\n---\n");
+      s.refreshTagsForFile("a.md", "---\nstatus: active\n---\n");
+      expect(useTagIndexStore.getState().isArchived("a.md")).toBe(false);
+    });
+
+    it("removeFile drops the archived flag", () => {
+      const s = useTagIndexStore.getState();
+      s.setArchivedForFile("a.md", true);
+      s.removeFile("a.md");
+      expect(useTagIndexStore.getState().isArchived("a.md")).toBe(false);
+      expect(useTagIndexStore.getState().archivedFiles).toEqual({});
+    });
+
+    it("clearAll wipes archived state too", () => {
+      const s = useTagIndexStore.getState();
+      s.setArchivedForFile("a.md", true);
+      s.setArchivedForFile("b.md", true);
+      s.clearAll();
+      expect(useTagIndexStore.getState().archivedFiles).toEqual({});
+    });
+
+    it("archived + tagged in same file: both indexed, both cleared on remove", () => {
+      const s = useTagIndexStore.getState();
+      s.refreshTagsForFile(
+        "a.md",
+        "---\nstatus: archived\ntags: [api]\n---\n",
+      );
+      const after = useTagIndexStore.getState();
+      expect(after.isArchived("a.md")).toBe(true);
+      expect(after.getFilesByTag("api")).toEqual(["a.md"]);
+      after.removeFile("a.md");
+      const final = useTagIndexStore.getState();
+      expect(final.isArchived("a.md")).toBe(false);
+      expect(final.getFilesByTag("api")).toEqual([]);
+    });
+  });
 });

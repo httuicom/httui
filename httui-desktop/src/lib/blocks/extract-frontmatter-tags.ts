@@ -37,6 +37,11 @@ export interface FrontmatterShape {
    *  flow-list of `"[ ] text"` / `"[x] text"` strings to stay within
    *  the slice-1 schema (no block-style nested mappings). */
   preflight: PreflightItem[];
+  /** V6 / cenário 8 — `status:` value (`draft` | `active` | `archived`,
+   *  free-form forward-compat). The `archived` value hides the note
+   *  from the default file tree view; the consumer toggle reveals it
+   *  again. Mirrors `httui_core::frontmatter::FrontmatterStatus`. */
+  status?: string;
   /** V6 / cenário 6 — user-visible parse error. Set when the
    *  frontmatter region is unterminated (no closing `---`) or when a
    *  typed list key (`tags:` / `preflight:`) carries a non-flow value
@@ -75,6 +80,7 @@ export function extractFrontmatter(content: string): FrontmatterShape {
   let abstractText: string | undefined;
   let tags: string[] = [];
   let preflight: PreflightItem[] = [];
+  let status: string | undefined;
   let listError: string | null = null;
   // Track which top-level keys we've already accepted so duplicate
   // lines (malformed input) take the first occurrence — matches the
@@ -97,6 +103,10 @@ export function extractFrontmatter(content: string): FrontmatterShape {
       seen.add(key);
       const u = unquote(valuePart);
       if (u !== "") title = u;
+    } else if (key === "status") {
+      seen.add(key);
+      const u = unquote(valuePart).trim().toLowerCase();
+      if (u !== "") status = u;
     } else if (key === "abstract") {
       seen.add(key);
       // Block-scalar marker (`abstract: |` / `abstract: >`) — leave
@@ -125,8 +135,16 @@ export function extractFrontmatter(content: string): FrontmatterShape {
   const out: FrontmatterShape = { tags, preflight };
   if (title !== undefined) out.title = title;
   if (abstractText !== undefined) out.abstract = abstractText;
+  if (status !== undefined) out.status = status;
   if (listError !== null) out.error = listError;
   return out;
+}
+
+/** V6 / cenário 8 — convenience wrapper used by `useTagIndexStore` to
+ *  drive the file-tree archived filter on save. Equivalent to
+ *  `extractFrontmatter(content).status === "archived"`. */
+export function extractFrontmatterArchived(content: string): boolean {
+  return extractFrontmatter(content).status === "archived";
 }
 
 /** A list-shaped key (`tags:` / `preflight:`) is malformed when:

@@ -262,4 +262,44 @@ describe("FileTreeNode", () => {
     // After confirm, row reverts to display mode (text node back)
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
+
+  describe("archived hide (V6 cenário 8)", () => {
+    it("hides archived notes when showArchived is false", async () => {
+      const { useTagIndexStore } = await import("@/stores/tagIndex");
+      const { useArchiveFilterStore } = await import("@/stores/archiveFilter");
+      useTagIndexStore.getState().clearAll();
+      useTagIndexStore.getState().setArchivedForFile("note.md", true);
+      useArchiveFilterStore.setState({ showArchived: false });
+
+      const { container } = renderTree(noteEntry, 0);
+      expect(container.querySelector("button")).toBeNull();
+    });
+
+    it("shows archived notes with a badge when showArchived is true", async () => {
+      const { useTagIndexStore } = await import("@/stores/tagIndex");
+      const { useArchiveFilterStore } = await import("@/stores/archiveFilter");
+      useTagIndexStore.getState().clearAll();
+      useTagIndexStore.getState().setArchivedForFile("note.md", true);
+      useArchiveFilterStore.setState({ showArchived: true });
+
+      renderTree(noteEntry, 0);
+      expect(screen.getByText("note")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("file-tree-archived-badge"),
+      ).toBeInTheDocument();
+    });
+
+    it("does not affect non-archived notes", async () => {
+      const { useTagIndexStore } = await import("@/stores/tagIndex");
+      const { useArchiveFilterStore } = await import("@/stores/archiveFilter");
+      useTagIndexStore.getState().clearAll();
+      useArchiveFilterStore.setState({ showArchived: false });
+
+      renderTree(noteEntry, 0);
+      expect(screen.getByText("note")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("file-tree-archived-badge"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });
