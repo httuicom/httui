@@ -151,6 +151,88 @@ describe("EnvironmentManager", () => {
     expect(called).toBe(false);
   });
 
+  it("renders a VariableValueRow per loaded variable of the selected env", async () => {
+    mockTauriCommand("list_env_variables", () => [
+      mkVar("v1", "a", "API_BASE", "http://localhost"),
+      mkVar("v2", "a", "TOKEN", "", true),
+    ]);
+    useEnvironmentStore.setState({
+      managerOpen: true,
+      environments: [mkEnv("a", "dev")],
+    });
+    renderWithProviders(<EnvironmentManager />);
+    await waitFor(() => {
+      expect(
+        document.querySelectorAll('[data-testid="variable-value-row-dev"]')
+          .length,
+      ).toBe(2);
+    });
+  });
+
+  it("'+ New variable' opens the inline form and persists via setVariable", async () => {
+    let setCalled: { key?: string } | null = null;
+    mockTauriCommand("list_env_variables", () => []);
+    mockTauriCommand("set_env_variable", (args) => {
+      setCalled = args as { key: string };
+      return mkVar("v-new", "a", "FRESH", "value");
+    });
+    useEnvironmentStore.setState({
+      managerOpen: true,
+      environments: [mkEnv("a", "dev")],
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<EnvironmentManager />);
+    await user.click(await screen.findByText("+ New variable"));
+    await user.type(
+      await screen.findByTestId("new-variable-name"),
+      "FRESH",
+    );
+    await user.type(screen.getByTestId("new-variable-value"), "value");
+    await user.click(screen.getByTestId("new-variable-save"));
+    await waitFor(() => {
+      expect(setCalled).not.toBeNull();
+    });
+    expect((setCalled as { key: string }).key).toBe("FRESH");
+  });
+
+  it("'Set active' on the selected env dispatches set_active_environment", async () => {
+    let activeArgs: { id?: string | null } | null = null;
+    mockTauriCommand("set_active_environment", (args) => {
+      activeArgs = args as { id: string | null };
+      return undefined;
+    });
+    useEnvironmentStore.setState({
+      managerOpen: true,
+      environments: [mkEnv("a", "dev")],
+    });
+    renderWithProviders(<EnvironmentManager />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText("Set active"));
+    await waitFor(() => {
+      expect(activeArgs).not.toBeNull();
+    });
+    expect(activeArgs).toEqual({ id: "a" });
+  });
+
+  it("Duplicate IconButton dispatches duplicate_environment", async () => {
+    let dupCalled: { sourceId?: string; newName?: string } | null = null;
+    mockTauriCommand("duplicate_environment", (args) => {
+      dupCalled = args as { sourceId: string; newName: string };
+      return mkEnv("a-copy", "dev-copy");
+    });
+    useEnvironmentStore.setState({
+      managerOpen: true,
+      environments: [mkEnv("a", "dev")],
+    });
+    renderWithProviders(<EnvironmentManager />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /duplicate/i }));
+    await waitFor(() => {
+      expect(dupCalled).not.toBeNull();
+    });
+    expect(dupCalled).toMatchObject({ sourceId: "a", newName: "dev-copy" });
+  });
+
   it("Escape key cancels the inline creator", async () => {
     const user = userEvent.setup();
     useEnvironmentStore.setState({ managerOpen: true });
