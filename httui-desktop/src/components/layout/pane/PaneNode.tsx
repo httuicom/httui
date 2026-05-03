@@ -3,6 +3,7 @@ import { Box, Flex, Text } from "@chakra-ui/react";
 import { TabBar } from "../TabBar";
 import { DiffViewer } from "@/components/editor/DiffViewer";
 import { ConnectionsPageContainer } from "@/components/layout/connections/ConnectionsPageContainer";
+import { EnvironmentsPageContainer } from "@/components/layout/environments/EnvironmentsPageContainer";
 import { VariablesPageContainer } from "@/components/layout/variables/VariablesPageContainer";
 import { DocHeaderedEditor } from "./DocHeaderedEditor";
 import { usePaneStore } from "@/stores/pane";
@@ -109,6 +110,10 @@ export function PaneNode({
           ) : activeTab.kind === "variables" ? (
             <Box flex={1} overflow="hidden">
               <VariablesPageContainer onNavigateFile={onNavigateFile} />
+            </Box>
+          ) : activeTab.kind === "environments" ? (
+            <Box flex={1} overflow="hidden">
+              <EnvironmentsPageContainer />
             </Box>
           ) : (
             <DocHeaderedEditor
