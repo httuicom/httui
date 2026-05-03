@@ -140,6 +140,9 @@ Only one survives:
 - `src/components/layout/file-tree/` — FileTree (with @dnd-kit drag-drop), FileTreeNode, InlineInput
 - `src/components/layout/pane/` — PaneContainer, PaneNode, SplitView
 - `src/components/layout/connections/` — `ConnectionsPage` master-detail (rendered as a singleton `TabState.kind = "connections"` pane tab opened from the TopBar `LuPlug` button) plus the legacy sidebar `ConnectionsList` + drawer `ConnectionForm` (kept — popover quick-edit in V11 builds on top of the sidebar)
+- `src/components/layout/variables/` — `VariablesPage` (singleton `TabState.kind = "variables"` pane tab, TopBar `LuKeyRound`); cross-env merge container with detail panel (per-env value rows + secret reveal + session override + USED IN BLOCKS + is_secret toggle); inline NewVariableForm.
+- `src/components/layout/environments/` — `EnvironmentsPage` (singleton `TabState.kind = "environments"` pane tab, TopBar `LuLayers`) with cards per env, Clone/Rename/Delete via ⋮ menu in a Chakra `Popover` anchored to the source card (virtual `getAnchorRect`); + New environment as anchored Popover on the header button; ACTIVE pill animates between cards via manual FLIP. `EnvironmentManager` drawer (640px right Portal) is the quick-edit alternative — same `useEnvironmentStore` + `setVariable` / `deleteVariable` + per-row `VariableValueRow` (with `keyLabel`).
+- `src/components/layout/shared/` — master-detail atoms (`SectionLabel`, `SidebarHintCard`, `MasterDetailListHeader`, `MasterDetailSidebarRow`) + width constants shared by Connections + Variables.
 - `src/components/layout/environments/` — EnvironmentManager (drawer with env list + key-value editor + secret toggle)
 - `src/components/layout/settings/` — settings panels (Audit, Theme, Editor, About)
 - `src/components/layout/ConflictBanner.tsx` — banner for externally modified files

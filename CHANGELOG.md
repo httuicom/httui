@@ -21,6 +21,47 @@ launch checklist (Epic 38, Story 03).
 
 ### Added
 
+- **Variables page (master-detail)** — TopBar `LuKeyRound`
+  abre tab dedicada com lista densa cross-env (1 row por chave,
+  colunas por env, contagem `USES` via vault-grep), sidebar
+  SCOPES/HELPERS, detail panel à direita com value-per-env (Show
+  pra secrets resolve via keychain, Edit + Override + Delete por
+  row), is_secret toggle com prompt + migração para/do keychain,
+  USED IN BLOCKS lista clicável que pula pro arquivo. (V5
+  cenários 1-4)
+- **Session override** — botão `Override` em cada value row salva
+  TEMPORARY value em memória (`useSessionOverrideStore`); chip
+  `TEMPORARY` clicável dropa. `getActiveVariables` mergeia
+  overrides em cima do resolver, então blocos HTTP/DB
+  consomem o valor de override. Sem persistência. (V5 cenário 3)
+- **+ New variable inline form** — table-row style
+  (KEY mono input + VALUE input + lock toggle + + save + × cancel)
+  inserido no header da Variables page. (V5 cenário 5)
+- **Environments page** — TopBar `LuLayers` abre tab com cards
+  densos por env (varCount, connectionsUsedCount, ACTIVE pill,
+  chips personal/temporary). Click ativa o env via
+  `set_active_environment`; o pill ACTIVE faz **swap visual
+  animado** entre cards (FLIP manual via `getBoundingClientRect`
+  + translate inverso, 360ms ease-out). (V5 cenário 6)
+- **Clone / Rename / Delete environment** — ⋮ menu em cada card
+  abre Chakra Popover ancorado embaixo. Clone copia plain vars.
+  Rename **migra entries de keychain** (novo backend
+  `rename_environment` + `EnvironmentsStore::rename_env`).
+  Delete tem banner Destructive + type-the-name confirmation
+  (industry-standard guardrail). (V5 cenários 7-8)
+- **+ New environment** — Popover anchored no botão pra criar
+  novo env (envs/<name>.toml). (V5 cenário 6 polish)
+- **EnvironmentManager drawer** — refatorado pra consumir
+  `VariableValueRow` + `NewVariableForm` (V5 atoms). Per-var
+  delete shortcut (× vermelho ghost) + + New variable inline
+  + per-env Set active / Duplicate / Delete header actions.
+  (V5 cenário 10)
+- **Master-detail shared atoms** — `components/layout/shared/`
+  expõe `SectionLabel`, `SidebarHintCard`,
+  `MasterDetailListHeader`, `MasterDetailSidebarRow` +
+  constants `MASTER_DETAIL_SIDEBAR_WIDTH` (220px) /
+  `_DETAIL_WIDTH` (420px). Connections + Variables agora
+  alinham layout pixel-pixel via essas peças.
 - **Connections page (master-detail)** — página dedicada (TopBar
   `LuPlug` ou via tab) substitui o drawer legado: lista filtrada por
   kind/env/status com status dot + latência, painel detail com
