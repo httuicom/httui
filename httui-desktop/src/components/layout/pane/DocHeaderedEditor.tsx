@@ -23,6 +23,7 @@ import type {
 } from "../docheader/docheader-meta";
 import { useFileDocHeaderCompact } from "@/hooks/useFileDocHeaderCompact";
 import { useFileMtime } from "@/hooks/useFileMtime";
+import { useFilePreflight } from "@/hooks/useFilePreflight";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { gitFirstCommitAuthor } from "@/lib/tauri/git";
 import { blockHistoryLastRunSummary } from "@/lib/tauri/block-history";
@@ -58,6 +59,11 @@ export function DocHeaderedEditor({
   const { compact, setCompact } = useFileDocHeaderCompact(vaultPath, filePath);
   const { mtime, refresh: refreshMtime } = useFileMtime(vaultPath, filePath);
   const { status: gitStatus } = useGitStatus(vaultPath);
+  const {
+    items: preflightItems,
+    rechecking: preflightRechecking,
+    recheck: preflightRecheck,
+  } = useFilePreflight({ filePath, vaultPath, dirty });
 
   // Refresh the mtime poll on the dirty → clean rising edge — this
   // means a save just succeeded (the auto-save path flips
@@ -171,6 +177,9 @@ export function DocHeaderedEditor({
       branch,
       author,
       lastRun,
+      preflightItems,
+      preflightRechecking,
+      onPreflightRecheck: preflightRecheck,
     }),
     [
       filePath,
@@ -182,6 +191,9 @@ export function DocHeaderedEditor({
       branch,
       author,
       lastRun,
+      preflightItems,
+      preflightRechecking,
+      preflightRecheck,
     ],
   );
 

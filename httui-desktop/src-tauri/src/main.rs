@@ -504,6 +504,8 @@ fn main() {
             httui_notes::git_commands::clone_vault_cmd,
             // Epic 52 Story 04 — vault-wide tag index.
             httui_notes::tag_commands::scan_vault_tags_cmd,
+            // V6 cenário 9 — pre-flight evaluator (DocHeader pill row).
+            httui_notes::preflight_commands::evaluate_preflight_cmd,
             // Epic 47 Story 01 — run-body filesystem cache.
             httui_notes::run_body_commands::write_run_body_cmd,
             httui_notes::run_body_commands::read_run_body_cmd,

@@ -27,6 +27,9 @@ pub mod git_commands;
 // Vault-wide tag index (Epic 52 Story 04).
 pub mod tag_commands;
 
+// Pre-flight evaluator for the DocHeader pill row (V6 cenário 9).
+pub mod preflight_commands;
+
 // Run-body filesystem cache (Epic 47 Story 01).
 pub mod run_body_commands;
 
