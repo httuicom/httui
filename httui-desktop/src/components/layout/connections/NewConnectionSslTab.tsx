@@ -7,8 +7,10 @@
 // the secondary patch surface when a connection string carries
 // ?sslmode=...&sslrootcert=... params.
 
-import { Box, Flex, Grid, Text, chakra } from "@chakra-ui/react";
+import { Box, Flex, Grid, HStack, IconButton, Text, chakra } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+import { LuFolderOpen } from "react-icons/lu";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 
 import { Input } from "@/components/atoms";
 
@@ -85,29 +87,35 @@ export function NewConnectionSslTab({
         label="Root cert"
         hint="PEM file for the CA that signed the server (optional for `prefer`)."
       >
-        <Input
-          data-testid="new-connection-ssl-root-cert"
+        <FilePathInput
+          testid="new-connection-ssl-root-cert"
           value={value.rootCertPath}
-          onChange={(e) => patch("rootCertPath", e.target.value)}
+          onChange={(v) => patch("rootCertPath", v)}
           placeholder="/etc/ssl/certs/server-ca.pem"
+          dialogTitle="Select root CA certificate"
+          extensions={["pem", "crt", "cer"]}
         />
       </Field>
 
       <Grid gridTemplateColumns="1fr 1fr" gap={3}>
         <Field label="Client cert">
-          <Input
-            data-testid="new-connection-ssl-client-cert"
+          <FilePathInput
+            testid="new-connection-ssl-client-cert"
             value={value.clientCertPath}
-            onChange={(e) => patch("clientCertPath", e.target.value)}
+            onChange={(v) => patch("clientCertPath", v)}
             placeholder="/etc/ssl/certs/client.pem"
+            dialogTitle="Select client certificate"
+            extensions={["pem", "crt", "cer"]}
           />
         </Field>
         <Field label="Client key">
-          <Input
-            data-testid="new-connection-ssl-client-key"
+          <FilePathInput
+            testid="new-connection-ssl-client-key"
             value={value.clientKeyPath}
-            onChange={(e) => patch("clientKeyPath", e.target.value)}
+            onChange={(v) => patch("clientKeyPath", v)}
             placeholder="/etc/ssl/private/client.key"
+            dialogTitle="Select client key"
+            extensions={["key", "pem"]}
           />
         </Field>
       </Grid>
@@ -165,6 +173,66 @@ function ModeSelect({
         </option>
       ))}
     </Select>
+  );
+}
+
+/** Path input + native file picker button. Picker filters by the
+ * supplied extensions; user can still type a path manually. */
+function FilePathInput({
+  testid,
+  value,
+  onChange,
+  placeholder,
+  dialogTitle,
+  extensions,
+}: {
+  testid: string;
+  value: string;
+  onChange: (next: string) => void;
+  placeholder: string;
+  dialogTitle: string;
+  extensions: string[];
+}) {
+  const handleBrowse = async () => {
+    try {
+      const picked = await openFileDialog({
+        multiple: false,
+        directory: false,
+        title: dialogTitle,
+        filters: [
+          { name: "Certificate / key", extensions },
+          { name: "All files", extensions: ["*"] },
+        ],
+      });
+      if (typeof picked === "string" && picked.length > 0) {
+        onChange(picked);
+      }
+    } catch {
+      // User dismissed or dialog plugin unavailable in dev. Silent
+      // failure — they can still type the path manually.
+    }
+  };
+
+  return (
+    <HStack gap={2} align="center">
+      <Input
+        data-testid={testid}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        flex={1}
+      />
+      <IconButton
+        data-testid={`${testid}-browse`}
+        aria-label="Browse for file"
+        title="Browse…"
+        variant="ghost"
+        size="sm"
+        onClick={handleBrowse}
+      >
+        <LuFolderOpen />
+      </IconButton>
+    </HStack>
   );
 }
 

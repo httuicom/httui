@@ -13,9 +13,10 @@
 //
 // Pure presentational: form value + slots lifted to the consumer.
 
-import { Box, Flex, Grid, HStack, Text, chakra } from "@chakra-ui/react";
+import { Box, Flex, Grid, HStack, IconButton, Text, chakra } from "@chakra-ui/react";
 import type { ReactNode } from "react";
-import { LuKey } from "react-icons/lu";
+import { LuFolderOpen, LuKey } from "react-icons/lu";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 
 import { Input } from "@/components/atoms";
 
@@ -96,12 +97,45 @@ export function NewConnectionFormTab({
           label="Database file path"
           hint="Absolute or vault-relative path to the .sqlite file."
         >
-          <Input
-            data-testid="new-connection-field-database"
-            value={value.database}
-            onChange={(e) => patch("database", e.target.value)}
-            placeholder="~/data/cache.sqlite"
-          />
+          <HStack gap={2} align="center">
+            <Input
+              data-testid="new-connection-field-database"
+              value={value.database}
+              onChange={(e) => patch("database", e.target.value)}
+              placeholder="~/data/cache.sqlite"
+              flex={1}
+            />
+            <IconButton
+              data-testid="new-connection-field-database-browse"
+              aria-label="Browse for database file"
+              title="Browse…"
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const picked = await openFileDialog({
+                    multiple: false,
+                    directory: false,
+                    title: "Select SQLite database file",
+                    filters: [
+                      {
+                        name: "SQLite",
+                        extensions: ["sqlite", "sqlite3", "db"],
+                      },
+                      { name: "All files", extensions: ["*"] },
+                    ],
+                  });
+                  if (typeof picked === "string" && picked.length > 0) {
+                    patch("database", picked);
+                  }
+                } catch {
+                  // User dismissed or dialog plugin unavailable.
+                }
+              }}
+            >
+              <LuFolderOpen />
+            </IconButton>
+          </HStack>
         </Field>
         {envBinder && (
           <Box data-testid="new-connection-form-env-slot">{envBinder}</Box>
