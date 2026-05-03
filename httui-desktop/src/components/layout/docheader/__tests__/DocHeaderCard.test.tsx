@@ -209,4 +209,39 @@ describe("DocHeaderCard", () => {
       ).toBe("Second");
     });
   });
+
+  describe("frontmatter error badge (V6 cenário 6)", () => {
+    it("shows the error badge when frontmatter.error is set", () => {
+      renderWithProviders(
+        <DocHeaderCard
+          filePath="notes/db.md"
+          frontmatter={{
+            title: "x",
+            error: "frontmatter inválido: bloco não fechado (faltando `---`)",
+          }}
+        />,
+      );
+      const badge = screen.getByTestId("docheader-frontmatter-error");
+      expect(badge.textContent).toMatch(/não fechado/);
+    });
+
+    it("hides the badge when frontmatter has no error", () => {
+      renderWithProviders(
+        <DocHeaderCard
+          filePath="notes/db.md"
+          frontmatter={{ title: "x" }}
+        />,
+      );
+      expect(
+        screen.queryByTestId("docheader-frontmatter-error"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides the badge when no frontmatter is provided", () => {
+      renderWithProviders(<DocHeaderCard filePath="notes/db.md" />);
+      expect(
+        screen.queryByTestId("docheader-frontmatter-error"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

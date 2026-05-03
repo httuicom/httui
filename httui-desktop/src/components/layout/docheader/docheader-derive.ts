@@ -15,6 +15,11 @@ export interface DocHeaderFrontmatter {
   /** V2 / cenário 4.5 / M6 — pre-flight checklist items. The DocHeader
    *  Checklist subcomponent reads this to render its rows. */
   preflight?: ReadonlyArray<PreflightItem>;
+  /** V6 / cenário 6 — user-visible parse error from the slice-1 YAML
+   *  parser. The DocHeader card surfaces a "frontmatter invalid" badge
+   *  when this is set so the user has a visible signal that their YAML
+   *  didn't apply (unterminated block, block-list shape, etc.). */
+  error?: string;
 }
 
 /**

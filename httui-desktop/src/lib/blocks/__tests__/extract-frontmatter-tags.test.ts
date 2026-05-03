@@ -223,3 +223,63 @@ describe("extractFrontmatter", () => {
     expect(extractFrontmatterTags(doc)).toEqual(extractFrontmatter(doc).tags);
   });
 });
+
+describe("extractFrontmatter — error path (V6 cenário 6)", () => {
+  it("doc without a fence has no error", () => {
+    expect(extractFrontmatter("# heading\n").error).toBeUndefined();
+    expect(extractFrontmatter("").error).toBeUndefined();
+  });
+
+  it("flags an unterminated frontmatter block", () => {
+    const doc = "---\ntitle: foo\ntags: [a]\nno closing fence\n";
+    const fm = extractFrontmatter(doc);
+    expect(fm.error).toBeDefined();
+    expect(fm.error).toMatch(/não fechado/);
+    // Terminal failure: typed values aren't surfaced.
+    expect(fm.title).toBeUndefined();
+    expect(fm.tags).toEqual([]);
+  });
+
+  it("flags `tags:` block-list shape (next line indented + dash)", () => {
+    const doc = "---\ntags:\n  - a\n  - b\n---\n";
+    const fm = extractFrontmatter(doc);
+    expect(fm.error).toBeDefined();
+    expect(fm.error).toMatch(/flow-style/);
+    expect(fm.tags).toEqual([]);
+  });
+
+  it("flags `preflight:` block-list shape", () => {
+    const doc = "---\npreflight:\n  - \"[ ] do thing\"\n---\n";
+    expect(extractFrontmatter(doc).error).toBeDefined();
+  });
+
+  it("flags `tags:` with a bare scalar value", () => {
+    expect(extractFrontmatter("---\ntags: foo\n---\n").error).toBeDefined();
+    expect(extractFrontmatter('---\ntags: "x"\n---\n').error).toBeDefined();
+    expect(extractFrontmatter("---\ntags: 42\n---\n").error).toBeDefined();
+  });
+
+  it("does not flag a typo'd `tags:` followed by another top-level key", () => {
+    // Ambiguous user input: empty value with no continuation. Treat as
+    // benign — the user might be in the middle of typing.
+    const doc = "---\ntags:\ntitle: foo\n---\n";
+    expect(extractFrontmatter(doc).error).toBeUndefined();
+  });
+
+  it("does not flag an empty flow list `tags: []`", () => {
+    expect(extractFrontmatter("---\ntags: []\n---\n").error).toBeUndefined();
+  });
+
+  it("does not flag a valid frontmatter", () => {
+    const doc =
+      "---\ntitle: x\nabstract: y\ntags: [a, b]\npreflight: [\"[ ] z\"]\n---\nbody\n";
+    expect(extractFrontmatter(doc).error).toBeUndefined();
+  });
+
+  it("ignores commented continuation lines when probing block-list shape", () => {
+    // `tags:` with only a comment beneath it isn't a block-list
+    // mistake — the comment is benign and the user has no value yet.
+    const doc = "---\ntags:\n  # placeholder\ntitle: foo\n---\n";
+    expect(extractFrontmatter(doc).error).toBeUndefined();
+  });
+});

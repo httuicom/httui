@@ -134,6 +134,10 @@ export function DocHeaderCard({
         </Flex>
       )}
 
+      {frontmatter?.error && (
+        <FrontmatterErrorBadge message={frontmatter.error} />
+      )}
+
       {editable ? (
         <DocHeaderTitleInput
           value={editableValue}
@@ -263,5 +267,35 @@ function BreadcrumbSeparator() {
     <Text as="span" fontFamily="mono" fontSize="11px" color="fg.subtle">
       /
     </Text>
+  );
+}
+
+interface FrontmatterErrorBadgeProps {
+  message: string;
+}
+
+function FrontmatterErrorBadge({ message }: FrontmatterErrorBadgeProps) {
+  return (
+    <Box
+      data-testid="docheader-frontmatter-error"
+      title={message}
+      display="inline-flex"
+      alignItems="center"
+      mb={2}
+      px={2}
+      py="2px"
+      fontFamily="mono"
+      fontSize="11px"
+      lineHeight="1.4"
+      letterSpacing="0.02em"
+      borderWidth="1px"
+      borderStyle="solid"
+      borderColor="red.fg"
+      color="red.fg"
+      bg="red.subtle"
+      borderRadius="3px"
+    >
+      {message}
+    </Box>
   );
 }
