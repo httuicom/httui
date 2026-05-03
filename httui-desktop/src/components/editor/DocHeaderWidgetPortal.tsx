@@ -13,14 +13,12 @@
 // the React tree off the non-reactive `editorContents` Map: tags /
 // checklist / title additions show up instantly without a reload.
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
 import {
-  dispatchDocReplace,
   getDocHeaderEntries,
   getDocHeaderPortalVersion,
-  returnFocusToBody,
   subscribeToDocHeaderPortals,
 } from "@/lib/codemirror/cm-doc-header";
 import { DocHeaderContext } from "@/components/layout/docheader/doc-header-context";
@@ -28,13 +26,7 @@ import {
   DocHeaderShell,
   type DocHeaderShellProps,
 } from "@/components/layout/docheader/DocHeaderShell";
-import type { PreflightItem } from "@/lib/blocks/preflight-item";
-import {
-  updateFrontmatterAbstract,
-  updateFrontmatterPreflight,
-  updateFrontmatterTags,
-  updateFrontmatterTitle,
-} from "@/lib/blocks/update-frontmatter";
+import { buildDocHeaderCallbacks } from "./doc-header-callbacks";
 
 /** Subset of `DocHeaderShellProps` provided by the consumer
  *  (`DocHeaderedEditor`) — ambient metadata that doesn't depend on
@@ -77,79 +69,17 @@ export function DocHeaderWidgetPortal({
 
   const ctx = useMemo(() => ({ instanceId }), [instanceId]);
 
-  // The view ref is read fresh on every callback invocation so a late
-  // remount (e.g. file switch) doesn't leave us holding a stale view.
+  // The action callbacks live in `doc-header-callbacks.ts` so the
+  // per-action branches (no-view bail, dup-tag skip, missing-tag skip,
+  // navigate-to-body) get unit coverage without rendering the portal +
+  // round-tripping through the registry.
+  const callbacks = useMemo(
+    () => buildDocHeaderCallbacks(entry, instanceId),
+    [entry, instanceId],
+  );
+
   const view = entry?.view ?? null;
   const liveFrontmatter = entry?.frontmatter ?? null;
-
-  const onTitleSave = useCallback(
-    (title: string) => {
-      const v = entry?.view;
-      if (!v) return;
-      const next = updateFrontmatterTitle(v.state.doc.toString(), title);
-      dispatchDocReplace(v, next);
-    },
-    [entry],
-  );
-
-  const onAbstractSave = useCallback(
-    (abstract: string) => {
-      const v = entry?.view;
-      if (!v) return;
-      const next = updateFrontmatterAbstract(v.state.doc.toString(), abstract);
-      dispatchDocReplace(v, next);
-    },
-    [entry],
-  );
-
-  const onAddTag = useCallback(
-    (tag: string) => {
-      const v = entry?.view;
-      if (!v) return;
-      const trimmed = tag.trim();
-      if (trimmed.length === 0) return;
-      const current = entry?.frontmatter?.tags ?? [];
-      if (current.includes(trimmed)) return;
-      const next = updateFrontmatterTags(v.state.doc.toString(), [
-        ...current,
-        trimmed,
-      ]);
-      dispatchDocReplace(v, next);
-    },
-    [entry],
-  );
-
-  const onRemoveTag = useCallback(
-    (tag: string) => {
-      const v = entry?.view;
-      if (!v) return;
-      const current = entry?.frontmatter?.tags ?? [];
-      const next = current.filter((t) => t !== tag);
-      if (next.length === current.length) return;
-      const nextContent = updateFrontmatterTags(v.state.doc.toString(), next);
-      dispatchDocReplace(v, nextContent);
-    },
-    [entry],
-  );
-
-  const onChecklistSave = useCallback(
-    (items: PreflightItem[]) => {
-      const v = entry?.view;
-      if (!v) return;
-      const next = updateFrontmatterPreflight(v.state.doc.toString(), items);
-      dispatchDocReplace(v, next);
-    },
-    [entry],
-  );
-
-  // V6 / cenário 3 — clicking the static H1 (used by snapshot / diff
-  // viewer surfaces, and by inline mode whenever the editor is not in
-  // editable input mode) jumps to the first body line and focuses the
-  // cursor there. The keyboard equivalent (Enter / ArrowDown / Escape
-  // on the editable input) ships with V2 cenário 4.5.
-  const onTitleNavigateToBody = useCallback(() => {
-    returnFocusToBody(instanceId);
-  }, [instanceId]);
 
   if (!entry) return null;
   return createPortal(
@@ -158,12 +88,12 @@ export function DocHeaderWidgetPortal({
         {...inlineHeader}
         frontmatter={liveFrontmatter}
         blockCount={entry.blockCount}
-        onTitleSave={view ? onTitleSave : undefined}
-        onAbstractSave={view ? onAbstractSave : undefined}
-        onAddTag={view ? onAddTag : undefined}
-        onRemoveTag={view ? onRemoveTag : undefined}
-        onChecklistSave={view ? onChecklistSave : undefined}
-        onTitleNavigateToBody={view ? onTitleNavigateToBody : undefined}
+        onTitleSave={view ? callbacks.onTitleSave : undefined}
+        onAbstractSave={view ? callbacks.onAbstractSave : undefined}
+        onAddTag={view ? callbacks.onAddTag : undefined}
+        onRemoveTag={view ? callbacks.onRemoveTag : undefined}
+        onChecklistSave={view ? callbacks.onChecklistSave : undefined}
+        onTitleNavigateToBody={view ? callbacks.onTitleNavigateToBody : undefined}
       />
     </DocHeaderContext.Provider>,
     entry.container,
