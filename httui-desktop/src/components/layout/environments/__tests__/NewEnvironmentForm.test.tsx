@@ -12,7 +12,7 @@ describe("NewEnvironmentForm", () => {
     expect(screen.getByTestId("new-environment-cancel")).toBeInTheDocument();
     expect(
       screen.getByTestId("new-environment-target-hint").textContent,
-    ).toMatch(/<nome>\.toml/);
+    ).toMatch(/<name>\.toml/);
   });
 
   it("shows the live target filename hint as the user types", async () => {

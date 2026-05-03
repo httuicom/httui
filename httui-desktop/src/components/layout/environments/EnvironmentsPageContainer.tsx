@@ -28,6 +28,10 @@ import { EnvironmentsPage } from "./EnvironmentsPage";
 import type { EnvironmentSummary } from "./envs-meta";
 import { envNameFromFilename } from "./envs-meta";
 import {
+  NewEnvironmentForm,
+  type NewEnvironmentPayload,
+} from "./NewEnvironmentForm";
+import {
   RenameEnvironmentForm,
   type RenameEnvironmentPayload,
 } from "./RenameEnvironmentForm";
@@ -54,7 +58,8 @@ export function envToSummary(env: Environment, varCount: number): EnvironmentSum
 }
 
 interface EnvironmentsPageContainerProps {
-  /** No-op for V5 cenário 6 (defer create form to a follow-up). */
+  /** Optional override — when omitted the container surfaces its
+   * own inline create form. */
   onCreateNew?: () => void;
 }
 
@@ -65,6 +70,7 @@ export function EnvironmentsPageContainer({
   const activeEnvironment = useEnvironmentStore((s) => s.activeEnvironment);
   const refreshEnvs = useEnvironmentStore((s) => s.refresh);
   const switchEnvironment = useEnvironmentStore((s) => s.switchEnvironment);
+  const createEnvironment = useEnvironmentStore((s) => s.createEnvironment);
   const duplicateEnvironment = useEnvironmentStore(
     (s) => s.duplicateEnvironment,
   );
@@ -88,6 +94,7 @@ export function EnvironmentsPageContainer({
   } | null>(null);
   const [renaming, setRenaming] = useState<EnvironmentSummary | null>(null);
   const [deleting, setDeleting] = useState<EnvironmentSummary | null>(null);
+  const [creatingEnv, setCreatingEnv] = useState(false);
   const [secretCounts, setSecretCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -274,6 +281,14 @@ export function EnvironmentsPageContainer({
     [deleteEnvironment, envByFilename],
   );
 
+  const handleCreateNewSubmit = useCallback(
+    async (payload: NewEnvironmentPayload) => {
+      await createEnvironment(payload.name);
+      setCreatingEnv(false);
+    },
+    [createEnvironment],
+  );
+
   const activeForm = cloning ? (
     <CloneEnvironmentForm
       sourceFilename={cloning.filename}
@@ -306,14 +321,23 @@ export function EnvironmentsPageContainer({
     setDeleting(null);
   };
 
+  const inlineFormSlot = creatingEnv ? (
+    <NewEnvironmentForm
+      existingFilenames={summaries.map((s) => s.filename)}
+      onSubmit={handleCreateNewSubmit}
+      onCancel={() => setCreatingEnv(false)}
+    />
+  ) : null;
+
   return (
     <EnvironmentsPage
       envs={summaries}
       onActivate={handleActivate}
-      onCreateNew={onCreateNew}
+      onCreateNew={onCreateNew ?? (() => setCreatingEnv(true))}
       onClone={handleRequestClone}
       onRename={handleRequestRename}
       onDelete={handleRequestDelete}
+      inlineFormSlot={inlineFormSlot}
       anchoredForm={activeForm}
       anchoredFilename={activeFilename}
       onCloseAnchoredForm={closeAllForms}

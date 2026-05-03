@@ -42,13 +42,12 @@ export function NewEnvironmentForm({
   return (
     <Box
       data-testid="new-environment-form"
-      px={5}
+      px={4}
       py={3}
-      borderTopWidth="1px"
-      borderTopColor="border"
-      borderBottomWidth="1px"
-      borderBottomColor="border"
-      bg="bg.muted"
+      borderWidth="1px"
+      borderColor="border"
+      borderRadius="6px"
+      bg="bg"
     >
       <Flex direction="column" gap={2}>
         <Box>
@@ -87,9 +86,9 @@ export function NewEnvironmentForm({
             color="fg.subtle"
             data-testid="new-environment-target-hint"
           >
-            cria{" "}
+            creates{" "}
             <Text as="span" fontFamily="mono">
-              envs/{name.trim() || "<nome>"}.toml
+              envs/{name.trim() || "<name>"}.toml
             </Text>
           </Text>
           <Flex gap={2}>

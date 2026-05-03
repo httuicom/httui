@@ -83,17 +83,46 @@ export function EnvironmentsPage({
             <code>*.local.toml</code> (gitignored)
           </Text>
         </Box>
-        <Btn
-          variant="primary"
-          data-testid="environments-create-new"
-          onClick={onCreateNew}
-          disabled={!onCreateNew}
+        <Popover.Root
+          open={!!inlineFormSlot}
+          onOpenChange={(e) => {
+            if (!e.open) {
+              // Close fires the create-form's own onCancel via the
+              // container's `creatingEnv=false` flip — but we also
+              // want clicking outside / Esc to close, so re-trigger
+              // onCreateNew? No: the form lives inside the container,
+              // closing it is the container's responsibility on
+              // submit/cancel. Outside-click here is handled by the
+              // form's own cancel ref via Popover's nested behaviour.
+            }
+          }}
+          positioning={{ placement: "bottom-end", gutter: 8 }}
         >
-          + New environment
-        </Btn>
+          <Popover.Trigger asChild>
+            <Btn
+              variant="primary"
+              data-testid="environments-create-new"
+              onClick={onCreateNew}
+              disabled={!onCreateNew}
+            >
+              + New environment
+            </Btn>
+          </Popover.Trigger>
+          {inlineFormSlot ? (
+            <Portal>
+              <Popover.Positioner>
+                <Box
+                  minW="360px"
+                  maxW="480px"
+                  filter="drop-shadow(0 8px 24px rgba(0,0,0,0.15))"
+                >
+                  {inlineFormSlot}
+                </Box>
+              </Popover.Positioner>
+            </Portal>
+          ) : null}
+        </Popover.Root>
       </Flex>
-
-      {inlineFormSlot}
 
       <Box flex={1} overflowY="auto" px={5} pb={5}>
         {sorted.length === 0 ? (
