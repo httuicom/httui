@@ -24,6 +24,7 @@ import { Btn, Tabbar, type TabItem } from "@/components/atoms";
 import { NewConnectionKindPicker } from "./NewConnectionKindPicker";
 import {
   CONNECTION_KINDS,
+  tabsForKind,
   type ConnectionKind,
 } from "./connection-kinds";
 
@@ -146,10 +147,17 @@ export function NewConnectionModal({
     if (e.target === overlayRef.current) onCancel();
   }
 
-  const tabItems: TabItem[] = NEW_CONNECTION_TABS.map((t) => ({
-    id: t.id,
-    label: t.label,
-  }));
+  // Only show tabs that make sense for the selected kind. Sqlite, for
+  // example, is file-based — connection-string / SSH tunnel / SSL
+  // don't apply.
+  const allowedTabs = new Set(tabsForKind(selectedKind));
+  const tabItems: TabItem[] = NEW_CONNECTION_TABS.filter((t) =>
+    allowedTabs.has(t.id),
+  ).map((t) => ({ id: t.id, label: t.label }));
+  const showTabbar = tabItems.length > 1;
+  // If the active tab isn't in the allowed set (e.g. user switched
+  // from postgres to sqlite while on SSL), fall back to "form".
+  const effectiveTab = allowedTabs.has(activeTab) ? activeTab : "form";
 
   return (
     <Portal>
@@ -196,13 +204,15 @@ export function NewConnectionModal({
 
             {isSupported ? (
               <>
-                <Tabbar
-                  data-testid="new-connection-tabs"
-                  tabs={tabItems}
-                  activeId={activeTab}
-                  onSelect={(id) => setActiveTab(id as NewConnectionTabId)}
-                  px={5}
-                />
+                {showTabbar && (
+                  <Tabbar
+                    data-testid="new-connection-tabs"
+                    tabs={tabItems}
+                    activeId={effectiveTab}
+                    onSelect={(id) => setActiveTab(id as NewConnectionTabId)}
+                    px={5}
+                  />
+                )}
 
                 <Box
                   data-testid="new-connection-tab-body"
@@ -212,9 +222,9 @@ export function NewConnectionModal({
                   p={5}
                 >
                   {renderTabBody ? (
-                    renderTabBody({ kind: selectedKind, tab: activeTab })
+                    renderTabBody({ kind: selectedKind, tab: effectiveTab })
                   ) : (
-                    <TabPlaceholder tab={activeTab} />
+                    <TabPlaceholder tab={effectiveTab} />
                   )}
                 </Box>
 
@@ -222,12 +232,12 @@ export function NewConnectionModal({
                   saveDisabled={saveDisabled}
                   onSave={
                     onSave
-                      ? () => onSave({ kind: selectedKind, tab: activeTab })
+                      ? () => onSave({ kind: selectedKind, tab: effectiveTab })
                       : undefined
                   }
                   onTest={
                     onTest
-                      ? () => onTest({ kind: selectedKind, tab: activeTab })
+                      ? () => onTest({ kind: selectedKind, tab: effectiveTab })
                       : undefined
                   }
                   onCancel={onCancel}

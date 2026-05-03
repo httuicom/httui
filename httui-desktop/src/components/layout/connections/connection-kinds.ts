@@ -128,6 +128,32 @@ export const SUPPORTED_NEW_CONNECTION_KINDS: ReadonlyArray<ConnectionKind> = [
   "sqlite",
 ];
 
+/** Tab IDs available in the NewConnectionModal per kind. SQLite is
+ * file-based so it skips connection-string / SSH tunnel / SSL. The
+ * networked drivers ship the full set. Mirrors the modal contract;
+ * keep in sync with `NEW_CONNECTION_TABS`. */
+export type NewConnectionModalTab =
+  | "form"
+  | "connection-string"
+  | "ssh-tunnel"
+  | "ssl";
+
+const NETWORK_TABS: ReadonlyArray<NewConnectionModalTab> = [
+  "form",
+  "connection-string",
+  "ssh-tunnel",
+  "ssl",
+];
+
+const SQLITE_TABS: ReadonlyArray<NewConnectionModalTab> = ["form"];
+
+export function tabsForKind(
+  kind: ConnectionKind,
+): ReadonlyArray<NewConnectionModalTab> {
+  if (kind === "sqlite") return SQLITE_TABS;
+  return NETWORK_TABS;
+}
+
 /** `oklch(hue)` wrapper — convenience for inline style consumers. */
 export function kindColor(kind: ConnectionKind): string {
   return `oklch(${CONNECTION_KINDS[kind].hue})`;
