@@ -116,4 +116,63 @@ describe("EnvironmentCard", () => {
       screen.queryByTestId("environment-card-local.toml-temporary-chip"),
     ).not.toBeInTheDocument();
   });
+
+  it("hides the ⋮ menu when no row-action handler is supplied", () => {
+    renderWithProviders(<EnvironmentCard env={env()} />);
+    expect(
+      screen.queryByTestId("environment-card-local.toml-more"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the ⋮ menu when at least one row action is wired", async () => {
+    const onClone = vi.fn();
+    const onRename = vi.fn();
+    const onDelete = vi.fn();
+    renderWithProviders(
+      <EnvironmentCard
+        env={env()}
+        onClone={onClone}
+        onRename={onRename}
+        onDelete={onDelete}
+      />,
+    );
+    const trigger = screen.getByTestId("environment-card-local.toml-more");
+    expect(trigger).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(trigger);
+    await user.click(await screen.findByText("Clone"));
+    expect(onClone).toHaveBeenCalledWith("local.toml");
+  });
+
+  it("Rename and Delete menu items dispatch the matching handler", async () => {
+    const onRename = vi.fn();
+    const onDelete = vi.fn();
+    renderWithProviders(
+      <EnvironmentCard env={env()} onRename={onRename} onDelete={onDelete} />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("environment-card-local.toml-more"));
+    await user.click(await screen.findByText("Rename"));
+    expect(onRename).toHaveBeenCalledWith("local.toml");
+
+    await user.click(screen.getByTestId("environment-card-local.toml-more"));
+    await user.click(await screen.findByText("Delete"));
+    expect(onDelete).toHaveBeenCalledWith("local.toml");
+  });
+
+  it("⋮ click does not propagate to the activate handler", async () => {
+    const onActivate = vi.fn();
+    const onClone = vi.fn();
+    renderWithProviders(
+      <EnvironmentCard
+        env={env()}
+        onActivate={onActivate}
+        onClone={onClone}
+      />,
+    );
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("environment-card-local.toml-more"));
+    expect(onActivate).not.toHaveBeenCalled();
+  });
 });

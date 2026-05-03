@@ -116,4 +116,75 @@ describe("EnvironmentsPageContainer", () => {
       expect(screen.getByTestId("environments-empty-hint")).toBeTruthy();
     });
   });
+
+  it("Clone menu opens the inline form and dispatches duplicate_environment", async () => {
+    let captured: { sourceId?: string; newName?: string } | null = null;
+    mockTauriCommand("duplicate_environment", (args) => {
+      captured = args as { sourceId: string; newName: string };
+      return env({ id: "env-prod-copy", name: "prod-copy" });
+    });
+
+    const { default: userEvent } = await import("@testing-library/user-event");
+    renderWithProviders(<EnvironmentsPageContainer />);
+    const user = userEvent.setup();
+
+    const moreBtn = await screen.findByTestId(
+      "environment-card-prod.toml-more",
+    );
+    await user.click(moreBtn);
+    await user.click(await screen.findByText("Clone"));
+    await user.type(
+      await screen.findByTestId("clone-environment-name"),
+      "prod-copy",
+    );
+    await user.click(screen.getByTestId("clone-environment-save"));
+
+    await waitFor(() => {
+      expect(captured).not.toBeNull();
+    });
+    expect(captured).toMatchObject({
+      sourceId: "env-prod",
+      newName: "prod-copy",
+    });
+  });
+
+  it("activates an env on card click and dispatches set_active_environment", async () => {
+    let setActiveCalled: { id?: string } | null = null;
+    mockTauriCommand("set_active_environment", (args) => {
+      setActiveCalled = args as { id: string };
+      return undefined;
+    });
+    const { default: userEvent } = await import(
+      "@testing-library/user-event"
+    );
+    renderWithProviders(<EnvironmentsPageContainer />);
+    const card = await screen.findByTestId("environment-card-prod.toml");
+    const activateBtn = card.querySelector("button");
+    await userEvent.setup().click(activateBtn!);
+    await waitFor(() => {
+      expect(setActiveCalled).not.toBeNull();
+    });
+    expect(setActiveCalled).toEqual({ id: "env-prod" });
+  });
+
+  it("Clone form Cancel closes the inline slot without dispatching", async () => {
+    let dupeCalls = 0;
+    mockTauriCommand("duplicate_environment", () => {
+      dupeCalls += 1;
+      return env({ id: "x", name: "x" });
+    });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    renderWithProviders(<EnvironmentsPageContainer />);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByTestId("environment-card-prod.toml-more"),
+    );
+    await user.click(await screen.findByText("Clone"));
+    expect(screen.getByTestId("clone-environment-form")).toBeTruthy();
+    await user.click(screen.getByTestId("clone-environment-cancel"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("clone-environment-form")).toBeNull();
+    });
+    expect(dupeCalls).toBe(0);
+  });
 });
