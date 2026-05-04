@@ -99,6 +99,13 @@ export function PreflightValueEditor({
 }: PreflightValueEditorProps) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const cmRef = useRef<ReactCodeMirrorRef>(null);
+  // `value` is taken as initial-only — re-passing it on every render
+  // causes a controlled-mode feedback loop in @uiw/react-codemirror
+  // (CM6 dispatches a doc-replace transaction every time the prop
+  // shifts, even by a single character, which can swallow the user's
+  // in-flight typing). The `key={kind}` on the CodeMirror remounts the
+  // editor on kind change so the seed always matches the new context.
+  const initialValueRef = useRef(value);
 
   // Fetch suggestions on kind change.
   useEffect(() => {
@@ -197,7 +204,8 @@ export function PreflightValueEditor({
     >
       <CodeMirror
         ref={cmRef}
-        value={value}
+        key={kind}
+        value={initialValueRef.current}
         onChange={onChange}
         extensions={extensions}
         basicSetup={{
