@@ -5,15 +5,15 @@
 //   1. Kind picker — 6 buttons (connection / env_var / branch / keychain
 //      / file_exists / command). Skipped when the popover opens with an
 //      `initialKind` (edit mode pre-binds the kind).
-//   2. Value input — single text field with kind-specific placeholder
-//      and submit-on-Enter. Save / Cancel buttons; Remove appears in
-//      edit mode only.
+//   2. Value input — single-line CM6 editor with native autocompletion
+//      (mirrors the inline forms in HTTP/DB blocks). Save / Cancel
+//      buttons; Remove appears in edit mode only.
 //
 // Pure presentational. The consumer (PreflightPills) handles open/close
 // state + binds the callbacks to the frontmatter writer.
 
-import { useEffect, useRef, useState } from "react";
-import { Box, Flex, HStack, Input, Stack, Text } from "@chakra-ui/react";
+import { useEffect, useState } from "react";
+import { Box, Flex, HStack, Stack, Text } from "@chakra-ui/react";
 
 import { Btn } from "@/components/atoms";
 
@@ -21,6 +21,8 @@ import type {
   PreflightCheck,
   PreflightCheckKind,
 } from "@/lib/blocks/preflight-checks";
+
+import { PreflightValueEditor } from "./PreflightValueEditor";
 
 interface KindOption {
   kind: PreflightCheckKind;
@@ -95,38 +97,12 @@ export function PreflightCheckPopover({
     initialKind ?? null,
   );
   const [value, setValue] = useState(initialValue ?? "");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Auto-focus the value input as soon as a kind is picked.
+  // Esc at the kind-picker stage falls through to here. Once the user
+  // picks a kind, the CM6 editor owns Esc via its keymap (so it can
+  // also dismiss its autocomplete popup first).
   useEffect(() => {
-    if (kind && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [kind]);
-
-  // Fetch suggestions when kind changes.
-  useEffect(() => {
-    if (!kind || !getSuggestions) {
-      setSuggestions([]);
-      return;
-    }
-    let cancelled = false;
-    getSuggestions(kind)
-      .then((list) => {
-        if (!cancelled) setSuggestions(list);
-      })
-      .catch(() => {
-        if (!cancelled) setSuggestions([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [kind, getSuggestions]);
-
-  // Esc closes from any stage.
-  useEffect(() => {
+    if (kind !== null) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -135,20 +111,13 @@ export function PreflightCheckPopover({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [kind, onClose]);
 
   const submit = () => {
     if (!kind) return;
     const trimmed = value.trim();
     if (trimmed.length === 0) return;
     onSave({ kind, value: trimmed });
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      submit();
-    }
   };
 
   // Position: anchored below + slightly right-aligned to the trigger.
@@ -160,10 +129,6 @@ export function PreflightCheckPopover({
         left: `${anchorRect.left}px`,
       }
     : { top: "20%", left: "50%", transform: "translateX(-50%)" };
-
-  const placeholder = kind
-    ? KIND_OPTIONS.find((opt) => opt.kind === kind)?.placeholder ?? ""
-    : "";
 
   return (
     <>
@@ -230,23 +195,16 @@ export function PreflightCheckPopover({
                 </Btn>
               )}
             </HStack>
-            <Input
-              ref={inputRef}
-              data-testid="preflight-check-popover-value"
-              value={value}
-              placeholder={placeholder}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={onKeyDown}
-              size="sm"
-            />
-            <SuggestionsList
-              suggestions={suggestions}
-              query={value}
-              onPick={(picked) => {
-                setValue(picked);
-                inputRef.current?.focus();
-              }}
-            />
+            <Box data-testid="preflight-check-popover-value">
+              <PreflightValueEditor
+                kind={kind}
+                value={value}
+                onChange={setValue}
+                onCommit={submit}
+                onCancel={onClose}
+                getSuggestions={getSuggestions}
+              />
+            </Box>
             <Flex justify="space-between" align="center" gap={2}>
               {onRemove ? (
                 <Btn
@@ -283,60 +241,6 @@ export function PreflightCheckPopover({
         )}
       </Box>
     </>
-  );
-}
-
-interface SuggestionsListProps {
-  suggestions: ReadonlyArray<string>;
-  query: string;
-  onPick: (value: string) => void;
-}
-
-const MAX_SUGGESTIONS = 6;
-
-function SuggestionsList({ suggestions, query, onPick }: SuggestionsListProps) {
-  const trimmed = query.trim().toLowerCase();
-  const matches = (
-    trimmed.length === 0
-      ? suggestions
-      : suggestions.filter((s) => s.toLowerCase().includes(trimmed))
-  ).slice(0, MAX_SUGGESTIONS);
-  // Hide entirely when there's nothing to show OR the only match is
-  // an exact-equals (user already picked) — keeps the popover compact.
-  if (matches.length === 0) return null;
-  if (matches.length === 1 && matches[0]?.toLowerCase() === trimmed) {
-    return null;
-  }
-  return (
-    <Stack
-      data-testid="preflight-check-popover-suggestions"
-      gap={0}
-      maxH="160px"
-      overflowY="auto"
-      borderWidth="1px"
-      borderColor="border"
-      borderRadius="md"
-      bg="bg"
-    >
-      {matches.map((s) => (
-        <Box
-          key={s}
-          as="button"
-          data-testid={`preflight-check-popover-suggestion-${s}`}
-          textAlign="left"
-          px={2}
-          py={1}
-          fontFamily="mono"
-          fontSize="11px"
-          color="fg"
-          bg="transparent"
-          _hover={{ bg: "bg.muted" }}
-          onClick={() => onPick(s)}
-        >
-          {s}
-        </Box>
-      ))}
-    </Stack>
   );
 }
 
