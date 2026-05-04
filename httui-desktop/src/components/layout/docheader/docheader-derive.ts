@@ -6,15 +6,19 @@
 // what does the breadcrumb look like? does the abstract need
 // fade-out?
 
-import type { PreflightItem } from "@/lib/blocks/preflight-item";
+import type { TaskItem } from "@/lib/blocks/task-item";
 
 export interface DocHeaderFrontmatter {
   title?: string;
   abstract?: string;
   tags?: ReadonlyArray<string>;
-  /** V2 / cenário 4.5 / M6 — pre-flight checklist items. The DocHeader
-   *  Checklist subcomponent reads this to render its rows. */
-  preflight?: ReadonlyArray<PreflightItem>;
+  /** V2 / cenário 4.5 / M6 — checklist task items (free-form todos).
+   *  The DocHeader Checklist subcomponent reads this to render its
+   *  rows. Renamed from `preflight` in V6 cenário 9 — the legacy
+   *  `preflight:` YAML key is now reserved for typed pre-flight checks
+   *  (block-list of connection / env_var / branch / keychain /
+   *  file_exists / command kinds). */
+  tasks?: ReadonlyArray<TaskItem>;
   /** V6 / cenário 6 — user-visible parse error from the slice-1 YAML
    *  parser. The DocHeader card surfaces a "frontmatter invalid" badge
    *  when this is set so the user has a visible signal that their YAML

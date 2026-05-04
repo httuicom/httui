@@ -17,14 +17,14 @@ import { useMemo, useState } from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import { Btn, Input } from "@/components/atoms";
-import type { PreflightItem } from "@/lib/blocks/preflight-item";
+import type { TaskItem } from "@/lib/blocks/task-item";
 
 export interface DocHeaderChecklistProps {
-  items: ReadonlyArray<PreflightItem>;
+  items: ReadonlyArray<TaskItem>;
   /** When provided, the checklist becomes editable (toggle done /
    *  edit text / add / remove). The consumer receives the full new
    *  list on every change. */
-  onChecklistSave?: (items: PreflightItem[]) => void;
+  onChecklistSave?: (items: TaskItem[]) => void;
 }
 
 export function DocHeaderChecklist({
@@ -37,7 +37,7 @@ export function DocHeaderChecklist({
 
   if (!editable && items.length === 0) return null;
 
-  const commit = (next: PreflightItem[]) => {
+  const commit = (next: TaskItem[]) => {
     onChecklistSave?.(next);
   };
 
@@ -151,7 +151,7 @@ export function DocHeaderChecklist({
 }
 
 interface ChecklistRowProps {
-  item: PreflightItem;
+  item: TaskItem;
   editable: boolean;
   onToggle: () => void;
   onCommitText: (text: string) => void;

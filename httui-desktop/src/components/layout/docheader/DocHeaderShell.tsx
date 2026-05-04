@@ -15,7 +15,7 @@ import {
   type PreflightPillItem,
 } from "@/components/blocks/preflight/PreflightPills";
 
-import type { PreflightItem } from "@/lib/blocks/preflight-item";
+import type { TaskItem } from "@/lib/blocks/task-item";
 
 import { DocHeaderAbstract } from "./DocHeaderAbstract";
 import { DocHeaderActionRow } from "./DocHeaderActionRow";
@@ -62,9 +62,11 @@ export interface DocHeaderShellProps {
    *  `tags:` line via `updateFrontmatterTags`. */
   onAddTag?: (tag: string) => void;
   onRemoveTag?: (tag: string) => void;
-  /** Pre-flight checklist save callback. Receives the full new list
-   *  on every edit (toggle / text change / add / remove). */
-  onChecklistSave?: (items: PreflightItem[]) => void;
+  /** Checklist save callback. Receives the full new list on every
+   *  edit (toggle / text change / add / remove). The list is persisted
+   *  to the `tasks:` YAML key (renamed from `preflight:` in V6
+   *  cenário 9). */
+  onChecklistSave?: (items: TaskItem[]) => void;
 
   // ── Meta strip inputs ──────────────────────────────────────────
   author?: AuthorInfo | null;
@@ -158,7 +160,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
   const showChecklist =
     !effectiveCompact &&
     (onChecklistSave !== undefined ||
-      (frontmatter?.preflight?.length ?? 0) > 0);
+      (frontmatter?.tasks?.length ?? 0) > 0);
 
   return (
     <Box
@@ -229,7 +231,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
                   minW={0}
                 >
                   <DocHeaderChecklist
-                    items={frontmatter?.preflight ?? []}
+                    items={frontmatter?.tasks ?? []}
                     onChecklistSave={onChecklistSave}
                   />
                 </Box>

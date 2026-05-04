@@ -142,9 +142,9 @@ describe("extractFrontmatter", () => {
   it("returns empty shape with tags:[] for content without frontmatter", () => {
     expect(extractFrontmatter("# heading only\n")).toEqual({
       tags: [],
-      preflight: [],
+      tasks: [],
     });
-    expect(extractFrontmatter("")).toEqual({ tags: [], preflight: [] });
+    expect(extractFrontmatter("")).toEqual({ tags: [], tasks: [] });
   });
 
   it("extracts title + abstract + tags from a typical document", () => {
@@ -154,14 +154,14 @@ describe("extractFrontmatter", () => {
       title: "Payments — debug capture failures",
       abstract: "Capture flow when X",
       tags: ["payments", "debug"],
-      preflight: [],
+      tasks: [],
     });
   });
 
-  it("extracts a preflight checklist", () => {
+  it("extracts a tasks checklist", () => {
     const doc =
-      '---\ntitle: x\npreflight: ["[ ] Verify", "[x] Done"]\n---\nbody\n';
-    expect(extractFrontmatter(doc).preflight).toEqual([
+      '---\ntitle: x\ntasks: ["[ ] Verify", "[x] Done"]\n---\nbody\n';
+    expect(extractFrontmatter(doc).tasks).toEqual([
       { text: "Verify", done: false },
       { text: "Done", done: true },
     ]);
@@ -249,8 +249,8 @@ describe("extractFrontmatter — error path (V6 cenário 6)", () => {
     expect(fm.tags).toEqual([]);
   });
 
-  it("flags `preflight:` block-list shape", () => {
-    const doc = "---\npreflight:\n  - \"[ ] do thing\"\n---\n";
+  it("flags `tasks:` block-list shape", () => {
+    const doc = "---\ntasks:\n  - \"[ ] do thing\"\n---\n";
     expect(extractFrontmatter(doc).error).toBeDefined();
   });
 
@@ -273,7 +273,7 @@ describe("extractFrontmatter — error path (V6 cenário 6)", () => {
 
   it("does not flag a valid frontmatter", () => {
     const doc =
-      "---\ntitle: x\nabstract: y\ntags: [a, b]\npreflight: [\"[ ] z\"]\n---\nbody\n";
+      "---\ntitle: x\nabstract: y\ntags: [a, b]\ntasks: [\"[ ] z\"]\n---\nbody\n";
     expect(extractFrontmatter(doc).error).toBeUndefined();
   });
 

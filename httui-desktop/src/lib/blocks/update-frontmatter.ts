@@ -3,7 +3,7 @@
 // the full document content and the new field value, and returns the
 // modified document. Mirrors the Rust slice-1 schema (single-line scalar
 // `title:` / `abstract:`, flow-style `tags: [a, b]`,
-// `preflight: ["[ ] foo", "[x] bar"]`).
+// `tasks: ["[ ] foo", "[x] bar"]`).
 //
 // These helpers are deliberately conservative — they only modify the
 // minimum slice of the document needed and preserve everything else
@@ -12,9 +12,9 @@
 // the source of truth stays the `.md` file, not React state.
 
 import {
-  stringifyPreflightItem,
-  type PreflightItem,
-} from "./preflight-item";
+  stringifyTaskItem,
+  type TaskItem,
+} from "./task-item";
 
 interface SplitDoc {
   before: string;
@@ -292,26 +292,29 @@ export function updateFrontmatterTags(
 }
 
 /**
- * Replace, insert, or remove the `preflight:` field. Uses the same
+ * Replace, insert, or remove the `tasks:` field. Uses the same
  * empty-list semantics as `updateFrontmatterTags`: empty input drops
  * the line when present, no-ops when absent. Items are serialised via
- * `stringifyPreflightItem` (`[ ] foo` / `[x] bar`) and wrapped in a
- * flow-list — staying within the slice-1 schema.
+ * `stringifyTaskItem` (`[ ] foo` / `[x] bar`) and wrapped in a
+ * flow-list — staying within the slice-1 schema. The legacy
+ * `preflight:` flow-list (V2 M6) was renamed to `tasks:` in V6 cenário
+ * 9 so the V6 typed pre-flight checks (block-list of kinds) own the
+ * `preflight:` key without colliding.
  */
-export function updateFrontmatterPreflight(
+export function updateFrontmatterTasks(
   content: string,
-  items: ReadonlyArray<PreflightItem>,
+  items: ReadonlyArray<TaskItem>,
 ): string {
   const split = splitDoc(content);
   const isEmpty = items.length === 0;
 
   if (!split) {
     if (isEmpty) return content;
-    const list = encodeFlowList(items.map(stringifyPreflightItem));
-    return `---\npreflight: ${list}\n---\n\n${content}`;
+    const list = encodeFlowList(items.map(stringifyTaskItem));
+    return `---\ntasks: ${list}\n---\n\n${content}`;
   }
 
-  const range = findFieldLineRange(split.fmBody, "preflight");
+  const range = findFieldLineRange(split.fmBody, "tasks");
 
   if (isEmpty) {
     if (!range) return content;
@@ -322,8 +325,8 @@ export function updateFrontmatterPreflight(
     return split.before + next + split.after;
   }
 
-  const list = encodeFlowList(items.map(stringifyPreflightItem));
-  const newLine = `preflight: ${list}`;
+  const list = encodeFlowList(items.map(stringifyTaskItem));
+  const newLine = `tasks: ${list}`;
 
   if (range) {
     const next =

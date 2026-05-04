@@ -14,10 +14,10 @@ import {
   returnFocusToBody,
   type DocHeaderEntry,
 } from "@/lib/codemirror/cm-doc-header";
-import type { PreflightItem } from "@/lib/blocks/preflight-item";
+import type { TaskItem } from "@/lib/blocks/task-item";
 import {
   updateFrontmatterAbstract,
-  updateFrontmatterPreflight,
+  updateFrontmatterTasks,
   updateFrontmatterTags,
   updateFrontmatterTitle,
 } from "@/lib/blocks/update-frontmatter";
@@ -27,7 +27,7 @@ export interface DocHeaderCallbacks {
   onAbstractSave: (abstract: string) => void;
   onAddTag: (tag: string) => void;
   onRemoveTag: (tag: string) => void;
-  onChecklistSave: (items: PreflightItem[]) => void;
+  onChecklistSave: (items: TaskItem[]) => void;
   onTitleNavigateToBody: () => void;
 }
 
@@ -91,10 +91,10 @@ export function buildDocHeaderCallbacks(
     deps.dispatchDocReplace(v, nextContent);
   };
 
-  const onChecklistSave = (items: PreflightItem[]) => {
+  const onChecklistSave = (items: TaskItem[]) => {
     const v = entry?.view;
     if (!v) return;
-    const next = updateFrontmatterPreflight(v.state.doc.toString(), items);
+    const next = updateFrontmatterTasks(v.state.doc.toString(), items);
     deps.dispatchDocReplace(v, next);
   };
 

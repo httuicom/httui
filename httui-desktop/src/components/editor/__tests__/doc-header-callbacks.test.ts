@@ -199,9 +199,9 @@ describe("buildDocHeaderCallbacks", () => {
       });
     });
 
-    it("onChecklistSave rewrites the preflight list", () => {
+    it("onChecklistSave rewrites the tasks list", () => {
       const deps = makeDeps();
-      const view = makeFakeView("---\npreflight: [\"[ ] one\"]\n---\n");
+      const view = makeFakeView("---\ntasks: [\"[ ] one\"]\n---\n");
       const entry = makeEntry({ view });
       const cb = buildDocHeaderCallbacks(entry, "i1", deps);
       cb.onChecklistSave([

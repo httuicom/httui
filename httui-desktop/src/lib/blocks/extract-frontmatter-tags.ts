@@ -25,18 +25,20 @@
 // "returns [] on block-list shape" test below.
 
 import {
-  parsePreflightItem,
-  type PreflightItem,
-} from "./preflight-item";
+  parseTaskItem,
+  type TaskItem,
+} from "./task-item";
 
 export interface FrontmatterShape {
   title?: string;
   abstract?: string;
   tags: string[];
-  /** V2 / cenário 4.5 / M6 — pre-flight checklist items. Stored as a
-   *  flow-list of `"[ ] text"` / `"[x] text"` strings to stay within
-   *  the slice-1 schema (no block-style nested mappings). */
-  preflight: PreflightItem[];
+  /** V2 / cenário 4.5 / M6 — checklist task items (free-form todos).
+   *  Stored under the `tasks:` key as a flow-list of `"[ ] text"` /
+   *  `"[x] text"` strings. The V6 cenário 9 split moved this off the
+   *  legacy `preflight:` key so the V6 typed pre-flight checks
+   *  (block-list of kinds) can own that key without colliding. */
+  tasks: TaskItem[];
   /** V6 / cenário 8 — `status:` value (`draft` | `active` | `archived`,
    *  free-form forward-compat). The `archived` value hides the note
    *  from the default file tree view; the consumer toggle reveals it
@@ -44,7 +46,7 @@ export interface FrontmatterShape {
   status?: string;
   /** V6 / cenário 6 — user-visible parse error. Set when the
    *  frontmatter region is unterminated (no closing `---`) or when a
-   *  typed list key (`tags:` / `preflight:`) carries a non-flow value
+   *  typed list key (`tags:` / `tasks:`) carries a non-flow value
    *  the slice-1 schema can't read (block-list shape, bare scalar).
    *  When set, the DocHeader surfaces a "frontmatter invalid" badge so
    *  the user has a visible signal that their YAML didn't apply. */
@@ -59,11 +61,11 @@ type SplitResult =
 const ERR_UNTERMINATED =
   "frontmatter inválido: bloco não fechado (faltando `---`)";
 const ERR_LIST_NOT_FLOW =
-  "frontmatter inválido: `tags` / `preflight` precisam usar flow-style `[a, b]`";
+  "frontmatter inválido: `tags` / `tasks` precisam usar flow-style `[a, b]`";
 
 /** Parse the frontmatter region into the DocHeader shape (title +
- *  abstract + tags + preflight). Returns an object with `tags: []` /
- *  `preflight: []` and missing optionals when the document has no
+ *  abstract + tags + tasks). Returns an object with `tags: []` /
+ *  `tasks: []` and missing optionals when the document has no
  *  frontmatter / no closing fence / unknown keys. Each typed key
  *  follows the Rust slice-1 rule (flow-style only; block scalar
  *  values fall through as `undefined`). When the YAML is recognizable
@@ -71,15 +73,15 @@ const ERR_LIST_NOT_FLOW =
  *  carries `error` so the consumer can surface a badge. */
 export function extractFrontmatter(content: string): FrontmatterShape {
   const split = splitFrontmatterYaml(content);
-  if (split.kind === "none") return { tags: [], preflight: [] };
+  if (split.kind === "none") return { tags: [], tasks: [] };
   if (split.kind === "unterminated") {
-    return { tags: [], preflight: [], error: ERR_UNTERMINATED };
+    return { tags: [], tasks: [], error: ERR_UNTERMINATED };
   }
 
   let title: string | undefined;
   let abstractText: string | undefined;
   let tags: string[] = [];
-  let preflight: PreflightItem[] = [];
+  let tasks: TaskItem[] = [];
   let status: string | undefined;
   let listError: string | null = null;
   // Track which top-level keys we've already accepted so duplicate
@@ -120,11 +122,11 @@ export function extractFrontmatter(content: string): FrontmatterShape {
       if (tags.length === 0 && isMalformedListValue(lines, i, valuePart)) {
         listError = ERR_LIST_NOT_FLOW;
       }
-    } else if (key === "preflight") {
+    } else if (key === "tasks") {
       seen.add(key);
-      preflight = parseFlowList(valuePart).map(parsePreflightItem);
+      tasks = parseFlowList(valuePart).map(parseTaskItem);
       if (
-        preflight.length === 0 &&
+        tasks.length === 0 &&
         isMalformedListValue(lines, i, valuePart)
       ) {
         listError = ERR_LIST_NOT_FLOW;
@@ -132,7 +134,7 @@ export function extractFrontmatter(content: string): FrontmatterShape {
     }
   }
 
-  const out: FrontmatterShape = { tags, preflight };
+  const out: FrontmatterShape = { tags, tasks };
   if (title !== undefined) out.title = title;
   if (abstractText !== undefined) out.abstract = abstractText;
   if (status !== undefined) out.status = status;

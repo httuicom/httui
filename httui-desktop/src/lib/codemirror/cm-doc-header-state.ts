@@ -172,12 +172,12 @@ function frontmatterEqual(
   const bTags = b.tags ?? [];
   if (aTags.length !== bTags.length) return false;
   for (let i = 0; i < aTags.length; i++) if (aTags[i] !== bTags[i]) return false;
-  const aPre = a.preflight ?? [];
-  const bPre = b.preflight ?? [];
-  if (aPre.length !== bPre.length) return false;
-  for (let i = 0; i < aPre.length; i++) {
-    if (aPre[i].text !== bPre[i].text) return false;
-    if (aPre[i].done !== bPre[i].done) return false;
+  const aTasks = a.tasks ?? [];
+  const bTasks = b.tasks ?? [];
+  if (aTasks.length !== bTasks.length) return false;
+  for (let i = 0; i < aTasks.length; i++) {
+    if (aTasks[i].text !== bTasks[i].text) return false;
+    if (aTasks[i].done !== bTasks[i].done) return false;
   }
   return true;
 }
@@ -188,7 +188,7 @@ function frontmatterFromDoc(doc: string): DocHeaderFrontmatter | null {
     fm.title === undefined &&
     fm.abstract === undefined &&
     fm.tags.length === 0 &&
-    fm.preflight.length === 0 &&
+    fm.tasks.length === 0 &&
     fm.error === undefined
   ) {
     return null;
@@ -197,7 +197,7 @@ function frontmatterFromDoc(doc: string): DocHeaderFrontmatter | null {
     title: fm.title,
     abstract: fm.abstract,
     tags: fm.tags,
-    preflight: fm.preflight,
+    tasks: fm.tasks,
     error: fm.error,
   };
 }

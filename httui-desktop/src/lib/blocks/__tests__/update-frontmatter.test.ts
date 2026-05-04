@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   updateFrontmatterAbstract,
-  updateFrontmatterPreflight,
+  updateFrontmatterTasks,
   updateFrontmatterTags,
   updateFrontmatterTitle,
 } from "@/lib/blocks/update-frontmatter";
@@ -213,24 +213,24 @@ describe("updateFrontmatterTags", () => {
   });
 });
 
-describe("updateFrontmatterPreflight", () => {
+describe("updateFrontmatterTasks", () => {
   it("inserts a fresh frontmatter when adding items to a doc with none", () => {
     expect(
-      updateFrontmatterPreflight("body\n", [
+      updateFrontmatterTasks("body\n", [
         { text: "First", done: false },
       ]),
-    ).toBe('---\npreflight: ["[ ] First"]\n---\n\nbody\n');
+    ).toBe('---\ntasks: ["[ ] First"]\n---\n\nbody\n');
   });
 
   it("returns content unchanged when removing items from a doc that has none", () => {
     const before = "---\ntitle: x\n---\nbody\n";
-    expect(updateFrontmatterPreflight(before, [])).toBe(before);
+    expect(updateFrontmatterTasks(before, [])).toBe(before);
   });
 
   it("removes the line when the new list is empty", () => {
     const before =
-      '---\ntitle: x\npreflight: ["[ ] foo"]\n---\nbody\n';
-    expect(updateFrontmatterPreflight(before, [])).toBe(
+      '---\ntitle: x\ntasks: ["[ ] foo"]\n---\nbody\n';
+    expect(updateFrontmatterTasks(before, [])).toBe(
       "---\ntitle: x\n---\nbody\n",
     );
   });
@@ -238,22 +238,22 @@ describe("updateFrontmatterPreflight", () => {
   it("inserts at the end of an existing frontmatter when missing", () => {
     const before = "---\ntitle: x\n---\nbody\n";
     expect(
-      updateFrontmatterPreflight(before, [
+      updateFrontmatterTasks(before, [
         { text: "Verify", done: false },
         { text: "Done item", done: true },
       ]),
     ).toBe(
-      '---\ntitle: x\npreflight: ["[ ] Verify", "[x] Done item"]\n---\nbody\n',
+      '---\ntitle: x\ntasks: ["[ ] Verify", "[x] Done item"]\n---\nbody\n',
     );
   });
 
-  it("replaces an existing preflight line in place", () => {
+  it("replaces an existing tasks line in place", () => {
     const before =
-      '---\npreflight: ["[ ] old"]\n---\nbody\n';
+      '---\ntasks: ["[ ] old"]\n---\nbody\n';
     expect(
-      updateFrontmatterPreflight(before, [
+      updateFrontmatterTasks(before, [
         { text: "new", done: true },
       ]),
-    ).toBe('---\npreflight: ["[x] new"]\n---\nbody\n');
+    ).toBe('---\ntasks: ["[x] new"]\n---\nbody\n');
   });
 });
