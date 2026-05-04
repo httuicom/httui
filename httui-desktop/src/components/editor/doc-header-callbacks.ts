@@ -16,6 +16,11 @@ import {
 } from "@/lib/codemirror/cm-doc-header";
 import type { TaskItem } from "@/lib/blocks/task-item";
 import {
+  extractPreflightChecks,
+  updateFrontmatterPreflightChecks,
+  type PreflightCheck,
+} from "@/lib/blocks/preflight-checks";
+import {
   updateFrontmatterAbstract,
   updateFrontmatterTasks,
   updateFrontmatterTags,
@@ -29,6 +34,13 @@ export interface DocHeaderCallbacks {
   onRemoveTag: (tag: string) => void;
   onChecklistSave: (items: TaskItem[]) => void;
   onTitleNavigateToBody: () => void;
+  /** V6 cenário 9 — append a typed pre-flight check to the
+   *  `preflight:` block-list. */
+  onAddPreflightCheck: (check: PreflightCheck) => void;
+  /** V6 cenário 9 — replace the check at index `idx`. */
+  onEditPreflightCheck: (idx: number, next: PreflightCheck) => void;
+  /** V6 cenário 9 — drop the check at index `idx`. */
+  onRemovePreflightCheck: (idx: number) => void;
 }
 
 /** The portal reads these helpers off `cm-doc-header`; tests can swap
@@ -105,6 +117,41 @@ export function buildDocHeaderCallbacks(
     deps.returnFocusToBody(instanceId);
   };
 
+  // V6 / cenário 9 — typed pre-flight checks. The block-list lives
+  // under the `preflight:` YAML key (TaskItem moved to `tasks:` in
+  // the rename commit). Each callback round-trips through the doc
+  // text: read current checks → mutate → write back.
+  const onAddPreflightCheck = (check: PreflightCheck) => {
+    const v = entry?.view;
+    if (!v) return;
+    const doc = v.state.doc.toString();
+    const current = extractPreflightChecks(doc);
+    const next = updateFrontmatterPreflightChecks(doc, [...current, check]);
+    deps.dispatchDocReplace(v, next);
+  };
+
+  const onEditPreflightCheck = (idx: number, replacement: PreflightCheck) => {
+    const v = entry?.view;
+    if (!v) return;
+    const doc = v.state.doc.toString();
+    const current = extractPreflightChecks(doc);
+    if (idx < 0 || idx >= current.length) return;
+    const next = current.map((c, i) => (i === idx ? replacement : c));
+    const nextDoc = updateFrontmatterPreflightChecks(doc, next);
+    deps.dispatchDocReplace(v, nextDoc);
+  };
+
+  const onRemovePreflightCheck = (idx: number) => {
+    const v = entry?.view;
+    if (!v) return;
+    const doc = v.state.doc.toString();
+    const current = extractPreflightChecks(doc);
+    if (idx < 0 || idx >= current.length) return;
+    const next = current.filter((_, i) => i !== idx);
+    const nextDoc = updateFrontmatterPreflightChecks(doc, next);
+    deps.dispatchDocReplace(v, nextDoc);
+  };
+
   return {
     onTitleSave,
     onAbstractSave,
@@ -112,5 +159,8 @@ export function buildDocHeaderCallbacks(
     onRemoveTag,
     onChecklistSave,
     onTitleNavigateToBody,
+    onAddPreflightCheck,
+    onEditPreflightCheck,
+    onRemovePreflightCheck,
   };
 }

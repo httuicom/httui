@@ -221,4 +221,86 @@ describe("buildDocHeaderCallbacks", () => {
     cb.onTitleNavigateToBody();
     expect(deps.returnFocusToBody).toHaveBeenCalledWith("instance-42");
   });
+
+  describe("preflight checks (V6 cenário 9)", () => {
+    it("onAddPreflightCheck appends to the block-list", () => {
+      const deps = makeDeps();
+      const view = makeFakeView(
+        "---\npreflight:\n  - connection: a\n---\nbody\n",
+      );
+      const entry = makeEntry({ view });
+      const cb = buildDocHeaderCallbacks(entry, "i1", deps);
+      cb.onAddPreflightCheck({ kind: "command", value: "psql" });
+      const next = deps.dispatchDocReplace.mock.calls[0]![1];
+      expect(next).toContain("- connection: a");
+      expect(next).toContain("- command: psql");
+    });
+
+    it("onAddPreflightCheck creates a new block when none exists", () => {
+      const deps = makeDeps();
+      const view = makeFakeView("---\ntitle: x\n---\nbody\n");
+      const entry = makeEntry({ view });
+      const cb = buildDocHeaderCallbacks(entry, "i1", deps);
+      cb.onAddPreflightCheck({ kind: "env_var", value: "API_TOKEN" });
+      const next = deps.dispatchDocReplace.mock.calls[0]![1];
+      expect(next).toContain("preflight:");
+      expect(next).toContain("- env_var: API_TOKEN");
+    });
+
+    it("onEditPreflightCheck replaces the check at idx", () => {
+      const deps = makeDeps();
+      const view = makeFakeView(
+        "---\npreflight:\n  - connection: old\n  - command: ls\n---\n",
+      );
+      const entry = makeEntry({ view });
+      const cb = buildDocHeaderCallbacks(entry, "i1", deps);
+      cb.onEditPreflightCheck(0, { kind: "connection", value: "new" });
+      const next = deps.dispatchDocReplace.mock.calls[0]![1];
+      expect(next).toContain("- connection: new");
+      expect(next).toContain("- command: ls");
+      expect(next).not.toContain("- connection: old");
+    });
+
+    it("onEditPreflightCheck is a no-op for out-of-range idx", () => {
+      const deps = makeDeps();
+      const view = makeFakeView("---\npreflight:\n  - command: ls\n---\n");
+      const entry = makeEntry({ view });
+      const cb = buildDocHeaderCallbacks(entry, "i1", deps);
+      cb.onEditPreflightCheck(5, { kind: "command", value: "x" });
+      expect(deps.dispatchDocReplace).not.toHaveBeenCalled();
+    });
+
+    it("onRemovePreflightCheck drops the check at idx", () => {
+      const deps = makeDeps();
+      const view = makeFakeView(
+        "---\npreflight:\n  - connection: a\n  - command: ls\n---\n",
+      );
+      const entry = makeEntry({ view });
+      const cb = buildDocHeaderCallbacks(entry, "i1", deps);
+      cb.onRemovePreflightCheck(0);
+      const next = deps.dispatchDocReplace.mock.calls[0]![1];
+      expect(next).toContain("- command: ls");
+      expect(next).not.toContain("- connection: a");
+    });
+
+    it("onRemovePreflightCheck on the last item drops the block entirely", () => {
+      const deps = makeDeps();
+      const view = makeFakeView("---\npreflight:\n  - command: ls\n---\n");
+      const entry = makeEntry({ view });
+      const cb = buildDocHeaderCallbacks(entry, "i1", deps);
+      cb.onRemovePreflightCheck(0);
+      const next = deps.dispatchDocReplace.mock.calls[0]![1];
+      expect(next).not.toContain("preflight:");
+    });
+
+    it("preflight callbacks are no-ops when entry has no view", () => {
+      const deps = makeDeps();
+      const entry = makeEntry({ view: null });
+      const cb = buildDocHeaderCallbacks(entry, "i1", deps);
+      cb.onAddPreflightCheck({ kind: "command", value: "ls" });
+      cb.onEditPreflightCheck(0, { kind: "command", value: "x" });
+      cb.onRemovePreflightCheck(0);
+      expect(deps.dispatchDocReplace).not.toHaveBeenCalled();
+    });
+  });
 });

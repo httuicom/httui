@@ -93,6 +93,16 @@ export interface DocHeaderShellProps {
   preflightRechecking?: boolean;
   onPreflightFailureSelect?: (item: PreflightPillItem) => void;
   onPreflightRecheck?: () => void;
+  /** V6 cenário 9 — builder callbacks. When wired, the pill row
+   *  surfaces a `+ Add check` button and click-to-edit on existing
+   *  pills. The consumer mutates the frontmatter via the
+   *  `updateFrontmatterPreflightChecks` writer. */
+  onAddPreflightCheck?: (check: import("@/lib/blocks/preflight-checks").PreflightCheck) => void;
+  onEditPreflightCheck?: (
+    idx: number,
+    next: import("@/lib/blocks/preflight-checks").PreflightCheck,
+  ) => void;
+  onRemovePreflightCheck?: (idx: number) => void;
 }
 
 export function DocHeaderShell(props: DocHeaderShellProps) {
@@ -131,6 +141,9 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     preflightRechecking,
     onPreflightFailureSelect,
     onPreflightRecheck,
+    onAddPreflightCheck,
+    onEditPreflightCheck,
+    onRemovePreflightCheck,
   } = props;
 
   // V2 / cenário 4.5: in editable mode (any save callback provided),
@@ -151,7 +164,9 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
   const showActionRow = !effectiveCompact;
   const showAbstract = !effectiveCompact;
   const showPreflight =
-    !effectiveCompact && (preflightItems?.length ?? 0) > 0;
+    !effectiveCompact &&
+    ((preflightItems?.length ?? 0) > 0 ||
+      onAddPreflightCheck !== undefined);
   const showTags =
     !effectiveCompact &&
     (onAddTag !== undefined ||
@@ -256,13 +271,16 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
               )}
             </Flex>
           )}
-          {showPreflight && preflightItems && (
+          {showPreflight && (
             <Box data-testid="docheader-shell-preflight-slot">
               <PreflightPills
-                items={preflightItems}
+                items={preflightItems ?? []}
                 rechecking={preflightRechecking}
                 onSelectFailure={onPreflightFailureSelect}
                 onRecheck={onPreflightRecheck}
+                onAddCheck={onAddPreflightCheck}
+                onEditCheck={onEditPreflightCheck}
+                onRemoveCheck={onRemovePreflightCheck}
               />
             </Box>
           )}

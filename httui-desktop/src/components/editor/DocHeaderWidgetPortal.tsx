@@ -41,6 +41,9 @@ export type InlineDocHeader = Omit<
   | "onRemoveTag"
   | "onChecklistSave"
   | "onTitleNavigateToBody"
+  | "onAddPreflightCheck"
+  | "onEditPreflightCheck"
+  | "onRemovePreflightCheck"
 >;
 
 interface DocHeaderWidgetPortalProps {
@@ -94,6 +97,11 @@ export function DocHeaderWidgetPortal({
         onRemoveTag={view ? callbacks.onRemoveTag : undefined}
         onChecklistSave={view ? callbacks.onChecklistSave : undefined}
         onTitleNavigateToBody={view ? callbacks.onTitleNavigateToBody : undefined}
+        onAddPreflightCheck={view ? callbacks.onAddPreflightCheck : undefined}
+        onEditPreflightCheck={view ? callbacks.onEditPreflightCheck : undefined}
+        onRemovePreflightCheck={
+          view ? callbacks.onRemovePreflightCheck : undefined
+        }
       />
     </DocHeaderContext.Provider>,
     entry.container,
