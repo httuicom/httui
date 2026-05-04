@@ -236,4 +236,137 @@ describe("PreflightCheckPopover (V6 cenário 9 builder)", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("autocomplete suggestions (V6 cenário 9 polish)", () => {
+    it("renders suggestions list when getSuggestions returns matches", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightCheckPopover
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+          getSuggestions={async (kind) =>
+            kind === "connection" ? ["payments-db", "audit-db", "logs"] : []
+          }
+        />,
+      );
+      await user.click(
+        screen.getByTestId("preflight-check-popover-kind-connection"),
+      );
+      // Wait one tick for the Promise to resolve.
+      await new Promise((r) => setTimeout(r, 0));
+      const list = await screen.findByTestId(
+        "preflight-check-popover-suggestions",
+      );
+      expect(list).toBeInTheDocument();
+      expect(
+        screen.getByTestId("preflight-check-popover-suggestion-payments-db"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("preflight-check-popover-suggestion-audit-db"),
+      ).toBeInTheDocument();
+    });
+
+    it("filters suggestions by substring match", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightCheckPopover
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+          getSuggestions={async () => ["payments-db", "audit-db", "logs"]}
+        />,
+      );
+      await user.click(
+        screen.getByTestId("preflight-check-popover-kind-connection"),
+      );
+      await new Promise((r) => setTimeout(r, 0));
+      await user.type(
+        screen.getByTestId("preflight-check-popover-value"),
+        "db",
+      );
+      // 2 matches expected (payments-db + audit-db); "logs" filtered out.
+      expect(
+        screen.queryByTestId("preflight-check-popover-suggestion-logs"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("preflight-check-popover-suggestion-payments-db"),
+      ).toBeInTheDocument();
+    });
+
+    it("clicking a suggestion fills the input value", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightCheckPopover
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+          getSuggestions={async () => ["payments-db"]}
+        />,
+      );
+      await user.click(
+        screen.getByTestId("preflight-check-popover-kind-connection"),
+      );
+      await new Promise((r) => setTimeout(r, 0));
+      await user.click(
+        screen.getByTestId("preflight-check-popover-suggestion-payments-db"),
+      );
+      const input = screen.getByTestId(
+        "preflight-check-popover-value",
+      ) as HTMLInputElement;
+      expect(input.value).toBe("payments-db");
+    });
+
+    it("hides the suggestions list when no provider is wired", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightCheckPopover onSave={vi.fn()} onClose={vi.fn()} />,
+      );
+      await user.click(
+        screen.getByTestId("preflight-check-popover-kind-command"),
+      );
+      expect(
+        screen.queryByTestId("preflight-check-popover-suggestions"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides when the only match is exact-equals (already picked)", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightCheckPopover
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+          getSuggestions={async () => ["payments-db"]}
+        />,
+      );
+      await user.click(
+        screen.getByTestId("preflight-check-popover-kind-connection"),
+      );
+      await new Promise((r) => setTimeout(r, 0));
+      await user.type(
+        screen.getByTestId("preflight-check-popover-value"),
+        "payments-db",
+      );
+      expect(
+        screen.queryByTestId("preflight-check-popover-suggestions"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("swallows provider errors silently (empty list)", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightCheckPopover
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+          getSuggestions={async () => {
+            throw new Error("rpc fail");
+          }}
+        />,
+      );
+      await user.click(
+        screen.getByTestId("preflight-check-popover-kind-connection"),
+      );
+      await new Promise((r) => setTimeout(r, 0));
+      expect(
+        screen.queryByTestId("preflight-check-popover-suggestions"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

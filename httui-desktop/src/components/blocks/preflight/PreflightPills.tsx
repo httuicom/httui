@@ -16,6 +16,7 @@ import { LuPlus } from "react-icons/lu";
 import { Btn } from "@/components/atoms";
 
 import { PreflightCheckPopover } from "./PreflightCheckPopover";
+import { defaultSuggestionProvider } from "./preflight-suggestions";
 
 import type { PreflightCheck } from "@/lib/blocks/preflight-checks";
 
@@ -176,6 +177,7 @@ export function PreflightPills({
             close();
           }}
           onClose={close}
+          getSuggestions={defaultSuggestionProvider}
         />
       )}
       {popover.mode === "edit" && onEditCheck && onRemoveCheck && (
@@ -192,6 +194,7 @@ export function PreflightPills({
             close();
           }}
           onClose={close}
+          getSuggestions={defaultSuggestionProvider}
         />
       )}
     </>

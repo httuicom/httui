@@ -75,6 +75,11 @@ export interface PreflightCheckPopoverProps {
   onRemove?: () => void;
   /** Esc / outside-click / explicit close. */
   onClose: () => void;
+  /** V6 cenário 9 polish — autocomplete provider per kind. Returns
+   *  candidate values; popover filters by substring match on the
+   *  current input. Tests inject deterministic providers; the inline
+   *  builder uses `defaultSuggestionProvider`. */
+  getSuggestions?: (kind: PreflightCheckKind) => Promise<string[]>;
 }
 
 export function PreflightCheckPopover({
@@ -84,11 +89,13 @@ export function PreflightCheckPopover({
   onSave,
   onRemove,
   onClose,
+  getSuggestions,
 }: PreflightCheckPopoverProps) {
   const [kind, setKind] = useState<PreflightCheckKind | null>(
     initialKind ?? null,
   );
   const [value, setValue] = useState(initialValue ?? "");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Auto-focus the value input as soon as a kind is picked.
@@ -98,6 +105,25 @@ export function PreflightCheckPopover({
       inputRef.current.select();
     }
   }, [kind]);
+
+  // Fetch suggestions when kind changes.
+  useEffect(() => {
+    if (!kind || !getSuggestions) {
+      setSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    getSuggestions(kind)
+      .then((list) => {
+        if (!cancelled) setSuggestions(list);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [kind, getSuggestions]);
 
   // Esc closes from any stage.
   useEffect(() => {
@@ -213,6 +239,14 @@ export function PreflightCheckPopover({
               onKeyDown={onKeyDown}
               size="sm"
             />
+            <SuggestionsList
+              suggestions={suggestions}
+              query={value}
+              onPick={(picked) => {
+                setValue(picked);
+                inputRef.current?.focus();
+              }}
+            />
             <Flex justify="space-between" align="center" gap={2}>
               {onRemove ? (
                 <Btn
@@ -249,6 +283,60 @@ export function PreflightCheckPopover({
         )}
       </Box>
     </>
+  );
+}
+
+interface SuggestionsListProps {
+  suggestions: ReadonlyArray<string>;
+  query: string;
+  onPick: (value: string) => void;
+}
+
+const MAX_SUGGESTIONS = 6;
+
+function SuggestionsList({ suggestions, query, onPick }: SuggestionsListProps) {
+  const trimmed = query.trim().toLowerCase();
+  const matches = (
+    trimmed.length === 0
+      ? suggestions
+      : suggestions.filter((s) => s.toLowerCase().includes(trimmed))
+  ).slice(0, MAX_SUGGESTIONS);
+  // Hide entirely when there's nothing to show OR the only match is
+  // an exact-equals (user already picked) — keeps the popover compact.
+  if (matches.length === 0) return null;
+  if (matches.length === 1 && matches[0]?.toLowerCase() === trimmed) {
+    return null;
+  }
+  return (
+    <Stack
+      data-testid="preflight-check-popover-suggestions"
+      gap={0}
+      maxH="160px"
+      overflowY="auto"
+      borderWidth="1px"
+      borderColor="border"
+      borderRadius="md"
+      bg="bg"
+    >
+      {matches.map((s) => (
+        <Box
+          key={s}
+          as="button"
+          data-testid={`preflight-check-popover-suggestion-${s}`}
+          textAlign="left"
+          px={2}
+          py={1}
+          fontFamily="mono"
+          fontSize="11px"
+          color="fg"
+          bg="transparent"
+          _hover={{ bg: "bg.muted" }}
+          onClick={() => onPick(s)}
+        >
+          {s}
+        </Box>
+      ))}
+    </Stack>
   );
 }
 
