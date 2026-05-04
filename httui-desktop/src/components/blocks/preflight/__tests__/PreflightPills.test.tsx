@@ -176,4 +176,156 @@ describe("PreflightPills", () => {
       screen.getByTestId("preflight-pill-b").getAttribute("title"),
     ).toBe("Connection x not found");
   });
+
+  describe("builder (V6 cenário 9)", () => {
+    it("renders + Add check button when onAddCheck is wired", () => {
+      renderWithProviders(
+        <PreflightPills items={[]} onAddCheck={() => {}} />,
+      );
+      expect(
+        screen.getByTestId("preflight-pills-add"),
+      ).toBeInTheDocument();
+    });
+
+    it("does not render + Add check when onAddCheck is omitted", () => {
+      renderWithProviders(
+        <PreflightPills items={[fail("a", "x")]} />,
+      );
+      expect(
+        screen.queryByTestId("preflight-pills-add"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("clicking + Add check opens the popover at the kind picker", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightPills items={[]} onAddCheck={() => {}} />,
+      );
+      await user.click(screen.getByTestId("preflight-pills-add"));
+      expect(
+        screen.getByTestId("preflight-check-popover-kind-picker"),
+      ).toBeInTheDocument();
+    });
+
+    it("Save in the add popover fires onAddCheck with the assembled check", async () => {
+      const onAddCheck = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightPills items={[]} onAddCheck={onAddCheck} />,
+      );
+      await user.click(screen.getByTestId("preflight-pills-add"));
+      await user.click(
+        screen.getByTestId("preflight-check-popover-kind-command"),
+      );
+      await user.type(
+        screen.getByTestId("preflight-check-popover-value"),
+        "ls",
+      );
+      await user.click(screen.getByTestId("preflight-check-popover-save"));
+      expect(onAddCheck).toHaveBeenCalledWith({
+        kind: "command",
+        value: "ls",
+      });
+    });
+
+    it("clicking a pill with kind+value opens edit popover", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightPills
+          items={[
+            {
+              id: "p0",
+              label: "psql",
+              result: { outcome: "pass" },
+              kind: "command",
+              value: "psql",
+            },
+          ]}
+          onEditCheck={() => {}}
+          onRemoveCheck={() => {}}
+        />,
+      );
+      await user.click(screen.getByTestId("preflight-pill-p0"));
+      const popover = screen.getByTestId("preflight-check-popover");
+      expect(popover).toBeInTheDocument();
+      // Edit mode pre-binds the kind chip.
+      expect(
+        screen.getByTestId("preflight-check-popover-kind").textContent,
+      ).toBe("command");
+      expect(
+        (screen.getByTestId("preflight-check-popover-value") as HTMLInputElement)
+          .value,
+      ).toBe("psql");
+    });
+
+    it("Save in edit popover fires onEditCheck with the index", async () => {
+      const onEditCheck = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightPills
+          items={[
+            {
+              id: "p0",
+              label: "old",
+              result: { outcome: "fail", reason: "x" },
+              kind: "command",
+              value: "old",
+            },
+          ]}
+          onEditCheck={onEditCheck}
+          onRemoveCheck={() => {}}
+        />,
+      );
+      await user.click(screen.getByTestId("preflight-pill-p0"));
+      const input = screen.getByTestId(
+        "preflight-check-popover-value",
+      ) as HTMLInputElement;
+      await user.clear(input);
+      await user.type(input, "new");
+      await user.click(screen.getByTestId("preflight-check-popover-save"));
+      expect(onEditCheck).toHaveBeenCalledWith(0, {
+        kind: "command",
+        value: "new",
+      });
+    });
+
+    it("Remove in edit popover fires onRemoveCheck with the index", async () => {
+      const onRemoveCheck = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(
+        <PreflightPills
+          items={[
+            {
+              id: "p0",
+              label: "x",
+              result: { outcome: "pass" },
+              kind: "command",
+              value: "x",
+            },
+          ]}
+          onEditCheck={() => {}}
+          onRemoveCheck={onRemoveCheck}
+        />,
+      );
+      await user.click(screen.getByTestId("preflight-pill-p0"));
+      await user.click(
+        screen.getByTestId("preflight-check-popover-remove"),
+      );
+      expect(onRemoveCheck).toHaveBeenCalledWith(0);
+    });
+
+    it("pills without kind/value remain non-editable even when callbacks wired", () => {
+      renderWithProviders(
+        <PreflightPills
+          items={[fail("a", "x")]}
+          onEditCheck={() => {}}
+          onRemoveCheck={() => {}}
+        />,
+      );
+      // No kind/value on the pill item → pill is read-only.
+      expect(
+        screen.getByTestId("preflight-pill-a").getAttribute("data-editable"),
+      ).toBeNull();
+    });
+  });
 });
