@@ -119,11 +119,16 @@ export function PreflightValueEditor({
     };
   }, [kind, getSuggestions]);
 
-  // Build extensions once. Suggestions are read fresh from a ref via a
-  // closure so the completion source always sees the latest list
-  // without rebuilding the editor on every fetch.
+  // Build extensions once. Suggestions + callbacks are read fresh from
+  // refs so closures inside the keymap never go stale across renders
+  // (re-creating the extensions array would re-mount the editor and
+  // reset the cursor).
   const suggestionsRef = useRef<string[]>([]);
   suggestionsRef.current = suggestions;
+  const onCommitRef = useRef(onCommit);
+  onCommitRef.current = onCommit;
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
 
   const extensions = useMemo(() => {
     const completionSource = (
@@ -167,14 +172,14 @@ export function PreflightValueEditor({
             if (completionStatus(view.state) === "active") {
               return acceptCompletion(view);
             }
-            onCommit();
+            onCommitRef.current();
             return true;
           },
         },
         {
           key: "Escape",
           run: () => {
-            onCancel();
+            onCancelRef.current();
             return true;
           },
         },
@@ -198,25 +203,18 @@ export function PreflightValueEditor({
         basicSetup={{
           lineNumbers: false,
           foldGutter: false,
+          autocompletion: false,
           highlightActiveLine: false,
           highlightActiveLineGutter: false,
-          drawSelection: true,
-          dropCursor: true,
-          allowMultipleSelections: false,
           indentOnInput: false,
-          syntaxHighlighting: false,
           bracketMatching: false,
           closeBrackets: false,
-          autocompletion: false,
-          rectangularSelection: false,
-          crosshairCursor: false,
-          highlightSelectionMatches: false,
-          searchKeymap: false,
+          history: true,
         }}
-        theme="none"
         height="auto"
         placeholder={PLACEHOLDER_BY_KIND[kind] ?? ""}
         autoFocus
+        style={{ fontFamily: "var(--chakra-fonts-mono)" }}
       />
     </Box>
   );
