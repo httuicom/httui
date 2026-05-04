@@ -1,3 +1,4 @@
+// coverage:exclude file
 // V6 / cenário 9 polish — single-line CodeMirror editor used as the
 // value input inside the pre-flight check popover. Mirrors the inline
 // forms in HTTP/DB blocks: the user gets the same autocomplete UX
@@ -11,6 +12,12 @@
 //
 // Single-line guard: a transactionFilter strips any \n / \r so the
 // editor stays at 1 visual line; Enter is repurposed as commit.
+//
+// Coverage exclude: CM6 contenteditable behavior (popup positioning,
+// selection state, keymap precedence) needs a real DOM. Mirrors the
+// MarkdownEditor.tsx pattern — the shell is tested via browser tests
+// (Playwright) while the pure deps (suggestion provider) have unit
+// coverage in `preflight-suggestions.test.ts`.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box } from "@chakra-ui/react";
