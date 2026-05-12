@@ -9,6 +9,7 @@
 
 import type { EditorView } from "@codemirror/view";
 
+import { saveActiveFileNow } from "@/lib/active-file-save";
 import {
   dispatchDocReplace,
   returnFocusToBody,
@@ -49,11 +50,16 @@ export interface DocHeaderCallbacks {
 export interface CallbackDeps {
   dispatchDocReplace: (view: EditorView, next: string) => void;
   returnFocusToBody: (instanceId: string) => void;
+  /** Flush the active file's pending content to disk synchronously
+   *  so derived UI (pill row, tag dots, etc.) can re-fetch without
+   *  waiting for the auto-save debounce. */
+  flushSave: () => void;
 }
 
 const defaultDeps: CallbackDeps = {
   dispatchDocReplace,
   returnFocusToBody,
+  flushSave: saveActiveFileNow,
 };
 
 /** Build the six action callbacks for an entry/instance pair. The
@@ -70,6 +76,7 @@ export function buildDocHeaderCallbacks(
     if (!v) return;
     const next = updateFrontmatterTitle(v.state.doc.toString(), title);
     deps.dispatchDocReplace(v, next);
+    deps.flushSave();
   };
 
   const onAbstractSave = (abstract: string) => {
@@ -77,6 +84,7 @@ export function buildDocHeaderCallbacks(
     if (!v) return;
     const next = updateFrontmatterAbstract(v.state.doc.toString(), abstract);
     deps.dispatchDocReplace(v, next);
+    deps.flushSave();
   };
 
   const onAddTag = (tag: string) => {
@@ -91,6 +99,7 @@ export function buildDocHeaderCallbacks(
       trimmed,
     ]);
     deps.dispatchDocReplace(v, next);
+    deps.flushSave();
   };
 
   const onRemoveTag = (tag: string) => {
@@ -101,6 +110,7 @@ export function buildDocHeaderCallbacks(
     if (next.length === current.length) return;
     const nextContent = updateFrontmatterTags(v.state.doc.toString(), next);
     deps.dispatchDocReplace(v, nextContent);
+    deps.flushSave();
   };
 
   const onChecklistSave = (items: TaskItem[]) => {
@@ -108,6 +118,7 @@ export function buildDocHeaderCallbacks(
     if (!v) return;
     const next = updateFrontmatterTasks(v.state.doc.toString(), items);
     deps.dispatchDocReplace(v, next);
+    deps.flushSave();
   };
 
   // V6 / cenário 3 — clicking the static H1 returns the cursor to the
@@ -128,6 +139,7 @@ export function buildDocHeaderCallbacks(
     const current = extractPreflightChecks(doc);
     const next = updateFrontmatterPreflightChecks(doc, [...current, check]);
     deps.dispatchDocReplace(v, next);
+    deps.flushSave();
   };
 
   const onEditPreflightCheck = (idx: number, replacement: PreflightCheck) => {
@@ -139,6 +151,7 @@ export function buildDocHeaderCallbacks(
     const next = current.map((c, i) => (i === idx ? replacement : c));
     const nextDoc = updateFrontmatterPreflightChecks(doc, next);
     deps.dispatchDocReplace(v, nextDoc);
+    deps.flushSave();
   };
 
   const onRemovePreflightCheck = (idx: number) => {
@@ -150,6 +163,7 @@ export function buildDocHeaderCallbacks(
     const next = current.filter((_, i) => i !== idx);
     const nextDoc = updateFrontmatterPreflightChecks(doc, next);
     deps.dispatchDocReplace(v, nextDoc);
+    deps.flushSave();
   };
 
   return {

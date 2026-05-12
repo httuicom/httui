@@ -1,5 +1,6 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { readNote, writeNote, setConfig } from "@/lib/tauri/commands";
+import { setActiveFileSaver } from "@/lib/active-file-save";
 import { usePaneStore } from "@/stores/pane";
 import { useTagIndexStore } from "@/stores/tagIndex";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -72,6 +73,14 @@ export function useEditorSession() {
   );
 
   const forceSave = useCallback(() => {
+    // Cancel any pending auto-save timer so we don't end up writing
+    // the same content twice (once now, once 1s later when the timer
+    // fires). The discrete callers — keyboard Cmd+S, DocHeader
+    // actions — own the save moment.
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = null;
+    }
     const { getActiveLeaf, editorContents, markUnsaved } =
       usePaneStore.getState();
     const leaf = getActiveLeaf();
@@ -90,6 +99,14 @@ export function useEditorSession() {
         .catch((err) => console.error("Save failed:", err));
     }
   }, []);
+
+  // Register `forceSave` as the active-file saver so non-React code
+  // paths (DocHeader callbacks, etc.) can trigger an immediate write
+  // without prop-drilling through the component tree.
+  useEffect(() => {
+    setActiveFileSaver(forceSave);
+    return () => setActiveFileSaver(null);
+  }, [forceSave]);
 
   const suppressAutoSave = useCallback((filePath: string) => {
     if (autoSaveTimer.current) {

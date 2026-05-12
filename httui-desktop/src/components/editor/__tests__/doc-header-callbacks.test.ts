@@ -36,10 +36,12 @@ function makeEntry(
 function makeDeps(): CallbackDeps & {
   dispatchDocReplace: ReturnType<typeof vi.fn>;
   returnFocusToBody: ReturnType<typeof vi.fn>;
+  flushSave: ReturnType<typeof vi.fn>;
 } {
   return {
     dispatchDocReplace: vi.fn(),
     returnFocusToBody: vi.fn(),
+    flushSave: vi.fn(),
   };
 }
 
