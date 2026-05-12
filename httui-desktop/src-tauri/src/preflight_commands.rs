@@ -11,7 +11,7 @@
 
 use std::collections::HashSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use httui_core::frontmatter::split_frontmatter;
 use httui_core::preflight::{
@@ -48,7 +48,17 @@ pub async fn evaluate_preflight_cmd(
     file_path: String,
     vault_path: String,
 ) -> Result<Vec<EvaluatedPreflightItem>, String> {
-    let content = match fs::read_to_string(&file_path) {
+    // Resolve `file_path` relative to `vault_path` so the call matches
+    // the read_note / write_note convention (the React layer passes
+    // vault-relative paths). Absolute paths fall through unchanged
+    // because `PathBuf::join` replaces the base when given an absolute
+    // operand — keeps the existing absolute-path tests green.
+    let abs_path: PathBuf = if Path::new(&file_path).is_absolute() {
+        PathBuf::from(&file_path)
+    } else {
+        PathBuf::from(&vault_path).join(&file_path)
+    };
+    let content = match fs::read_to_string(&abs_path) {
         Ok(s) => s,
         Err(_) => return Ok(Vec::new()),
     };

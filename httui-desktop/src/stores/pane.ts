@@ -34,6 +34,12 @@ interface PaneState {
   unsavedFiles: Set<string>;
   scrollPositions: Map<string, number>;
   conflictFiles: Set<string>;
+  /** Monotonic counter incremented after every successful auto-save.
+   *  Reactive — consumers that need to react to "a save just landed"
+   *  subscribe to this instead of `unsavedFiles` (which is mutated
+   *  in-place for keystroke perf and therefore doesn't notify React).
+   *  Bumped by `notifySaved`. */
+  saveSignal: number;
 
   // Computed
   getActiveLeaf: () => LeafPane | null;
@@ -60,6 +66,9 @@ interface PaneState {
   nextTab: () => void;
   updateContent: (filePath: string, content: string) => void;
   markUnsaved: (paneId: string, filePath: string, unsaved: boolean) => void;
+  /** Increment `saveSignal`. Called by the auto-save flow once
+   *  `writeNote` resolves. */
+  notifySaved: () => void;
   resizeSplit: (path: number[], ratio: number) => void;
   restoreLayout: (
     layout: PaneLayout,
@@ -202,6 +211,7 @@ export const usePaneStore = create<PaneState>()(
       unsavedFiles: new Set<string>(),
       scrollPositions: new Map<string, number>(),
       conflictFiles: new Set<string>(),
+      saveSignal: 0,
 
       // Computed
       getActiveLeaf: () => findLeaf(get().layout, get().activePaneId),
@@ -370,6 +380,10 @@ export const usePaneStore = create<PaneState>()(
         } else {
           get().unsavedFiles.delete(filePath);
         }
+      },
+
+      notifySaved: () => {
+        set((s) => ({ saveSignal: s.saveSignal + 1 }));
       },
 
       resizeSplit: (path, ratio) => {

@@ -64,7 +64,7 @@ export function DocHeaderedEditor({
     items: preflightItems,
     rechecking: preflightRechecking,
     recheck: preflightRecheck,
-  } = useFilePreflight({ filePath, vaultPath, dirty });
+  } = useFilePreflight({ filePath, vaultPath });
 
   // Refresh the mtime poll on the dirty → clean rising edge — this
   // means a save just succeeded (the auto-save path flips

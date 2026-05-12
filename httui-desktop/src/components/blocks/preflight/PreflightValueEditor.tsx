@@ -99,13 +99,16 @@ export function PreflightValueEditor({
 }: PreflightValueEditorProps) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const cmRef = useRef<ReactCodeMirrorRef>(null);
-  // `value` is taken as initial-only — re-passing it on every render
-  // causes a controlled-mode feedback loop in @uiw/react-codemirror
-  // (CM6 dispatches a doc-replace transaction every time the prop
-  // shifts, even by a single character, which can swallow the user's
-  // in-flight typing). The `key={kind}` on the CodeMirror remounts the
-  // editor on kind change so the seed always matches the new context.
-  const initialValueRef = useRef(value);
+
+  // Focus on mount — applied via cmRef inside an effect instead of the
+  // `autoFocus` prop. The earlier seed-on-mount + autoFocus combo
+  // somehow swallowed @uiw/react-codemirror's onChange listener (typing
+  // worked visually but the parent never received updates). Mirroring
+  // the HttpInlineCM pattern (controlled-direct value, focus via ref)
+  // restored the chain.
+  useEffect(() => {
+    cmRef.current?.view?.focus();
+  }, []);
 
   // Fetch suggestions on kind change.
   useEffect(() => {
@@ -204,8 +207,7 @@ export function PreflightValueEditor({
     >
       <CodeMirror
         ref={cmRef}
-        key={kind}
-        value={initialValueRef.current}
+        value={value}
         onChange={onChange}
         extensions={extensions}
         basicSetup={{
@@ -221,7 +223,6 @@ export function PreflightValueEditor({
         }}
         height="auto"
         placeholder={PLACEHOLDER_BY_KIND[kind] ?? ""}
-        autoFocus
         style={{ fontFamily: "var(--chakra-fonts-mono)" }}
       />
     </Box>

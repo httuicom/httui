@@ -4,8 +4,9 @@
 //
 // Re-runs on:
 //  - file switch (`filePath` change)
-//  - dirty → clean rising edge (a save just succeeded; same heuristic
-//    `DocHeaderedEditor` uses for the mtime chip).
+//  - every `saveSignal` bump from the pane store (auto-save resolved).
+//    We can't observe `dirty` directly because `unsavedFiles` is a
+//    mutated Set for keystroke perf and so doesn't notify React.
 //  - explicit `recheck()` call from the consumer (Re-check button).
 //
 // Errors fall through silently — the hook returns an empty list so
@@ -19,14 +20,11 @@ import {
   type PreflightItemKind,
 } from "@/lib/tauri/preflight";
 import type { PreflightPillItem } from "@/components/blocks/preflight/PreflightPills";
+import { usePaneStore } from "@/stores/pane";
 
 interface UseFilePreflightArgs {
   filePath: string;
   vaultPath: string | null;
-  /** When the editor flips from dirty to clean (auto-save resolved),
-   *  the consumer passes the new value here so the hook can re-fetch
-   *  without needing to inspect the file content. */
-  dirty: boolean;
 }
 
 export interface UseFilePreflightResult {
@@ -38,7 +36,6 @@ export interface UseFilePreflightResult {
 export function useFilePreflight({
   filePath,
   vaultPath,
-  dirty,
 }: UseFilePreflightArgs): UseFilePreflightResult {
   const [items, setItems] = useState<PreflightPillItem[]>([]);
   const [rechecking, setRechecking] = useState(false);
@@ -72,24 +69,39 @@ export function useFilePreflight({
     };
   }, [run]);
 
-  // Re-fetch on the dirty → clean rising edge (save resolved).
-  const prevDirtyRef = useRef(dirty);
+  // Re-fetch after every auto-save resolves. We can't observe the
+  // dirty → clean edge through `dirty` because `unsavedFiles` is a
+  // mutated Set (perf — see pane store). The auto-save flow bumps
+  // `saveSignal` after `writeNote` lands; subscribing to it gives us
+  // a reactive signal without changing the keystroke fast path.
+  const saveSignal = usePaneStore((s) => s.saveSignal);
+  const isFirstSignalRef = useRef(true);
   useEffect(() => {
-    if (prevDirtyRef.current && !dirty) {
-      void run();
+    // Skip the first invocation — the initial-fetch effect above
+    // already runs on mount; we only want the subsequent save bumps.
+    if (isFirstSignalRef.current) {
+      isFirstSignalRef.current = false;
+      return;
     }
-    prevDirtyRef.current = dirty;
-  }, [dirty, run]);
+    void run();
+  }, [saveSignal, run]);
 
   return { items, rechecking, recheck: run };
 }
 
 function toPillItem(raw: EvaluatedPreflightItem, idx: number): PreflightPillItem {
+  // `unknown` items came from YAML the parser couldn't recognize — they
+  // can't round-trip back to a valid `PreflightCheck` so the pill stays
+  // read-only (kind/value undefined keeps `canEdit` false in
+  // PreflightPills, falling back to suggestion-only behavior).
+  const editable = raw.kind !== "unknown";
   return {
     id: `${idx}-${raw.kind}-${raw.label}`,
     label: raw.label,
     result: raw.result,
     suggestion: suggestionFor(raw.kind, raw.label),
+    kind: editable ? (raw.kind as Exclude<PreflightItemKind, "unknown">) : undefined,
+    value: editable ? raw.label : undefined,
   };
 }
 

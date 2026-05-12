@@ -55,9 +55,12 @@ export function useEditorSession() {
             await writeNote(tabVaultPath, filePath, content);
             const store = usePaneStore.getState();
             store.markUnsaved(store.activePaneId, filePath, false);
-            // Re-index tags from the just-persisted content. The tag
-            // index store dedups + diffs against the previous tag set
-            // so this is cheap when the frontmatter didn't change.
+            // Reactive notification — `markUnsaved` mutates a Set in
+            // place (perf), so React doesn't see the dirty→clean
+            // transition. Consumers that need to react to "a save just
+            // landed" (e.g. `useFilePreflight` re-fetch) subscribe to
+            // `saveSignal` instead.
+            store.notifySaved();
             useTagIndexStore.getState().refreshTagsForFile(filePath, content);
           } catch (err) {
             console.error("Auto-save failed:", err);
@@ -81,6 +84,7 @@ export function useEditorSession() {
       writeNote(tab.vaultPath, filePath, content)
         .then(() => {
           markUnsaved(leaf.id, filePath, false);
+          usePaneStore.getState().notifySaved();
           useTagIndexStore.getState().refreshTagsForFile(filePath, content);
         })
         .catch((err) => console.error("Save failed:", err));

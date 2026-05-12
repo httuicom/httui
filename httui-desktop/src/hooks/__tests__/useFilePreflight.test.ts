@@ -3,11 +3,14 @@ import { renderHook, act } from "@testing-library/react";
 
 import { useFilePreflight } from "@/hooks/useFilePreflight";
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
+import { usePaneStore } from "@/stores/pane";
 import type { EvaluatedPreflightItem } from "@/lib/tauri/preflight";
 
 describe("useFilePreflight", () => {
   beforeEach(() => {
     clearTauriMocks();
+    // Reset saveSignal so cross-test bumps don't leak.
+    usePaneStore.setState({ saveSignal: 0 });
   });
 
   afterEach(() => {
@@ -22,7 +25,7 @@ describe("useFilePreflight", () => {
     });
 
     const { result } = renderHook(() =>
-      useFilePreflight({ filePath: "/v/x.md", vaultPath: null, dirty: false }),
+      useFilePreflight({ filePath: "/v/x.md", vaultPath: null }),
     );
     await act(async () => {
       await Promise.resolve();
@@ -51,7 +54,6 @@ describe("useFilePreflight", () => {
       useFilePreflight({
         filePath: "/v/note.md",
         vaultPath: "/v",
-        dirty: false,
       }),
     );
     await act(async () => {
@@ -66,21 +68,18 @@ describe("useFilePreflight", () => {
     expect(result.current.items[1]?.suggestion).toMatch(/psql/);
   });
 
-  it("re-fetches when dirty flips from true to false (save resolved)", async () => {
+  it("re-fetches when pane store's saveSignal bumps (auto-save resolved)", async () => {
     let calls = 0;
     mockTauriCommand("evaluate_preflight_cmd", () => {
       calls++;
       return [];
     });
 
-    const { rerender } = renderHook(
-      (props: { dirty: boolean }) =>
-        useFilePreflight({
-          filePath: "/v/note.md",
-          vaultPath: "/v",
-          dirty: props.dirty,
-        }),
-      { initialProps: { dirty: true } },
+    renderHook(() =>
+      useFilePreflight({
+        filePath: "/v/note.md",
+        vaultPath: "/v",
+      }),
     );
     await act(async () => {
       await Promise.resolve();
@@ -88,29 +87,26 @@ describe("useFilePreflight", () => {
     });
     const callsAfterMount = calls;
 
-    rerender({ dirty: false });
     await act(async () => {
+      usePaneStore.getState().notifySaved();
       await Promise.resolve();
       await Promise.resolve();
     });
     expect(calls).toBe(callsAfterMount + 1);
   });
 
-  it("does not re-fetch when dirty stays the same value", async () => {
+  it("does not re-fetch when saveSignal stays the same", async () => {
     let calls = 0;
     mockTauriCommand("evaluate_preflight_cmd", () => {
       calls++;
       return [];
     });
 
-    const { rerender } = renderHook(
-      (props: { dirty: boolean }) =>
-        useFilePreflight({
-          filePath: "/v/note.md",
-          vaultPath: "/v",
-          dirty: props.dirty,
-        }),
-      { initialProps: { dirty: false } },
+    const { rerender } = renderHook(() =>
+      useFilePreflight({
+        filePath: "/v/note.md",
+        vaultPath: "/v",
+      }),
     );
     await act(async () => {
       await Promise.resolve();
@@ -118,7 +114,7 @@ describe("useFilePreflight", () => {
     });
     const callsAfterMount = calls;
 
-    rerender({ dirty: false });
+    rerender();
     await act(async () => {
       await Promise.resolve();
     });
@@ -136,7 +132,6 @@ describe("useFilePreflight", () => {
       useFilePreflight({
         filePath: "/v/note.md",
         vaultPath: "/v",
-        dirty: false,
       }),
     );
     await act(async () => {
@@ -162,7 +157,6 @@ describe("useFilePreflight", () => {
       useFilePreflight({
         filePath: "/v/note.md",
         vaultPath: "/v",
-        dirty: false,
       }),
     );
     await act(async () => {
@@ -186,7 +180,6 @@ describe("useFilePreflight", () => {
       useFilePreflight({
         filePath: "/v/note.md",
         vaultPath: "/v",
-        dirty: false,
       }),
     );
     await act(async () => {
