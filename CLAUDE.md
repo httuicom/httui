@@ -93,7 +93,7 @@ Full details in `docs/ARCHITECTURE.md` (some sections may be outdated — code i
 
 ## Performance — critical rules
 
-- **`markUnsaved` must NOT call `setLayout`** — it uses a module-level `Set<string>` (in `src/stores/pane.ts`) to avoid triggering React state updates on every keystroke.
+- **`markUnsaved` must NOT call `setLayout`** — it uses a module-level `Set<string>` (in `src/stores/pane.ts`) to avoid triggering React state updates on every keystroke. To observe "a save just landed" reactively, subscribe to the `saveSignal` counter (bumped by `notifySaved` after each `writeNote` resolves) instead of trying to flip a derived `dirty` prop.
 - **Editor content store is a module-level `Map`** (in `src/stores/pane.ts`) — mutated in place by `updateContent`. This is intentional non-reactive state to avoid re-renders on every keystroke. Don't move it into Zustand state.
 - **CSS objects passed to the editor must be static** (extracted outside the component as constants) to avoid Emotion recomputation on re-render.
 - **Body viewers** (`HttpBodyCM6Viewer` in `HttpFencedPanel.tsx`) use a read-only CodeMirror `EditorView` with language picked from Content-Type — replaced an older `<pre dangerouslySetInnerHTML>` + `lowlight` render that blocked the webview on multi-MB bodies.

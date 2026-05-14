@@ -21,6 +21,27 @@ launch checklist (Epic 38, Story 03).
 
 ### Added
 
+- **DocHeader card acima do CM6** — breadcrumb (workspace › path),
+  h1 serif do título, abstract serif, tag chips na coluna direita,
+  pill row de pre-flight checks, meta strip com gravatar do owner +
+  edited mtime + branch + diff stats (`main +N ~M`) + last run
+  status. Card é o ponto de entrada visual da nota. (V6 cenários 1-2)
+- **Pre-flight check builder no DocHeader** — `+ Add check` abre
+  popover com kind picker (connection / env_var / branch /
+  file_exists / command) + CM6 inline editor pra value com
+  autocomplete contextual (connections puxam de
+  `ConnectionsStore`, env_var da env ativa). Pill cliclável
+  abre o mesmo popover em modo edit (pré-bind do kind/value +
+  botão Remove). (V6 cenário 9)
+- **Pre-flight context wiring** — evaluator agora lê o estado real
+  do vault: connection names do `ConnectionsStore`, env-var keys
+  da env ativa via `EnvironmentsStore`, branch corrente via
+  `git rev-parse --abbrev-ref HEAD`. `file_exists` / `command`
+  contra FS + PATH. Checks deixam de ser "decorativos" e passam
+  a refletir o ambiente. (V6 cenário 9 — `def8e27`, `3c3be69`)
+- **Pre-flight Run-all gate** — `⌘⇧R` (Run all) com pre-flight
+  com falha abre dialog de confirmação; `Shift+⌘⇧R` faz override.
+  (V6 cenário 10)
 - **Variables page (master-detail)** — TopBar `LuKeyRound`
   abre tab dedicada com lista densa cross-env (1 row por chave,
   colunas por env, contagem `USES` via vault-grep), sidebar
@@ -217,6 +238,11 @@ launch checklist (Epic 38, Story 03).
 
 ### Removed
 
+- **Pre-flight `keychain` kind** — retirado do typed set em V6.
+  macOS keychain enumeration é restritivo e os call sites que se
+  beneficiariam não estão construídos. YAML legado com
+  `keychain: <key>` cai pro fallback `Unknown` do parser (não
+  crasha — só não aparece como pill). (V6 cenário 9 — `3c3be69`)
 - **Top bar "Run all" button** — dropado em V2; o roteiro
   inteiro de um documento já é executável bloco-a-bloco e o
   botão acumulava complexidade sem demanda real.
