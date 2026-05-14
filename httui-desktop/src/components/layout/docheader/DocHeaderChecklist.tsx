@@ -13,7 +13,7 @@
 // disabled boxes so the diff viewer / read-only contexts still display
 // the checklist visually.
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import { Btn, Input } from "@/components/atoms";
@@ -76,11 +76,9 @@ export function DocHeaderChecklist({
     setAdding(false);
   };
 
-  const headerLabel = useMemo(() => {
-    const n = items.length;
-    if (n === 0) return "Pré-flight";
-    return `Pré-flight — ${n} ${n === 1 ? "item" : "itens"}`;
-  }, [items.length]);
+  const n = items.length;
+  const headerLabel =
+    n === 0 ? "Pré-flight" : `Pré-flight — ${n} ${n === 1 ? "item" : "itens"}`;
 
   return (
     <Box

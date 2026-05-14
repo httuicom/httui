@@ -7,10 +7,6 @@ import {
 import type { DocHeaderEntry } from "@/lib/codemirror/cm-doc-header";
 import type { EditorView } from "@codemirror/view";
 
-interface FakeView {
-  state: { doc: { toString: () => string } };
-}
-
 function makeFakeView(content: string): EditorView {
   return {
     state: { doc: { toString: () => content } },

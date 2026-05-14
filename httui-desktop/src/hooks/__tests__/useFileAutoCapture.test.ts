@@ -68,7 +68,7 @@ describe("useFileAutoCapture", () => {
   it("setAutoCapture calls through and updates state optimistically", async () => {
     let nextSettings = { auto_capture: false };
     mockTauriCommand("get_file_settings", () => nextSettings);
-    let setCalls: { autoCapture: boolean }[] = [];
+    const setCalls: { autoCapture: boolean }[] = [];
     mockTauriCommand("set_file_auto_capture", (args) => {
       setCalls.push(args as { autoCapture: boolean });
       nextSettings = { auto_capture: Boolean((args as { autoCapture: boolean }).autoCapture) };

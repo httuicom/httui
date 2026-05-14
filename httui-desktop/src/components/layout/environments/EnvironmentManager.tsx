@@ -32,7 +32,6 @@ import { VariableValueRow } from "../variables/VariableValueRow";
 
 export function EnvironmentManager() {
   const environments = useEnvironmentStore((s) => s.environments);
-  const activeEnvironment = useEnvironmentStore((s) => s.activeEnvironment);
   const managerOpen = useEnvironmentStore((s) => s.managerOpen);
   const closeManager = useEnvironmentStore((s) => s.closeManager);
   const switchEnvironment = useEnvironmentStore((s) => s.switchEnvironment);
@@ -97,15 +96,6 @@ export function EnvironmentManager() {
     if (!selectedEnv) return;
     await duplicateEnvironment(selectedEnv.id, `${selectedEnv.name}-copy`);
   }, [selectedEnv, duplicateEnvironment]);
-
-  const fetchSecret = useCallback(async (): Promise<string | undefined> => {
-    if (!selectedEnv) return undefined;
-    const map = await resolveEnvVariables(selectedEnv.id);
-    return undefined; // Resolved per-key via VariableValueRow callback below.
-    // (This shell is unused; per-row fetchSecret is wired inline.)
-    void map;
-  }, [selectedEnv]);
-  void fetchSecret;
 
   const handleCommitValue = useCallback(
     async (env: string, key: string, next: string, isSecret: boolean) => {

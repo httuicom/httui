@@ -161,7 +161,7 @@ function md51(bytes: Uint8Array): number[] {
   }
   const tail = bytes.subarray(i - 64);
   const block = new Array<number>(16).fill(0);
-  let j = 0;
+  let j: number;
   for (j = 0; j < tail.length; j += 1) {
     block[j >> 2]! |= tail[j]! << ((j % 4) << 3);
   }

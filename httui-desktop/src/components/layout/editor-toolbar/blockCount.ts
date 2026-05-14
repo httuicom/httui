@@ -24,7 +24,6 @@ function isExecutableFence(token: string): boolean {
 export function countExecutableBlocks(content: string): number {
   let count = 0;
   let inFence = false;
-  let currentExec = false;
 
   for (const raw of content.split("\n")) {
     const line = raw.trimEnd();
@@ -32,20 +31,17 @@ export function countExecutableBlocks(content: string): number {
     if (match) {
       if (!inFence) {
         inFence = true;
-        currentExec = isExecutableFence(match[1].toLowerCase());
-        if (currentExec) count += 1;
+        if (isExecutableFence(match[1].toLowerCase())) count += 1;
       } else {
         // Closing fence (``` alone or with trailing chars treated
         // as content). Either way, leave fence state.
         inFence = false;
-        currentExec = false;
       }
       continue;
     }
     // Plain ``` line closes a fence too.
     if (line === "```" && inFence) {
       inFence = false;
-      currentExec = false;
     }
   }
 

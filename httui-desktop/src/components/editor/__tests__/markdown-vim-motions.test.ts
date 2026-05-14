@@ -54,9 +54,8 @@ describe("markdown-vim-motions", () => {
 
     it("returns false when vim is in insert mode", () => {
       vi.mocked(getCM).mockReturnValue({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         state: { vim: { insertMode: true } },
-      } as any);
+      } as unknown as ReturnType<typeof getCM>);
       const view = makeView("abc", 0);
       expect(vimOwnsMotion(view)).toBe(false);
       view.destroy();
@@ -64,9 +63,8 @@ describe("markdown-vim-motions", () => {
 
     it("returns true when vim is in normal/visual (non-insert) mode", () => {
       vi.mocked(getCM).mockReturnValue({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         state: { vim: { insertMode: false } },
-      } as any);
+      } as unknown as ReturnType<typeof getCM>);
       const view = makeView("abc", 0);
       expect(vimOwnsMotion(view)).toBe(true);
       view.destroy();
@@ -139,9 +137,8 @@ describe("markdown-vim-motions", () => {
 
     it("yields to vim when vim owns motion (normal mode)", () => {
       vi.mocked(getCM).mockReturnValue({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         state: { vim: { insertMode: false } },
-      } as any);
+      } as unknown as ReturnType<typeof getCM>);
       const view = makeView("first\nsecond", 2);
       const evt = new KeyboardEvent("keydown", { key: "ArrowDown" });
       (view as unknown as { contentDOM: HTMLElement }).contentDOM.dispatchEvent(
@@ -193,9 +190,8 @@ describe("markdown-vim-motions", () => {
 
     it("yields to vim when vim owns motion (normal mode)", () => {
       vi.mocked(getCM).mockReturnValue({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         state: { vim: { insertMode: false } },
-      } as any);
+      } as unknown as ReturnType<typeof getCM>);
       const view = makeView("first\nsecond", 9);
       const evt = new KeyboardEvent("keydown", { key: "ArrowUp" });
       (view as unknown as { contentDOM: HTMLElement }).contentDOM.dispatchEvent(
