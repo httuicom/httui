@@ -2,8 +2,7 @@
 //!
 //! Pure logic — `EvaluationContext` carries the in-memory snapshots
 //! the consumer collected (active env vars, branch, connection
-//! aliases, keychain keys). The evaluator returns one `CheckResult`
-//! per item.
+//! aliases). The evaluator returns one `CheckResult` per item.
 //!
 //! `FileExists` and `Command` checks need filesystem / process
 //! access; the pure evaluator returns `Skip { reason: "needs FS/proc
@@ -40,9 +39,6 @@ pub struct EvaluationContext<'a> {
     pub active_env_vars: &'a HashSet<String>,
     /// Connection aliases configured for this vault.
     pub connections: &'a HashSet<String>,
-    /// Keys present in the OS keychain (or whatever backend is in
-    /// use). The evaluator only checks presence, not value.
-    pub keychain_keys: &'a HashSet<String>,
 }
 
 pub fn evaluate_preflight(
@@ -81,15 +77,6 @@ pub(crate) fn evaluate_one(item: &PreflightItem, ctx: &EvaluationContext<'_>) ->
                 reason: format!("on branch `{current}`, expected `{name}`"),
             },
         },
-        PreflightItem::Keychain { name } => {
-            if ctx.keychain_keys.contains(name) {
-                CheckResult::Pass
-            } else {
-                CheckResult::Fail {
-                    reason: format!("keychain entry `{name}` not found"),
-                }
-            }
-        }
         PreflightItem::FileExists { .. } => CheckResult::Skip {
             reason: "needs FS evaluation".into(),
         },
@@ -111,12 +98,10 @@ mod tests {
         branch: Option<&'static str>,
         envs: &[&str],
         conns: &[&str],
-        keys: &[&str],
-    ) -> (HashSet<String>, HashSet<String>, HashSet<String>, Option<&'static str>) {
+    ) -> (HashSet<String>, HashSet<String>, Option<&'static str>) {
         (
             envs.iter().map(|s| s.to_string()).collect(),
             conns.iter().map(|s| s.to_string()).collect(),
-            keys.iter().map(|s| s.to_string()).collect(),
             branch,
         )
     }
@@ -125,20 +110,18 @@ mod tests {
         branch: &'a Option<&'static str>,
         envs: &'a HashSet<String>,
         conns: &'a HashSet<String>,
-        keys: &'a HashSet<String>,
     ) -> EvaluationContext<'a> {
         EvaluationContext {
             branch: *branch,
             active_env_vars: envs,
             connections: conns,
-            keychain_keys: keys,
         }
     }
 
     #[test]
     fn connection_pass_when_alias_present() {
-        let (envs, conns, keys, branch) = ctx_with(None, &[], &["payments-db"], &[]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(None, &[], &["payments-db"]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
             &[PreflightItem::Connection {
                 name: "payments-db".into(),
@@ -150,8 +133,8 @@ mod tests {
 
     #[test]
     fn connection_fail_when_alias_missing() {
-        let (envs, conns, keys, branch) = ctx_with(None, &[], &["other"], &[]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(None, &[], &["other"]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
             &[PreflightItem::Connection {
                 name: "payments-db".into(),
@@ -166,9 +149,8 @@ mod tests {
 
     #[test]
     fn env_var_pass_and_fail() {
-        let (envs, conns, keys, branch) =
-            ctx_with(None, &["API_TOKEN"], &[], &[]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(None, &["API_TOKEN"], &[]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
             &[
                 PreflightItem::EnvVar {
@@ -186,8 +168,8 @@ mod tests {
 
     #[test]
     fn branch_skip_when_not_a_repo() {
-        let (envs, conns, keys, branch) = ctx_with(None, &[], &[], &[]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(None, &[], &[]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
             &[PreflightItem::Branch { name: "main".into() }],
             &ctx,
@@ -197,8 +179,8 @@ mod tests {
 
     #[test]
     fn branch_pass_when_matches() {
-        let (envs, conns, keys, branch) = ctx_with(Some("main"), &[], &[], &[]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(Some("main"), &[], &[]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
             &[PreflightItem::Branch { name: "main".into() }],
             &ctx,
@@ -208,8 +190,8 @@ mod tests {
 
     #[test]
     fn branch_fail_with_current_branch_in_reason() {
-        let (envs, conns, keys, branch) = ctx_with(Some("feat/x"), &[], &[], &[]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(Some("feat/x"), &[], &[]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
             &[PreflightItem::Branch { name: "main".into() }],
             &ctx,
@@ -223,29 +205,9 @@ mod tests {
     }
 
     #[test]
-    fn keychain_pass_and_fail() {
-        let (envs, conns, keys, branch) =
-            ctx_with(None, &[], &[], &["payments-db.password"]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
-        let r = evaluate_preflight(
-            &[
-                PreflightItem::Keychain {
-                    name: "payments-db.password".into(),
-                },
-                PreflightItem::Keychain {
-                    name: "missing".into(),
-                },
-            ],
-            &ctx,
-        );
-        assert_eq!(r[0], CheckResult::Pass);
-        assert!(matches!(r[1], CheckResult::Fail { .. }));
-    }
-
-    #[test]
     fn file_exists_skips_in_pure_layer() {
-        let (envs, conns, keys, branch) = ctx_with(None, &[], &[], &[]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(None, &[], &[]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
             &[PreflightItem::FileExists {
                 path: "x".into(),
@@ -261,8 +223,8 @@ mod tests {
 
     #[test]
     fn command_skips_in_pure_layer() {
-        let (envs, conns, keys, branch) = ctx_with(None, &[], &[], &[]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(None, &[], &[]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
             &[PreflightItem::Command {
                 command: "psql --version".into(),
@@ -278,8 +240,8 @@ mod tests {
 
     #[test]
     fn unknown_kind_skips_with_key_in_reason() {
-        let (envs, conns, keys, branch) = ctx_with(None, &[], &[], &[]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(None, &[], &[]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
             &[PreflightItem::Unknown {
                 key: "future_kind".into(),
@@ -296,19 +258,17 @@ mod tests {
 
     #[test]
     fn evaluate_preflight_preserves_input_order() {
-        let (envs, conns, keys, branch) =
-            ctx_with(Some("main"), &["A"], &["c1"], &["k1"]);
-        let ctx = make_ctx(&branch, &envs, &conns, &keys);
+        let (envs, conns, branch) = ctx_with(Some("main"), &["A"], &["c1"]);
+        let ctx = make_ctx(&branch, &envs, &conns);
         let items = vec![
             PreflightItem::Connection { name: "c1".into() },
             PreflightItem::EnvVar { name: "A".into() },
             PreflightItem::Branch { name: "main".into() },
-            PreflightItem::Keychain { name: "k1".into() },
         ];
         let r = evaluate_preflight(&items, &ctx);
         assert_eq!(
             r,
-            vec![CheckResult::Pass, CheckResult::Pass, CheckResult::Pass, CheckResult::Pass]
+            vec![CheckResult::Pass, CheckResult::Pass, CheckResult::Pass]
         );
     }
 

@@ -116,8 +116,6 @@ function suggestionFor(
       return `Set env var "${label}" in the active environment`;
     case "branch":
       return `Switch to branch "${label}" in Git panel`;
-    case "keychain":
-      return `Add keychain entry "${label}"`;
     case "file_exists":
       return `Create or restore file at "${label}"`;
     case "command":

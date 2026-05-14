@@ -59,7 +59,6 @@ describe("defaultSuggestionProvider", () => {
 
   it("text-only kinds return empty", async () => {
     expect(await defaultSuggestionProvider("branch")).toEqual([]);
-    expect(await defaultSuggestionProvider("keychain")).toEqual([]);
     expect(await defaultSuggestionProvider("file_exists")).toEqual([]);
     expect(await defaultSuggestionProvider("command")).toEqual([]);
   });

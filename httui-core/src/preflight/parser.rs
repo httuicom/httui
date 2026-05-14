@@ -7,7 +7,6 @@
 //!   - connection: payments-db
 //!   - env_var: API_TOKEN
 //!   - branch: main
-//!   - keychain: payments-db.password
 //!   - file_exists: ./schema/payments.sql
 //!   - command: psql --version
 //! ```
@@ -27,7 +26,6 @@ pub enum PreflightItem {
     Connection { name: String },
     EnvVar { name: String },
     Branch { name: String },
-    Keychain { name: String },
     FileExists { path: String },
     Command { command: String },
     Unknown { key: String, value: String },
@@ -89,7 +87,6 @@ fn parse_item(line: &str) -> Option<PreflightItem> {
         "connection" => PreflightItem::Connection { name: unquoted },
         "env_var" => PreflightItem::EnvVar { name: unquoted },
         "branch" => PreflightItem::Branch { name: unquoted },
-        "keychain" => PreflightItem::Keychain { name: unquoted },
         "file_exists" => PreflightItem::FileExists { path: unquoted },
         "command" => PreflightItem::Command { command: unquoted },
         _ => PreflightItem::Unknown {
@@ -128,10 +125,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_extracts_all_six_documented_kinds() {
-        let raw = "preflight:\n  - connection: payments-db\n  - env_var: API_TOKEN\n  - branch: main\n  - keychain: payments-db.password\n  - file_exists: ./schema/payments.sql\n  - command: psql --version\n";
+    fn parse_extracts_all_five_documented_kinds() {
+        let raw = "preflight:\n  - connection: payments-db\n  - env_var: API_TOKEN\n  - branch: main\n  - file_exists: ./schema/payments.sql\n  - command: psql --version\n";
         let items = parse_preflight(raw);
-        assert_eq!(items.len(), 6);
+        assert_eq!(items.len(), 5);
         assert_eq!(
             items[0],
             PreflightItem::Connection {
@@ -152,21 +149,31 @@ mod tests {
         );
         assert_eq!(
             items[3],
-            PreflightItem::Keychain {
-                name: "payments-db.password".into()
-            }
-        );
-        assert_eq!(
-            items[4],
             PreflightItem::FileExists {
                 path: "./schema/payments.sql".into()
             }
         );
         assert_eq!(
-            items[5],
+            items[4],
             PreflightItem::Command {
                 command: "psql --version".into()
             }
+        );
+    }
+
+    #[test]
+    fn parse_records_keychain_as_unknown_kind() {
+        // V6 cenário 9: keychain was removed from the typed set. Legacy
+        // YAML that still uses it falls through to Unknown so the file
+        // doesn't break — the pill renders as a skip with the key.
+        let raw = "preflight:\n  - keychain: payments-db.password\n";
+        let items = parse_preflight(raw);
+        assert_eq!(
+            items,
+            vec![PreflightItem::Unknown {
+                key: "keychain".into(),
+                value: "payments-db.password".into()
+            }]
         );
     }
 

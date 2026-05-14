@@ -151,13 +151,11 @@ mod tests {
     fn empty_ctx<'a>(
         envs: &'a HashSet<String>,
         conns: &'a HashSet<String>,
-        keys: &'a HashSet<String>,
     ) -> EvaluationContext<'a> {
         EvaluationContext {
             branch: None,
             active_env_vars: envs,
             connections: conns,
-            keychain_keys: keys,
         }
     }
 
@@ -168,8 +166,7 @@ mod tests {
         fs::write(&target, "").unwrap();
         let envs = HashSet::new();
         let conns = HashSet::new();
-        let keys = HashSet::new();
-        let ctx = empty_ctx(&envs, &conns, &keys);
+        let ctx = empty_ctx(&envs, &conns);
         let r = evaluate_preflight_with_io(
             &[PreflightItem::FileExists {
                 path: "schema.sql".into(),
@@ -187,8 +184,7 @@ mod tests {
         fs::create_dir(&sub).unwrap();
         let envs = HashSet::new();
         let conns = HashSet::new();
-        let keys = HashSet::new();
-        let ctx = empty_ctx(&envs, &conns, &keys);
+        let ctx = empty_ctx(&envs, &conns);
         let r = evaluate_preflight_with_io(
             &[PreflightItem::FileExists {
                 path: "schema".into(),
@@ -204,8 +200,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let envs = HashSet::new();
         let conns = HashSet::new();
-        let keys = HashSet::new();
-        let ctx = empty_ctx(&envs, &conns, &keys);
+        let ctx = empty_ctx(&envs, &conns);
         let r = evaluate_preflight_with_io(
             &[PreflightItem::FileExists {
                 path: "nope.sql".into(),
@@ -227,8 +222,7 @@ mod tests {
         fs::write(&target, "").unwrap();
         let envs = HashSet::new();
         let conns = HashSet::new();
-        let keys = HashSet::new();
-        let ctx = empty_ctx(&envs, &conns, &keys);
+        let ctx = empty_ctx(&envs, &conns);
         // vault_root is unrelated; absolute path should resolve.
         let other_root = tempdir().unwrap();
         let r = evaluate_preflight_with_io(
@@ -246,8 +240,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let envs = HashSet::new();
         let conns = HashSet::new();
-        let keys = HashSet::new();
-        let ctx = empty_ctx(&envs, &conns, &keys);
+        let ctx = empty_ctx(&envs, &conns);
         let r = evaluate_preflight_with_io(
             &[PreflightItem::FileExists { path: "   ".into() }],
             &ctx,
@@ -328,8 +321,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let envs = HashSet::new();
         let conns = HashSet::new();
-        let keys = HashSet::new();
-        let ctx = empty_ctx(&envs, &conns, &keys);
+        let ctx = empty_ctx(&envs, &conns);
         let r = evaluate_preflight_with_io(
             &[PreflightItem::Command { command: "   ".into() }],
             &ctx,
@@ -345,8 +337,7 @@ mod tests {
         fs::write(&target, "").unwrap();
         let envs = HashSet::new();
         let conns = HashSet::new();
-        let keys = HashSet::new();
-        let ctx = empty_ctx(&envs, &conns, &keys);
+        let ctx = empty_ctx(&envs, &conns);
         let r = evaluate_preflight_with_io(
             &[PreflightItem::Command {
                 command: format!("{} --version", target.display()),
@@ -375,12 +366,10 @@ mod tests {
         let dir = tempdir().unwrap();
         let envs: HashSet<String> = ["API_TOKEN".into()].iter().cloned().collect();
         let conns: HashSet<String> = ["payments-db".into()].iter().cloned().collect();
-        let keys: HashSet<String> = ["payments-db.password".into()].iter().cloned().collect();
         let ctx = EvaluationContext {
             branch: Some("main"),
             active_env_vars: &envs,
             connections: &conns,
-            keychain_keys: &keys,
         };
         let items = vec![
             PreflightItem::Connection {
@@ -390,9 +379,6 @@ mod tests {
                 name: "API_TOKEN".into(),
             },
             PreflightItem::Branch { name: "main".into() },
-            PreflightItem::Keychain {
-                name: "payments-db.password".into(),
-            },
             PreflightItem::Unknown {
                 key: "future".into(),
                 value: "x".into(),
@@ -402,8 +388,7 @@ mod tests {
         assert_eq!(r[0], CheckResult::Pass);
         assert_eq!(r[1], CheckResult::Pass);
         assert_eq!(r[2], CheckResult::Pass);
-        assert_eq!(r[3], CheckResult::Pass);
-        assert!(matches!(r[4], CheckResult::Skip { .. })); // unknown kind
+        assert!(matches!(r[3], CheckResult::Skip { .. })); // unknown kind
     }
 
     #[test]
@@ -413,8 +398,7 @@ mod tests {
         fs::write(&target, "").unwrap();
         let envs = HashSet::new();
         let conns = HashSet::new();
-        let keys = HashSet::new();
-        let ctx = empty_ctx(&envs, &conns, &keys);
+        let ctx = empty_ctx(&envs, &conns);
         let r = evaluate_preflight_with_io(
             &[
                 PreflightItem::FileExists {

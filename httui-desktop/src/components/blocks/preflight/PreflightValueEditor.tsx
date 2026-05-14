@@ -8,7 +8,7 @@
 // Per kind, the completion source pulls from a different data source:
 //   - connection → vault connection names (listConnections Tauri)
 //   - env_var    → active environment's variable keys (store)
-//   - branch / keychain / file_exists / command → no completion
+//   - branch / file_exists / command → no completion
 //
 // Single-line guard: a transactionFilter strips any \n / \r so the
 // editor stays at 1 visual line; Enter is repurposed as commit.
@@ -40,7 +40,6 @@ const PLACEHOLDER_BY_KIND: Record<PreflightCheckKind, string> = {
   connection: "connection name (e.g., payments-db)",
   env_var: "ENV VAR NAME",
   branch: "branch name (e.g., main)",
-  keychain: "keychain key",
   file_exists: "./path/to/file",
   command: "binary name (e.g., psql)",
 };

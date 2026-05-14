@@ -38,7 +38,6 @@ export const defaultSuggestionProvider: SuggestionProvider = async (kind) => {
         return [];
       }
     case "branch":
-    case "keychain":
     case "file_exists":
     case "command":
     case "unknown" as PreflightCheckKind:

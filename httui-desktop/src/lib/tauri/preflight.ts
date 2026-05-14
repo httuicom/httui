@@ -13,7 +13,6 @@ export type PreflightItemKind =
   | "connection"
   | "env_var"
   | "branch"
-  | "keychain"
   | "file_exists"
   | "command"
   | "unknown";

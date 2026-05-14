@@ -82,6 +82,22 @@ pub(crate) fn run_git<P: AsRef<Path>>(vault: P, args: &[&str]) -> Result<String,
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
 
+/// Return the vault's current branch name, or `None` for a detached
+/// HEAD / a path that isn't a git repo. Used by the preflight
+/// evaluator (V6 cenário 9) to decide whether a `branch: <name>`
+/// check passes. Cheap wrapper around `git rev-parse --abbrev-ref
+/// HEAD` — much lighter than `git_status` for callers that only
+/// need the branch name.
+pub fn current_branch(vault: &Path) -> Option<String> {
+    let raw = run_git(vault, &["rev-parse", "--abbrev-ref", "HEAD"]).ok()?;
+    let trimmed = raw.trim();
+    // Detached HEAD prints "HEAD" rather than a branch name.
+    if trimmed.is_empty() || trimmed == "HEAD" {
+        return None;
+    }
+    Some(trimmed.to_string())
+}
+
 /// Strip the env vars `git` itself sets when running inside a hook
 /// or alias. Without this, `Command::new("git")` children inherit
 /// `GIT_DIR` (etc.) from the host repo and ignore our `-C <path>`

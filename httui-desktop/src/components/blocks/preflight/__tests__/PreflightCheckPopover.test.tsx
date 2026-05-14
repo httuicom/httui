@@ -19,7 +19,7 @@ describe("PreflightCheckPopover (V6 cenário 9 builder)", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("renders all six kind options", () => {
+    it("renders all five kind options", () => {
       renderWithProviders(
         <PreflightCheckPopover onSave={vi.fn()} onClose={vi.fn()} />,
       );
@@ -27,7 +27,6 @@ describe("PreflightCheckPopover (V6 cenário 9 builder)", () => {
         "connection",
         "env_var",
         "branch",
-        "keychain",
         "file_exists",
         "command",
       ]) {
@@ -35,6 +34,15 @@ describe("PreflightCheckPopover (V6 cenário 9 builder)", () => {
           screen.getByTestId(`preflight-check-popover-kind-${kind}`),
         ).toBeInTheDocument();
       }
+    });
+
+    it("does not render the retired keychain kind", () => {
+      renderWithProviders(
+        <PreflightCheckPopover onSave={vi.fn()} onClose={vi.fn()} />,
+      );
+      expect(
+        screen.queryByTestId("preflight-check-popover-kind-keychain"),
+      ).not.toBeInTheDocument();
     });
 
     it("clicking a kind advances to the value input stage", async () => {

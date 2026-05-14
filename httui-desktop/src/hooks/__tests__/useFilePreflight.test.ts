@@ -171,7 +171,6 @@ describe("useFilePreflight", () => {
       { kind: "connection", label: "payments-db", result: { outcome: "pass" } },
       { kind: "env_var", label: "API_TOKEN", result: { outcome: "pass" } },
       { kind: "branch", label: "main", result: { outcome: "pass" } },
-      { kind: "keychain", label: "key", result: { outcome: "pass" } },
       { kind: "unknown", label: "future", result: { outcome: "skip", reason: "x" } },
     ];
     mockTauriCommand("evaluate_preflight_cmd", () => raw);
@@ -190,9 +189,8 @@ describe("useFilePreflight", () => {
     expect(result.current.items[0]?.suggestion).toMatch(/payments-db/);
     expect(result.current.items[1]?.suggestion).toMatch(/API_TOKEN/);
     expect(result.current.items[2]?.suggestion).toMatch(/main/);
-    expect(result.current.items[3]?.suggestion).toMatch(/key/);
     // Unknown kind: no suggestion (the future kind isn't actionable
     // until the parser learns it).
-    expect(result.current.items[4]?.suggestion).toBeUndefined();
+    expect(result.current.items[3]?.suggestion).toBeUndefined();
   });
 });

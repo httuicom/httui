@@ -21,15 +21,14 @@ export type PreflightCheckKind =
   | "connection"
   | "env_var"
   | "branch"
-  | "keychain"
   | "file_exists"
   | "command";
 
 export interface PreflightCheck {
   kind: PreflightCheckKind;
   /** Single-string value: connection name / env var name / branch
-   *  name / keychain key / file path / command. The YAML maps this
-   *  to the per-kind label (`connection: foo` / `file_exists: ./x`). */
+   *  name / file path / command. The YAML maps this to the per-kind
+   *  label (`connection: foo` / `file_exists: ./x`). */
   value: string;
 }
 
@@ -37,7 +36,6 @@ const KIND_KEYS: ReadonlySet<PreflightCheckKind> = new Set([
   "connection",
   "env_var",
   "branch",
-  "keychain",
   "file_exists",
   "command",
 ]);

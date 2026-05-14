@@ -2,8 +2,8 @@
 // check inline in the DocHeader pill row.
 //
 // Two stages:
-//   1. Kind picker — 6 buttons (connection / env_var / branch / keychain
-//      / file_exists / command). Skipped when the popover opens with an
+//   1. Kind picker — 5 buttons (connection / env_var / branch /
+//      file_exists / command). Skipped when the popover opens with an
 //      `initialKind` (edit mode pre-binds the kind).
 //   2. Value input — single-line CM6 editor with native autocompletion
 //      (mirrors the inline forms in HTTP/DB blocks). Save / Cancel
@@ -45,11 +45,6 @@ const KIND_OPTIONS: ReadonlyArray<KindOption> = [
     kind: "branch",
     label: "branch",
     placeholder: "branch name (e.g., main)",
-  },
-  {
-    kind: "keychain",
-    label: "keychain",
-    placeholder: "keychain key",
   },
   {
     kind: "file_exists",

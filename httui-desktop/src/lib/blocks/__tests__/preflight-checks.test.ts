@@ -24,7 +24,6 @@ describe("extractPreflightChecks", () => {
       "  - connection: payments-db",
       "  - env_var: API_TOKEN",
       "  - branch: main",
-      "  - keychain: payments-db.password",
       "  - file_exists: ./schema/payments.sql",
       "  - command: psql --version",
       "---",
@@ -35,9 +34,20 @@ describe("extractPreflightChecks", () => {
       { kind: "connection", value: "payments-db" },
       { kind: "env_var", value: "API_TOKEN" },
       { kind: "branch", value: "main" },
-      { kind: "keychain", value: "payments-db.password" },
       { kind: "file_exists", value: "./schema/payments.sql" },
       { kind: "command", value: "psql --version" },
+    ]);
+  });
+
+  it("drops retired keychain entries as unknown kinds", () => {
+    // V6 cenário 9: keychain was removed from the typed set. Legacy
+    // YAML that still declares it falls through the parser's
+    // forward-compat path — same as any unrecognized key — so the
+    // resulting list omits it without crashing on legacy notes.
+    const doc =
+      "---\npreflight:\n  - keychain: payments-db.password\n  - connection: ok\n---\n";
+    expect(extractPreflightChecks(doc)).toEqual<PreflightCheck[]>([
+      { kind: "connection", value: "ok" },
     ]);
   });
 
