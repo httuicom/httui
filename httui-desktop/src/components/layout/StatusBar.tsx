@@ -22,6 +22,7 @@ import { LuLink, LuTriangleAlert } from "react-icons/lu";
 import { Dot, StatusBarShell } from "@/components/atoms";
 import { BranchMenu } from "@/components/layout/BranchMenu";
 import { EnvMenu } from "@/components/layout/EnvMenu";
+import { useGitBranchActions } from "@/hooks/useGitBranchActions";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { useEnvironmentStore } from "@/stores/environment";
 import { usePendingSecretsStore } from "@/stores/pendingSecrets";
@@ -51,6 +52,7 @@ export function StatusBar({
 }: StatusBarProps = {}) {
   const vaultPath = useWorkspaceStore((s) => s.vaultPath);
   const { status: gitState } = useGitStatus(vaultPath);
+  const branchActions = useGitBranchActions(vaultPath);
   const environments = useEnvironmentStore((s) => s.environments);
   const activeEnvironment = useEnvironmentStore((s) => s.activeEnvironment);
   const switchEnvironment = useEnvironmentStore((s) => s.switchEnvironment);
@@ -87,6 +89,11 @@ export function StatusBar({
         added={added}
         modified={modified}
         deleted={deleted}
+        branches={branchActions.branches}
+        branchesBusy={branchActions.busy}
+        onMenuOpen={branchActions.loadBranches}
+        onSelectBranch={branchActions.selectBranch}
+        onCreateBranch={branchActions.createBranch}
       />
 
       <Box w="1px" h="12px" bg="border" aria-hidden />

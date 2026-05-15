@@ -1,8 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 
 import { BranchMenu } from "@/components/layout/BranchMenu";
+import type { BranchInfo } from "@/lib/tauri/git";
 import { renderWithProviders, screen } from "@/test/render";
+
+const BRANCHES: BranchInfo[] = [
+  { name: "main", current: true, remote: false },
+  { name: "feat/x", current: false, remote: false },
+];
 
 describe("BranchMenu", () => {
   it("renders the dash placeholder when no branch is given", () => {
@@ -69,5 +75,57 @@ describe("BranchMenu", () => {
     expect(
       screen.getByTestId("branch-menu-placeholder").textContent,
     ).toMatch(/V10/);
+  });
+
+  describe("switcher mode (V10 cenário 4)", () => {
+    it("renders the branch picker instead of the placeholder", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <BranchMenu
+          branch="main"
+          branches={BRANCHES}
+          onSelectBranch={vi.fn()}
+          onCreateBranch={vi.fn()}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: /Branch main/ }));
+      expect(screen.getByTestId("branch-menu-switcher")).toBeInTheDocument();
+      expect(screen.getByTestId("git-branch-picker")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("branch-menu-placeholder"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("calls onMenuOpen when the dropdown opens", async () => {
+      const onMenuOpen = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(
+        <BranchMenu
+          branch="main"
+          branches={BRANCHES}
+          onMenuOpen={onMenuOpen}
+          onSelectBranch={vi.fn()}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: /Branch main/ }));
+      expect(onMenuOpen).toHaveBeenCalled();
+    });
+
+    it("fires onSelectBranch when a non-current branch is clicked", async () => {
+      const onSelectBranch = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(
+        <BranchMenu
+          branch="main"
+          branches={BRANCHES}
+          onSelectBranch={onSelectBranch}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: /Branch main/ }));
+      await user.click(
+        screen.getByTestId("git-branch-picker-row-feat/x"),
+      );
+      expect(onSelectBranch).toHaveBeenCalledWith(BRANCHES[1]);
+    });
   });
 });

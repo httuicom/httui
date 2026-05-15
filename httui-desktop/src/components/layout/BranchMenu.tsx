@@ -9,6 +9,9 @@
 import { Box, HStack, Menu, Portal, chakra } from "@chakra-ui/react";
 import { LuGitBranch } from "react-icons/lu";
 
+import { GitBranchPicker } from "@/components/layout/git/GitBranchPicker";
+import type { BranchInfo } from "@/lib/tauri/git";
+
 const Trigger = chakra("button");
 
 export interface BranchMenuProps {
@@ -25,6 +28,15 @@ export interface BranchMenuProps {
   modified?: number;
   /** Deleted files in the worktree (`-D`). */
   deleted?: number;
+  // --- Branch switcher (V10 cenário 4) ---
+  /** Branch list for the dropdown picker. When `onSelectBranch` is
+   * absent the menu falls back to the read-only placeholder. */
+  branches?: ReadonlyArray<BranchInfo>;
+  branchesBusy?: boolean;
+  /** Called when the menu opens — consumer lazy-loads branches. */
+  onMenuOpen?: () => void;
+  onSelectBranch?: (branch: BranchInfo) => void;
+  onCreateBranch?: (name: string) => void;
 }
 
 export function BranchMenu({
@@ -34,13 +46,23 @@ export function BranchMenu({
   added = 0,
   modified = 0,
   deleted = 0,
+  branches,
+  branchesBusy,
+  onMenuOpen,
+  onSelectBranch,
+  onCreateBranch,
 }: BranchMenuProps) {
   const label = branch ?? "—";
   const hasCounts =
     ahead > 0 || behind > 0 || added > 0 || modified > 0 || deleted > 0;
+  const switcher = !!onSelectBranch;
 
   return (
-    <Menu.Root>
+    <Menu.Root
+      onOpenChange={(e) => {
+        if (e.open) onMenuOpen?.();
+      }}
+    >
       <Menu.Trigger asChild>
         <Trigger
           type="button"
@@ -90,18 +112,33 @@ export function BranchMenu({
                 {label}
               </Box>
             </HStack>
-            <Box
-              borderTopWidth="1px"
-              borderColor="border"
-              px={3}
-              py={2}
-              fontSize="11px"
-              color="fg.subtle"
-              data-testid="branch-menu-placeholder"
-            >
-              Trocar de branch chega na V10. Por agora veja a branch
-              ativa aqui — comandos vão pro Git panel.
-            </Box>
+            {switcher ? (
+              <Box
+                borderTopWidth="1px"
+                borderColor="border"
+                data-testid="branch-menu-switcher"
+              >
+                <GitBranchPicker
+                  branches={branches ?? []}
+                  busy={branchesBusy}
+                  onSelectBranch={onSelectBranch}
+                  onCreateBranch={onCreateBranch}
+                />
+              </Box>
+            ) : (
+              <Box
+                borderTopWidth="1px"
+                borderColor="border"
+                px={3}
+                py={2}
+                fontSize="11px"
+                color="fg.subtle"
+                data-testid="branch-menu-placeholder"
+              >
+                Trocar de branch chega na V10. Por agora veja a branch
+                ativa aqui — comandos vão pro Git panel.
+              </Box>
+            )}
           </Menu.Content>
         </Menu.Positioner>
       </Portal>

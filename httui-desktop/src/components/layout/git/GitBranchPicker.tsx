@@ -14,6 +14,7 @@
 
 import { useState } from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
+import { LuCheck } from "react-icons/lu";
 
 import { Btn, Input } from "@/components/atoms";
 import type { BranchInfo } from "@/lib/tauri/git";
@@ -192,17 +193,17 @@ function Row({
       _hover={interactive ? { bg: "bg.muted" } : undefined}
       borderRadius="4px"
     >
-      <Text
+      <Box
         as="span"
-        fontFamily="mono"
-        fontSize="10px"
-        color={branch.current ? "brand.fg" : "fg.subtle"}
+        color="brand.fg"
         flexShrink={0}
         w="14px"
-        textAlign="center"
+        display="inline-flex"
+        justifyContent="center"
+        aria-hidden={!branch.current}
       >
-        {branch.current ? "●" : ""}
-      </Text>
+        {branch.current && <LuCheck size={11} />}
+      </Box>
       <Text
         as="span"
         fontFamily="mono"
