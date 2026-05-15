@@ -200,4 +200,50 @@ describe("GitPanel", () => {
       expect(screen.getByText("+added")).toBeInTheDocument();
     });
   });
+
+  describe("log filter + diff on Log tab (cenário 3)", () => {
+    it("renders the log filter on the Log tab when wired", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[commit()]}
+          activeTab="log"
+          logFilter={{ mode: "author", query: "" }}
+          onLogFilterChange={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("git-log-filter")).toBeInTheDocument();
+    });
+
+    it("omits the log filter when not wired", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[commit()]}
+          activeTab="log"
+        />,
+      );
+      expect(
+        screen.queryByTestId("git-log-filter"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the commit diff inspector on the Log tab", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[commit()]}
+          activeTab="log"
+          selectedCommitSha={commit().sha}
+          diff={"diff --git a/x b/x\n+log line"}
+          diffShortSha="deadbee"
+          diffSubject="first commit"
+        />,
+      );
+      expect(
+        screen.getByTestId("git-panel-section-diff"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("+log line")).toBeInTheDocument();
+    });
+  });
 });

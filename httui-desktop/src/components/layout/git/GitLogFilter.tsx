@@ -5,7 +5,8 @@
 // re-fetch (`path` mode) or filter the in-memory list (`author`
 // mode).
 
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
+import { LuX } from "react-icons/lu";
 
 import { Btn } from "@/components/atoms";
 import { Input } from "@/components/atoms";
@@ -59,16 +60,17 @@ export function GitLogFilter({ state, onChange }: GitLogFilterProps) {
         Path
       </Btn>
       {state.query.length > 0 && (
-        <Text
+        <Box
           as="button"
           data-testid="git-log-filter-clear"
-          fontSize="10px"
+          aria-label="Clear filter"
           color="fg.subtle"
           flexShrink={0}
+          display="inline-flex"
           onClick={() => onChange({ ...state, query: "" })}
         >
-          ✕
-        </Text>
+          <LuX size={12} />
+        </Box>
       )}
     </Flex>
   );

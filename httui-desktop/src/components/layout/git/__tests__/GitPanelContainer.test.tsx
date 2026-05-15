@@ -257,4 +257,108 @@ describe("GitPanelContainer", () => {
       );
     });
   });
+
+  describe("log filter + commit diff (cenário 3)", () => {
+    it("shows the commit diff on the Log tab when a commit is clicked", async () => {
+      let diffArg: unknown = null;
+      mockTauriCommand("git_diff_cmd", (args) => {
+        diffArg = args;
+        return "diff --git a/x b/x\n+log diff line";
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await waitFor(() => {
+        expect(screen.getByTestId("git-panel-tabs")).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId("git-tab-log"));
+      await user.click(await screen.findByTestId("git-log-row-deadbee"));
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("git-panel-section-diff"),
+        ).toBeInTheDocument();
+      });
+      expect(screen.getByText("+log diff line")).toBeInTheDocument();
+      expect((diffArg as { commitSha: string }).commitSha).toBe(
+        "deadbeef0000000000000000000000000000aaaa",
+      );
+    });
+
+    it("filters the log in-memory by author", async () => {
+      mockTauriCommand("git_log_cmd", () => [
+        { ...oneCommit[0] },
+        {
+          ...oneCommit[0],
+          sha: "f00",
+          short_sha: "f00",
+          author_name: "Other Dev",
+          subject: "another commit",
+        },
+      ]);
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await waitFor(() => {
+        expect(screen.getByTestId("git-panel-tabs")).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId("git-tab-log"));
+      expect(await screen.findByTestId("git-log-row-deadbee")).toBeVisible();
+      expect(screen.getByTestId("git-log-row-f00")).toBeVisible();
+      await user.type(
+        screen.getByTestId("git-log-filter-input"),
+        "Other",
+      );
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("git-log-row-deadbee"),
+        ).not.toBeInTheDocument();
+      });
+      expect(screen.getByTestId("git-log-row-f00")).toBeVisible();
+    });
+
+    it("re-fetches the log via backend path filter in path mode", async () => {
+      let lastArgs: unknown = null;
+      mockTauriCommand("git_log_cmd", (args) => {
+        lastArgs = args;
+        logCalls += 1;
+        return oneCommit;
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await waitFor(() => {
+        expect(screen.getByTestId("git-panel-tabs")).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId("git-tab-log"));
+      await user.click(screen.getByTestId("git-log-filter-mode-path"));
+      await user.type(
+        screen.getByTestId("git-log-filter-input"),
+        "src/app",
+      );
+      await waitFor(() => {
+        expect((lastArgs as { pathFilter: string }).pathFilter).toBe(
+          "src/app",
+        );
+      });
+    });
+
+    it("clears the filter and restores the full list", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await waitFor(() => {
+        expect(screen.getByTestId("git-panel-tabs")).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId("git-tab-log"));
+      await user.type(
+        await screen.findByTestId("git-log-filter-input"),
+        "zzz-no-match",
+      );
+      await waitFor(() => {
+        expect(
+          screen.queryByTestId("git-log-row-deadbee"),
+        ).not.toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId("git-log-filter-clear"));
+      expect(
+        await screen.findByTestId("git-log-row-deadbee"),
+      ).toBeInTheDocument();
+    });
+  });
 });

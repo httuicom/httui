@@ -69,6 +69,24 @@ describe("GitLogFilter", () => {
     expect(onChange.mock.calls[0]![0].mode).toBe("path");
   });
 
+  it("switches back to author mode via the Author button", async () => {
+    const onChange = vi.fn();
+    renderWithProviders(
+      <GitLogFilter
+        state={state({ mode: "path", query: "src" })}
+        onChange={onChange}
+      />,
+    );
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("git-log-filter-mode-author"));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0]![0]).toEqual({
+      mode: "author",
+      query: "src",
+    });
+  });
+
   it("hides clear button when query is empty", () => {
     renderWithProviders(<GitLogFilter state={state()} onChange={() => {}} />);
     expect(

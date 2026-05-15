@@ -16,8 +16,10 @@ import { GitAuditHeader } from "./GitAuditHeader";
 import { GitCommitDiffViewer } from "./GitCommitDiffViewer";
 import { GitCommitForm } from "./GitCommitForm";
 import { GitFileList } from "./GitFileList";
+import { GitLogFilter } from "./GitLogFilter";
 import { GitLogList } from "./GitLogList";
 import { GitStatusHeader } from "./GitStatusHeader";
+import type { LogFilterState } from "./git-log-filter";
 
 export type GitPanelTab = "status" | "log" | "audit";
 
@@ -58,6 +60,9 @@ export interface GitPanelProps {
   diff?: string | null;
   diffShortSha?: string | null;
   diffSubject?: string | null;
+  // --- Log filter (cenário 3) ---
+  logFilter?: LogFilterState;
+  onLogFilterChange?: (next: LogFilterState) => void;
 }
 
 const TabButton = chakra("button");
@@ -83,6 +88,8 @@ export function GitPanel({
   diff,
   diffShortSha,
   diffSubject,
+  logFilter,
+  onLogFilterChange,
 }: GitPanelProps) {
   if (status === null) {
     return (
@@ -168,39 +175,37 @@ export function GitPanel({
               onCommit={onCommit!}
             />
           )}
-          {diff !== undefined && (
-            <Box
-              data-testid="git-panel-section-diff"
-              flexShrink={0}
-              maxH="40%"
-              overflow="auto"
-              borderTopWidth="1px"
-              borderTopColor="border"
-            >
-              <GitCommitDiffViewer
-                diff={diff}
-                shortSha={diffShortSha}
-                subject={diffSubject}
-              />
-            </Box>
-          )}
+          <DiffSection
+            diff={diff}
+            shortSha={diffShortSha}
+            subject={diffSubject}
+          />
         </Flex>
       )}
 
       {activeTab === "log" && (
-        <Box
-          data-testid="git-panel-section-log"
-          flex="1 1 auto"
-          minH={0}
-          overflow="auto"
-        >
-          <SectionLabel>Log</SectionLabel>
-          <GitLogList
-            commits={commits}
-            selectedSha={selectedCommitSha}
-            onSelect={onSelectCommit}
+        <Flex direction="column" flex="1 1 auto" minH={0}>
+          {logFilter && onLogFilterChange && (
+            <GitLogFilter state={logFilter} onChange={onLogFilterChange} />
+          )}
+          <Box
+            data-testid="git-panel-section-log"
+            flex="1 1 auto"
+            minH={0}
+            overflow="auto"
+          >
+            <GitLogList
+              commits={commits}
+              selectedSha={selectedCommitSha}
+              onSelect={onSelectCommit}
+            />
+          </Box>
+          <DiffSection
+            diff={diff}
+            shortSha={diffShortSha}
+            subject={diffSubject}
           />
-        </Box>
+        </Flex>
       )}
 
       {activeTab === "audit" && (
@@ -219,6 +224,32 @@ export function GitPanel({
         </Box>
       )}
     </Flex>
+  );
+}
+
+/** Shared diff inspector slot — Status tab (working diff) and Log
+ *  tab (commit diff). `undefined` diff renders nothing. */
+function DiffSection({
+  diff,
+  shortSha,
+  subject,
+}: {
+  diff?: string | null;
+  shortSha?: string | null;
+  subject?: string | null;
+}) {
+  if (diff === undefined) return null;
+  return (
+    <Box
+      data-testid="git-panel-section-diff"
+      flexShrink={0}
+      maxH="40%"
+      overflow="auto"
+      borderTopWidth="1px"
+      borderTopColor="border"
+    >
+      <GitCommitDiffViewer diff={diff} shortSha={shortSha} subject={subject} />
+    </Box>
   );
 }
 

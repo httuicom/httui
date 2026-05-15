@@ -1,15 +1,16 @@
 // V10 — smart wrapper around <GitPanel />. Owns git data fetching,
-// IPC dispatch, the active tab, and the commit-form state; the
-// presentational panel stays prop-driven and trivially testable.
-// Mirrors ConnectionsPageContainer (V4) — the singleton-pane-tab
-// pattern.
+// IPC dispatch, the active tab, the commit-form state, and the log
+// filter; the presentational panel stays prop-driven and trivially
+// testable. Mirrors ConnectionsPageContainer (V4) — the
+// singleton-pane-tab pattern.
 //
 // Cenários covered here:
 //  1. Status/Log/Audit tabs, 2s poll + save-signal refresh.
-//  2. Stage toggle (stage/unstage), commit form, working-diff
-//     preview on file select, commit → clear + refresh.
+//  2. Stage toggle, commit form, working-diff preview, commit.
+//  3. Log list filter (author = in-memory, path = backend re-fetch)
+//     + commit-diff inspector on the Log tab.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useGitStatus } from "@/hooks/useGitStatus";
 import {
@@ -26,6 +27,11 @@ import { useWorkspaceStore } from "@/stores/workspace";
 
 import { GitPanel, type GitPanelTab } from "./GitPanel";
 import { partitionFileChanges } from "./git-derive";
+import {
+  filterCommitsByAuthor,
+  parsePathFilter,
+  type LogFilterState,
+} from "./git-log-filter";
 
 const LOG_LIMIT = 50;
 
@@ -52,6 +58,17 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
   const [committing, setCommitting] = useState(false);
   const [diff, setDiff] = useState<string | null | undefined>(undefined);
   const [diffSubject, setDiffSubject] = useState<string | null>(null);
+  const [diffShortSha, setDiffShortSha] = useState<string | null>(null);
+  const [logFilter, setLogFilter] = useState<LogFilterState>({
+    mode: "author",
+    query: "",
+  });
+
+  // Path mode filters server-side (CommitInfo carries no paths);
+  // author mode filters the in-memory list. Deriving pathFilter
+  // outside the callback keeps author keystrokes from re-fetching.
+  const pathFilter =
+    logFilter.mode === "path" ? parsePathFilter(logFilter.query) : null;
 
   const reloadLog = useCallback(async () => {
     if (!vaultPath) {
@@ -59,13 +76,15 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       return;
     }
     try {
-      setCommits(await gitLog(vaultPath, LOG_LIMIT));
+      setCommits(
+        await gitLog(vaultPath, LOG_LIMIT, pathFilter ?? undefined),
+      );
     } catch {
       // Transient (not a repo yet, IPC dead) — the status poll
       // surfaces real errors; the log list just stays empty.
       setCommits([]);
     }
-  }, [vaultPath]);
+  }, [vaultPath, pathFilter]);
 
   useEffect(() => {
     void reloadLog();
@@ -105,6 +124,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
         return;
       }
       setDiff(null);
+      setDiffShortSha(null);
       setDiffSubject("Working tree changes");
       try {
         setDiff(await gitDiff(vaultPath));
@@ -115,14 +135,26 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     [selectedFilePath, vaultPath],
   );
 
-  // Commit selection is visual-only here (Log list highlight). The
-  // commit-diff fetch lands in cenário 3 when the Log tab gains its
-  // diff panel — adding the fetch now would be untested dead code.
-  const handleSelectCommit = useCallback((commit: CommitInfo) => {
-    setSelectedCommitSha((prev) =>
-      prev === commit.sha ? null : commit.sha,
-    );
-  }, []);
+  const handleSelectCommit = useCallback(
+    async (commit: CommitInfo) => {
+      const next = selectedCommitSha === commit.sha ? null : commit.sha;
+      setSelectedCommitSha(next);
+      setSelectedFilePath(null);
+      if (next === null || !vaultPath) {
+        setDiff(undefined);
+        return;
+      }
+      setDiff(null);
+      setDiffShortSha(commit.short_sha);
+      setDiffSubject(commit.subject);
+      try {
+        setDiff(await gitDiff(vaultPath, commit.sha));
+      } catch {
+        setDiff("");
+      }
+    },
+    [selectedCommitSha, vaultPath],
+  );
 
   const handleCommit = useCallback(
     async (input: { message: string; amend: boolean }) => {
@@ -147,10 +179,18 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     ? partitionFileChanges(status.changed).staged.length
     : 0;
 
+  const visibleCommits = useMemo(
+    () =>
+      logFilter.mode === "author"
+        ? filterCommitsByAuthor(commits, logFilter.query)
+        : commits,
+    [commits, logFilter],
+  );
+
   return (
     <GitPanel
       status={status}
-      commits={commits}
+      commits={visibleCommits}
       activeTab={activeTab}
       onSelectTab={setActiveTab}
       selectedFilePath={selectedFilePath}
@@ -166,7 +206,10 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       onCommitAmendChange={setCommitAmend}
       onCommit={handleCommit}
       diff={diff}
+      diffShortSha={diffShortSha}
       diffSubject={diffSubject}
+      logFilter={logFilter}
+      onLogFilterChange={setLogFilter}
     />
   );
 }
