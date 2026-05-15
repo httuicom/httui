@@ -131,4 +131,73 @@ describe("GitPanel", () => {
     await user.click(screen.getByTestId("git-tab-log"));
     expect(screen.getByTestId("git-log-list-empty")).toBeInTheDocument();
   });
+
+  describe("commit form + diff (cenário 2)", () => {
+    const commitProps = {
+      stagedCount: 2,
+      commitMessage: "",
+      commitAmend: false,
+      onCommitMessageChange: vi.fn(),
+      onCommitAmendChange: vi.fn(),
+      onCommit: vi.fn(),
+    };
+
+    it("renders the commit form on the Status tab when wired", () => {
+      renderWithProviders(
+        <GitPanel status={status()} commits={[]} {...commitProps} />,
+      );
+      expect(screen.getByTestId("git-commit-form")).toBeInTheDocument();
+    });
+
+    it("omits the commit form when handlers are absent", () => {
+      renderWithProviders(<GitPanel status={status()} commits={[]} />);
+      expect(
+        screen.queryByTestId("git-commit-form"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides the diff inspector when diff is undefined", () => {
+      renderWithProviders(
+        <GitPanel status={status()} commits={[]} {...commitProps} />,
+      );
+      expect(
+        screen.queryByTestId("git-panel-section-diff"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the diff inspector loading state when diff is null", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[]}
+          {...commitProps}
+          diff={null}
+        />,
+      );
+      expect(
+        screen.getByTestId("git-panel-section-diff"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("git-commit-diff-viewer").getAttribute(
+          "data-loading",
+        ),
+      ).toBe("true");
+    });
+
+    it("renders the diff text when diff is a string", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[]}
+          {...commitProps}
+          diff={"diff --git a/x b/x\n+added"}
+          diffSubject="Working tree changes"
+        />,
+      );
+      expect(
+        screen.getByTestId("git-commit-diff-viewer"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("+added")).toBeInTheDocument();
+    });
+  });
 });

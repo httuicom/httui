@@ -1,17 +1,20 @@
-// V10 cenário 1 — Git panel shell with Status / Log / Audit tabs.
+// V10 — Git panel shell with Status / Log / Audit tabs.
 //
 // Composes the Epic 48 carry sub-components (GitStatusHeader,
-// GitFileList, GitLogList, GitAuditHeader) into a tabbed surface.
-// Purely presentational and controlled: the consumer
-// (`GitPanelContainer`) owns data fetching, the active tab, and the
-// dispatch callbacks. Audit tab is "log, no action-type filters"
-// per the V10 decision (filters deferred to v1.x).
+// GitFileList, GitCommitForm, GitCommitDiffViewer, GitLogList,
+// GitAuditHeader) into a tabbed surface. Purely presentational and
+// controlled: the consumer (`GitPanelContainer`) owns data fetching,
+// the active tab, the commit-form state, and the dispatch callbacks.
+// Audit tab is "log, no action-type filters" per the V10 decision
+// (filters deferred to v1.x).
 
 import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
 import type { CommitInfo, GitFileChange, GitStatus } from "@/lib/tauri/git";
 
 import { GitAuditHeader } from "./GitAuditHeader";
+import { GitCommitDiffViewer } from "./GitCommitDiffViewer";
+import { GitCommitForm } from "./GitCommitForm";
 import { GitFileList } from "./GitFileList";
 import { GitLogList } from "./GitLogList";
 import { GitStatusHeader } from "./GitStatusHeader";
@@ -41,6 +44,20 @@ export interface GitPanelProps {
   onSelectFile?: (file: GitFileChange) => void;
   onSelectCommit?: (commit: CommitInfo) => void;
   onAuditLearnMore?: () => void;
+  // --- Commit form (cenário 2) ---
+  stagedCount?: number;
+  commitMessage?: string;
+  commitAmend?: boolean;
+  committing?: boolean;
+  onCommitMessageChange?: (next: string) => void;
+  onCommitAmendChange?: (next: boolean) => void;
+  onCommit?: (input: { message: string; amend: boolean }) => void;
+  // --- Diff inspector (cenário 2 preview / cenário 3 commit) ---
+  /** `undefined` hides the inspector; `null` shows "loading"; a
+   *  string renders the unified diff. */
+  diff?: string | null;
+  diffShortSha?: string | null;
+  diffSubject?: string | null;
 }
 
 const TabButton = chakra("button");
@@ -56,6 +73,16 @@ export function GitPanel({
   onSelectFile,
   onSelectCommit,
   onAuditLearnMore,
+  stagedCount = 0,
+  commitMessage = "",
+  commitAmend = false,
+  committing,
+  onCommitMessageChange,
+  onCommitAmendChange,
+  onCommit,
+  diff,
+  diffShortSha,
+  diffSubject,
 }: GitPanelProps) {
   if (status === null) {
     return (
@@ -66,6 +93,9 @@ export function GitPanel({
       </Box>
     );
   }
+
+  const showCommitForm =
+    !!onCommit && !!onCommitMessageChange && !!onCommitAmendChange;
 
   return (
     <Flex
@@ -111,7 +141,7 @@ export function GitPanel({
       </Flex>
 
       {activeTab === "status" && (
-        <>
+        <Flex direction="column" flex="1 1 auto" minH={0}>
           <GitStatusHeader status={status} />
           <Box
             data-testid="git-panel-section-working-tree"
@@ -127,7 +157,34 @@ export function GitPanel({
               onSelect={onSelectFile}
             />
           </Box>
-        </>
+          {showCommitForm && (
+            <GitCommitForm
+              message={commitMessage}
+              amend={commitAmend}
+              stagedCount={stagedCount}
+              busy={committing}
+              onMessageChange={onCommitMessageChange!}
+              onAmendChange={onCommitAmendChange!}
+              onCommit={onCommit!}
+            />
+          )}
+          {diff !== undefined && (
+            <Box
+              data-testid="git-panel-section-diff"
+              flexShrink={0}
+              maxH="40%"
+              overflow="auto"
+              borderTopWidth="1px"
+              borderTopColor="border"
+            >
+              <GitCommitDiffViewer
+                diff={diff}
+                shortSha={diffShortSha}
+                subject={diffSubject}
+              />
+            </Box>
+          )}
+        </Flex>
       )}
 
       {activeTab === "log" && (
