@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { useState } from "react";
+import { describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 
-import { GitPanel } from "@/components/layout/git/GitPanel";
+import {
+  GitPanel,
+  type GitPanelProps,
+  type GitPanelTab,
+} from "@/components/layout/git/GitPanel";
 import type { CommitInfo, GitStatus } from "@/lib/tauri/git";
 import { renderWithProviders, screen } from "@/test/render";
 
@@ -28,6 +34,13 @@ function commit(over: Partial<CommitInfo> = {}): CommitInfo {
   };
 }
 
+/** Controlled component — harness owns the active-tab state so a
+ * click actually flips the rendered section. */
+function Harness(props: Omit<GitPanelProps, "activeTab" | "onSelectTab">) {
+  const [tab, setTab] = useState<GitPanelTab>("status");
+  return <GitPanel {...props} activeTab={tab} onSelectTab={setTab} />;
+}
+
 describe("GitPanel", () => {
   it("shows loading state when status is null", () => {
     renderWithProviders(<GitPanel status={null} commits={[]} />);
@@ -36,13 +49,12 @@ describe("GitPanel", () => {
     );
   });
 
-  it("renders the three sections when status resolves", () => {
+  it("renders the three tabs when status resolves", () => {
     renderWithProviders(<GitPanel status={status()} commits={[commit()]} />);
-    expect(screen.getByTestId("git-status-header")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("git-panel-section-working-tree"),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("git-panel-section-log")).toBeInTheDocument();
+    expect(screen.getByTestId("git-panel-tabs")).toBeInTheDocument();
+    expect(screen.getByTestId("git-tab-status")).toBeInTheDocument();
+    expect(screen.getByTestId("git-tab-log")).toBeInTheDocument();
+    expect(screen.getByTestId("git-tab-audit")).toBeInTheDocument();
   });
 
   it("flags clean working tree via data-clean", () => {
@@ -52,7 +64,18 @@ describe("GitPanel", () => {
     );
   });
 
-  it("forwards changed files into the file list", () => {
+  it("defaults to the Status tab — header + working tree", () => {
+    renderWithProviders(<GitPanel status={status()} commits={[commit()]} />);
+    expect(screen.getByTestId("git-status-header")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("git-panel-section-working-tree"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("git-panel-section-log"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("forwards changed files into the file list (Status tab)", () => {
     renderWithProviders(
       <GitPanel
         status={status({
@@ -67,14 +90,45 @@ describe("GitPanel", () => {
     expect(screen.getByTestId("git-file-row-a")).toBeInTheDocument();
   });
 
-  it("forwards commits into the log list", () => {
-    renderWithProviders(<GitPanel status={status()} commits={[commit()]} />);
+  it("switches to the Log tab and shows commits", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness status={status()} commits={[commit()]} />);
+    await user.click(screen.getByTestId("git-tab-log"));
+    expect(screen.getByTestId("git-panel-section-log")).toBeInTheDocument();
+    expect(screen.getByTestId("git-log-row-deadbee")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("git-panel-section-working-tree"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("switches to the Audit tab — log, no action-type filters", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness status={status()} commits={[commit()]} />);
+    await user.click(screen.getByTestId("git-tab-audit"));
+    expect(screen.getByTestId("git-panel-section-audit")).toBeInTheDocument();
     expect(screen.getByTestId("git-log-row-deadbee")).toBeInTheDocument();
   });
 
-  it("renders empty file-list and empty log-list when both are empty", () => {
-    renderWithProviders(<GitPanel status={status()} commits={[]} />);
+  it("fires onSelectTab on tab click", async () => {
+    const user = userEvent.setup();
+    const onSelectTab = vi.fn();
+    renderWithProviders(
+      <GitPanel
+        status={status()}
+        commits={[]}
+        activeTab="status"
+        onSelectTab={onSelectTab}
+      />,
+    );
+    await user.click(screen.getByTestId("git-tab-log"));
+    expect(onSelectTab).toHaveBeenCalledWith("log");
+  });
+
+  it("renders empty file list and empty log list", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness status={status()} commits={[]} />);
     expect(screen.getByTestId("git-file-list-empty")).toBeInTheDocument();
+    await user.click(screen.getByTestId("git-tab-log"));
     expect(screen.getByTestId("git-log-list-empty")).toBeInTheDocument();
   });
 });

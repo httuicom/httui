@@ -27,6 +27,7 @@ import {
   LuPlug,
   LuKeyRound,
   LuLayers,
+  LuGitBranch,
 } from "react-icons/lu";
 
 import { Brand } from "@/components/layout/topbar/Brand";
@@ -91,6 +92,7 @@ export function TopBar({
   const openConnectionsTab = usePaneStore((s) => s.openConnectionsTab);
   const openVariablesTab = usePaneStore((s) => s.openVariablesTab);
   const openEnvironmentsTab = usePaneStore((s) => s.openEnvironmentsTab);
+  const openGitTab = usePaneStore((s) => s.openGitTab);
 
   const activeFilePath = usePaneStore(selectActiveTabPath);
   const activeUnsaved = usePaneStore(selectActiveTabUnsaved);
@@ -236,6 +238,14 @@ export function TopBar({
         onClick={openEnvironmentsTab}
       >
         <LuLayers />
+      </IconButton>
+      <IconButton
+        aria-label="Open Git"
+        variant="ghost"
+        size="xs"
+        onClick={openGitTab}
+      >
+        <LuGitBranch />
       </IconButton>
       <IconButton
         aria-label={schemaPanelOpen ? "Close schema panel" : "Open schema panel"}

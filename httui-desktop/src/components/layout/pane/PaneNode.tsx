@@ -3,6 +3,7 @@ import { Box, Flex, Text } from "@chakra-ui/react";
 import { TabBar } from "../TabBar";
 import { DiffViewer } from "@/components/editor/DiffViewer";
 import { ConnectionsPageContainer } from "@/components/layout/connections/ConnectionsPageContainer";
+import { GitPanelContainer } from "@/components/layout/git/GitPanelContainer";
 import { EnvironmentsPageContainer } from "@/components/layout/environments/EnvironmentsPageContainer";
 import { VariablesPageContainer } from "@/components/layout/variables/VariablesPageContainer";
 import { DocHeaderedEditor } from "./DocHeaderedEditor";
@@ -56,7 +57,8 @@ export function PaneNode({
         tab.kind === "diff" ||
         tab.kind === "connections" ||
         tab.kind === "variables" ||
-        tab.kind === "environments"
+        tab.kind === "environments" ||
+        tab.kind === "git"
       )
         continue;
       const cached = editorContents.get(tab.filePath);
@@ -114,6 +116,10 @@ export function PaneNode({
           ) : activeTab.kind === "environments" ? (
             <Box flex={1} overflow="hidden">
               <EnvironmentsPageContainer />
+            </Box>
+          ) : activeTab.kind === "git" ? (
+            <Box flex={1} overflow="hidden">
+              <GitPanelContainer onNavigateFile={onNavigateFile} />
             </Box>
           ) : (
             <DocHeaderedEditor

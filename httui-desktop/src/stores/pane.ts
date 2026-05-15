@@ -8,6 +8,7 @@ import {
   CONNECTIONS_TAB_PATH,
   VARIABLES_TAB_PATH,
   ENVIRONMENTS_TAB_PATH,
+  GIT_TAB_PATH,
 } from "@/types/pane";
 import { forceReloadFile } from "@/lib/tauri/commands";
 
@@ -56,6 +57,8 @@ interface PaneState {
   openVariablesTab: () => void;
   /** Open the singleton Environments tab in the active pane (V5). */
   openEnvironmentsTab: () => void;
+  /** Open the singleton Git panel tab in the active pane (V10). */
+  openGitTab: () => void;
   selectTab: (paneId: string, index: number) => void;
   closeTab: (paneId: string, index: number) => void;
   closeOthers: (paneId: string, index: number) => void;
@@ -155,7 +158,11 @@ export function replacePaneInLayout(
 
 // --- Singleton tab helper ---
 
-type SingletonTabKind = "connections" | "variables" | "environments";
+type SingletonTabKind =
+  | "connections"
+  | "variables"
+  | "environments"
+  | "git";
 
 function openSingletonTab(
   set: (
@@ -444,6 +451,7 @@ export const usePaneStore = create<PaneState>()(
         openSingletonTab(set, get, "variables", VARIABLES_TAB_PATH),
       openEnvironmentsTab: () =>
         openSingletonTab(set, get, "environments", ENVIRONMENTS_TAB_PATH),
+      openGitTab: () => openSingletonTab(set, get, "git", GIT_TAB_PATH),
 
       closeDiffTab: (permissionId) => {
         const diffId = `diff-${permissionId}`;
