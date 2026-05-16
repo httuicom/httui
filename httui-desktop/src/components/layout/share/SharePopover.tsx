@@ -19,10 +19,12 @@ import { Box, Flex, Text } from "@chakra-ui/react";
 import { Btn } from "@/components/atoms";
 
 export interface RemoteOption {
-  /** `origin`, `upstream`, etc. */
+  /** `origin`, `upstream`, … or V10's `HTTPS` / `SSH` / `Web`. */
   name: string;
   /** Raw URL (`git@host:owner/repo.git` or `https://...`). */
   url: string;
+  /** When true the popover offers an "Open" action (browser). */
+  openable?: boolean;
 }
 
 export interface SharePopoverProps {
@@ -34,6 +36,9 @@ export interface SharePopoverProps {
    *  Consumer is responsible for the actual `clipboard.writeText`
    *  call — keeps this component framework-free. */
   onCopy: (url: string) => void;
+  /** Fires when the active option is `openable` and the user clicks
+   *  Open. Consumer routes to the Tauri shell opener. */
+  onOpen?: (url: string) => void;
   /** Fires when the user clicks the "Configure remote" hint in the
    *  empty state — consumer routes to Epic 19 workspace settings. */
   onOpenWorkspaceSettings?: () => void;
@@ -43,6 +48,7 @@ export function SharePopover({
   remotes,
   copying,
   onCopy,
+  onOpen,
   onOpenWorkspaceSettings,
 }: SharePopoverProps) {
   const [picked, setPicked] = useState<string | null>(null);
@@ -74,7 +80,7 @@ export function SharePopover({
             onClick={onOpenWorkspaceSettings}
             cursor="pointer"
           >
-            Configure a remote →
+            Configure a remote
           </Text>
         )}
       </Box>
@@ -136,14 +142,25 @@ export function SharePopover({
       >
         {active.url}
       </Text>
-      <Btn
-        data-testid="share-popover-copy"
-        variant="primary"
-        disabled={copying}
-        onClick={() => onCopy(active.url)}
-      >
-        {copying ? "Copying…" : "Copy URL"}
-      </Btn>
+      <Flex gap={2}>
+        <Btn
+          data-testid="share-popover-copy"
+          variant="primary"
+          disabled={copying}
+          onClick={() => onCopy(active.url)}
+        >
+          {copying ? "Copying…" : "Copy URL"}
+        </Btn>
+        {onOpen && active.openable && (
+          <Btn
+            data-testid="share-popover-open"
+            variant="ghost"
+            onClick={() => onOpen(active.url)}
+          >
+            Open
+          </Btn>
+        )}
+      </Flex>
     </Box>
   );
 }

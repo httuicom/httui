@@ -33,6 +33,8 @@ import {
 import { usePaneStore } from "@/stores/pane";
 import { useWorkspaceStore } from "@/stores/workspace";
 
+import { ShareMenu } from "@/components/layout/ShareMenu";
+
 import { GitPanel, type GitPanelTab } from "./GitPanel";
 import { labelFileStatus, partitionFileChanges } from "./git-derive";
 import type { SyncOp } from "./GitSyncButtons";
@@ -376,6 +378,9 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       resolver={resolver}
       onResolveMerged={handleResolveMerged}
       onCancelResolver={handleCancelResolver}
+      toolbarExtra={
+        <ShareMenu vaultPath={vaultPath} variant="toolbar" />
+      }
     />
   );
 }

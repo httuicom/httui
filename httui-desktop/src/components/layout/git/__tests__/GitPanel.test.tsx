@@ -364,4 +364,36 @@ describe("GitPanel", () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe("toolbar share slot (cenário 7)", () => {
+    it("renders toolbarExtra in the panel toolbar", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[]}
+          onFetch={vi.fn()}
+          toolbarExtra={<div data-testid="share-slot-probe" />}
+        />,
+      );
+      expect(
+        screen.getByTestId("share-slot-probe"),
+      ).toBeInTheDocument();
+    });
+
+    it("shows the toolbar for the slot even without sync handlers", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[]}
+          toolbarExtra={<div data-testid="share-slot-probe" />}
+        />,
+      );
+      expect(
+        screen.getByTestId("share-slot-probe"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("git-sync-buttons"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

@@ -22,6 +22,7 @@ import { LuLink, LuTriangleAlert } from "react-icons/lu";
 import { Dot, StatusBarShell } from "@/components/atoms";
 import { BranchMenu } from "@/components/layout/BranchMenu";
 import { EnvMenu } from "@/components/layout/EnvMenu";
+import { ShareMenu } from "@/components/layout/ShareMenu";
 import { useGitBranchActions } from "@/hooks/useGitBranchActions";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { useEnvironmentStore } from "@/stores/environment";
@@ -95,6 +96,8 @@ export function StatusBar({
         onSelectBranch={branchActions.selectBranch}
         onCreateBranch={branchActions.createBranch}
       />
+
+      <ShareMenu vaultPath={vaultPath} />
 
       <Box w="1px" h="12px" bg="border" aria-hidden />
 

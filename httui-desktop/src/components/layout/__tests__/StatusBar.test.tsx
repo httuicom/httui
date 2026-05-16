@@ -36,6 +36,7 @@ beforeEach(() => {
     changed: [],
     clean: true,
   }));
+  mockTauriCommand("git_remote_list_cmd", () => []);
   useWorkspaceStore.setState({
     vaultPath: null,
     activeConnection: null,

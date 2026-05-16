@@ -94,6 +94,8 @@ export interface GitPanelProps {
   resolver?: { path: string; versions: ConflictVersions } | null;
   onResolveMerged?: (path: string, merged: string) => void;
   onCancelResolver?: () => void;
+  /** Right-aligned toolbar slot (V10 cenário 7 mounts ShareMenu). */
+  toolbarExtra?: React.ReactNode;
 }
 
 const TabButton = chakra("button");
@@ -138,6 +140,7 @@ export function GitPanel({
   resolver,
   onResolveMerged,
   onCancelResolver,
+  toolbarExtra,
 }: GitPanelProps) {
   if (status === null) {
     return (
@@ -195,21 +198,31 @@ export function GitPanel({
         })}
       </Flex>
 
-      {(onFetch || onPull || onPush) && (
-        <Box
+      {(onFetch || onPull || onPush || toolbarExtra) && (
+        <Flex
+          align="center"
           flexShrink={0}
           borderBottomWidth="1px"
           borderBottomColor="border"
         >
-          <GitSyncButtons
-            inFlight={syncInFlight}
-            hasRemote={hasRemote}
-            onFetch={onFetch}
-            onPull={onPull}
-            onPush={onPush}
-            onConfigureRemote={onConfigureRemote}
-          />
-        </Box>
+          <Box flex={1} minW={0}>
+            {(onFetch || onPull || onPush) && (
+              <GitSyncButtons
+                inFlight={syncInFlight}
+                hasRemote={hasRemote}
+                onFetch={onFetch}
+                onPull={onPull}
+                onPush={onPush}
+                onConfigureRemote={onConfigureRemote}
+              />
+            )}
+          </Box>
+          {toolbarExtra && (
+            <Box flexShrink={0} px={2}>
+              {toolbarExtra}
+            </Box>
+          )}
+        </Flex>
       )}
 
       {upstreamPrompt && (

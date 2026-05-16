@@ -125,4 +125,45 @@ describe("SharePopover", () => {
         .getAttribute("data-remote-count"),
     ).toBe("2");
   });
+
+  describe("open action (V10 cenário 7)", () => {
+    const HTTPS = {
+      name: "HTTPS",
+      url: "https://github.com/a/b.git",
+      openable: false,
+    };
+    const WEB = {
+      name: "Web",
+      url: "https://github.com/a/b",
+      openable: true,
+    };
+
+    it("shows Open only for the active openable option", async () => {
+      const onOpen = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(
+        <SharePopover
+          remotes={[HTTPS, WEB]}
+          onCopy={() => {}}
+          onOpen={onOpen}
+        />,
+      );
+      // Defaults to first (HTTPS, not openable) — no Open button.
+      expect(
+        screen.queryByTestId("share-popover-open"),
+      ).not.toBeInTheDocument();
+      await user.click(screen.getByTestId("share-popover-remote-Web"));
+      await user.click(screen.getByTestId("share-popover-open"));
+      expect(onOpen).toHaveBeenCalledWith(WEB.url);
+    });
+
+    it("never shows Open when onOpen is absent", () => {
+      renderWithProviders(
+        <SharePopover remotes={[WEB]} onCopy={() => {}} />,
+      );
+      expect(
+        screen.queryByTestId("share-popover-open"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });
