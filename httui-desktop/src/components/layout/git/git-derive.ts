@@ -54,6 +54,49 @@ export function summarizeBranch(status: GitStatus): BranchSummary {
   };
 }
 
+export interface ChangeCounts {
+  modified: number;
+  added: number;
+  deleted: number;
+  untracked: number;
+  conflicted: number;
+}
+
+/** Tally the working-tree changes by kind for the pane-tab metrics
+ *  strip (V10.1 cenário 6). Renamed/copied/other fold into
+ *  `modified` — the strip wants a dense at-a-glance count, not the
+ *  full porcelain taxonomy. */
+export function summarizeChangeCounts(
+  changed: ReadonlyArray<GitFileChange>,
+): ChangeCounts {
+  const counts: ChangeCounts = {
+    modified: 0,
+    added: 0,
+    deleted: 0,
+    untracked: 0,
+    conflicted: 0,
+  };
+  for (const f of changed) {
+    switch (labelFileStatus(f)) {
+      case "untracked":
+        counts.untracked += 1;
+        break;
+      case "added":
+        counts.added += 1;
+        break;
+      case "deleted":
+        counts.deleted += 1;
+        break;
+      case "conflicted":
+        counts.conflicted += 1;
+        break;
+      default:
+        counts.modified += 1;
+    }
+  }
+  return counts;
+}
+
 /** Map a 2-char porcelain v2 XY status to a single human-readable token. */
 export function labelFileStatus(file: GitFileChange): string {
   if (file.untracked) return "untracked";

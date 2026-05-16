@@ -86,6 +86,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
 
   const { remotes } = useGitRemotes(vaultPath);
   const hasRemote = remotes.length > 0;
+  const lastSyncAt = useGitStore((s) => s.lastSyncAt);
 
   const {
     busy: conflictBusy,
@@ -183,6 +184,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       setSyncInFlight(op);
       try {
         await fn();
+        useGitStore.getState().markSynced();
         refreshStatus();
         await refreshLog();
         if (touchesTree) {
@@ -343,6 +345,8 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       resolver={resolver}
       onResolveMerged={handleResolveMerged}
       onCancelResolver={handleCancelResolver}
+      remotes={remotes}
+      lastSyncAt={lastSyncAt}
       toolbarExtra={<ShareMenu vaultPath={vaultPath} variant="toolbar" />}
     />
   );

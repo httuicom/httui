@@ -16,9 +16,11 @@ import type {
   ConflictVersions,
   GitFileChange,
   GitStatus,
+  Remote,
 } from "@/lib/tauri/git";
 
 import { GitCommitDiffViewer } from "./GitCommitDiffViewer";
+import { GitMetricsStrip } from "./GitMetricsStrip";
 import { GitCommitForm } from "./GitCommitForm";
 import { GitConflictBanner } from "./GitConflictBanner";
 import { GitConflictResolver } from "./GitConflictResolver";
@@ -96,6 +98,10 @@ export interface GitPanelProps {
   onCancelResolver?: () => void;
   /** Right-aligned toolbar slot (V10 cenário 7 mounts ShareMenu). */
   toolbarExtra?: React.ReactNode;
+  // --- Metrics strip (V10.1 cenário 6) ---
+  remotes?: ReadonlyArray<Remote>;
+  /** Epoch ms of the last successful sync, or null. */
+  lastSyncAt?: number | null;
 }
 
 const TabButton = chakra("button");
@@ -140,6 +146,8 @@ export function GitPanel({
   onResolveMerged,
   onCancelResolver,
   toolbarExtra,
+  remotes = [],
+  lastSyncAt = null,
 }: GitPanelProps) {
   if (status === null) {
     return (
@@ -197,6 +205,13 @@ export function GitPanel({
         })}
       </Flex>
 
+      <GitMetricsStrip
+        status={status}
+        commits={commits}
+        remotes={remotes}
+        lastSyncAt={lastSyncAt}
+      />
+
       {(onFetch || onPull || onPush || toolbarExtra) && (
         <Flex
           align="center"
@@ -235,8 +250,8 @@ export function GitPanel({
           borderBottomColor="border"
         >
           <Text fontSize="11px" color="fg" mb={2}>
-            Branch <strong>{upstreamPrompt.branch}</strong> has no
-            upstream. Set upstream to{" "}
+            Branch <strong>{upstreamPrompt.branch}</strong> has no upstream. Set
+            upstream to{" "}
             <strong>
               {upstreamPrompt.remote}/{upstreamPrompt.branch}
             </strong>{" "}
@@ -349,7 +364,6 @@ export function GitPanel({
           />
         </Flex>
       )}
-
     </Flex>
   );
 }

@@ -62,6 +62,7 @@ export function useGitSync(vaultPath: string | null): UseGitSyncResult {
 
   const finish = useCallback(async () => {
     setStep("done");
+    useGitStore.getState().markSynced();
     await useGitStore.getState().refreshStatus();
     await useGitStore.getState().reloadLog();
   }, []);

@@ -8,6 +8,7 @@ import {
   partitionFileChanges,
   relativeTime,
   summarizeBranch,
+  summarizeChangeCounts,
 } from "../git-derive";
 
 function status(over: Partial<GitStatus> = {}): GitStatus {
@@ -166,5 +167,43 @@ describe("authorInitials", () => {
 
   it("uppercases the result", () => {
     expect(authorInitials(commit({ author_name: "ada lovelace" }))).toBe("AL");
+  });
+});
+
+describe("summarizeChangeCounts", () => {
+  const f = (over: Partial<GitFileChange>): GitFileChange => ({
+    path: "x",
+    status: " M",
+    staged: false,
+    untracked: false,
+    ...over,
+  });
+
+  it("is all-zero for an empty list", () => {
+    expect(summarizeChangeCounts([])).toEqual({
+      modified: 0,
+      added: 0,
+      deleted: 0,
+      untracked: 0,
+      conflicted: 0,
+    });
+  });
+
+  it("tallies each kind, folding rename/copy into modified", () => {
+    const counts = summarizeChangeCounts([
+      f({ status: " M" }),
+      f({ status: "R." }),
+      f({ status: "A." }),
+      f({ status: " D" }),
+      f({ status: "??", untracked: true }),
+      f({ status: "UU" }),
+    ]);
+    expect(counts).toEqual({
+      modified: 2,
+      added: 1,
+      deleted: 1,
+      untracked: 1,
+      conflicted: 1,
+    });
   });
 });

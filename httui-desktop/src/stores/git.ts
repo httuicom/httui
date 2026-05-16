@@ -40,6 +40,10 @@ interface GitState {
   /** True once the user typed into the commit field — template
    *  prefill (cenário 2) must not clobber a hand-edited draft. */
   commitMessageDirty: boolean;
+  /** Epoch ms of the last successful fetch/pull/push, or null.
+   *  Drives the pane-tab "last sync" metric (cenário 6). Session-
+   *  only — a freshness hint, not worth persisting. */
+  lastSyncAt: number | null;
 
   _subscribers: number;
   _timer: ReturnType<typeof setInterval> | null;
@@ -56,6 +60,8 @@ interface GitState {
   /** Prefill from the commit template — sets the text but keeps the
    *  draft non-dirty so a later user edit still wins (cenário 2). */
   setCommitMessageFromTemplate: (msg: string) => void;
+  /** Stamp a successful sync op (cenário 6 "last sync" metric). */
+  markSynced: () => void;
 }
 
 const INITIAL = {
@@ -67,6 +73,7 @@ const INITIAL = {
   commits: [] as CommitInfo[],
   commitMessage: "",
   commitMessageDirty: false,
+  lastSyncAt: null as number | null,
 };
 
 function stopTimer(timer: ReturnType<typeof setInterval> | null) {
@@ -178,6 +185,7 @@ export const useGitStore = create<GitState>()(
         set({ commitMessage: "", commitMessageDirty: false }),
       setCommitMessageFromTemplate: (msg) =>
         set({ commitMessage: msg, commitMessageDirty: false }),
+      markSynced: () => set({ lastSyncAt: Date.now() }),
     }),
     { name: "git-store" },
   ),

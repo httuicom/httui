@@ -50,6 +50,7 @@ describe("useGitStore", () => {
     expect(st().commits).toEqual([]);
     expect(st().commitMessage).toBe("");
     expect(st().commitMessageDirty).toBe(false);
+    expect(st().lastSyncAt).toBeNull();
     expect(st()._subscribers).toBe(0);
     expect(st()._timer).toBeNull();
   });
@@ -256,6 +257,13 @@ describe("useGitStore", () => {
       st().setCommitMessageFromTemplate("Update foo");
       expect(st().commitMessage).toBe("Update foo");
       expect(st().commitMessageDirty).toBe(false);
+    });
+
+    it("markSynced stamps lastSyncAt with the current time", () => {
+      const before = Date.now();
+      st().markSynced();
+      expect(st().lastSyncAt).not.toBeNull();
+      expect(st().lastSyncAt!).toBeGreaterThanOrEqual(before);
     });
   });
 
