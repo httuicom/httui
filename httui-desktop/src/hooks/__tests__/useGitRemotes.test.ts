@@ -2,15 +2,28 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
+import { resetGitStore } from "@/stores/git";
 
 import { useGitRemotes } from "@/hooks/useGitRemotes";
 
 beforeEach(() => {
   clearTauriMocks();
+  resetGitStore();
+  // The store-backed shim also polls status; keep it quiet so these
+  // remotes-only specs stay deterministic.
+  mockTauriCommand("git_status_cmd", () => ({
+    branch: "main",
+    upstream: null,
+    ahead: 0,
+    behind: 0,
+    changed: [],
+    clean: true,
+  }));
 });
 
 afterEach(() => {
   clearTauriMocks();
+  resetGitStore();
 });
 
 describe("useGitRemotes", () => {

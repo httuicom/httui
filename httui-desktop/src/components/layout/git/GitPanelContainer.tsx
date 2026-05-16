@@ -14,14 +14,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useGitConflictResolve } from "@/hooks/useGitConflictResolve";
 import { useGitRemotes } from "@/hooks/useGitRemotes";
-import { useGitStatus, GIT_STATUS_POLL_MS } from "@/hooks/useGitStatus";
+import { useGitStatus } from "@/hooks/useGitStatus";
 import { writeNote } from "@/lib/tauri/commands";
 import {
   gitConflictVersions,
   gitCommit,
   gitDiff,
   gitFetch,
-  gitLog,
   gitPull,
   gitPush,
   stagePath,
@@ -30,6 +29,7 @@ import {
   type ConflictVersions,
   type GitFileChange,
 } from "@/lib/tauri/git";
+import { useGitStore } from "@/stores/git";
 import { usePaneStore } from "@/stores/pane";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -44,8 +44,6 @@ import {
   type LogFilterState,
 } from "./git-log-filter";
 
-const LOG_LIMIT = 50;
-
 interface GitPanelContainerProps {
   onNavigateFile?: (filePath: string) => void;
 }
@@ -56,15 +54,15 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
 
   const { status, refresh: refreshStatus } = useGitStatus(vaultPath);
 
-  const [commits, setCommits] = useState<CommitInfo[]>([]);
+  const commits = useGitStore((s) => s.commits);
+  const reloadLog = useGitStore((s) => s.reloadLog);
   const [activeTab, setActiveTab] = useState<GitPanelTab>("status");
-  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(
-    null,
-  );
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [selectedCommitSha, setSelectedCommitSha] = useState<string | null>(
     null,
   );
-  const [commitMessage, setCommitMessage] = useState("");
+  const commitMessage = useGitStore((s) => s.commitMessage);
+  const setCommitMessage = useGitStore((s) => s.setCommitMessage);
   const [commitAmend, setCommitAmend] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [diff, setDiff] = useState<string | null | undefined>(undefined);
@@ -85,17 +83,9 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     versions: ConflictVersions;
   } | null>(null);
 
-  const { remotes, refresh: refreshRemotes } = useGitRemotes(vaultPath);
+  const { remotes } = useGitRemotes(vaultPath);
   const hasRemote = remotes.length > 0;
 
-  // useGitRemotes is one-shot; re-poll on the same cadence as the
-  // status poll so a `git remote add` done outside the app is
-  // reflected without a manual reload (V10 cenário 5 follow-up).
-  useEffect(() => {
-    if (!vaultPath) return;
-    const id = setInterval(refreshRemotes, GIT_STATUS_POLL_MS);
-    return () => clearInterval(id);
-  }, [vaultPath, refreshRemotes]);
   const {
     busy: conflictBusy,
     acceptOurs,
@@ -116,33 +106,22 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
   const pathFilter =
     logFilter.mode === "path" ? parsePathFilter(logFilter.query) : null;
 
-  const reloadLog = useCallback(async () => {
-    if (!vaultPath) {
-      setCommits([]);
-      return;
-    }
-    try {
-      setCommits(
-        await gitLog(vaultPath, LOG_LIMIT, pathFilter ?? undefined),
-      );
-    } catch {
-      // Transient (not a repo yet, IPC dead) — the status poll
-      // surfaces real errors; the log list just stays empty.
-      setCommits([]);
-    }
-  }, [vaultPath, pathFilter]);
+  const refreshLog = useCallback(
+    () => reloadLog(pathFilter ?? undefined),
+    [reloadLog, pathFilter],
+  );
 
   useEffect(() => {
-    void reloadLog();
-  }, [reloadLog]);
+    void refreshLog();
+  }, [refreshLog]);
 
   // A save just landed — reflect it immediately instead of waiting
   // for the 2s status poll. saveSignal is bumped by `notifySaved`.
   useEffect(() => {
     if (saveSignal === 0) return;
     refreshStatus();
-    void reloadLog();
-  }, [saveSignal, refreshStatus, reloadLog]);
+    void refreshLog();
+  }, [saveSignal, refreshStatus, refreshLog]);
 
   const handleToggleStage = useCallback(
     async (file: GitFileChange) => {
@@ -208,17 +187,17 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       setCommitting(true);
       try {
         await gitCommit(vaultPath, input.message, input.amend);
-        setCommitMessage("");
+        useGitStore.getState().resetCommitMessage();
         setCommitAmend(false);
         setDiff(undefined);
         setSelectedFilePath(null);
         refreshStatus();
-        await reloadLog();
+        await refreshLog();
       } finally {
         setCommitting(false);
       }
     },
-    [vaultPath, committing, refreshStatus, reloadLog],
+    [vaultPath, committing, refreshStatus, refreshLog],
   );
 
   const runSync = useCallback(
@@ -228,7 +207,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       try {
         await fn();
         refreshStatus();
-        await reloadLog();
+        await refreshLog();
         if (touchesTree) {
           await useWorkspaceStore.getState().refreshFileTree(vaultPath);
         }
@@ -239,7 +218,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
         setSyncInFlight(null);
       }
     },
-    [vaultPath, syncInFlight, refreshStatus, reloadLog],
+    [vaultPath, syncInFlight, refreshStatus, refreshLog],
   );
 
   const handleFetch = useCallback(
@@ -301,8 +280,8 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
 
   const afterConflictMutation = useCallback(() => {
     refreshStatus();
-    void reloadLog();
-  }, [refreshStatus, reloadLog]);
+    void refreshLog();
+  }, [refreshStatus, refreshLog]);
 
   const handleAcceptYours = useCallback(
     async (path: string) => {
@@ -387,9 +366,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       resolver={resolver}
       onResolveMerged={handleResolveMerged}
       onCancelResolver={handleCancelResolver}
-      toolbarExtra={
-        <ShareMenu vaultPath={vaultPath} variant="toolbar" />
-      }
+      toolbarExtra={<ShareMenu vaultPath={vaultPath} variant="toolbar" />}
     />
   );
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
+import { resetGitStore } from "@/stores/git";
 
 import { useGitStatus, GIT_STATUS_POLL_MS } from "@/hooks/useGitStatus";
 
@@ -15,11 +16,16 @@ const SAMPLE = {
 
 beforeEach(() => {
   clearTauriMocks();
+  resetGitStore();
   vi.useFakeTimers();
+  // The store-backed shim polls remotes on the same tick — keep it
+  // quiet so these status-only specs stay deterministic.
+  mockTauriCommand("git_remote_list_cmd", () => []);
 });
 
 afterEach(() => {
   clearTauriMocks();
+  resetGitStore();
   vi.useRealTimers();
 });
 
