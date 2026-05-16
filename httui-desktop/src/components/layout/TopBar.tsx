@@ -247,6 +247,7 @@ export function TopBar({
         variant="ghost"
         size="xs"
         onClick={toggleGitSidePanel}
+        color={gitSidePanelOpen ? "brand.fg" : undefined}
       >
         <LuGitBranch />
       </IconButton>
