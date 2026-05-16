@@ -103,6 +103,25 @@ fn parse_status(raw: &str) -> Result<GitStatus, String> {
                 staged: true,
                 untracked: false,
             });
+        } else if let Some(rest) = line.strip_prefix("u ") {
+            // Unmerged (conflict) entry:
+            // `<XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>`
+            // XY is e.g. `UU`/`AA`/`DD`/`AU`/`UD`. Without this arm a
+            // conflicted vault reads as "clean" and the V10 conflict
+            // banner never shows. Not staged + not untracked so the
+            // frontend's `labelFileStatus` maps it to "conflicted".
+            let mut fields = rest.splitn(10, ' ');
+            let xy = fields.next().unwrap_or("..");
+            let path = fields.nth(8).unwrap_or("").to_string();
+            if path.is_empty() {
+                continue;
+            }
+            out.changed.push(FileChange {
+                path,
+                status: xy.to_string(),
+                staged: false,
+                untracked: false,
+            });
         }
     }
     out.clean = out.changed.is_empty();
@@ -210,6 +229,53 @@ mod tests {
         assert_eq!(s.changed.len(), 1);
         assert_eq!(s.changed[0].path, "a");
         assert!(!s.changed[0].untracked);
+    }
+
+    #[test]
+    fn parse_status_reports_unmerged_conflict_line() {
+        // porcelain=v2 `u` line for a both-modified conflict.
+        let raw = "# branch.head main\nu UU N... 100644 100644 100644 100644 aaa bbb ccc runbooks/okl.md\n";
+        let s = parse_status(raw).unwrap();
+        assert!(!s.clean, "conflicted tree must not read as clean");
+        assert_eq!(s.changed.len(), 1);
+        assert_eq!(s.changed[0].path, "runbooks/okl.md");
+        assert_eq!(s.changed[0].status, "UU");
+        assert!(!s.changed[0].staged);
+        assert!(!s.changed[0].untracked);
+    }
+
+    #[test]
+    fn status_reports_real_merge_conflict_as_unmerged() {
+        use std::process::Command;
+        let dir = TempDir::new().unwrap();
+        let p = dir.path();
+        init_repo(p);
+        std::fs::write(p.join("f.txt"), "base\n").unwrap();
+        commit_all(p, "base");
+        let run = |args: &[&str]| {
+            Command::new("git")
+                .arg("-C")
+                .arg(p)
+                .args(args)
+                .output()
+                .unwrap()
+        };
+        run(&["checkout", "-b", "feature"]);
+        std::fs::write(p.join("f.txt"), "theirs\n").unwrap();
+        commit_all(p, "theirs");
+        run(&["checkout", "main"]);
+        std::fs::write(p.join("f.txt"), "ours\n").unwrap();
+        commit_all(p, "ours");
+        let _ = run(&["merge", "feature"]); // conflicts
+        let s = git_status(p).unwrap();
+        assert!(!s.clean);
+        let f = s
+            .changed
+            .iter()
+            .find(|c| c.path == "f.txt")
+            .expect("conflicted f.txt must appear in status");
+        assert!(f.status.contains('U'), "got status {}", f.status);
+        assert!(!f.untracked);
     }
 
     #[test]
