@@ -60,6 +60,7 @@ import {
   referenceHighlight,
   createMarkdownReferenceTooltip,
 } from "@/lib/blocks/cm-references";
+import { refClickExtension } from "@/lib/blocks/cm-ref-popover";
 
 import type { FileEntry } from "@/lib/tauri/commands";
 import {
@@ -190,6 +191,7 @@ export function buildExtensions(params: BuildExtensionsParams) {
     // `tooltips({ parent })` here (and setting one breaks baseTheme
     // styling, which is scoped to `.cm-editor`).
     ...referenceHighlight,
+    refClickExtension,
     createMarkdownReferenceTooltip(() => filePath, getActiveVariables),
     editorTheme,
     EditorView.lineWrapping,

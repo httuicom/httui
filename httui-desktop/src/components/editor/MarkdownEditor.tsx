@@ -26,6 +26,7 @@ import { listen } from "@tauri-apps/api/event";
 
 import { DbWidgetPortals } from "./DbWidgetPortals";
 import { HttpWidgetPortals } from "./HttpWidgetPortals";
+import { RefPopoverHost } from "./RefPopoverHost";
 import {
   DocHeaderWidgetPortal,
   type InlineDocHeader,
@@ -192,6 +193,7 @@ export function MarkdownEditor({
           <>
             <DbWidgetPortals view={viewRef.current} filePath={filePath} />
             <HttpWidgetPortals view={viewRef.current} filePath={filePath} />
+            <RefPopoverHost />
             {docHeaderHandle && inlineHeader && (
               <DocHeaderWidgetPortal
                 instanceId={docHeaderHandle.instanceId}
