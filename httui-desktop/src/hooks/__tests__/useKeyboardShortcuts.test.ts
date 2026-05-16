@@ -211,4 +211,58 @@ describe("useKeyboardShortcuts", () => {
     window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(false);
   });
+
+  // V11 cenário 7 — the new popover chords (⌘E / ⌘⇧V) must not
+  // collide with common tmux / terminal external chords.
+  describe("V11 cenário 7 — no tmux/terminal chord conflict", () => {
+    it("tmux prefix chords (Ctrl+B, Ctrl+A) never open the V11 popovers", () => {
+      const actions = {
+        ...createActions(),
+        openEnvSwitcher: vi.fn(),
+        openNewVariable: vi.fn(),
+      };
+      renderHook(() => useKeyboardShortcuts(actions));
+      fireKey("b", { ctrlKey: true, metaKey: false });
+      fireKey("a", { ctrlKey: true, metaKey: false });
+      fireKey("z", { ctrlKey: true, metaKey: false });
+      expect(actions.openEnvSwitcher).not.toHaveBeenCalled();
+      expect(actions.openNewVariable).not.toHaveBeenCalled();
+    });
+
+    it("bare 'e' / 'v' (no modifier) never open the V11 popovers", () => {
+      const actions = {
+        ...createActions(),
+        openEnvSwitcher: vi.fn(),
+        openNewVariable: vi.fn(),
+      };
+      renderHook(() => useKeyboardShortcuts(actions));
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "e", bubbles: true }),
+      );
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "v",
+          shiftKey: true,
+          bubbles: true,
+        }),
+      );
+      expect(actions.openEnvSwitcher).not.toHaveBeenCalled();
+      expect(actions.openNewVariable).not.toHaveBeenCalled();
+    });
+
+    it("⌘E and ⌘⇧V remain distinct (no cross-trigger)", () => {
+      const actions = {
+        ...createActions(),
+        openEnvSwitcher: vi.fn(),
+        openNewVariable: vi.fn(),
+      };
+      renderHook(() => useKeyboardShortcuts(actions));
+      fireKey("e"); // plain ⌘E
+      expect(actions.openEnvSwitcher).toHaveBeenCalledOnce();
+      expect(actions.openNewVariable).not.toHaveBeenCalled();
+      fireKey("v", { shiftKey: true }); // ⌘⇧V
+      expect(actions.openNewVariable).toHaveBeenCalledOnce();
+      expect(actions.openEnvSwitcher).toHaveBeenCalledOnce();
+    });
+  });
 });
