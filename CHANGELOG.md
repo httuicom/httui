@@ -21,6 +21,28 @@ launch checklist (Epic 38, Story 03).
 
 ### Added
 
+- **Git side panel (Source Control)** — coluna lateral colapsável
+  estilo VS Code, aberta/fechada pelo botão git da top bar e
+  persistente entre sessões: status do branch, lista de mudanças
+  com stage/unstage por arquivo, campo de commit, Sync, history
+  compacto, e botão "Details" pro pane-tab detalhado. Não rouba o
+  foco do editor. (V10.1 cenários 1, 5)
+- **Sync de 1 clique** — botão Sync faz stage-all → commit → pull
+  (fast-forward only) → push numa ação só, com progresso por
+  etapa; para na etapa que falhar e mostra o motivo; reusa o
+  confirm de set-upstream quando o branch não tem upstream.
+  (V10.1 cenário 3)
+- **Template de commit message** — o campo de commit vem
+  pré-preenchido (`Update <nota>` / `Update N notes` por padrão);
+  configurável em Settings → General com placeholders `{{notes}}`
+  / `{{count}}` / `{{date}}`. (V10.1 cenários 2, 8)
+- **History compacto + diff inline** — últimos commits no side
+  panel (hash, autor, subject, tempo relativo); clicar abre o diff
+  do commit ali mesmo; "View all" abre o pane-tab. (V10.1 cenário 4)
+- **Faixa de métricas no pane-tab git** — branch, upstream,
+  ahead/behind explícito, mudanças por tipo, autor do último
+  commit, último sync e URL do remote acima das abas. (V10.1
+  cenário 6)
 - **Git panel** — aba singleton (botão na top bar) com Status / Log:
   working tree (staged/unstaged/untracked), stage/unstage por
   arquivo, commit form com preview, log filtrável (autor / path),
@@ -214,6 +236,9 @@ launch checklist (Epic 38, Story 03).
 
 ### Changed
 
+- **Botão git da top bar** — agora abre/fecha o git side panel
+  (antes abria direto o pane-tab). O pane-tab detalhado abre pelo
+  "Details" / "View all" dentro do side panel. (V10.1 cenário 1)
 - **Design system token vocabulary** — UI 100% alinhada ao
   vocabulário Chakra v3. Tokens custom (`bg.1/2/3/hi`,
   `fg.2/3`, `line`, `line.soft`, `accent.*`, `sel`) foram
@@ -286,6 +311,12 @@ launch checklist (Epic 38, Story 03).
 
 ### Fixed
 
+- **Erro de push ilegível** — rejeições do push (branch protegida
+  / GH013 / non-fast-forward / auth) eram despejadas como o stderr
+  cru do git, espremido e ininteligível. Agora vêm com um resumo
+  legível em destaque + o detalhe limpo (sem o ruído `remote:`)
+  num bloco rolável; o botão volta a "Retry sync". (V10.1
+  cenário 3, follow-up de UAT)
 - **Conflitos de merge invisíveis no git panel** — `git status`
   não interpretava as linhas `u` (unmerged) do `porcelain=v2`, então
   um vault em conflito aparecia como "Working tree clean" e o banner
