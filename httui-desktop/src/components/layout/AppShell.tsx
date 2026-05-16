@@ -193,7 +193,7 @@ export function AppShell() {
 
         {vaultPath !== null && <MigrationBannerHost vaultPath={vaultPath} />}
 
-        <Flex flex={1} overflow="hidden">
+        <Flex flex={1} overflow="hidden" position="relative">
           {vaultPath === null ? (
             <EmptyVaultScreen />
           ) : (
@@ -215,30 +215,46 @@ export function AppShell() {
                 handleEditorChange={editorSession.handleEditorChange}
                 onNavigateFile={editorSession.handleFileSelect}
               />
-              {outlinePanelOpen && (
-                <OutlinePanel
-                  width={outlinePanelWidth}
-                  onClose={toggleOutlinePanel}
-                />
-              )}
-              {historyPanelOpen && (
-                <HistoryPanel
-                  width={historyPanelWidth}
-                  onClose={toggleHistoryPanel}
-                />
-              )}
-              {schemaPanelOpen && (
-                <SchemaPanel
-                  width={schemaPanelWidth}
-                  onClose={toggleSchemaPanel}
-                />
-              )}
-              {chatOpen && <ChatPanel width={chatWidth} />}
-              {gitSidePanelOpen && (
-                <GitSidePanel
-                  width={gitSidePanelWidth}
-                  onClose={() => setGitSidePanelOpen(false)}
-                />
+              {(outlinePanelOpen ||
+                historyPanelOpen ||
+                schemaPanelOpen ||
+                chatOpen ||
+                gitSidePanelOpen) && (
+                <Flex
+                  data-testid="right-panel-overlay"
+                  position="absolute"
+                  top={0}
+                  right={0}
+                  bottom={0}
+                  zIndex={5}
+                  boxShadow="-12px 0 28px -8px rgba(0, 0, 0, 0.28)"
+                >
+                  {outlinePanelOpen && (
+                    <OutlinePanel
+                      width={outlinePanelWidth}
+                      onClose={toggleOutlinePanel}
+                    />
+                  )}
+                  {historyPanelOpen && (
+                    <HistoryPanel
+                      width={historyPanelWidth}
+                      onClose={toggleHistoryPanel}
+                    />
+                  )}
+                  {schemaPanelOpen && (
+                    <SchemaPanel
+                      width={schemaPanelWidth}
+                      onClose={toggleSchemaPanel}
+                    />
+                  )}
+                  {chatOpen && <ChatPanel width={chatWidth} />}
+                  {gitSidePanelOpen && (
+                    <GitSidePanel
+                      width={gitSidePanelWidth}
+                      onClose={() => setGitSidePanelOpen(false)}
+                    />
+                  )}
+                </Flex>
               )}
             </>
           )}

@@ -35,6 +35,9 @@ vi.mock("@/components/layout/schema/SchemaPanel", () => ({
 vi.mock("@/components/chat/ChatPanel", () => ({
   ChatPanel: () => <div data-testid="chat-panel" />,
 }));
+vi.mock("@/components/layout/git/GitSidePanel", () => ({
+  GitSidePanel: () => <div data-testid="git-side-panel" />,
+}));
 vi.mock("@/components/layout/EmptyVaultScreen", () => ({
   EmptyVaultScreen: () => <div data-testid="empty-vault" />,
 }));
@@ -82,6 +85,7 @@ vi.mock("@/hooks/useAutoUpdate", () => ({
 
 import { AppShell } from "@/components/layout/AppShell";
 import { useWorkspaceStore } from "@/stores/workspace";
+import { useSettingsStore } from "@/stores/settings";
 
 beforeEach(() => {
   colorModeSyncMounts.mockClear();
@@ -98,6 +102,7 @@ afterEach(() => {
     vaults: [],
     entries: [],
   } as never);
+  useSettingsStore.setState({ gitSidePanelOpen: false } as never);
 });
 
 describe("AppShell", () => {
@@ -131,5 +136,33 @@ describe("AppShell", () => {
     expect(getByTestId("pane-container")).toBeTruthy();
     expect(getByTestId("statusbar")).toBeTruthy();
     expect(queryByTestId("empty-vault")).toBeNull();
+  });
+
+  it("does not render the right-panel overlay when no right panel is open", () => {
+    useWorkspaceStore.setState({
+      vaultPath: "/v",
+      vaults: [],
+      entries: [],
+    } as never);
+    const { queryByTestId } = renderWithProviders(<AppShell />);
+    expect(queryByTestId("right-panel-overlay")).toBeNull();
+  });
+
+  it("mounts open right panels inside an absolutely-positioned overlay (floats over the editor instead of pushing it)", () => {
+    useWorkspaceStore.setState({
+      vaultPath: "/v",
+      vaults: [],
+      entries: [],
+    } as never);
+    useSettingsStore.setState({ gitSidePanelOpen: true } as never);
+
+    const { getByTestId } = renderWithProviders(<AppShell />);
+
+    const overlay = getByTestId("right-panel-overlay");
+    // The panel renders inside the overlay, not as a flex sibling of
+    // the editor surface — so it can't steal width from PaneContainer.
+    expect(overlay.contains(getByTestId("git-side-panel"))).toBe(true);
+    // Pulled out of the flex flow so the editor keeps its full width.
+    expect(getComputedStyle(overlay).position).toBe("absolute");
   });
 });
