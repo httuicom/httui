@@ -148,10 +148,12 @@ export function gitPush(
   vaultPath: string,
   remote?: string,
   branch?: string,
+  setUpstream = false,
 ): Promise<string> {
   return invoke("git_push_cmd", {
     vaultPath,
     remote: remote ?? null,
     branch: branch ?? null,
+    setUpstream,
   });
 }

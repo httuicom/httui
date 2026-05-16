@@ -10,6 +10,7 @@
 
 import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
+import { Btn } from "@/components/atoms";
 import type { CommitInfo, GitFileChange, GitStatus } from "@/lib/tauri/git";
 
 import { GitAuditHeader } from "./GitAuditHeader";
@@ -19,6 +20,7 @@ import { GitFileList } from "./GitFileList";
 import { GitLogFilter } from "./GitLogFilter";
 import { GitLogList } from "./GitLogList";
 import { GitStatusHeader } from "./GitStatusHeader";
+import { GitSyncButtons, type SyncOp } from "./GitSyncButtons";
 import type { LogFilterState } from "./git-log-filter";
 
 export type GitPanelTab = "status" | "log" | "audit";
@@ -63,6 +65,18 @@ export interface GitPanelProps {
   // --- Log filter (cenário 3) ---
   logFilter?: LogFilterState;
   onLogFilterChange?: (next: LogFilterState) => void;
+  // --- Sync toolbar (cenário 5) ---
+  syncInFlight?: SyncOp | null;
+  hasRemote?: boolean;
+  onFetch?: () => void;
+  onPull?: () => void;
+  onPush?: () => void;
+  onConfigureRemote?: () => void;
+  /** When set, the no-upstream confirm banner is shown for this
+   *  branch (V10 cenário 5.2). */
+  upstreamPrompt?: { branch: string; remote: string } | null;
+  onConfirmSetUpstream?: () => void;
+  onCancelSetUpstream?: () => void;
 }
 
 const TabButton = chakra("button");
@@ -90,6 +104,15 @@ export function GitPanel({
   diffSubject,
   logFilter,
   onLogFilterChange,
+  syncInFlight = null,
+  hasRemote = true,
+  onFetch,
+  onPull,
+  onPush,
+  onConfigureRemote,
+  upstreamPrompt,
+  onConfirmSetUpstream,
+  onCancelSetUpstream,
 }: GitPanelProps) {
   if (status === null) {
     return (
@@ -146,6 +169,60 @@ export function GitPanel({
           );
         })}
       </Flex>
+
+      {(onFetch || onPull || onPush) && (
+        <Box
+          flexShrink={0}
+          borderBottomWidth="1px"
+          borderBottomColor="border"
+        >
+          <GitSyncButtons
+            inFlight={syncInFlight}
+            hasRemote={hasRemote}
+            onFetch={onFetch}
+            onPull={onPull}
+            onPush={onPush}
+            onConfigureRemote={onConfigureRemote}
+          />
+        </Box>
+      )}
+
+      {upstreamPrompt && (
+        <Box
+          data-testid="git-upstream-prompt"
+          flexShrink={0}
+          px={3}
+          py={2}
+          bg="bg.muted"
+          borderBottomWidth="1px"
+          borderBottomColor="border"
+        >
+          <Text fontSize="11px" color="fg" mb={2}>
+            Branch <strong>{upstreamPrompt.branch}</strong> has no
+            upstream. Set upstream to{" "}
+            <strong>
+              {upstreamPrompt.remote}/{upstreamPrompt.branch}
+            </strong>{" "}
+            and push?
+          </Text>
+          <Flex gap={2}>
+            <Btn
+              data-testid="git-upstream-prompt-confirm"
+              variant="primary"
+              onClick={onConfirmSetUpstream}
+            >
+              Set upstream &amp; push
+            </Btn>
+            <Btn
+              data-testid="git-upstream-prompt-cancel"
+              variant="ghost"
+              onClick={onCancelSetUpstream}
+            >
+              Cancel
+            </Btn>
+          </Flex>
+        </Box>
+      )}
 
       {activeTab === "status" && (
         <Flex direction="column" flex="1 1 auto" minH={0}>

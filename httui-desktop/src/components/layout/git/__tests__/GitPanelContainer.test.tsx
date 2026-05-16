@@ -56,6 +56,12 @@ beforeEach(() => {
   mockTauriCommand("unstage_path_cmd", () => undefined);
   mockTauriCommand("git_commit_cmd", () => undefined);
   mockTauriCommand("git_diff_cmd", () => "diff --git a/a.md b/a.md\n+x");
+  mockTauriCommand("git_remote_list_cmd", () => [
+    { name: "origin", url: "git@github.com:me/repo.git" },
+  ]);
+  mockTauriCommand("git_fetch_cmd", () => "Fetched origin");
+  mockTauriCommand("git_pull_cmd", () => "Already up to date.");
+  mockTauriCommand("git_push_cmd", () => "Everything up-to-date");
 });
 
 afterEach(() => {
@@ -359,6 +365,110 @@ describe("GitPanelContainer", () => {
       expect(
         await screen.findByTestId("git-log-row-deadbee"),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("sync: fetch / pull / push (cenário 5)", () => {
+    const noUpstream: GitStatus = {
+      branch: "feat/new",
+      upstream: null,
+      ahead: 0,
+      behind: 0,
+      changed: [],
+      clean: true,
+    };
+
+    it("fetches via git_fetch_cmd", async () => {
+      let fetched = 0;
+      mockTauriCommand("git_fetch_cmd", () => {
+        fetched += 1;
+        return "ok";
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await user.click(await screen.findByTestId("git-sync-fetch"));
+      await waitFor(() => expect(fetched).toBe(1));
+    });
+
+    it("pulls via git_pull_cmd and refreshes the file tree", async () => {
+      let pulled = 0;
+      const refresh = vi.fn(async () => {});
+      useWorkspaceStore.setState({ refreshFileTree: refresh });
+      mockTauriCommand("git_pull_cmd", () => {
+        pulled += 1;
+        return "ok";
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await user.click(await screen.findByTestId("git-sync-pull"));
+      await waitFor(() => expect(pulled).toBe(1));
+      await waitFor(() => expect(refresh).toHaveBeenCalled());
+    });
+
+    it("pushes directly when an upstream is set", async () => {
+      let pushArgs: unknown = null;
+      mockTauriCommand("git_push_cmd", (a) => {
+        pushArgs = a;
+        return "ok";
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await user.click(await screen.findByTestId("git-sync-push"));
+      await waitFor(() =>
+        expect((pushArgs as { setUpstream: boolean }).setUpstream).toBe(
+          false,
+        ),
+      );
+      expect(
+        screen.queryByTestId("git-upstream-prompt"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("prompts for upstream then pushes with -u on confirm", async () => {
+      let pushArgs: { setUpstream: boolean; branch: string | null } | null =
+        null;
+      mockTauriCommand("git_status_cmd", () => noUpstream);
+      mockTauriCommand("git_push_cmd", (a) => {
+        pushArgs = a as { setUpstream: boolean; branch: string | null };
+        return "ok";
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await user.click(await screen.findByTestId("git-sync-push"));
+      const prompt = await screen.findByTestId("git-upstream-prompt");
+      expect(prompt.textContent).toContain("feat/new");
+      await user.click(
+        screen.getByTestId("git-upstream-prompt-confirm"),
+      );
+      await waitFor(() => expect(pushArgs).not.toBeNull());
+      expect(pushArgs!.setUpstream).toBe(true);
+      expect(pushArgs!.branch).toBe("feat/new");
+      await waitFor(() =>
+        expect(
+          screen.queryByTestId("git-upstream-prompt"),
+        ).not.toBeInTheDocument(),
+      );
+    });
+
+    it("cancels the upstream prompt without pushing", async () => {
+      let pushed = 0;
+      mockTauriCommand("git_status_cmd", () => noUpstream);
+      mockTauriCommand("git_push_cmd", () => {
+        pushed += 1;
+        return "ok";
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await user.click(await screen.findByTestId("git-sync-push"));
+      await user.click(
+        await screen.findByTestId("git-upstream-prompt-cancel"),
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByTestId("git-upstream-prompt"),
+        ).not.toBeInTheDocument(),
+      );
+      expect(pushed).toBe(0);
     });
   });
 });

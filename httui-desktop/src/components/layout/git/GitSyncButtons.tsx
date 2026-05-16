@@ -13,6 +13,7 @@
 // `onConfigureRemote`).
 
 import { Box, Flex, Text } from "@chakra-ui/react";
+import { LuArrowDown, LuArrowUp } from "react-icons/lu";
 
 import { Btn } from "@/components/atoms";
 
@@ -58,7 +59,8 @@ export function GitSyncButtons({
             disabled={busy}
             onClick={onFetch}
           >
-            {inFlight === "fetch" ? "↓ Fetching…" : "↓ Fetch"}
+            <LuArrowDown size={11} aria-hidden />
+            {inFlight === "fetch" ? "Fetching…" : "Fetch"}
           </Btn>
         )}
         {onPull && (
@@ -69,7 +71,8 @@ export function GitSyncButtons({
             disabled={busy}
             onClick={onPull}
           >
-            {inFlight === "pull" ? "↓ Pulling…" : "↓ Pull"}
+            <LuArrowDown size={11} aria-hidden />
+            {inFlight === "pull" ? "Pulling…" : "Pull"}
           </Btn>
         )}
         {onPush && (
@@ -80,7 +83,8 @@ export function GitSyncButtons({
             disabled={busy || !hasRemote}
             onClick={onPush}
           >
-            {inFlight === "push" ? "↑ Pushing…" : "↑ Push"}
+            <LuArrowUp size={11} aria-hidden />
+            {inFlight === "push" ? "Pushing…" : "Push"}
           </Btn>
         )}
       </Flex>
@@ -106,7 +110,7 @@ export function GitSyncButtons({
                   onClick={onConfigureRemote}
                   cursor="pointer"
                 >
-                  Configure →
+                  Configure
                 </Text>
               </>
             )}

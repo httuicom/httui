@@ -136,14 +136,21 @@ pub async fn git_pull_cmd(
     git_pull(&PathBuf::from(vault_path), remote.as_deref(), branch.as_deref())
 }
 
-/// `git push [<remote> <branch>]`.
+/// `git push [-u] [<remote> <branch>]`. `set_upstream` is the V10
+/// no-upstream confirm path (`git push -u origin <branch>`).
 #[tauri::command]
 pub async fn git_push_cmd(
     vault_path: String,
     remote: Option<String>,
     branch: Option<String>,
+    set_upstream: bool,
 ) -> Result<String, String> {
-    git_push(&PathBuf::from(vault_path), remote.as_deref(), branch.as_deref())
+    git_push(
+        &PathBuf::from(vault_path),
+        remote.as_deref(),
+        branch.as_deref(),
+        set_upstream,
+    )
 }
 
 /// `git clone <url> <parent>/<repo-name>` — V1 vertical 1, cenário 2.
@@ -401,6 +408,7 @@ mod tests {
             dir.path().to_string_lossy().into(),
             None,
             None,
+            false,
         )
         .await
         .is_err());

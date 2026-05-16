@@ -72,11 +72,11 @@ describe("GitSyncButtons", () => {
       />,
     );
     const pullBtn = screen.getByTestId("git-sync-pull");
-    expect(pullBtn.textContent).toBe("↓ Pulling…");
+    expect(pullBtn.textContent).toBe("Pulling…");
     expect(pullBtn.getAttribute("data-in-flight")).toBe("true");
     // Other buttons keep their idle label.
-    expect(screen.getByTestId("git-sync-fetch").textContent).toBe("↓ Fetch");
-    expect(screen.getByTestId("git-sync-push").textContent).toBe("↑ Push");
+    expect(screen.getByTestId("git-sync-fetch").textContent).toBe("Fetch");
+    expect(screen.getByTestId("git-sync-push").textContent).toBe("Push");
   });
 
   it("disables Push and shows the no-remote hint when hasRemote is false", () => {

@@ -12,11 +12,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useGitRemotes } from "@/hooks/useGitRemotes";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import {
   gitCommit,
   gitDiff,
+  gitFetch,
   gitLog,
+  gitPull,
+  gitPush,
   stagePath,
   unstagePath,
   type CommitInfo,
@@ -27,6 +31,7 @@ import { useWorkspaceStore } from "@/stores/workspace";
 
 import { GitPanel, type GitPanelTab } from "./GitPanel";
 import { partitionFileChanges } from "./git-derive";
+import type { SyncOp } from "./GitSyncButtons";
 import {
   filterCommitsByAuthor,
   parsePathFilter,
@@ -63,6 +68,14 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     mode: "author",
     query: "",
   });
+  const [syncInFlight, setSyncInFlight] = useState<SyncOp | null>(null);
+  const [upstreamPrompt, setUpstreamPrompt] = useState<{
+    branch: string;
+    remote: string;
+  } | null>(null);
+
+  const { remotes } = useGitRemotes(vaultPath);
+  const hasRemote = remotes.length > 0;
 
   // Path mode filters server-side (CommitInfo carries no paths);
   // author mode filters the in-memory list. Deriving pathFilter
@@ -175,6 +188,70 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     [vaultPath, committing, refreshStatus, reloadLog],
   );
 
+  const runSync = useCallback(
+    async (op: SyncOp, fn: () => Promise<unknown>, touchesTree: boolean) => {
+      if (!vaultPath || syncInFlight) return;
+      setSyncInFlight(op);
+      try {
+        await fn();
+        refreshStatus();
+        await reloadLog();
+        if (touchesTree) {
+          await useWorkspaceStore.getState().refreshFileTree(vaultPath);
+        }
+      } catch {
+        // git stderr is surfaced by the status poll / a future toast;
+        // the sync row just returns to idle so the user can retry.
+      } finally {
+        setSyncInFlight(null);
+      }
+    },
+    [vaultPath, syncInFlight, refreshStatus, reloadLog],
+  );
+
+  const handleFetch = useCallback(
+    () => runSync("fetch", () => gitFetch(vaultPath!), false),
+    [runSync, vaultPath],
+  );
+
+  const handlePull = useCallback(
+    () => runSync("pull", () => gitPull(vaultPath!), true),
+    [runSync, vaultPath],
+  );
+
+  const doPush = useCallback(
+    (setUpstream: boolean) => {
+      const branch = status?.branch ?? null;
+      return runSync(
+        "push",
+        () =>
+          setUpstream && branch
+            ? gitPush(vaultPath!, "origin", branch, true)
+            : gitPush(vaultPath!),
+        false,
+      );
+    },
+    [runSync, vaultPath, status],
+  );
+
+  const handlePush = useCallback(() => {
+    if (status && status.upstream === null && status.branch) {
+      setUpstreamPrompt({ branch: status.branch, remote: "origin" });
+      return;
+    }
+    void doPush(false);
+  }, [status, doPush]);
+
+  const handleConfirmSetUpstream = useCallback(() => {
+    setUpstreamPrompt(null);
+    void doPush(true);
+  }, [doPush]);
+
+  const handleCancelSetUpstream = useCallback(
+    () => setUpstreamPrompt(null),
+    [],
+  );
+
   const stagedCount = status
     ? partitionFileChanges(status.changed).staged.length
     : 0;
@@ -210,6 +287,14 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       diffSubject={diffSubject}
       logFilter={logFilter}
       onLogFilterChange={setLogFilter}
+      syncInFlight={syncInFlight}
+      hasRemote={hasRemote}
+      onFetch={handleFetch}
+      onPull={handlePull}
+      onPush={handlePush}
+      upstreamPrompt={upstreamPrompt}
+      onConfirmSetUpstream={handleConfirmSetUpstream}
+      onCancelSetUpstream={handleCancelSetUpstream}
     />
   );
 }

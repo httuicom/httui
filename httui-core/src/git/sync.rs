@@ -63,14 +63,21 @@ pub fn git_pull(
     run_sync(vault, &args)
 }
 
-/// `git push [<remote> <branch>]`. Same defaults as pull.
+/// `git push [-u] [<remote> <branch>]`. Same defaults as pull. When
+/// `set_upstream` is true and both remote+branch are given, pushes
+/// with `-u` so the branch starts tracking — this is the V10
+/// "push a branch with no upstream → confirm → push -u" path.
 pub fn git_push(
     vault: &Path,
     remote: Option<&str>,
     branch: Option<&str>,
+    set_upstream: bool,
 ) -> Result<String, String> {
     let mut args = vec!["push"];
     if let Some(r) = remote {
+        if set_upstream {
+            args.push("-u");
+        }
         args.push(r);
         if let Some(b) = branch {
             args.push(b);
@@ -114,7 +121,20 @@ mod tests {
         init_repo(dir.path());
         std::fs::write(dir.path().join("a"), "x").unwrap();
         commit_all(dir.path(), "init");
-        let r = git_push(dir.path(), None, None);
+        let r = git_push(dir.path(), None, None, false);
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn push_set_upstream_includes_u_flag() {
+        // No reachable remote, so the push itself fails — but the
+        // failure must be the network/remote error, never an
+        // arg-construction panic. Guards the `-u` branch builds.
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path());
+        std::fs::write(dir.path().join("a"), "x").unwrap();
+        commit_all(dir.path(), "init");
+        let r = git_push(dir.path(), Some("origin"), Some("main"), true);
         assert!(r.is_err());
     }
 

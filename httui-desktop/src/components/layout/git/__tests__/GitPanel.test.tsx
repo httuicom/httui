@@ -246,4 +246,69 @@ describe("GitPanel", () => {
       expect(screen.getByText("+log line")).toBeInTheDocument();
     });
   });
+
+  describe("sync toolbar + upstream prompt (cenário 5)", () => {
+    it("renders the sync buttons when handlers are wired", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[]}
+          onFetch={vi.fn()}
+          onPull={vi.fn()}
+          onPush={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("git-sync-buttons")).toBeInTheDocument();
+    });
+
+    it("omits the sync toolbar when no sync handlers", () => {
+      renderWithProviders(<GitPanel status={status()} commits={[]} />);
+      expect(
+        screen.queryByTestId("git-sync-buttons"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the upstream prompt and fires confirm/cancel", async () => {
+      const onConfirm = vi.fn();
+      const onCancel = vi.fn();
+      const user = userEvent.setup();
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[]}
+          onPush={vi.fn()}
+          upstreamPrompt={{ branch: "feat/x", remote: "origin" }}
+          onConfirmSetUpstream={onConfirm}
+          onCancelSetUpstream={onCancel}
+        />,
+      );
+      const prompt = screen.getByTestId("git-upstream-prompt");
+      expect(prompt.textContent).toContain("feat/x");
+      expect(prompt.textContent).toContain("origin/feat/x");
+      await user.click(
+        screen.getByTestId("git-upstream-prompt-confirm"),
+      );
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+      await user.click(screen.getByTestId("git-upstream-prompt-cancel"));
+      expect(onCancel).toHaveBeenCalledTimes(1);
+    });
+
+    it("disables Push when there is no remote", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[]}
+          onPush={vi.fn()}
+          hasRemote={false}
+        />,
+      );
+      const pushBtn = screen.getByTestId(
+        "git-sync-push",
+      ) as HTMLButtonElement;
+      expect(pushBtn.disabled).toBe(true);
+      expect(
+        screen.getByTestId("git-sync-no-remote-hint"),
+      ).toBeInTheDocument();
+    });
+  });
 });
