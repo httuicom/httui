@@ -23,6 +23,7 @@ import { useSessionPersistence } from "@/hooks/useSessionPersistence";
 import { WorkspaceContext } from "@/contexts/WorkspaceContext";
 import { useAutoUpdate } from "@/hooks/useAutoUpdate";
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { GitSidePanel } from "@/components/layout/git/GitSidePanel";
 import { EmptyVaultScreen } from "./EmptyVaultScreen";
 import { MigrationBannerHost } from "./empty-vault/MigrationBannerHost";
 import { ColorModeSync } from "./ColorModeSync";
@@ -32,6 +33,9 @@ import { usePendingSecretsScan } from "@/hooks/usePendingSecretsScan";
 export function AppShell() {
   const sidebarOpen = useSettingsStore((s) => s.sidebarOpen);
   const toggleSidebar = useSettingsStore((s) => s.toggleSidebar);
+  const gitSidePanelOpen = useSettingsStore((s) => s.gitSidePanelOpen);
+  const setGitSidePanelOpen = useSettingsStore((s) => s.setGitSidePanelOpen);
+  const [gitSidePanelWidth] = useState(340);
   const [quickOpenOpen, setQuickOpenOpen] = useState(false);
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -230,6 +234,12 @@ export function AppShell() {
                 />
               )}
               {chatOpen && <ChatPanel width={chatWidth} />}
+              {gitSidePanelOpen && (
+                <GitSidePanel
+                  width={gitSidePanelWidth}
+                  onClose={() => setGitSidePanelOpen(false)}
+                />
+              )}
             </>
           )}
         </Flex>

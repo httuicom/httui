@@ -61,6 +61,10 @@ pub struct UiPrefs {
     /// Sidebar open/closed. MVP `app_config` key: `sidebar_open`.
     #[serde(default = "default_sidebar_open")]
     pub sidebar_open: bool,
+    /// Git side-panel (VS-Code-style SCM column) open/closed.
+    /// V10.1 cenário 1 — persists across launches. Default closed.
+    #[serde(default)]
+    pub git_side_panel_open: bool,
     /// Color mode: `"system" | "light" | "dark"`. Frontend wires it
     /// to Chakra/next-themes via `<ColorModeSync>`. Separate from
     /// `theme` (legacy customisation JSON pending Epic 19 sweep).
@@ -102,6 +106,7 @@ impl Default for UiPrefs {
             history_retention: default_history_retention(),
             vim_enabled: false,
             sidebar_open: default_sidebar_open(),
+            git_side_panel_open: false,
             color_mode: default_color_mode(),
             mvp_migration_dismissed: false,
             hide_archived_in_quick_open: false,
@@ -244,6 +249,7 @@ prompt_timeout_s = 30
         assert_eq!(p.history_retention, 10);
         assert!(!p.vim_enabled);
         assert!(p.sidebar_open);
+        assert!(!p.git_side_panel_open);
         assert_eq!(p.color_mode, "system");
         assert!(!p.mvp_migration_dismissed);
         assert!(!p.hide_archived_in_quick_open);

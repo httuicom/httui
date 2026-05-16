@@ -43,6 +43,8 @@ interface SettingsState {
 
   // Layout
   sidebarOpen: boolean;
+  /** Git side-panel (VS-Code-style SCM column) open/closed. V10.1. */
+  gitSidePanelOpen: boolean;
 
   // MVP-to-v1 migration banner
   mvpMigrationDismissed: boolean;
@@ -62,6 +64,8 @@ interface SettingsState {
   setVimEnabled: (enabled: boolean) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  toggleGitSidePanel: () => void;
+  setGitSidePanelOpen: (open: boolean) => void;
   setMvpMigrationDismissed: (dismissed: boolean) => void;
   loadSettings: () => Promise<void>;
 }
@@ -108,6 +112,7 @@ export const useSettingsStore = create<SettingsState>()(
       vimEnabled: false,
       vimMode: "normal",
       sidebarOpen: true,
+      gitSidePanelOpen: false,
       mvpMigrationDismissed: false,
 
       openSettings: () => set({ settingsOpen: true }),
@@ -176,6 +181,22 @@ export const useSettingsStore = create<SettingsState>()(
         set({ sidebarOpen: open });
         patchUiPrefs((ui) => ({ ...ui, sidebar_open: open })).catch(() => {});
       },
+      toggleGitSidePanel: () =>
+        set((state) => {
+          const next = !state.gitSidePanelOpen;
+          patchUiPrefs((ui) => ({
+            ...ui,
+            git_side_panel_open: next,
+          })).catch(() => {});
+          return { gitSidePanelOpen: next };
+        }),
+      setGitSidePanelOpen: (open) => {
+        set({ gitSidePanelOpen: open });
+        patchUiPrefs((ui) => ({
+          ...ui,
+          git_side_panel_open: open,
+        })).catch(() => {});
+      },
 
       setMvpMigrationDismissed: (dismissed) => {
         set({ mvpMigrationDismissed: dismissed });
@@ -215,13 +236,13 @@ export const useSettingsStore = create<SettingsState>()(
             editorFontSize: ui.font_size || DEFAULTS.editorFontSize,
             defaultFetchSize:
               ui.default_fetch_size || DEFAULTS.defaultFetchSize,
-            historyRetention:
-              ui.history_retention || DEFAULTS.historyRetention,
+            historyRetention: ui.history_retention || DEFAULTS.historyRetention,
           },
           theme: themeConfig,
           colorMode: parseColorMode(ui.color_mode),
           vimEnabled: ui.vim_enabled ?? false,
           sidebarOpen: ui.sidebar_open ?? true,
+          gitSidePanelOpen: ui.git_side_panel_open ?? false,
           mvpMigrationDismissed: ui.mvp_migration_dismissed ?? false,
           loaded: true,
         });

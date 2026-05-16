@@ -59,6 +59,8 @@ export interface UserUiPrefs {
   vim_enabled: boolean;
   /** Sidebar open/closed flag. */
   sidebar_open: boolean;
+  /** Git side-panel (VS-Code-style SCM) open/closed. V10.1. */
+  git_side_panel_open?: boolean;
   /** Color mode: `"system"` | `"light"` | `"dark"`. */
   color_mode: string;
   /**

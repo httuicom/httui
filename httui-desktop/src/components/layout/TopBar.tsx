@@ -92,12 +92,15 @@ export function TopBar({
   const openConnectionsTab = usePaneStore((s) => s.openConnectionsTab);
   const openVariablesTab = usePaneStore((s) => s.openVariablesTab);
   const openEnvironmentsTab = usePaneStore((s) => s.openEnvironmentsTab);
-  const openGitTab = usePaneStore((s) => s.openGitTab);
+  const gitSidePanelOpen = useSettingsStore((s) => s.gitSidePanelOpen);
+  const toggleGitSidePanel = useSettingsStore((s) => s.toggleGitSidePanel);
 
   const activeFilePath = usePaneStore(selectActiveTabPath);
   const activeUnsaved = usePaneStore(selectActiveTabUnsaved);
 
-  const workspace = vaultPath ? vaultPath.split("/").pop() ?? vaultPath : null;
+  const workspace = vaultPath
+    ? (vaultPath.split("/").pop() ?? vaultPath)
+    : null;
   const isLeafSegment = !activeFilePath;
 
   const workspaceSlot = workspace ? (
@@ -240,15 +243,17 @@ export function TopBar({
         <LuLayers />
       </IconButton>
       <IconButton
-        aria-label="Open Git"
+        aria-label={gitSidePanelOpen ? "Close git panel" : "Open git panel"}
         variant="ghost"
         size="xs"
-        onClick={openGitTab}
+        onClick={toggleGitSidePanel}
       >
         <LuGitBranch />
       </IconButton>
       <IconButton
-        aria-label={schemaPanelOpen ? "Close schema panel" : "Open schema panel"}
+        aria-label={
+          schemaPanelOpen ? "Close schema panel" : "Open schema panel"
+        }
         variant="ghost"
         size="xs"
         onClick={onToggleSchemaPanel}

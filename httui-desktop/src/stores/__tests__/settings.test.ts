@@ -60,6 +60,7 @@ function resetStore() {
     vimEnabled: false,
     vimMode: "normal",
     sidebarOpen: true,
+    gitSidePanelOpen: false,
     mvpMigrationDismissed: false,
   });
 }
@@ -104,6 +105,19 @@ describe("settingsStore", () => {
       expect(useSettingsStore.getState().sidebarOpen).toBe(true);
       await flushPersist();
       expect(read().ui.sidebar_open).toBe(true);
+    });
+
+    it("toggleGitSidePanel / setGitSidePanelOpen control gitSidePanelOpen and persist", async () => {
+      const read = mockUserConfig();
+      useSettingsStore.getState().toggleGitSidePanel();
+      expect(useSettingsStore.getState().gitSidePanelOpen).toBe(true);
+      await flushPersist();
+      expect(read().ui.git_side_panel_open).toBe(true);
+
+      useSettingsStore.getState().setGitSidePanelOpen(false);
+      expect(useSettingsStore.getState().gitSidePanelOpen).toBe(false);
+      await flushPersist();
+      expect(read().ui.git_side_panel_open).toBe(false);
     });
   });
 
@@ -218,6 +232,18 @@ describe("settingsStore", () => {
       expect(state.theme.grayTone).toBe("slate");
       expect(state.loaded).toBe(true);
       expect(applyTheme).toHaveBeenCalled();
+    });
+
+    it("hydrates gitSidePanelOpen from ui.git_side_panel_open", async () => {
+      mockUserConfig({ git_side_panel_open: true });
+      await useSettingsStore.getState().loadSettings();
+      expect(useSettingsStore.getState().gitSidePanelOpen).toBe(true);
+    });
+
+    it("defaults gitSidePanelOpen to false when the key is absent", async () => {
+      mockUserConfig({});
+      await useSettingsStore.getState().loadSettings();
+      expect(useSettingsStore.getState().gitSidePanelOpen).toBe(false);
     });
 
     it("falls back to defaults for missing fields", async () => {
