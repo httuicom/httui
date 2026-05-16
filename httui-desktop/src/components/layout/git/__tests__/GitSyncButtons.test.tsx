@@ -93,6 +93,26 @@ describe("GitSyncButtons", () => {
     ).toBe("true");
   });
 
+  it("disables fetch + pull + push together when no remote (cenário 8)", () => {
+    renderWithProviders(
+      <GitSyncButtons
+        hasRemote={false}
+        onFetch={() => {}}
+        onPull={() => {}}
+        onPush={() => {}}
+      />,
+    );
+    expect(
+      (screen.getByTestId("git-sync-fetch") as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByTestId("git-sync-pull") as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByTestId("git-sync-push") as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
   it("hides the no-remote hint when hasRemote is true", () => {
     renderWithProviders(<GitSyncButtons onPush={() => {}} />);
     expect(

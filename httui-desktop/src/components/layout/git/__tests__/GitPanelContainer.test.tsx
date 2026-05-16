@@ -574,4 +574,62 @@ describe("GitPanelContainer", () => {
       expect(wrote).toBe(0);
     });
   });
+
+  describe("vault without a remote (cenário 8)", () => {
+    it("disables fetch/pull/push and the share popover is empty", async () => {
+      mockTauriCommand("git_remote_list_cmd", () => []);
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("git-sync-buttons"),
+        ).toBeInTheDocument();
+      });
+      expect(
+        (screen.getByTestId("git-sync-fetch") as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+      expect(
+        (screen.getByTestId("git-sync-pull") as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+      expect(
+        (screen.getByTestId("git-sync-push") as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+      expect(
+        screen.getByTestId("git-sync-no-remote-hint"),
+      ).toBeInTheDocument();
+      // Toolbar Share popover surfaces the empty state.
+      await user.click(screen.getByTestId("share-menu-trigger"));
+      await waitFor(() => {
+        expect(
+          screen
+            .getByTestId("share-popover")
+            .getAttribute("data-state"),
+        ).toBe("empty");
+      });
+    });
+  });
+
+  describe("audit tab is git log (cenário 9)", () => {
+    it("shows the log under Audit with no action-type filter", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await waitFor(() => {
+        expect(screen.getByTestId("git-panel-tabs")).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId("git-tab-audit"));
+      expect(
+        screen.getByTestId("git-panel-section-audit"),
+      ).toBeInTheDocument();
+      expect(
+        await screen.findByTestId("git-log-row-deadbee"),
+      ).toBeInTheDocument();
+      // Log-only decision: no filter control on Audit.
+      expect(
+        screen.queryByTestId("git-log-filter"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

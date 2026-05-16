@@ -56,7 +56,7 @@ export function GitSyncButtons({
             data-testid="git-sync-fetch"
             data-in-flight={inFlight === "fetch" || undefined}
             variant="ghost"
-            disabled={busy}
+            disabled={busy || !hasRemote}
             onClick={onFetch}
           >
             <LuArrowDown size={11} aria-hidden />
@@ -68,7 +68,7 @@ export function GitSyncButtons({
             data-testid="git-sync-pull"
             data-in-flight={inFlight === "pull" || undefined}
             variant="ghost"
-            disabled={busy}
+            disabled={busy || !hasRemote}
             onClick={onPull}
           >
             <LuArrowDown size={11} aria-hidden />
