@@ -31,7 +31,6 @@ export function PaneNode({
   handleEditorChange,
   onNavigateFile,
 }: PaneNodeProps) {
-  const activePaneId = usePaneStore((s) => s.activePaneId);
   const editorContents = usePaneStore((s) => s.editorContents);
   const unsavedFiles = usePaneStore((s) => s.unsavedFiles);
   const hasConflict = usePaneStore((s) => s.hasConflict);
@@ -80,7 +79,6 @@ export function PaneNode({
     const content = activeTab
       ? (editorContents.get(activeTab.filePath) ?? "")
       : "";
-    const isActive = layout.id === activePaneId;
 
     return (
       <Flex
@@ -168,4 +166,3 @@ export function PaneNode({
     />
   );
 }
-
