@@ -25,11 +25,13 @@ import { LuGitBranch, LuX } from "react-icons/lu";
 import { GitStatusHeader } from "@/components/layout/git/GitStatusHeader";
 import { GitFileList } from "@/components/layout/git/GitFileList";
 import { GitCommitForm } from "@/components/layout/git/GitCommitForm";
+import { GitSyncBar } from "@/components/layout/git/GitSyncBar";
 import { partitionFileChanges } from "@/components/layout/git/git-derive";
 import { deriveCommitMessage } from "@/lib/blocks/commit-template";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { useGitCommit } from "@/hooks/useGitCommit";
 import { useGitStage } from "@/hooks/useGitStage";
+import { useGitSync } from "@/hooks/useGitSync";
 import { useGitStore } from "@/stores/git";
 import { useSettingsStore } from "@/stores/settings";
 import { usePaneStore } from "@/stores/pane";
@@ -56,6 +58,7 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
   const template = useSettingsStore((s) => s.gitCommitTemplate);
   const { commit, committing } = useGitCommit(vaultPath);
   const { toggleStage } = useGitStage(vaultPath);
+  const syncState = useGitSync(vaultPath);
   const [amend, setAmend] = useState(false);
 
   const changedPaths = useMemo(
@@ -169,6 +172,7 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
               onAmendChange={setAmend}
               onCommit={handleCommit}
             />
+            <GitSyncBar {...syncState} />
           </>
         ) : (
           <Text

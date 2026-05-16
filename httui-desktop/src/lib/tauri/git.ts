@@ -151,11 +151,13 @@ export function gitPull(
   vaultPath: string,
   remote?: string,
   branch?: string,
+  ffOnly = false,
 ): Promise<string> {
   return invoke("git_pull_cmd", {
     vaultPath,
     remote: remote ?? null,
     branch: branch ?? null,
+    ffOnly,
   });
 }
 

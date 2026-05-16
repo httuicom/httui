@@ -45,15 +45,22 @@ pub fn git_fetch(vault: &Path, remote: Option<&str>) -> Result<String, String> {
     run_sync(vault, &args)
 }
 
-/// `git pull [<remote> <branch>]`. Both remote/branch are
-/// optional — passing None falls back to git's default upstream
-/// resolution.
+/// `git pull [--ff-only] [<remote> <branch>]`. Both remote/branch
+/// are optional — passing None falls back to git's default upstream
+/// resolution. `ff_only` adds `--ff-only` so the 1-click Sync
+/// (V10.1 cenário 3) never creates a surprise merge commit — a
+/// non-fast-forward pull stops the flow and the user resolves it in
+/// the detailed pane-tab.
 pub fn git_pull(
     vault: &Path,
     remote: Option<&str>,
     branch: Option<&str>,
+    ff_only: bool,
 ) -> Result<String, String> {
     let mut args = vec!["pull"];
+    if ff_only {
+        args.push("--ff-only");
+    }
     if let Some(r) = remote {
         args.push(r);
         if let Some(b) = branch {
@@ -111,7 +118,20 @@ mod tests {
         init_repo(dir.path());
         std::fs::write(dir.path().join("a"), "x").unwrap();
         commit_all(dir.path(), "init");
-        let r = git_pull(dir.path(), None, None);
+        let r = git_pull(dir.path(), None, None, false);
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn pull_ff_only_builds_without_panicking() {
+        // No remote configured, so the pull errors — but the
+        // `--ff-only` arg branch must build cleanly (guards the
+        // V10.1 cenário 3 Sync path).
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path());
+        std::fs::write(dir.path().join("a"), "x").unwrap();
+        commit_all(dir.path(), "init");
+        let r = git_pull(dir.path(), None, None, true);
         assert!(r.is_err());
     }
 

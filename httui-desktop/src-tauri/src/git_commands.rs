@@ -136,14 +136,21 @@ pub async fn git_fetch_cmd(
     git_fetch(&PathBuf::from(vault_path), remote.as_deref())
 }
 
-/// `git pull [<remote> <branch>]`.
+/// `git pull [--ff-only] [<remote> <branch>]`. `ff_only` is the
+/// V10.1 cenário 3 Sync path (never auto-merge on pull).
 #[tauri::command]
 pub async fn git_pull_cmd(
     vault_path: String,
     remote: Option<String>,
     branch: Option<String>,
+    ff_only: bool,
 ) -> Result<String, String> {
-    git_pull(&PathBuf::from(vault_path), remote.as_deref(), branch.as_deref())
+    git_pull(
+        &PathBuf::from(vault_path),
+        remote.as_deref(),
+        branch.as_deref(),
+        ff_only,
+    )
 }
 
 /// `git push [-u] [<remote> <branch>]`. `set_upstream` is the V10
@@ -411,6 +418,7 @@ mod tests {
             dir.path().to_string_lossy().into(),
             None,
             None,
+            false,
         )
         .await
         .is_err());

@@ -144,6 +144,12 @@ describe("GitSidePanel", () => {
       expect(row).toHaveAttribute("data-status", "modified");
     });
 
+    it("mounts the Sync bar (cenário 3)", async () => {
+      mockTauriCommand("git_status_cmd", () => statusWith(["foo.md"]));
+      renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
+      expect(await screen.findByTestId("git-sync-button")).toBeInTheDocument();
+    });
+
     it("staging a row routes through stage_path_cmd", async () => {
       mockTauriCommand("git_status_cmd", () => statusWith(["foo.md"]));
       let staged: string | null = null;
