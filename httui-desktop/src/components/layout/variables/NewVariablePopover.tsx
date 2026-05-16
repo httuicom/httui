@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Btn, Input } from "@/components/atoms";
 import { useEscapeClose } from "@/hooks/useEscapeClose";
+import { getActiveEditor } from "@/lib/codemirror/active-editor";
 import { useEnvironmentStore } from "@/stores/environment";
 import { useNewVariablePopoverStore } from "@/stores/newVariablePopover";
 
@@ -29,7 +30,14 @@ export function NewVariablePopover() {
   const open = useNewVariablePopoverStore((s) => s.open);
   const close = useNewVariablePopoverStore((s) => s.closeForm);
   if (!open) return null;
-  return <NewVariableForm onClose={close} />;
+  // Return focus to the last-focused editor so typing keeps flowing
+  // into CM6 after the popover closes (V11 cenário 6 — no Dialog
+  // trap; this mirrors closeRefPopover's view.focus()).
+  const handleClose = () => {
+    close();
+    getActiveEditor()?.focus();
+  };
+  return <NewVariableForm onClose={handleClose} />;
 }
 
 function NewVariableForm({ onClose }: { onClose: () => void }) {

@@ -6,6 +6,10 @@ import userEvent from "@testing-library/user-event";
 import { NewVariablePopover } from "@/components/layout/variables/NewVariablePopover";
 import { useNewVariablePopoverStore } from "@/stores/newVariablePopover";
 import { useEnvironmentStore } from "@/stores/environment";
+import {
+  registerActiveEditor,
+  unregisterActiveEditor,
+} from "@/lib/codemirror/active-editor";
 
 const setVariable = vi.fn(async () => ({}) as never);
 
@@ -137,6 +141,17 @@ describe("NewVariablePopover", () => {
     await vi.waitFor(() =>
       expect(useNewVariablePopoverStore.getState().open).toBe(false),
     );
+  });
+
+  it("returns focus to the active editor on close (cenário 6)", async () => {
+    const user = userEvent.setup();
+    const view = { focus: vi.fn() };
+    registerActiveEditor(view as never);
+    renderWithProviders(<NewVariablePopover />);
+    openPopover();
+    await user.click(screen.getByTestId("new-variable-cancel"));
+    expect(view.focus).toHaveBeenCalled();
+    unregisterActiveEditor(view as never);
   });
 
   it("surfaces an error when there is no active environment", async () => {
