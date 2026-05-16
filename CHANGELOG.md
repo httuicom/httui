@@ -21,6 +21,25 @@ launch checklist (Epic 38, Story 03).
 
 ### Added
 
+- **Git panel** — aba singleton (botão na top bar) com Status / Log:
+  working tree (staged/unstaged/untracked), stage/unstage por
+  arquivo, commit form com preview, log filtrável (autor / path),
+  diff de commit lado-a-lado, push / pull / fetch, e prompt de
+  confirmar set-upstream ao dar push numa branch sem upstream.
+  Detecta `git remote add` feito por fora sem precisar recarregar.
+  (V10 cenários 1-5, 8)
+- **Branch switcher** — o indicador de branch na status bar agora
+  abre um picker (branches locais + remotas, filtro, criar nova) que
+  faz checkout e recarrega a árvore de arquivos. (V10 cenário 4)
+- **Resolução de conflito de merge** — banner por arquivo
+  conflitado com Accept yours / Accept theirs e um resolvedor 3-way
+  (ours editável ↔ theirs, base sob demanda). No editor markdown,
+  hunks de conflito ganham destaque (ours/theirs/markers) + ações
+  inline na linha do marker (accept current/incoming/both). (V10
+  cenário 6)
+- **Share via URL do repositório** — popover (na status bar e no
+  git panel) com as URLs HTTPS / SSH / Web do remote; copiar ou
+  abrir a Web URL no navegador. (V10 cenário 7)
 - **DocHeader card acima do CM6** — breadcrumb (workspace › path),
   h1 serif do título, abstract serif, tag chips na coluna direita,
   pill row de pre-flight checks, meta strip com gravatar do owner +
@@ -238,6 +257,9 @@ launch checklist (Epic 38, Story 03).
 
 ### Removed
 
+- **Aba Audit do git panel** — sem os filtros action-type
+  (adiados pra v1.x) era idêntica à aba Log; removida do v1, volta
+  com os filtros. (V10 follow-up)
 - **Pre-flight `keychain` kind** — retirado do typed set em V6.
   macOS keychain enumeration é restritivo e os call sites que se
   beneficiariam não estão construídos. YAML legado com
@@ -264,6 +286,10 @@ launch checklist (Epic 38, Story 03).
 
 ### Fixed
 
+- **Conflitos de merge invisíveis no git panel** — `git status`
+  não interpretava as linhas `u` (unmerged) do `porcelain=v2`, então
+  um vault em conflito aparecia como "Working tree clean" e o banner
+  de resolução nunca surgia. (V10 cenário 6)
 - **Markdown serializer round-trip** — fenced code blocks for
   executable types (```http, ```db-*) survive the CM6 markdown
   parser/serializer cycle without corruption.
