@@ -689,4 +689,38 @@ mod tests {
             Err(e) => assert!(e.contains("not found"), "got: {e}"),
         }
     }
+
+    #[tokio::test]
+    async fn test_connection_succeeds_for_a_reachable_sqlite_conn() {
+        let (mgr, id) = sqlite_lookup_env().await;
+        // sqlite `:memory:` is always reachable — `pool.test()` runs a
+        // `SELECT 1` round-trip.
+        mgr.test_connection(&id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_connection_errors_when_the_connection_is_unknown() {
+        let app = memory_app_pool().await;
+        let mgr = PoolManager::new_standalone(Arc::new(NoopLookup), app);
+        match mgr.test_connection("missing").await {
+            Ok(()) => panic!("expected not-found error"),
+            Err(e) => assert!(e.contains("not found"), "got: {e}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn cleanup_expired_then_cleanup_query_log_run_after_real_pool() {
+        // Exercises get_pool → cache insert → cleanup paths against a
+        // real (sqlite) pool rather than the insert_for_test seam.
+        let (mgr, id) = sqlite_lookup_env().await;
+        let _ = mgr.get_pool(&id).await.unwrap();
+        assert_eq!(mgr.cache_size().await, 1);
+        // Fresh entry (default ttl) survives cleanup.
+        mgr.cleanup_expired().await;
+        assert_eq!(mgr.cache_size().await, 1);
+        // query_log table may not exist in this app pool — call is a
+        // best-effort no-op that must not panic.
+        mgr.cleanup_query_log().await;
+        assert_eq!(mgr.get_query_timeout(&id).await, Some(30_000));
+    }
 }

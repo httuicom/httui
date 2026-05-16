@@ -830,6 +830,108 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn test_db_executor_statement_error_becomes_error_result() {
+        // Exercises the per-statement `Err` arm (error enrich +
+        // DbResult::Error) and the "error" audit-log branch.
+        let (manager, conn_id) = setup_test_env().await;
+        let executor = DbExecutor::new(manager);
+        let result = executor
+            .execute(serde_json::json!({
+                "connection_id": conn_id,
+                "query": "SELECT * FROM table_that_does_not_exist",
+            }))
+            .await
+            .unwrap();
+        // The command still succeeds; the failure is captured per
+        // statement so the user sees which piece is wrong.
+        let first = &result.data["results"][0];
+        assert_eq!(first["kind"], "error");
+        let msg = first["message"].as_str().unwrap().to_lowercase();
+        assert!(
+            msg.contains("no such table") || msg.contains("does_not_exist"),
+            "got: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_db_executor_mixed_ok_and_error_statements() {
+        let (manager, conn_id) = setup_test_env().await;
+        let pool = manager.get_pool(&conn_id).await.unwrap();
+        match pool.as_ref() {
+            crate::db::connections::DatabasePool::Sqlite(p) => {
+                sqlx::query("CREATE TABLE ok (n INTEGER)")
+                    .execute(p)
+                    .await
+                    .unwrap();
+                sqlx::query("INSERT INTO ok VALUES (1)")
+                    .execute(p)
+                    .await
+                    .unwrap();
+            }
+            _ => panic!("expected sqlite"),
+        }
+        let executor = DbExecutor::new(manager);
+        let resp = executor
+            .execute_with_cancel(
+                serde_json::json!({
+                    "connection_id": conn_id,
+                    "query": "SELECT n FROM ok; SELECT * FROM missing_tbl; SELECT n FROM ok",
+                }),
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.results.len(), 3);
+        // First + third OK, middle is an Error — later statements still run.
+        assert!(matches!(
+            resp.results[0],
+            crate::executor::db::types::DbResult::Select { .. }
+        ));
+        assert!(matches!(
+            resp.results[1],
+            crate::executor::db::types::DbResult::Error { .. }
+        ));
+        assert!(matches!(
+            resp.results[2],
+            crate::executor::db::types::DbResult::Select { .. }
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_db_executor_explicit_timeout_is_honored() {
+        // `timeout_ms` short-circuits the connection-default lookup —
+        // covers the `Some(t)` arm of the timeout resolution.
+        let (manager, conn_id) = setup_test_env().await;
+        let pool = manager.get_pool(&conn_id).await.unwrap();
+        match pool.as_ref() {
+            crate::db::connections::DatabasePool::Sqlite(p) => {
+                sqlx::query("CREATE TABLE t (n INTEGER)")
+                    .execute(p)
+                    .await
+                    .unwrap();
+                sqlx::query("INSERT INTO t VALUES (1)")
+                    .execute(p)
+                    .await
+                    .unwrap();
+            }
+            _ => panic!("expected sqlite"),
+        }
+        let executor = DbExecutor::new(manager);
+        let resp = executor
+            .execute_with_cancel(
+                serde_json::json!({
+                    "connection_id": conn_id,
+                    "query": "SELECT n FROM t",
+                    "timeout_ms": 30000,
+                }),
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.results.len(), 1);
+    }
+
     // ───── V11 cenário 2: session host:port override ─────
 
     #[tokio::test]
