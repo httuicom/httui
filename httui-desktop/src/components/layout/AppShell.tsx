@@ -14,6 +14,7 @@ import { HistoryPanel } from "./history/HistoryPanel";
 import { usePaneStore } from "@/stores/pane";
 import { useSettingsStore } from "@/stores/settings";
 import { useWorkspaceStore } from "@/stores/workspace";
+import { useEnvSwitcherStore } from "@/stores/envSwitcher";
 import { initTauriBridge } from "@/stores/tauri-bridge";
 import { useFileOperations } from "@/hooks/useFileOperations";
 import { useEditorSession } from "@/hooks/useEditorSession";
@@ -60,6 +61,7 @@ export function AppShell() {
     () => setHistoryPanelOpen((prev) => !prev),
     [],
   );
+  const openEnvSwitcher = useEnvSwitcherStore((s) => s.openSwitcher);
 
   // Initialize all Tauri listeners and stores once
   useEffect(() => {
@@ -118,6 +120,7 @@ export function AppShell() {
       toggleSchemaPanel,
       toggleOutlinePanel,
       toggleHistoryPanel,
+      openEnvSwitcher,
     }),
     [
       toggleSidebar,
@@ -125,6 +128,7 @@ export function AppShell() {
       toggleSchemaPanel,
       toggleOutlinePanel,
       toggleHistoryPanel,
+      openEnvSwitcher,
       splitVertical,
       splitHorizontal,
       closeTab,

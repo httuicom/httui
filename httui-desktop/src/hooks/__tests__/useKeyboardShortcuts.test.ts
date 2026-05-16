@@ -156,4 +156,59 @@ describe("useKeyboardShortcuts", () => {
     fireKey("O", { shiftKey: true });
     expect(actions.toggleOutlinePanel).toHaveBeenCalledOnce();
   });
+
+  it("Cmd+E calls openEnvSwitcher when supplied", () => {
+    const actions = { ...createActions(), openEnvSwitcher: vi.fn() };
+    renderHook(() => useKeyboardShortcuts(actions));
+    fireKey("e");
+    expect(actions.openEnvSwitcher).toHaveBeenCalledOnce();
+  });
+
+  it("Cmd+Shift+E does NOT call openEnvSwitcher (plain ⌘E only)", () => {
+    const actions = { ...createActions(), openEnvSwitcher: vi.fn() };
+    renderHook(() => useKeyboardShortcuts(actions));
+    fireKey("e", { shiftKey: true });
+    expect(actions.openEnvSwitcher).not.toHaveBeenCalled();
+  });
+
+  it("Cmd+E is a no-op when openEnvSwitcher is undefined", () => {
+    const actions = createActions();
+    renderHook(() => useKeyboardShortcuts(actions));
+    const event = new KeyboardEvent("keydown", {
+      key: "e",
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("Cmd+Shift+V calls openNewVariable when supplied", () => {
+    const actions = { ...createActions(), openNewVariable: vi.fn() };
+    renderHook(() => useKeyboardShortcuts(actions));
+    fireKey("v", { shiftKey: true });
+    expect(actions.openNewVariable).toHaveBeenCalledOnce();
+  });
+
+  it("Cmd+Shift+V accepts uppercase 'V'", () => {
+    const actions = { ...createActions(), openNewVariable: vi.fn() };
+    renderHook(() => useKeyboardShortcuts(actions));
+    fireKey("V", { shiftKey: true });
+    expect(actions.openNewVariable).toHaveBeenCalledOnce();
+  });
+
+  it("Cmd+Shift+V is a no-op when openNewVariable is undefined", () => {
+    const actions = createActions();
+    renderHook(() => useKeyboardShortcuts(actions));
+    const event = new KeyboardEvent("keydown", {
+      key: "v",
+      metaKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
 });

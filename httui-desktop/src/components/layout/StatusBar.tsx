@@ -21,11 +21,10 @@ import { LuLink, LuTriangleAlert } from "react-icons/lu";
 
 import { Dot, StatusBarShell } from "@/components/atoms";
 import { BranchMenu } from "@/components/layout/BranchMenu";
-import { EnvMenu } from "@/components/layout/EnvMenu";
+import { EnvSwitcher } from "@/components/layout/EnvSwitcher";
 import { ShareMenu } from "@/components/layout/ShareMenu";
 import { useGitBranchActions } from "@/hooks/useGitBranchActions";
 import { useGitStatus } from "@/hooks/useGitStatus";
-import { useEnvironmentStore } from "@/stores/environment";
 import { usePendingSecretsStore } from "@/stores/pendingSecrets";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -54,9 +53,6 @@ export function StatusBar({
   const vaultPath = useWorkspaceStore((s) => s.vaultPath);
   const { status: gitState } = useGitStatus(vaultPath);
   const branchActions = useGitBranchActions(vaultPath);
-  const environments = useEnvironmentStore((s) => s.environments);
-  const activeEnvironment = useEnvironmentStore((s) => s.activeEnvironment);
-  const switchEnvironment = useEnvironmentStore((s) => s.switchEnvironment);
   const activeConnection = useWorkspaceStore((s) => s.activeConnection);
   const pendingSecretsCount = usePendingSecretsStore(
     (s) => s.pending.length,
@@ -101,12 +97,9 @@ export function StatusBar({
 
       <Box w="1px" h="12px" bg="border" aria-hidden />
 
-      {/* Env — clickable dropdown to switch environments */}
-      <EnvMenu
-        environments={environments}
-        activeEnvironment={activeEnvironment}
-        onSwitch={(id) => void switchEnvironment(id)}
-      />
+      {/* Env — clickable dropdown to switch environments (⌘E,
+       * numeric shortcuts, Clone quick action) */}
+      <EnvSwitcher />
 
       {/* Connection latency (opt-in: surfaces only when active) */}
       {activeConnection && (

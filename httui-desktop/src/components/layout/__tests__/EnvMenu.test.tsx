@@ -105,3 +105,125 @@ describe("EnvMenu", () => {
     expect(screen.getByText("No environments")).toBeInTheDocument();
   });
 });
+
+describe("EnvMenu — V11 controlled / numeric / clone", () => {
+  it("renders 1-9 numeric badges on the first nine envs", async () => {
+    const user = userEvent.setup();
+    const envs = Array.from({ length: 11 }, (_, i) =>
+      mkEnv(`id${i}`, `env${i}`),
+    );
+    renderWithProviders(
+      <EnvMenu
+        environments={envs}
+        activeEnvironment={envs[0]}
+        onSwitch={() => {}}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    void user;
+    expect(screen.getByTestId("env-numeric-1")).toBeInTheDocument();
+    expect(screen.getByTestId("env-numeric-9")).toBeInTheDocument();
+    // 10th/11th env get no numeric badge.
+    expect(screen.queryByTestId("env-numeric-10")).toBeNull();
+  });
+
+  it("pressing a digit switches to that env and closes (controlled)", () => {
+    const onSwitch = vi.fn();
+    const onOpenChange = vi.fn();
+    renderWithProviders(
+      <EnvMenu
+        environments={[mkEnv("a", "local"), mkEnv("b", "prod")]}
+        activeEnvironment={mkEnv("a", "local")}
+        onSwitch={onSwitch}
+        open
+        onOpenChange={onOpenChange}
+      />,
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "2" }));
+    expect(onSwitch).toHaveBeenCalledWith("b");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("ignores digit shortcut when not open", () => {
+    const onSwitch = vi.fn();
+    renderWithProviders(
+      <EnvMenu
+        environments={[mkEnv("a", "local"), mkEnv("b", "prod")]}
+        activeEnvironment={mkEnv("a", "local")}
+        onSwitch={onSwitch}
+        open={false}
+        onOpenChange={() => {}}
+      />,
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "2" }));
+    expect(onSwitch).not.toHaveBeenCalled();
+  });
+
+  it("ignores out-of-range / modified digit presses", () => {
+    const onSwitch = vi.fn();
+    renderWithProviders(
+      <EnvMenu
+        environments={[mkEnv("a", "local")]}
+        activeEnvironment={mkEnv("a", "local")}
+        onSwitch={onSwitch}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "5" }));
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "1", metaKey: true }),
+    );
+    expect(onSwitch).not.toHaveBeenCalled();
+  });
+
+  it("renders a Clone footer that fires onRequestClone", async () => {
+    const user = userEvent.setup();
+    const onRequestClone = vi.fn();
+    renderWithProviders(
+      <EnvMenu
+        environments={[mkEnv("a", "local")]}
+        activeEnvironment={mkEnv("a", "local")}
+        onSwitch={() => {}}
+        open
+        onOpenChange={() => {}}
+        onRequestClone={onRequestClone}
+      />,
+    );
+    const clone = screen.getByTestId("env-menu-clone");
+    expect(clone.textContent).toContain("Clone local");
+    await user.click(clone);
+    expect(onRequestClone).toHaveBeenCalledOnce();
+  });
+
+  it("hides the Clone footer when no active env", () => {
+    renderWithProviders(
+      <EnvMenu
+        environments={[mkEnv("a", "local")]}
+        activeEnvironment={null}
+        onSwitch={() => {}}
+        open
+        onOpenChange={() => {}}
+        onRequestClone={() => {}}
+      />,
+    );
+    expect(screen.queryByTestId("env-menu-clone")).toBeNull();
+  });
+
+  it("propagates Chakra open/close through onOpenChange", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    renderWithProviders(
+      <EnvMenu
+        environments={[mkEnv("a", "local")]}
+        activeEnvironment={mkEnv("a", "local")}
+        onSwitch={() => {}}
+        open={false}
+        onOpenChange={onOpenChange}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Environment local/ }));
+    expect(onOpenChange).toHaveBeenCalledWith(true);
+  });
+});

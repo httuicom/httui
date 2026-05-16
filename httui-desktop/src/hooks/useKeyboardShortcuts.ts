@@ -15,6 +15,10 @@ interface KeyboardShortcutActions {
   toggleOutlinePanel?: () => void;
   /** Optional — wired in AppShell post-Epic 29 mount. */
   toggleHistoryPanel?: () => void;
+  /** Optional — ⌘E env switcher dropdown (V11 cenário 1). */
+  openEnvSwitcher?: () => void;
+  /** Optional — ⌘⇧V new-variable popover (V11 cenário 4). */
+  openNewVariable?: () => void;
 }
 
 export function useKeyboardShortcuts(actions: KeyboardShortcutActions): void {
@@ -75,6 +79,22 @@ export function useKeyboardShortcuts(actions: KeyboardShortcutActions): void {
       ) {
         e.preventDefault();
         actions.toggleHistoryPanel();
+      }
+      if (
+        !e.shiftKey &&
+        (e.key === "e" || e.key === "E") &&
+        actions.openEnvSwitcher
+      ) {
+        e.preventDefault();
+        actions.openEnvSwitcher();
+      }
+      if (
+        e.shiftKey &&
+        (e.key === "v" || e.key === "V") &&
+        actions.openNewVariable
+      ) {
+        e.preventDefault();
+        actions.openNewVariable();
       }
     };
     window.addEventListener("keydown", handler);
