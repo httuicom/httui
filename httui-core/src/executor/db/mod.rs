@@ -830,6 +830,35 @@ mod tests {
         }
     }
 
+    // ───── V11 cenário 2: session host:port override ─────
+
+    #[tokio::test]
+    async fn test_session_override_runs_against_override_keyed_pool() {
+        // SQLite ignores host/port, so the query still succeeds — what
+        // we're covering is the `ov = Some(..)` branch + the
+        // get_pool_with_override call site in the executor.
+        let (manager, conn_id) = setup_test_env().await;
+        let executor = DbExecutor::new(manager);
+        let resp = executor
+            .execute_with_cancel(
+                serde_json::json!({
+                    "connection_id": conn_id,
+                    "query": "SELECT 1 AS n",
+                    "session_host_override": "db.staging",
+                    "session_port_override": 5599,
+                }),
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        match &resp.results[0] {
+            crate::executor::db::types::DbResult::Select { rows, .. } => {
+                assert_eq!(rows[0]["n"], 1);
+            }
+            other => panic!("expected Select, got {other:?}"),
+        }
+    }
+
     // ───── Epic 53 Story 01: explain wiring ─────
 
     #[tokio::test]

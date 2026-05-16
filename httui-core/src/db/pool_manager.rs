@@ -644,4 +644,49 @@ mod tests {
         assert!(Arc::ptr_eq(&first, &second));
         assert_eq!(mgr.cache_size().await, 1);
     }
+
+    /// Same as `sqlite_lookup_env` but wired with a counting emitter so
+    /// the "connected" emission branch in `get_pool_keyed` is covered.
+    async fn sqlite_lookup_env_with_emitter() -> (PoolManager, String, Arc<CountingEmitter>) {
+        let (mgr, id) = sqlite_lookup_env().await;
+        // Rebuild with the same lookup wiring + an emitter.
+        let app = mgr.app_pool().clone();
+        let emitter = Arc::new(CountingEmitter {
+            calls: AtomicUsize::new(0),
+        });
+        let mgr = PoolManager::new_with_emitter(
+            crate::db::lookup::SqliteLookup::new(app.clone()),
+            app,
+            emitter.clone(),
+        );
+        (mgr, id, emitter)
+    }
+
+    #[tokio::test]
+    async fn get_pool_emits_connected_for_base_and_override() {
+        let (mgr, id, emitter) = sqlite_lookup_env_with_emitter().await;
+        let _base = mgr.get_pool(&id).await.unwrap();
+        let ov = HostPortOverride {
+            host: Some("db.staging".into()),
+            port: Some(5599),
+        };
+        let _ovr = mgr.get_pool_with_override(&id, Some(&ov)).await.unwrap();
+        // One emit for the base pool, one for the override-keyed pool.
+        assert_eq!(emitter.calls.load(Ordering::SeqCst), 2);
+        assert_eq!(mgr.cache_size().await, 2);
+    }
+
+    #[tokio::test]
+    async fn get_pool_with_override_propagates_not_found() {
+        let app = memory_app_pool().await;
+        let mgr = PoolManager::new_standalone(Arc::new(NoopLookup), app);
+        let ov = HostPortOverride {
+            host: Some("h".into()),
+            port: None,
+        };
+        match mgr.get_pool_with_override("missing", Some(&ov)).await {
+            Ok(_) => panic!("expected not-found error"),
+            Err(e) => assert!(e.contains("not found"), "got: {e}"),
+        }
+    }
 }

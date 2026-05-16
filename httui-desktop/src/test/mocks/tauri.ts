@@ -22,3 +22,13 @@ export const invoke = vi.fn(
     return undefined;
   },
 );
+
+/**
+ * Test double for `@tauri-apps/api/core`'s `Channel`. The real one is a
+ * serializable transport; here it's just an `onmessage` sink. A mocked
+ * `invoke` handler receives the channel as `args.onChunk` and can push
+ * chunks by calling `chunk.onmessage?.(msg)` to simulate the backend.
+ */
+export class Channel<T = unknown> {
+  onmessage: ((msg: T) => void) | null = null;
+}
