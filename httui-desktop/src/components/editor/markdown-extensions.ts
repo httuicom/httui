@@ -33,6 +33,7 @@ import {
 } from "@codemirror/search";
 
 import { hybridRendering } from "@/lib/codemirror/cm-hybrid-rendering";
+import { mergeConflict } from "@/lib/codemirror/cm-merge-conflict";
 import {
   slashCommands,
   slashCompletionSource,
@@ -141,6 +142,10 @@ export function buildExtensions(params: BuildExtensionsParams) {
     ]),
     moveBlocksKeymap(),
     hybridRendering(),
+    // After hybridRendering so conflict line backgrounds + the inline
+    // accept toolbar layer over the live-preview styling (V10 manual
+    // -test follow-up — a conflicted .md must read as conflicted).
+    mergeConflict(),
     ...(docHeaderHandle ? [docHeaderHandle.extension] : []),
     createDbBlockExtension(),
     createHttpBlockExtension(),
