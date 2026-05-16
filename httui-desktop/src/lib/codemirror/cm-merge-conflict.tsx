@@ -97,14 +97,9 @@ class ConflictToolbarWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const bar = document.createElement("div");
+    const bar = document.createElement("span");
     bar.className = "cm-conflict-toolbar";
     bar.contentEditable = "false";
-
-    const label = document.createElement("span");
-    label.className = "cm-conflict-toolbar-label";
-    label.textContent = "Merge conflict";
-    bar.appendChild(label);
 
     const mk = (text: string, side: Side) => {
       const btn = document.createElement("button");
@@ -157,25 +152,27 @@ const theirsMarkerLine = Decoration.line({
 function buildDecorations(doc: Text): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   for (const region of parseConflictRegions(doc)) {
-    const startFrom = doc.line(region.oursMarker).from;
-    builder.add(
-      startFrom,
-      startFrom,
-      Decoration.widget({
-        widget: new ConflictToolbarWidget(region.oursMarker),
-        block: true,
-        side: -1,
-      }),
-    );
     for (let i = region.oursMarker; i <= region.theirsMarker; i++) {
-      const from = doc.line(i).from;
+      const line = doc.line(i);
       let deco: Decoration;
       if (i === region.oursMarker) deco = oursMarkerLine;
       else if (i < region.separator) deco = oursLine;
       else if (i === region.separator) deco = sepLine;
       else if (i < region.theirsMarker) deco = theirsLine;
       else deco = theirsMarkerLine;
-      builder.add(from, from, deco);
+      builder.add(line.from, line.from, deco);
+      if (i === region.oursMarker) {
+        // Inline accept actions at the end of the `<<<<<<<` line —
+        // VS Code-style, not a full-width block bar.
+        builder.add(
+          line.to,
+          line.to,
+          Decoration.widget({
+            widget: new ConflictToolbarWidget(region.oursMarker),
+            side: 1,
+          }),
+        );
+      }
     }
   }
   return builder.finish();
@@ -209,32 +206,27 @@ const conflictTheme = EditorView.theme({
     fontWeight: "700",
   },
   ".cm-conflict-toolbar": {
-    display: "flex",
+    display: "inline-flex",
     alignItems: "center",
-    gap: "8px",
-    padding: "4px 8px",
-    fontFamily: "var(--chakra-fonts-mono)",
-    fontSize: "11px",
-    backgroundColor: "rgba(120, 120, 120, 0.18)",
-    borderBottom: "1px solid rgba(120,120,120,0.3)",
-  },
-  ".cm-conflict-toolbar-label": {
-    color: "var(--chakra-colors-fg-muted, #999)",
-    textTransform: "uppercase",
-    letterSpacing: "0.04em",
+    gap: "4px",
+    marginLeft: "10px",
+    verticalAlign: "middle",
+    userSelect: "none",
   },
   ".cm-conflict-btn": {
     cursor: "pointer",
-    border: "1px solid rgba(120,120,120,0.4)",
+    border: "1px solid rgba(120,120,120,0.45)",
     borderRadius: "3px",
-    background: "transparent",
-    color: "inherit",
+    background: "rgba(120,120,120,0.12)",
+    color: "var(--chakra-colors-fg-muted, #aaa)",
     fontFamily: "var(--chakra-fonts-mono)",
-    fontSize: "11px",
-    padding: "1px 6px",
+    fontSize: "9px",
+    lineHeight: "1.2",
+    padding: "0 5px",
   },
   ".cm-conflict-btn:hover": {
-    backgroundColor: "rgba(120,120,120,0.25)",
+    backgroundColor: "rgba(120,120,120,0.3)",
+    color: "var(--chakra-colors-fg, #eee)",
   },
 });
 
