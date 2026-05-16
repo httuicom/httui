@@ -11,11 +11,18 @@
 import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
 import { Btn } from "@/components/atoms";
-import type { CommitInfo, GitFileChange, GitStatus } from "@/lib/tauri/git";
+import type {
+  CommitInfo,
+  ConflictVersions,
+  GitFileChange,
+  GitStatus,
+} from "@/lib/tauri/git";
 
 import { GitAuditHeader } from "./GitAuditHeader";
 import { GitCommitDiffViewer } from "./GitCommitDiffViewer";
 import { GitCommitForm } from "./GitCommitForm";
+import { GitConflictBanner } from "./GitConflictBanner";
+import { GitConflictResolver } from "./GitConflictResolver";
 import { GitFileList } from "./GitFileList";
 import { GitLogFilter } from "./GitLogFilter";
 import { GitLogList } from "./GitLogList";
@@ -77,6 +84,16 @@ export interface GitPanelProps {
   upstreamPrompt?: { branch: string; remote: string } | null;
   onConfirmSetUpstream?: () => void;
   onCancelSetUpstream?: () => void;
+  // --- Conflict resolution (cenário 6) ---
+  conflicts?: ReadonlyArray<string>;
+  conflictBusy?: boolean;
+  onOpenConflict?: (path: string) => void;
+  onAcceptYours?: (path: string) => void;
+  onAcceptTheirs?: (path: string) => void;
+  /** When set, the 3-way resolver takes over the panel body. */
+  resolver?: { path: string; versions: ConflictVersions } | null;
+  onResolveMerged?: (path: string, merged: string) => void;
+  onCancelResolver?: () => void;
 }
 
 const TabButton = chakra("button");
@@ -113,6 +130,14 @@ export function GitPanel({
   upstreamPrompt,
   onConfirmSetUpstream,
   onCancelSetUpstream,
+  conflicts = [],
+  conflictBusy,
+  onOpenConflict,
+  onAcceptYours,
+  onAcceptTheirs,
+  resolver,
+  onResolveMerged,
+  onCancelResolver,
 }: GitPanelProps) {
   if (status === null) {
     return (
@@ -224,9 +249,37 @@ export function GitPanel({
         </Box>
       )}
 
-      {activeTab === "status" && (
+      {resolver && onResolveMerged && onCancelResolver && (
+        <Box
+          data-testid="git-panel-resolver"
+          flex="1 1 auto"
+          minH={0}
+          overflow="hidden"
+        >
+          <GitConflictResolver
+            path={resolver.path}
+            versions={resolver.versions}
+            busy={conflictBusy}
+            onResolve={onResolveMerged}
+            onCancel={onCancelResolver}
+          />
+        </Box>
+      )}
+
+      {!resolver && activeTab === "status" && (
         <Flex direction="column" flex="1 1 auto" minH={0}>
           <GitStatusHeader status={status} />
+          {conflicts.length > 0 && (
+            <Box px={3} pt={2} flexShrink={0}>
+              <GitConflictBanner
+                conflicts={conflicts}
+                busy={conflictBusy}
+                onOpenDiff={onOpenConflict}
+                onAcceptYours={onAcceptYours}
+                onAcceptTheirs={onAcceptTheirs}
+              />
+            </Box>
+          )}
           <Box
             data-testid="git-panel-section-working-tree"
             flex="1 1 auto"
@@ -260,7 +313,7 @@ export function GitPanel({
         </Flex>
       )}
 
-      {activeTab === "log" && (
+      {!resolver && activeTab === "log" && (
         <Flex direction="column" flex="1 1 auto" minH={0}>
           {logFilter && onLogFilterChange && (
             <GitLogFilter state={logFilter} onChange={onLogFilterChange} />
@@ -285,7 +338,7 @@ export function GitPanel({
         </Flex>
       )}
 
-      {activeTab === "audit" && (
+      {!resolver && activeTab === "audit" && (
         <Box
           data-testid="git-panel-section-audit"
           flex="1 1 auto"

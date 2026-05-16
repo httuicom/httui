@@ -109,6 +109,21 @@ export function gitCheckoutConflictPath(
   return invoke("git_checkout_conflict_path_cmd", { vaultPath, path, side });
 }
 
+export interface ConflictVersions {
+  base: string;
+  ours: string;
+  theirs: string;
+}
+
+/** The three merge stages of a conflicted path (`git show :1|:2|:3`).
+ *  Powers the V10 cenário 6 3-way resolver. */
+export function gitConflictVersions(
+  vaultPath: string,
+  path: string,
+): Promise<ConflictVersions> {
+  return invoke("git_conflict_versions_cmd", { vaultPath, path });
+}
+
 export function stagePath(vaultPath: string, path: string): Promise<void> {
   return invoke("stage_path_cmd", { vaultPath, path });
 }

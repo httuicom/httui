@@ -12,9 +12,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useGitConflictResolve } from "@/hooks/useGitConflictResolve";
 import { useGitRemotes } from "@/hooks/useGitRemotes";
 import { useGitStatus } from "@/hooks/useGitStatus";
+import { writeNote } from "@/lib/tauri/commands";
 import {
+  gitConflictVersions,
   gitCommit,
   gitDiff,
   gitFetch,
@@ -24,13 +27,14 @@ import {
   stagePath,
   unstagePath,
   type CommitInfo,
+  type ConflictVersions,
   type GitFileChange,
 } from "@/lib/tauri/git";
 import { usePaneStore } from "@/stores/pane";
 import { useWorkspaceStore } from "@/stores/workspace";
 
 import { GitPanel, type GitPanelTab } from "./GitPanel";
-import { partitionFileChanges } from "./git-derive";
+import { labelFileStatus, partitionFileChanges } from "./git-derive";
 import type { SyncOp } from "./GitSyncButtons";
 import {
   filterCommitsByAuthor,
@@ -74,8 +78,26 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     remote: string;
   } | null>(null);
 
+  const [resolver, setResolver] = useState<{
+    path: string;
+    versions: ConflictVersions;
+  } | null>(null);
+
   const { remotes } = useGitRemotes(vaultPath);
   const hasRemote = remotes.length > 0;
+  const {
+    busy: conflictBusy,
+    acceptOurs,
+    acceptTheirs,
+  } = useGitConflictResolve(vaultPath);
+
+  const conflicts = useMemo(
+    () =>
+      (status?.changed ?? [])
+        .filter((c) => labelFileStatus(c) === "conflicted")
+        .map((c) => c.path),
+    [status],
+  );
 
   // Path mode filters server-side (CommitInfo carries no paths);
   // author mode filters the in-memory list. Deriving pathFilter
@@ -252,6 +274,57 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     [],
   );
 
+  const handleOpenConflict = useCallback(
+    async (path: string) => {
+      if (!vaultPath) return;
+      try {
+        const versions = await gitConflictVersions(vaultPath, path);
+        setResolver({ path, versions });
+      } catch {
+        // Path stopped being unmerged between render and click —
+        // the status poll will drop it from the banner shortly.
+      }
+    },
+    [vaultPath],
+  );
+
+  const afterConflictMutation = useCallback(() => {
+    refreshStatus();
+    void reloadLog();
+  }, [refreshStatus, reloadLog]);
+
+  const handleAcceptYours = useCallback(
+    async (path: string) => {
+      await acceptOurs(path);
+      afterConflictMutation();
+    },
+    [acceptOurs, afterConflictMutation],
+  );
+
+  const handleAcceptTheirs = useCallback(
+    async (path: string) => {
+      await acceptTheirs(path);
+      afterConflictMutation();
+    },
+    [acceptTheirs, afterConflictMutation],
+  );
+
+  const handleResolveMerged = useCallback(
+    async (path: string, merged: string) => {
+      if (!vaultPath) return;
+      try {
+        await writeNote(vaultPath, path, merged);
+        await stagePath(vaultPath, path);
+      } finally {
+        setResolver(null);
+        afterConflictMutation();
+      }
+    },
+    [vaultPath, afterConflictMutation],
+  );
+
+  const handleCancelResolver = useCallback(() => setResolver(null), []);
+
   const stagedCount = status
     ? partitionFileChanges(status.changed).staged.length
     : 0;
@@ -295,6 +368,14 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       upstreamPrompt={upstreamPrompt}
       onConfirmSetUpstream={handleConfirmSetUpstream}
       onCancelSetUpstream={handleCancelSetUpstream}
+      conflicts={conflicts}
+      conflictBusy={conflictBusy}
+      onOpenConflict={handleOpenConflict}
+      onAcceptYours={handleAcceptYours}
+      onAcceptTheirs={handleAcceptTheirs}
+      resolver={resolver}
+      onResolveMerged={handleResolveMerged}
+      onCancelResolver={handleCancelResolver}
     />
   );
 }

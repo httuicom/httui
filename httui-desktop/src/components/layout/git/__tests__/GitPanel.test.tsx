@@ -311,4 +311,57 @@ describe("GitPanel", () => {
       ).toBeInTheDocument();
     });
   });
+
+  describe("conflict resolution (cenário 6)", () => {
+    it("renders the conflict banner on the Status tab", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status({ clean: false })}
+          commits={[]}
+          conflicts={["a.md", "b.md"]}
+          onOpenConflict={vi.fn()}
+          onAcceptYours={vi.fn()}
+          onAcceptTheirs={vi.fn()}
+        />,
+      );
+      expect(
+        screen.getByTestId("git-conflict-banner"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("git-conflict-row-a.md"),
+      ).toBeInTheDocument();
+    });
+
+    it("omits the banner when there are no conflicts", () => {
+      renderWithProviders(
+        <GitPanel status={status()} commits={[]} conflicts={[]} />,
+      );
+      expect(
+        screen.queryByTestId("git-conflict-banner"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("takes over the body with the resolver when active", () => {
+      renderWithProviders(
+        <GitPanel
+          status={status()}
+          commits={[]}
+          resolver={{
+            path: "a.md",
+            versions: { base: "b", ours: "o", theirs: "t" },
+          }}
+          onResolveMerged={vi.fn()}
+          onCancelResolver={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("git-panel-resolver")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("git-conflict-resolver"),
+      ).toBeInTheDocument();
+      // Tab bodies are suppressed while resolving.
+      expect(
+        screen.queryByTestId("git-panel-section-working-tree"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

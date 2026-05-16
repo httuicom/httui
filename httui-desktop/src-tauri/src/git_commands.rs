@@ -3,9 +3,9 @@
 
 use httui_core::git::{
     git_branch_list, git_checkout, git_checkout_b, git_checkout_conflict_path, git_clone,
-    git_commit, git_diff, git_fetch, git_first_commit_author, git_log, git_pull, git_push,
-    git_remote_list, git_status, stage_path, unstage_path, BranchInfo, CloneOutcome, CommitInfo,
-    ConflictSide, GitStatus, Remote,
+    git_commit, git_conflict_versions, git_diff, git_fetch, git_first_commit_author, git_log,
+    git_pull, git_push, git_remote_list, git_status, stage_path, unstage_path, BranchInfo,
+    CloneOutcome, CommitInfo, ConflictSide, ConflictVersions, GitStatus, Remote,
 };
 use std::path::PathBuf;
 
@@ -88,6 +88,16 @@ pub async fn git_checkout_conflict_path_cmd(
     side: ConflictSide,
 ) -> Result<(), String> {
     git_checkout_conflict_path(&PathBuf::from(vault_path), &path, side)
+}
+
+/// `git show :1|:2|:3:<path>` — the three merge stages of a
+/// conflicted file. Powers the V10 cenário 6 3-way resolver.
+#[tauri::command]
+pub async fn git_conflict_versions_cmd(
+    vault_path: String,
+    path: String,
+) -> Result<ConflictVersions, String> {
+    git_conflict_versions(&PathBuf::from(vault_path), &path)
 }
 
 /// `git add <path>` — stages a single vault-relative file. Powers

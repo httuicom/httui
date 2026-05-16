@@ -500,6 +500,7 @@ fn main() {
             httui_notes::git_commands::git_fetch_cmd,
             httui_notes::git_commands::git_pull_cmd,
             httui_notes::git_commands::git_push_cmd,
+            httui_notes::git_commands::git_conflict_versions_cmd,
             // V1 vertical 1, cenário 2 — clone vault.
             httui_notes::git_commands::clone_vault_cmd,
             // Epic 52 Story 04 — vault-wide tag index.

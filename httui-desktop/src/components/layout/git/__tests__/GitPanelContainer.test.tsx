@@ -62,6 +62,13 @@ beforeEach(() => {
   mockTauriCommand("git_fetch_cmd", () => "Fetched origin");
   mockTauriCommand("git_pull_cmd", () => "Already up to date.");
   mockTauriCommand("git_push_cmd", () => "Everything up-to-date");
+  mockTauriCommand("git_conflict_versions_cmd", () => ({
+    base: "base\n",
+    ours: "ours\n",
+    theirs: "theirs\n",
+  }));
+  mockTauriCommand("git_checkout_conflict_path_cmd", () => undefined);
+  mockTauriCommand("write_note", () => undefined);
 });
 
 afterEach(() => {
@@ -469,6 +476,102 @@ describe("GitPanelContainer", () => {
         ).not.toBeInTheDocument(),
       );
       expect(pushed).toBe(0);
+    });
+  });
+
+  describe("conflict resolution (cenário 6)", () => {
+    const conflicted: GitStatus = {
+      branch: "main",
+      upstream: "origin/main",
+      ahead: 0,
+      behind: 1,
+      changed: [
+        { path: "c.md", status: "UU", staged: false, untracked: false },
+      ],
+      clean: false,
+    };
+
+    it("derives the conflict banner from unmerged paths", async () => {
+      mockTauriCommand("git_status_cmd", () => conflicted);
+      renderWithProviders(<GitPanelContainer />);
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("git-conflict-banner"),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.getByTestId("git-conflict-row-c.md"),
+      ).toBeInTheDocument();
+    });
+
+    it("accepts ours via git_checkout_conflict_path_cmd", async () => {
+      let side: unknown = null;
+      mockTauriCommand("git_status_cmd", () => conflicted);
+      mockTauriCommand("git_checkout_conflict_path_cmd", (a) => {
+        side = (a as { side: string }).side;
+        return undefined;
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await user.click(
+        await screen.findByTestId("git-conflict-row-c.md-accept-yours"),
+      );
+      await waitFor(() => expect(side).toBe("ours"));
+    });
+
+    it("opens the 3-way resolver and writes + stages on resolve", async () => {
+      let wrote = "";
+      let staged = "";
+      mockTauriCommand("git_status_cmd", () => conflicted);
+      mockTauriCommand("write_note", (a) => {
+        wrote = (a as { content: string }).content;
+        return undefined;
+      });
+      mockTauriCommand("stage_path_cmd", (a) => {
+        staged = (a as { path: string }).path;
+        return undefined;
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await user.click(
+        await screen.findByTestId("git-conflict-row-c.md-resolve"),
+      );
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("git-conflict-resolver"),
+        ).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId("git-conflict-resolver-mark"));
+      await waitFor(() => expect(wrote).toBe("ours\n"));
+      expect(staged).toBe("c.md");
+      await waitFor(() =>
+        expect(
+          screen.queryByTestId("git-conflict-resolver"),
+        ).not.toBeInTheDocument(),
+      );
+    });
+
+    it("cancels the resolver without writing", async () => {
+      let wrote = 0;
+      mockTauriCommand("git_status_cmd", () => conflicted);
+      mockTauriCommand("write_note", () => {
+        wrote += 1;
+        return undefined;
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitPanelContainer />);
+      await user.click(
+        await screen.findByTestId("git-conflict-row-c.md-resolve"),
+      );
+      await user.click(
+        await screen.findByTestId("git-conflict-resolver-cancel"),
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByTestId("git-conflict-resolver"),
+        ).not.toBeInTheDocument(),
+      );
+      expect(wrote).toBe(0);
     });
   });
 });
