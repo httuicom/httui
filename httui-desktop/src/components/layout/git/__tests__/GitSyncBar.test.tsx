@@ -32,17 +32,30 @@ describe("GitSyncBar", () => {
     expect(btn).toHaveTextContent("Pulling…");
   });
 
-  it("shows which step failed", () => {
+  it("shows the failed step, a readable summary and the cleaned detail", () => {
     renderWithProviders(
       <GitSyncBar
         {...base}
         step="pushing"
         failedStep="pushing"
-        error="rejected"
+        error={
+          "remote: error: GH013: Repository rule violations found " +
+          "remote: - Changes must be made through a pull request."
+        }
       />,
     );
     expect(screen.getByTestId("git-sync-error")).toHaveTextContent(
-      "pushing failed: rejected",
+      "pushing failed",
+    );
+    expect(screen.getByTestId("git-sync-error-summary")).toHaveTextContent(
+      "requires a pull request",
+    );
+    const detail = screen.getByTestId("git-sync-error-detail");
+    expect(detail).not.toHaveTextContent("remote:");
+    expect(detail).toHaveTextContent("GH013");
+    // The button becomes an actionable retry, not stuck on a step.
+    expect(screen.getByTestId("git-sync-button")).toHaveTextContent(
+      "Retry sync",
     );
   });
 

@@ -6,6 +6,7 @@
 import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import { LuCircleAlert, LuRefreshCw } from "react-icons/lu";
 
+import { formatGitError } from "@/lib/blocks/git-error";
 import type { SyncStep, UseGitSyncResult } from "@/hooks/useGitSync";
 
 const STEP_LABEL: Record<SyncStep, string> = {
@@ -91,13 +92,13 @@ export function GitSyncBar({
           onClick={sync}
         >
           <LuRefreshCw />
-          {STEP_LABEL[step]}
+          {error ? "Retry sync" : STEP_LABEL[step]}
         </Button>
         {error && (
           <HStack gap={1} data-testid="git-sync-error" color="error">
             <LuCircleAlert size={12} />
-            <Text fontSize="10px">
-              {failedStep} failed: {error}
+            <Text fontSize="10px" fontFamily="mono">
+              {failedStep} failed
             </Text>
           </HStack>
         )}
@@ -107,6 +108,45 @@ export function GitSyncBar({
           </Text>
         )}
       </Flex>
+
+      {error && <GitSyncError raw={error} />}
+    </Box>
+  );
+}
+
+function GitSyncError({ raw }: { raw: string }) {
+  const { summary, detail } = formatGitError(raw);
+  return (
+    <Box mt={2} data-testid="git-sync-error-block">
+      <Text
+        data-testid="git-sync-error-summary"
+        fontSize="11px"
+        fontWeight="600"
+        color="error"
+        mb={1}
+      >
+        {summary}
+      </Text>
+      <Box
+        as="pre"
+        data-testid="git-sync-error-detail"
+        m={0}
+        px={2}
+        py={2}
+        maxH="140px"
+        overflow="auto"
+        bg="bg.muted"
+        borderWidth="1px"
+        borderColor="border"
+        borderRadius="4px"
+        fontFamily="mono"
+        fontSize="10px"
+        color="fg.muted"
+        whiteSpace="pre-wrap"
+        css={{ wordBreak: "break-word" }}
+      >
+        {detail}
+      </Box>
     </Box>
   );
 }
