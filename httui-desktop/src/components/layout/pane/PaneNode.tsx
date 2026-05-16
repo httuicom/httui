@@ -87,8 +87,6 @@ export function PaneNode({
         direction="column"
         flex={1}
         overflow="hidden"
-        borderWidth={isActive ? "1px" : "0"}
-        borderColor="brand.500/30"
         onClick={() => setActivePaneId(layout.id)}
       >
         <TabBar
