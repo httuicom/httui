@@ -17,9 +17,10 @@
 //! content slice lands; consumers compose the two lists when
 //! presenting the picker.
 //!
-//! Frontmatter contract for templates:
+//! Frontmatter contract for templates (4-backtick `text` fence so
+//! the nested 3-backtick http fence is literal, not a Rust doctest):
 //!
-//! ```text
+//! ````text
 //! ---
 //! title: "Postgres health check"
 //! description: "SELECT 1, current_database(), version()"
@@ -27,7 +28,7 @@
 //! ```http
 //! GET https://...
 //! ```
-//! ```
+//! ````
 //!
 //! `title` becomes the display name (fallback: file stem). The
 //! `description` extra key shows under the title in the picker;
