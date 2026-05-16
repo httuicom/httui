@@ -162,7 +162,9 @@ export const useGitStore = create<GitState>()(
         try {
           const list = await gitLog(vp, LOG_LIMIT, pathFilter ?? undefined);
           if (get().vaultPath !== vp) return;
-          set({ commits: list });
+          // Coerce at the IPC boundary — consumers `.slice`/`.map`
+          // over this, so a non-array result must never land in state.
+          set({ commits: Array.isArray(list) ? list : [] });
         } catch {
           // Transient (not a repo yet, IPC dead) — the status poll
           // surfaces real errors; the log list just stays empty.

@@ -26,6 +26,7 @@ import { GitStatusHeader } from "@/components/layout/git/GitStatusHeader";
 import { GitFileList } from "@/components/layout/git/GitFileList";
 import { GitCommitForm } from "@/components/layout/git/GitCommitForm";
 import { GitSyncBar } from "@/components/layout/git/GitSyncBar";
+import { GitSidePanelHistory } from "@/components/layout/git/GitSidePanelHistory";
 import { partitionFileChanges } from "@/components/layout/git/git-derive";
 import { deriveCommitMessage } from "@/lib/blocks/commit-template";
 import { useGitStatus } from "@/hooks/useGitStatus";
@@ -55,6 +56,7 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
   );
   const resetCommitMessage = useGitStore((s) => s.resetCommitMessage);
   const reloadLog = useGitStore((s) => s.reloadLog);
+  const commits = useGitStore((s) => s.commits);
   const template = useSettingsStore((s) => s.gitCommitTemplate);
   const { commit, committing } = useGitCommit(vaultPath);
   const { toggleStage } = useGitStage(vaultPath);
@@ -69,6 +71,12 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
     () => deriveCommitMessage(changedPaths, template),
     [changedPaths, template],
   );
+
+  // Populate the compact history when the panel opens (cenário 4) —
+  // the status poll doesn't reload the log; commit/sync do.
+  useEffect(() => {
+    void reloadLog();
+  }, [reloadLog, vaultPath]);
 
   // Prefill while the draft is untouched; a hand-edit (dirty) wins.
   useEffect(() => {
@@ -173,6 +181,11 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
               onCommit={handleCommit}
             />
             <GitSyncBar {...syncState} />
+            <GitSidePanelHistory
+              vaultPath={vaultPath}
+              commits={commits}
+              onViewAll={openGitTab}
+            />
           </>
         ) : (
           <Text

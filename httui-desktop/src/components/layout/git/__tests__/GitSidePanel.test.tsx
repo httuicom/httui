@@ -150,6 +150,27 @@ describe("GitSidePanel", () => {
       expect(await screen.findByTestId("git-sync-button")).toBeInTheDocument();
     });
 
+    it("mounts the compact history from the shared log (cenário 4)", async () => {
+      mockTauriCommand("git_status_cmd", () => statusWith(["foo.md"]));
+      mockTauriCommand("git_log_cmd", () => [
+        {
+          sha: "deadbeef",
+          short_sha: "deadbee",
+          author_name: "Ada",
+          author_email: "ada@x.dev",
+          timestamp: 1_700_000_000,
+          subject: "init",
+        },
+      ]);
+      renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
+      expect(
+        await screen.findByTestId("git-side-panel-history"),
+      ).toBeInTheDocument();
+      expect(
+        await screen.findByTestId("git-log-row-deadbee"),
+      ).toBeInTheDocument();
+    });
+
     it("staging a row routes through stage_path_cmd", async () => {
       mockTauriCommand("git_status_cmd", () => statusWith(["foo.md"]));
       let staged: string | null = null;
