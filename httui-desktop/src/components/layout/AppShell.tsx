@@ -15,6 +15,7 @@ import { usePaneStore } from "@/stores/pane";
 import { useSettingsStore } from "@/stores/settings";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { useEnvSwitcherStore } from "@/stores/envSwitcher";
+import { useNewVariablePopoverStore } from "@/stores/newVariablePopover";
 import { initTauriBridge } from "@/stores/tauri-bridge";
 import { useFileOperations } from "@/hooks/useFileOperations";
 import { useEditorSession } from "@/hooks/useEditorSession";
@@ -29,6 +30,7 @@ import { EmptyVaultScreen } from "./EmptyVaultScreen";
 import { MigrationBannerHost } from "./empty-vault/MigrationBannerHost";
 import { ColorModeSync } from "./ColorModeSync";
 import { PendingSecretsModal } from "./PendingSecretsModal";
+import { NewVariablePopover } from "./variables/NewVariablePopover";
 import { usePendingSecretsScan } from "@/hooks/usePendingSecretsScan";
 
 export function AppShell() {
@@ -62,6 +64,7 @@ export function AppShell() {
     [],
   );
   const openEnvSwitcher = useEnvSwitcherStore((s) => s.openSwitcher);
+  const openNewVariable = useNewVariablePopoverStore((s) => s.openForm);
 
   // Initialize all Tauri listeners and stores once
   useEffect(() => {
@@ -121,6 +124,7 @@ export function AppShell() {
       toggleOutlinePanel,
       toggleHistoryPanel,
       openEnvSwitcher,
+      openNewVariable,
     }),
     [
       toggleSidebar,
@@ -129,6 +133,7 @@ export function AppShell() {
       toggleOutlinePanel,
       toggleHistoryPanel,
       openEnvSwitcher,
+      openNewVariable,
       splitVertical,
       splitHorizontal,
       closeTab,
@@ -279,6 +284,7 @@ export function AppShell() {
         <EnvironmentManager />
         <SettingsDrawer />
         <PendingSecretsModal />
+        <NewVariablePopover />
       </Flex>
     </WorkspaceContext.Provider>
   );

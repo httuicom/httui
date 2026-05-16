@@ -100,6 +100,24 @@ export function navigateJson(data: unknown, path: string[]): unknown {
   return current;
 }
 
+/** Positional alias: the executed block immediately above this one,
+ * no explicit `alias=` needed. `{{$prev.body.id}}` ≈ the previous
+ * block's response navigated by `.body.id` (response is the root —
+ * the `.response` segment is implicit, unlike named refs). */
+export const PREV_ALIAS = "$prev";
+
+/** The block with the greatest `pos` strictly above `currentPos`. */
+export function findPrevBlock(
+  blocks: BlockContext[],
+  currentPos: number,
+): BlockContext | undefined {
+  let prev: BlockContext | undefined;
+  for (const b of blocks) {
+    if (b.pos < currentPos && (!prev || b.pos > prev.pos)) prev = b;
+  }
+  return prev;
+}
+
 /**
  * Resolve a single reference against block contexts.
  */
@@ -108,27 +126,36 @@ export function resolveReference(
   blocks: BlockContext[],
   currentPos: number,
 ): string {
-  const block = blocks.find((b) => b.alias === ref.alias);
+  const isPrev = ref.alias === PREV_ALIAS;
+  const block = isPrev
+    ? findPrevBlock(blocks, currentPos)
+    : blocks.find((b) => b.alias === ref.alias);
 
   if (!block) {
-    throw new Error(`Alias "${ref.alias}" not found in document`);
+    throw new Error(
+      isPrev
+        ? `No previous block to reference with {{$prev}}`
+        : `Alias "${ref.alias}" not found in document`,
+    );
   }
 
-  if (block.pos >= currentPos) {
+  if (!isPrev && block.pos >= currentPos) {
     throw new Error(
       `Alias "${ref.alias}" is below current block (blocks can only reference blocks above)`,
     );
   }
 
   if (!block.cachedResult) {
-    throw new Error(`Block "${ref.alias}" has no result yet — run it first.`);
+    const label = isPrev ? "Previous block" : `Block "${ref.alias}"`;
+    throw new Error(`${label} has no result yet — run it first.`);
   }
 
   let responseData: unknown;
   try {
     responseData = JSON.parse(block.cachedResult.response);
   } catch {
-    throw new Error(`Alias "${ref.alias}" has invalid cached response`);
+    const label = isPrev ? "Previous block" : `Alias "${ref.alias}"`;
+    throw new Error(`${label} has invalid cached response`);
   }
 
   // For db blocks with the stage-2 response shape (`{results, messages,
@@ -143,12 +170,14 @@ export function resolveReference(
       ? makeDbResponseView(responseData)
       : responseData;
 
-  const context: Record<string, unknown> = {
-    response: responseValue,
-    status: block.cachedResult.status,
-  };
+  // `$prev` roots navigation at the response itself (the `.response`
+  // segment is implicit); named refs keep the `{response, status}`
+  // envelope so `{{alias.response.x}}` / `{{alias.status}}` work.
+  const root: unknown = isPrev
+    ? responseValue
+    : { response: responseValue, status: block.cachedResult.status };
 
-  const value = navigateJson(context, ref.path);
+  const value = navigateJson(root, ref.path);
 
   if (typeof value === "object" && value !== null) {
     return JSON.stringify(value);
@@ -261,6 +290,15 @@ export function resolveAllReferences(
     const ref = refs[i];
     try {
       let value: string;
+
+      // `$prev` is positional — never an env var; resolveReference
+      // picks the previous block (and raises its own clear errors).
+      if (ref.alias === PREV_ALIAS) {
+        value = resolveReference(ref, blocks, currentPos);
+        resolved =
+          resolved.slice(0, ref.start) + value + resolved.slice(ref.end);
+        continue;
+      }
 
       // Try block reference first (block ref > env var when alias collides)
       const matchingBlock = blocks.find(
