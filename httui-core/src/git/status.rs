@@ -279,6 +279,88 @@ mod tests {
     }
 
     #[test]
+    fn parse_status_handles_renamed_entry() {
+        // porcelain=v2 `2` line: rename, path is `<new>\t<orig>`.
+        let raw = "# branch.head main\n2 R. N... 100644 100644 100644 aaaa bbbb R100 docs/new.md\tdocs/old.md\n";
+        let s = parse_status(raw).unwrap();
+        assert_eq!(s.changed.len(), 1);
+        assert_eq!(s.changed[0].path, "docs/new.md");
+        assert_eq!(s.changed[0].status, "R.");
+        assert!(s.changed[0].staged);
+        assert!(!s.clean);
+    }
+
+    #[test]
+    fn parse_status_counts_ahead_and_behind() {
+        let raw = "# branch.head main\n# branch.ab +5 -2\n";
+        let s = parse_status(raw).unwrap();
+        assert_eq!(s.ahead, 5);
+        assert_eq!(s.behind, 2);
+    }
+
+    #[test]
+    fn parse_status_skips_entries_with_empty_paths() {
+        // Truncated `1`/`2`/`u` lines (no path field) must be
+        // skipped, not panic, leaving the tree clean.
+        let raw = "1 .M N... 100644\n2 R. N... 100644\nu UU N... 100644\n";
+        let s = parse_status(raw).unwrap();
+        assert!(s.clean);
+        assert!(s.changed.is_empty());
+    }
+
+    #[test]
+    fn branch_list_skips_origin_head_alias() {
+        use std::process::Command;
+        let remote = TempDir::new().unwrap();
+        Command::new("git")
+            .args(["init", "--bare"])
+            .arg(remote.path())
+            .output()
+            .unwrap();
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path());
+        std::fs::write(dir.path().join("a"), "1").unwrap();
+        commit_all(dir.path(), "init");
+        let run = |args: &[&str]| {
+            Command::new("git")
+                .arg("-C")
+                .arg(dir.path())
+                .args(args)
+                .output()
+                .unwrap()
+        };
+        run(&["remote", "add", "origin"]);
+        Command::new("git")
+            .arg("-C")
+            .arg(dir.path())
+            .args(["remote", "set-url", "origin"])
+            .arg(remote.path())
+            .output()
+            .unwrap();
+        run(&["push", "-u", "origin", "main"]);
+        run(&["remote", "set-head", "origin", "main"]);
+        let branches = git_branch_list(dir.path()).unwrap();
+        // origin/HEAD symbolic alias must be filtered out.
+        assert!(branches.iter().all(|b| !b.name.ends_with("/HEAD")));
+        assert!(branches.iter().any(|b| b.name == "main" && b.current));
+    }
+
+    #[test]
+    fn git_diff_workdir_and_commit_modes() {
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path());
+        std::fs::write(dir.path().join("a"), "1\n").unwrap();
+        let sha = commit_all(dir.path(), "init");
+        // Commit mode: `git show <sha>` includes the subject.
+        let commit_diff = git_diff(dir.path(), Some(&sha)).unwrap();
+        assert!(commit_diff.contains("init"));
+        // Workdir mode: HEAD..worktree diff of an edit.
+        std::fs::write(dir.path().join("a"), "2\n").unwrap();
+        let work_diff = git_diff(dir.path(), None).unwrap();
+        assert!(work_diff.contains("+2"));
+    }
+
+    #[test]
     fn parse_status_handles_branch_ab_format() {
         let raw = "# branch.head main\n# branch.upstream origin/main\n# branch.ab +3 -1\n";
         let s = parse_status(raw).unwrap();
