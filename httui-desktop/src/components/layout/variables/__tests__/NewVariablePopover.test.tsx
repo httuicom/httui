@@ -104,6 +104,41 @@ describe("NewVariablePopover", () => {
     expect(useNewVariablePopoverStore.getState().open).toBe(false);
   });
 
+  it("Enter in the name field submits the form", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<NewVariablePopover />);
+    openPopover();
+    await user.type(screen.getByTestId("new-variable-name"), "FOO{Enter}");
+    expect(setVariable).toHaveBeenCalledWith("e1", "FOO", "", false);
+  });
+
+  it("shows the backend error when setVariable rejects", async () => {
+    const user = userEvent.setup();
+    setVariable.mockRejectedValueOnce(new Error("keychain locked") as never);
+    renderWithProviders(<NewVariablePopover />);
+    openPopover();
+    await user.type(screen.getByTestId("new-variable-name"), "T");
+    await user.click(screen.getByTestId("new-variable-save"));
+    expect(
+      (await screen.findByTestId("new-variable-error")).textContent,
+    ).toContain("keychain locked");
+    // Stays open so the user can retry.
+    expect(useNewVariablePopoverStore.getState().open).toBe(true);
+  });
+
+  it("an outside mousedown closes the popover", async () => {
+    renderWithProviders(<NewVariablePopover />);
+    openPopover();
+    expect(screen.getByTestId("new-variable-popover")).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 5));
+    document.body.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true }),
+    );
+    await vi.waitFor(() =>
+      expect(useNewVariablePopoverStore.getState().open).toBe(false),
+    );
+  });
+
   it("surfaces an error when there is no active environment", async () => {
     const user = userEvent.setup();
     useEnvironmentStore.setState({
