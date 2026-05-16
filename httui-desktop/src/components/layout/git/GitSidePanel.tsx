@@ -23,11 +23,13 @@ import { Box, Button, HStack, IconButton, Text } from "@chakra-ui/react";
 import { LuGitBranch, LuX } from "react-icons/lu";
 
 import { GitStatusHeader } from "@/components/layout/git/GitStatusHeader";
+import { GitFileList } from "@/components/layout/git/GitFileList";
 import { GitCommitForm } from "@/components/layout/git/GitCommitForm";
 import { partitionFileChanges } from "@/components/layout/git/git-derive";
 import { deriveCommitMessage } from "@/lib/blocks/commit-template";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { useGitCommit } from "@/hooks/useGitCommit";
+import { useGitStage } from "@/hooks/useGitStage";
 import { useGitStore } from "@/stores/git";
 import { useSettingsStore } from "@/stores/settings";
 import { usePaneStore } from "@/stores/pane";
@@ -53,6 +55,7 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
   const reloadLog = useGitStore((s) => s.reloadLog);
   const template = useSettingsStore((s) => s.gitCommitTemplate);
   const { commit, committing } = useGitCommit(vaultPath);
+  const { toggleStage } = useGitStage(vaultPath);
   const [amend, setAmend] = useState(false);
 
   const changedPaths = useMemo(
@@ -156,6 +159,7 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
         {status ? (
           <>
             <GitStatusHeader status={status} />
+            <GitFileList changed={status.changed} onToggleStage={toggleStage} />
             <GitCommitForm
               message={commitMessage}
               amend={amend}

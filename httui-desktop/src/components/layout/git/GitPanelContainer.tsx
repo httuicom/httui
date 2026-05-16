@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useGitCommit } from "@/hooks/useGitCommit";
+import { useGitStage } from "@/hooks/useGitStage";
 import { useGitConflictResolve } from "@/hooks/useGitConflictResolve";
 import { useGitRemotes } from "@/hooks/useGitRemotes";
 import { useGitStatus } from "@/hooks/useGitStatus";
@@ -24,7 +25,6 @@ import {
   gitPull,
   gitPush,
   stagePath,
-  unstagePath,
   type CommitInfo,
   type ConflictVersions,
   type GitFileChange,
@@ -65,6 +65,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
   const setCommitMessage = useGitStore((s) => s.setCommitMessage);
   const [commitAmend, setCommitAmend] = useState(false);
   const { commit, committing } = useGitCommit(vaultPath);
+  const { toggleStage } = useGitStage(vaultPath);
   const [diff, setDiff] = useState<string | null | undefined>(undefined);
   const [diffSubject, setDiffSubject] = useState<string | null>(null);
   const [diffShortSha, setDiffShortSha] = useState<string | null>(null);
@@ -122,22 +123,6 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     refreshStatus();
     void refreshLog();
   }, [saveSignal, refreshStatus, refreshLog]);
-
-  const handleToggleStage = useCallback(
-    async (file: GitFileChange) => {
-      if (!vaultPath) return;
-      try {
-        if (file.staged) {
-          await unstagePath(vaultPath, file.path);
-        } else {
-          await stagePath(vaultPath, file.path);
-        }
-      } finally {
-        refreshStatus();
-      }
-    },
-    [vaultPath, refreshStatus],
-  );
 
   const handleSelectFile = useCallback(
     async (file: GitFileChange) => {
@@ -327,7 +312,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
       onSelectTab={setActiveTab}
       selectedFilePath={selectedFilePath}
       selectedCommitSha={selectedCommitSha}
-      onToggleStage={handleToggleStage}
+      onToggleStage={toggleStage}
       onSelectFile={handleSelectFile}
       onSelectCommit={handleSelectCommit}
       stagedCount={stagedCount}

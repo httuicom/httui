@@ -135,4 +135,26 @@ describe("GitSidePanel", () => {
       await waitFor(() => expect(ta).toHaveValue("Update foo"));
     });
   });
+
+  describe("changed files (cenário 5)", () => {
+    it("lists changed files with their status glyph", async () => {
+      mockTauriCommand("git_status_cmd", () => statusWith(["notes/a.md"]));
+      renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
+      const row = await screen.findByTestId("git-file-row-notes/a.md");
+      expect(row).toHaveAttribute("data-status", "modified");
+    });
+
+    it("staging a row routes through stage_path_cmd", async () => {
+      mockTauriCommand("git_status_cmd", () => statusWith(["foo.md"]));
+      let staged: string | null = null;
+      mockTauriCommand("stage_path_cmd", (a) => {
+        staged = (a as { path: string }).path;
+      });
+      const user = userEvent.setup();
+      renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
+      const cb = await screen.findByTestId("git-file-row-foo.md-stage");
+      await user.click(cb);
+      await waitFor(() => expect(staged).toBe("foo.md"));
+    });
+  });
 });
