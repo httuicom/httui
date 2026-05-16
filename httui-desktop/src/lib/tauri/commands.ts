@@ -61,6 +61,8 @@ export interface UserUiPrefs {
   sidebar_open: boolean;
   /** Git side-panel (VS-Code-style SCM) open/closed. V10.1. */
   git_side_panel_open?: boolean;
+  /** Commit-message template for the git side panel. V10.1. */
+  git_commit_template?: string;
   /** Color mode: `"system"` | `"light"` | `"dark"`. */
   color_mode: string;
   /**

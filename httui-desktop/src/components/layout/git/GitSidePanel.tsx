@@ -1,4 +1,4 @@
-// V10.1 cenário 1 — VS-Code-style Source Control side panel.
+// V10.1 — VS-Code-style Source Control side panel.
 //
 // A right-side collapsible column (NOT a Dialog — a Dialog focus
 // trap would steal keyboard input from CM6). Mirrors the
@@ -11,14 +11,25 @@
 // (`gitSidePanelOpen`, user.toml `[ui].git_side_panel_open`) so the
 // panel survives an app restart (cenário 1 "estado persiste").
 //
-// The commit box, file list, sync button and compact history land
-// in this same shell across cenários 2–6.
+// Cenário 2 — the commit box comes pre-filled from the commit
+// template (`useSettingsStore.gitCommitTemplate`, default = built-in
+// conditional). Editing wins; clearing falls back to the template.
+//
+// The file list, Sync button and compact history land in this same
+// shell across cenários 3–6.
 
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, HStack, IconButton, Text } from "@chakra-ui/react";
 import { LuGitBranch, LuX } from "react-icons/lu";
 
 import { GitStatusHeader } from "@/components/layout/git/GitStatusHeader";
+import { GitCommitForm } from "@/components/layout/git/GitCommitForm";
+import { partitionFileChanges } from "@/components/layout/git/git-derive";
+import { deriveCommitMessage } from "@/lib/blocks/commit-template";
 import { useGitStatus } from "@/hooks/useGitStatus";
+import { useGitCommit } from "@/hooks/useGitCommit";
+import { useGitStore } from "@/stores/git";
+import { useSettingsStore } from "@/stores/settings";
 import { usePaneStore } from "@/stores/pane";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -31,6 +42,64 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
   const vaultPath = useWorkspaceStore((s) => s.vaultPath);
   const { status } = useGitStatus(vaultPath);
   const openGitTab = usePaneStore((s) => s.openGitTab);
+
+  const commitMessage = useGitStore((s) => s.commitMessage);
+  const commitMessageDirty = useGitStore((s) => s.commitMessageDirty);
+  const setCommitMessage = useGitStore((s) => s.setCommitMessage);
+  const setCommitMessageFromTemplate = useGitStore(
+    (s) => s.setCommitMessageFromTemplate,
+  );
+  const resetCommitMessage = useGitStore((s) => s.resetCommitMessage);
+  const reloadLog = useGitStore((s) => s.reloadLog);
+  const template = useSettingsStore((s) => s.gitCommitTemplate);
+  const { commit, committing } = useGitCommit(vaultPath);
+  const [amend, setAmend] = useState(false);
+
+  const changedPaths = useMemo(
+    () => (status?.changed ?? []).map((c) => c.path),
+    [status],
+  );
+  const suggestion = useMemo(
+    () => deriveCommitMessage(changedPaths, template),
+    [changedPaths, template],
+  );
+
+  // Prefill while the draft is untouched; a hand-edit (dirty) wins.
+  useEffect(() => {
+    if (!commitMessageDirty && commitMessage !== suggestion) {
+      setCommitMessageFromTemplate(suggestion);
+    }
+  }, [
+    suggestion,
+    commitMessageDirty,
+    commitMessage,
+    setCommitMessageFromTemplate,
+  ]);
+
+  const stagedCount = status
+    ? partitionFileChanges(status.changed).staged.length
+    : 0;
+
+  const handleMessageChange = useCallback(
+    (next: string) => {
+      // Clearing the field falls back to the template (cenário 2).
+      if (next === "") {
+        resetCommitMessage();
+      } else {
+        setCommitMessage(next);
+      }
+    },
+    [resetCommitMessage, setCommitMessage],
+  );
+
+  const handleCommit = useCallback(
+    async (input: { message: string; amend: boolean }) => {
+      await commit(input);
+      setAmend(false);
+      await reloadLog();
+    },
+    [commit, reloadLog],
+  );
 
   return (
     <Box
@@ -85,7 +154,18 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
 
       <Box overflow="auto" flex={1}>
         {status ? (
-          <GitStatusHeader status={status} />
+          <>
+            <GitStatusHeader status={status} />
+            <GitCommitForm
+              message={commitMessage}
+              amend={amend}
+              stagedCount={stagedCount}
+              busy={committing}
+              onMessageChange={handleMessageChange}
+              onAmendChange={setAmend}
+              onCommit={handleCommit}
+            />
+          </>
         ) : (
           <Text
             data-testid="git-side-panel-empty"

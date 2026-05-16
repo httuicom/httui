@@ -61,6 +61,7 @@ function resetStore() {
     vimMode: "normal",
     sidebarOpen: true,
     gitSidePanelOpen: false,
+    gitCommitTemplate: "",
     mvpMigrationDismissed: false,
   });
 }
@@ -118,6 +119,16 @@ describe("settingsStore", () => {
       expect(useSettingsStore.getState().gitSidePanelOpen).toBe(false);
       await flushPersist();
       expect(read().ui.git_side_panel_open).toBe(false);
+    });
+
+    it("setGitCommitTemplate updates state and persists", async () => {
+      const read = mockUserConfig();
+      useSettingsStore.getState().setGitCommitTemplate("docs: {{notes}}");
+      expect(useSettingsStore.getState().gitCommitTemplate).toBe(
+        "docs: {{notes}}",
+      );
+      await flushPersist();
+      expect(read().ui.git_commit_template).toBe("docs: {{notes}}");
     });
   });
 
@@ -244,6 +255,14 @@ describe("settingsStore", () => {
       mockUserConfig({});
       await useSettingsStore.getState().loadSettings();
       expect(useSettingsStore.getState().gitSidePanelOpen).toBe(false);
+    });
+
+    it("hydrates gitCommitTemplate from ui.git_commit_template", async () => {
+      mockUserConfig({ git_commit_template: "chore: {{count}} files" });
+      await useSettingsStore.getState().loadSettings();
+      expect(useSettingsStore.getState().gitCommitTemplate).toBe(
+        "chore: {{count}} files",
+      );
     });
 
     it("falls back to defaults for missing fields", async () => {

@@ -12,13 +12,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useGitCommit } from "@/hooks/useGitCommit";
 import { useGitConflictResolve } from "@/hooks/useGitConflictResolve";
 import { useGitRemotes } from "@/hooks/useGitRemotes";
 import { useGitStatus } from "@/hooks/useGitStatus";
 import { writeNote } from "@/lib/tauri/commands";
 import {
   gitConflictVersions,
-  gitCommit,
   gitDiff,
   gitFetch,
   gitPull,
@@ -64,7 +64,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
   const commitMessage = useGitStore((s) => s.commitMessage);
   const setCommitMessage = useGitStore((s) => s.setCommitMessage);
   const [commitAmend, setCommitAmend] = useState(false);
-  const [committing, setCommitting] = useState(false);
+  const { commit, committing } = useGitCommit(vaultPath);
   const [diff, setDiff] = useState<string | null | undefined>(undefined);
   const [diffSubject, setDiffSubject] = useState<string | null>(null);
   const [diffShortSha, setDiffShortSha] = useState<string | null>(null);
@@ -183,21 +183,13 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
 
   const handleCommit = useCallback(
     async (input: { message: string; amend: boolean }) => {
-      if (!vaultPath || committing) return;
-      setCommitting(true);
-      try {
-        await gitCommit(vaultPath, input.message, input.amend);
-        useGitStore.getState().resetCommitMessage();
-        setCommitAmend(false);
-        setDiff(undefined);
-        setSelectedFilePath(null);
-        refreshStatus();
-        await refreshLog();
-      } finally {
-        setCommitting(false);
-      }
+      await commit(input);
+      setCommitAmend(false);
+      setDiff(undefined);
+      setSelectedFilePath(null);
+      await refreshLog();
     },
-    [vaultPath, committing, refreshStatus, refreshLog],
+    [commit, refreshLog],
   );
 
   const runSync = useCallback(

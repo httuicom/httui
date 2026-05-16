@@ -251,6 +251,12 @@ describe("useGitStore", () => {
       expect(st().commitMessage).toBe("");
       expect(st().commitMessageDirty).toBe(false);
     });
+
+    it("setCommitMessageFromTemplate sets text but keeps it non-dirty", () => {
+      st().setCommitMessageFromTemplate("Update foo");
+      expect(st().commitMessage).toBe("Update foo");
+      expect(st().commitMessageDirty).toBe(false);
+    });
   });
 
   it("resetGitStore tears down a live poll timer", async () => {

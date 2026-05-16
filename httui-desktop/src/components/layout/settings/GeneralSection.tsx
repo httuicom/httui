@@ -4,6 +4,7 @@ import { NativeSelectRoot, NativeSelectField } from "@chakra-ui/react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettingsStore } from "@/stores/settings";
 import { ColorModePicker } from "./ColorModePicker";
+import { GitCommitTemplateField } from "./GitCommitTemplateField";
 
 const AUTO_SAVE_OPTIONS = [
   { value: "0", label: "Disabled (manual save only)" },
@@ -112,6 +113,10 @@ export function GeneralSection() {
           />
         </Flex>
       </Box>
+
+      <Separator />
+
+      <GitCommitTemplateField />
 
       <Separator />
 

@@ -45,6 +45,8 @@ interface SettingsState {
   sidebarOpen: boolean;
   /** Git side-panel (VS-Code-style SCM column) open/closed. V10.1. */
   gitSidePanelOpen: boolean;
+  /** Commit-message template (empty = built-in conditional default). */
+  gitCommitTemplate: string;
 
   // MVP-to-v1 migration banner
   mvpMigrationDismissed: boolean;
@@ -66,6 +68,7 @@ interface SettingsState {
   setSidebarOpen: (open: boolean) => void;
   toggleGitSidePanel: () => void;
   setGitSidePanelOpen: (open: boolean) => void;
+  setGitCommitTemplate: (template: string) => void;
   setMvpMigrationDismissed: (dismissed: boolean) => void;
   loadSettings: () => Promise<void>;
 }
@@ -113,6 +116,7 @@ export const useSettingsStore = create<SettingsState>()(
       vimMode: "normal",
       sidebarOpen: true,
       gitSidePanelOpen: false,
+      gitCommitTemplate: "",
       mvpMigrationDismissed: false,
 
       openSettings: () => set({ settingsOpen: true }),
@@ -197,6 +201,13 @@ export const useSettingsStore = create<SettingsState>()(
           git_side_panel_open: open,
         })).catch(() => {});
       },
+      setGitCommitTemplate: (template) => {
+        set({ gitCommitTemplate: template });
+        patchUiPrefs((ui) => ({
+          ...ui,
+          git_commit_template: template,
+        })).catch(() => {});
+      },
 
       setMvpMigrationDismissed: (dismissed) => {
         set({ mvpMigrationDismissed: dismissed });
@@ -243,6 +254,7 @@ export const useSettingsStore = create<SettingsState>()(
           vimEnabled: ui.vim_enabled ?? false,
           sidebarOpen: ui.sidebar_open ?? true,
           gitSidePanelOpen: ui.git_side_panel_open ?? false,
+          gitCommitTemplate: ui.git_commit_template ?? "",
           mvpMigrationDismissed: ui.mvp_migration_dismissed ?? false,
           loaded: true,
         });

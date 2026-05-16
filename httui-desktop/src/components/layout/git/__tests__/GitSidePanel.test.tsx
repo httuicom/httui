@@ -1,11 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 
-import { renderWithProviders, screen } from "@/test/render";
+import { fireEvent, renderWithProviders, screen, waitFor } from "@/test/render";
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
 import { useWorkspaceStore } from "@/stores/workspace";
+import { useSettingsStore } from "@/stores/settings";
 import { usePaneStore } from "@/stores/pane";
 import { GitSidePanel } from "@/components/layout/git/GitSidePanel";
+
+const dirty = (path: string) => ({
+  path,
+  status: " M",
+  staged: false,
+  untracked: false,
+});
+const statusWith = (paths: string[]) => ({
+  branch: "main",
+  upstream: null,
+  ahead: 0,
+  behind: 0,
+  clean: paths.length === 0,
+  changed: paths.map(dirty),
+});
 
 const SAMPLE = {
   branch: "main",
@@ -19,6 +35,7 @@ const SAMPLE = {
 beforeEach(() => {
   clearTauriMocks();
   useWorkspaceStore.setState({ vaultPath: "/v" });
+  useSettingsStore.setState({ gitCommitTemplate: "" });
   mockTauriCommand("git_status_cmd", () => SAMPLE);
   mockTauriCommand("git_remote_list_cmd", () => []);
 });
@@ -26,6 +43,7 @@ beforeEach(() => {
 afterEach(() => {
   clearTauriMocks();
   useWorkspaceStore.setState({ vaultPath: null });
+  useSettingsStore.setState({ gitCommitTemplate: "" });
 });
 
 describe("GitSidePanel", () => {
@@ -73,5 +91,48 @@ describe("GitSidePanel", () => {
   it("is not a Dialog — keeps CM6 focus (no focus trap)", () => {
     renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  describe("commit message prefill (cenário 2 + 8)", () => {
+    it("prefills with the single changed note", async () => {
+      mockTauriCommand("git_status_cmd", () =>
+        statusWith(["notes/rollout.md"]),
+      );
+      renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
+      const ta = await screen.findByTestId("git-commit-form-message");
+      await waitFor(() => expect(ta).toHaveValue("Update rollout"));
+    });
+
+    it("prefills with the note count when several changed", async () => {
+      mockTauriCommand("git_status_cmd", () =>
+        statusWith(["a.md", "b.md", "c.md"]),
+      );
+      renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
+      const ta = await screen.findByTestId("git-commit-form-message");
+      await waitFor(() => expect(ta).toHaveValue("Update 3 notes"));
+    });
+
+    it("honors a configured commit template", async () => {
+      useSettingsStore.setState({
+        gitCommitTemplate: "docs: {{notes}} ({{count}})",
+      });
+      mockTauriCommand("git_status_cmd", () => statusWith(["x.md"]));
+      renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
+      const ta = await screen.findByTestId("git-commit-form-message");
+      await waitFor(() => expect(ta).toHaveValue("docs: x (1)"));
+    });
+
+    it("a hand-edit wins, then clearing falls back to the template", async () => {
+      mockTauriCommand("git_status_cmd", () => statusWith(["foo.md"]));
+      renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
+      const ta = await screen.findByTestId("git-commit-form-message");
+      await waitFor(() => expect(ta).toHaveValue("Update foo"));
+
+      fireEvent.change(ta, { target: { value: "custom message" } });
+      expect(ta).toHaveValue("custom message");
+
+      fireEvent.change(ta, { target: { value: "" } });
+      await waitFor(() => expect(ta).toHaveValue("Update foo"));
+    });
   });
 });

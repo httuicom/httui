@@ -53,6 +53,9 @@ interface GitState {
 
   setCommitMessage: (msg: string) => void;
   resetCommitMessage: () => void;
+  /** Prefill from the commit template — sets the text but keeps the
+   *  draft non-dirty so a later user edit still wins (cenário 2). */
+  setCommitMessageFromTemplate: (msg: string) => void;
 }
 
 const INITIAL = {
@@ -171,6 +174,8 @@ export const useGitStore = create<GitState>()(
         set({ commitMessage: msg, commitMessageDirty: true }),
       resetCommitMessage: () =>
         set({ commitMessage: "", commitMessageDirty: false }),
+      setCommitMessageFromTemplate: (msg) =>
+        set({ commitMessage: msg, commitMessageDirty: false }),
     }),
     { name: "git-store" },
   ),
