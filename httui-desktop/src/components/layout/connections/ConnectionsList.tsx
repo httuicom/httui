@@ -5,26 +5,23 @@ import {
   Text,
   Badge,
   IconButton,
-  Menu,
+  Popover,
   Portal,
   Spinner,
 } from "@chakra-ui/react";
-import {
-  LuPlus,
-  LuDatabase,
-  LuPencil,
-  LuTrash2,
-  LuPlugZap,
-  LuRefreshCw,
-} from "react-icons/lu";
+import { LuPlus, LuDatabase } from "react-icons/lu";
 import { useCallback, useEffect, useState } from "react";
 import type { Connection } from "@/lib/tauri/connections";
 import {
   listConnections,
+  createConnection,
   deleteConnection,
   testConnection,
 } from "@/lib/tauri/connections";
+import { useConnectionSessionOverrideStore } from "@/stores/connectionSessionOverride";
+import { TemporaryChip } from "@/components/layout/variables/TemporaryChip";
 import { ConnectionForm } from "./ConnectionForm";
+import { ConnectionQuickEdit } from "./ConnectionQuickEdit";
 
 const DRIVER_LABELS: Record<string, string> = {
   postgres: "PG",
@@ -61,6 +58,7 @@ export function ConnectionsList() {
   const [showForm, setShowForm] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [pings, setPings] = useState<Record<string, PingState>>({});
+  const overrides = useConnectionSessionOverrideStore((s) => s.overrides);
 
   const refresh = useCallback(async () => {
     try {
@@ -110,6 +108,34 @@ export function ConnectionsList() {
     setTesting(null);
   }, []);
 
+  const handleDuplicate = useCallback(
+    async (conn: Connection) => {
+      try {
+        // Password lives in the keychain and can't be read back — the
+        // copy starts without one (rotate it from the popover).
+        await createConnection({
+          name: `${conn.name} copy`,
+          driver: conn.driver,
+          host: conn.host ?? undefined,
+          port: conn.port ?? undefined,
+          database_name: conn.database_name ?? undefined,
+          username: conn.username ?? undefined,
+          ssl_mode: conn.ssl_mode ?? undefined,
+          timeout_ms: conn.timeout_ms,
+          query_timeout_ms: conn.query_timeout_ms,
+          ttl_seconds: conn.ttl_seconds,
+          max_pool_size: conn.max_pool_size,
+          is_readonly: conn.is_readonly,
+        });
+        await refresh();
+      } catch {
+        // Name collision / backend reject — ignore (matches the
+        // list's existing fire-and-forget error posture).
+      }
+    },
+    [refresh],
+  );
+
   const handleFormClose = useCallback(() => {
     setShowForm(false);
     setEditingConn(null);
@@ -152,16 +178,20 @@ export function ConnectionsList() {
           {connections.map((conn) => {
             const ping = pings[conn.id];
             const isProd = PROD_PATTERN.test(conn.name);
+            const hasOverride = conn.id in overrides;
             return (
-            <Menu.Root
+            <Popover.Root
               key={conn.id}
-              positioning={{ placement: "bottom-start" }}
+              lazyMount
+              unmountOnExit
+              positioning={{ placement: "right-start", gutter: 6 }}
             >
-              <Menu.Trigger asChild>
+              <Popover.Trigger asChild>
                 <Flex
                   data-testid={`sidebar-connection-${conn.id}`}
                   data-status={ping?.status ?? "idle"}
                   data-prod={isProd ? "true" : "false"}
+                  data-temporary={hasOverride ? "true" : "false"}
                   align="center"
                   gap={2}
                   px={2}
@@ -176,6 +206,11 @@ export function ConnectionsList() {
                   <Text flex={1} truncate fontFamily="mono" fontSize="xs">
                     {conn.name}
                   </Text>
+                  {hasOverride && (
+                    <Box flexShrink={0}>
+                      <TemporaryChip />
+                    </Box>
+                  )}
                   {isProd && (
                     <Text
                       data-testid={`sidebar-connection-${conn.id}-prod`}
@@ -231,44 +266,32 @@ export function ConnectionsList() {
                     )}
                   </Flex>
                 </Flex>
-              </Menu.Trigger>
+              </Popover.Trigger>
               <Portal>
-                <Menu.Positioner>
-                  <Menu.Content>
-                    <Menu.Item
-                      value="edit"
-                      onSelect={() => {
+                <Popover.Positioner>
+                  <Popover.Content
+                    width="auto"
+                    bg="transparent"
+                    borderWidth={0}
+                    boxShadow="none"
+                  >
+                    <ConnectionQuickEdit
+                      conn={conn}
+                      pingStatus={ping?.status ?? "idle"}
+                      pingLatencyMs={ping?.latencyMs ?? null}
+                      onTest={() => handleTest(conn.id)}
+                      onEdit={() => {
                         setEditingConn(conn);
                         setShowForm(true);
                       }}
-                    >
-                      <LuPencil />
-                      Edit
-                    </Menu.Item>
-                    <Menu.Item
-                      value="test"
-                      onSelect={() => handleTest(conn.id)}
-                    >
-                      <LuPlugZap />
-                      Test Connection
-                    </Menu.Item>
-                    <Menu.Item value="refresh" onSelect={() => refresh()}>
-                      <LuRefreshCw />
-                      Refresh
-                    </Menu.Item>
-                    <Menu.Separator />
-                    <Menu.Item
-                      value="delete"
-                      color="fg.error"
-                      onSelect={() => handleDelete(conn.id)}
-                    >
-                      <LuTrash2 />
-                      Delete
-                    </Menu.Item>
-                  </Menu.Content>
-                </Menu.Positioner>
+                      onDelete={() => handleDelete(conn.id)}
+                      onDuplicate={() => handleDuplicate(conn)}
+                      onChanged={() => refresh()}
+                    />
+                  </Popover.Content>
+                </Popover.Positioner>
               </Portal>
-            </Menu.Root>
+            </Popover.Root>
             );
           })}
         </Box>

@@ -24,6 +24,40 @@ pub trait StatusEmitter: Send + Sync {
     fn emit_connection_status(&self, connection_id: &str, name: &str, status: &str);
 }
 
+/// Session-scoped host:port override for a connection (V11 cenário 2).
+///
+/// In-memory on the frontend (`connectionSessionOverride` store), passed
+/// per DB execution through `DbParams`. Never persisted — the vault
+/// connection record is untouched. An overridden run gets its own pool
+/// under a composite cache key so the base pool stays clean and clearing
+/// the override transparently falls back to it on the next run.
+#[derive(Debug, Clone, Default)]
+pub struct HostPortOverride {
+    pub host: Option<String>,
+    pub port: Option<i64>,
+}
+
+impl HostPortOverride {
+    /// True when neither field is set — treated as "no override" so
+    /// callers fall back to the plain base-connection pool path.
+    pub fn is_empty(&self) -> bool {
+        self.host.is_none() && self.port.is_none()
+    }
+
+    /// Stable suffix appended to the connection id to key the
+    /// override-specific pool. Distinct host:port pairs get distinct
+    /// pools; a cleared override reuses the base `connection_id` key.
+    fn cache_suffix(&self) -> String {
+        format!(
+            "#ovr:{}:{}",
+            self.host.as_deref().unwrap_or("-"),
+            self.port
+                .map(|p| p.to_string())
+                .unwrap_or_else(|| "-".into()),
+        )
+    }
+}
+
 pub struct PoolManager {
     /// Resolves `Connection` records by name. File-backed in production
     /// (`ConnectionsStore`); SQLite adapter in legacy tests
@@ -74,21 +108,62 @@ impl PoolManager {
     }
 
     pub async fn get_pool(&self, connection_id: &str) -> Result<Arc<DatabasePool>, String> {
+        self.get_pool_keyed(connection_id, connection_id, None)
+            .await
+    }
+
+    /// Like `get_pool`, but when a non-empty `HostPortOverride` is
+    /// supplied the pool is created against the overridden host/port and
+    /// cached under a composite key — the base `connection_id` pool is
+    /// never mutated, so non-overridden runs (and a later cleared
+    /// override) keep using it untouched. (V11 cenário 2.)
+    pub async fn get_pool_with_override(
+        &self,
+        connection_id: &str,
+        ov: Option<&HostPortOverride>,
+    ) -> Result<Arc<DatabasePool>, String> {
+        match ov {
+            Some(o) if !o.is_empty() => {
+                let key = format!("{connection_id}{}", o.cache_suffix());
+                self.get_pool_keyed(&key, connection_id, Some(o)).await
+            }
+            _ => self.get_pool(connection_id).await,
+        }
+    }
+
+    /// Single get-or-create path shared by `get_pool` (cache_key ==
+    /// connection_id, no override) and `get_pool_with_override`
+    /// (composite cache_key + host/port mutation before pool creation).
+    async fn get_pool_keyed(
+        &self,
+        cache_key: &str,
+        connection_id: &str,
+        ov: Option<&HostPortOverride>,
+    ) -> Result<Arc<DatabasePool>, String> {
         // Check cache — write lock to update last_used on hit
         {
             let mut pools = self.pools.write().await;
-            if let Some(entry) = pools.get_mut(connection_id) {
+            if let Some(entry) = pools.get_mut(cache_key) {
                 entry.last_used = Instant::now();
                 return Ok(entry.pool.clone());
             }
         }
 
         // Not cached — resolve connection and create pool
-        let conn = self
+        let mut conn = self
             .lookup
             .lookup(connection_id)
             .await?
             .ok_or_else(|| format!("Connection '{}' not found", connection_id))?;
+
+        if let Some(o) = ov {
+            if let Some(h) = &o.host {
+                conn.host = Some(h.clone());
+            }
+            if let Some(p) = o.port {
+                conn.port = Some(p);
+            }
+        }
 
         let conn_name = conn.name.clone();
         let pool = Arc::new(create_pool(&conn).await?);
@@ -96,7 +171,7 @@ impl PoolManager {
         {
             let mut pools = self.pools.write().await;
             pools.insert(
-                connection_id.to_string(),
+                cache_key.to_string(),
                 PoolEntry {
                     pool: pool.clone(),
                     name: conn_name.clone(),
@@ -439,5 +514,134 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(count, 5, "old rows should be deleted, recent ones kept");
+    }
+
+    // ───── V11 cenário 2: host:port session override ─────
+
+    #[test]
+    fn host_port_override_is_empty_only_when_both_none() {
+        assert!(HostPortOverride::default().is_empty());
+        assert!(!HostPortOverride {
+            host: Some("db".into()),
+            port: None,
+        }
+        .is_empty());
+        assert!(!HostPortOverride {
+            host: None,
+            port: Some(5433),
+        }
+        .is_empty());
+    }
+
+    #[test]
+    fn host_port_override_cache_suffix_is_stable_and_distinct() {
+        let a = HostPortOverride {
+            host: Some("db.internal".into()),
+            port: Some(5433),
+        };
+        assert_eq!(a.cache_suffix(), "#ovr:db.internal:5433");
+        // Distinct pairs → distinct suffix; missing fields render as "-".
+        assert_eq!(
+            HostPortOverride {
+                host: None,
+                port: Some(6000)
+            }
+            .cache_suffix(),
+            "#ovr:-:6000"
+        );
+        assert_ne!(a.cache_suffix(), HostPortOverride::default().cache_suffix());
+    }
+
+    /// App pool + connections table + one sqlite connection record,
+    /// wired through the production `SqliteLookup` so `create_pool`
+    /// actually runs (sqlite ignores host/port — we're asserting the
+    /// manager's cache-keying / fallback, not a live PG reconnect).
+    async fn sqlite_lookup_env() -> (PoolManager, String) {
+        let app = memory_app_pool().await;
+        sqlx::query(
+            r#"CREATE TABLE connections (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                driver TEXT NOT NULL CHECK (driver IN ('postgres','mysql','sqlite')),
+                host TEXT, port INTEGER, database_name TEXT,
+                username TEXT, password TEXT,
+                ssl_mode TEXT DEFAULT 'disable',
+                timeout_ms INTEGER DEFAULT 10000,
+                query_timeout_ms INTEGER DEFAULT 30000,
+                ttl_seconds INTEGER DEFAULT 300,
+                max_pool_size INTEGER DEFAULT 5,
+                is_readonly INTEGER NOT NULL DEFAULT 0,
+                last_tested_at TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )"#,
+        )
+        .execute(&app)
+        .await
+        .unwrap();
+        let conn = crate::db::connections::create_connection(
+            &app,
+            crate::db::connections::CreateConnection {
+                name: "ovr-sqlite".to_string(),
+                driver: "sqlite".to_string(),
+                host: None,
+                port: None,
+                database_name: Some(":memory:".to_string()),
+                username: None,
+                password: None,
+                ssl_mode: None,
+                timeout_ms: None,
+                query_timeout_ms: None,
+                ttl_seconds: None,
+                max_pool_size: None,
+                is_readonly: None,
+            },
+        )
+        .await
+        .unwrap();
+        let mgr =
+            PoolManager::new_standalone(crate::db::lookup::SqliteLookup::new(app.clone()), app);
+        (mgr, conn.id)
+    }
+
+    #[tokio::test]
+    async fn override_none_or_empty_takes_the_base_pool_path() {
+        let (mgr, id) = sqlite_lookup_env().await;
+        let base = mgr.get_pool_with_override(&id, None).await.unwrap();
+        // Empty override resolves to the SAME base entry, not a new one.
+        let empty = HostPortOverride::default();
+        let again = mgr.get_pool_with_override(&id, Some(&empty)).await.unwrap();
+        assert!(Arc::ptr_eq(&base, &again));
+        assert_eq!(mgr.cache_size().await, 1);
+    }
+
+    #[tokio::test]
+    async fn override_creates_a_separate_pool_keeping_base_clean() {
+        let (mgr, id) = sqlite_lookup_env().await;
+        let base = mgr.get_pool(&id).await.unwrap();
+        let ov = HostPortOverride {
+            host: Some("db.staging".into()),
+            port: Some(5599),
+        };
+        let overridden = mgr.get_pool_with_override(&id, Some(&ov)).await.unwrap();
+        // Distinct pools, two distinct cache entries.
+        assert!(!Arc::ptr_eq(&base, &overridden));
+        assert_eq!(mgr.cache_size().await, 2);
+        // Base entry untouched; clearing the override (None) returns it.
+        let back = mgr.get_pool_with_override(&id, None).await.unwrap();
+        assert!(Arc::ptr_eq(&base, &back));
+    }
+
+    #[tokio::test]
+    async fn same_override_reuses_its_cached_pool() {
+        let (mgr, id) = sqlite_lookup_env().await;
+        let ov = HostPortOverride {
+            host: Some("db.staging".into()),
+            port: None,
+        };
+        let first = mgr.get_pool_with_override(&id, Some(&ov)).await.unwrap();
+        let second = mgr.get_pool_with_override(&id, Some(&ov)).await.unwrap();
+        assert!(Arc::ptr_eq(&first, &second));
+        assert_eq!(mgr.cache_size().await, 1);
     }
 }

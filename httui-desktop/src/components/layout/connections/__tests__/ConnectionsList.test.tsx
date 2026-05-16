@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { ConnectionsList } from "@/components/layout/connections/ConnectionsList";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
+import { useConnectionSessionOverrideStore } from "@/stores/connectionSessionOverride";
 
 const mkConn = (id: string, name: string, driver = "postgres") => ({
   id,
@@ -31,6 +32,7 @@ beforeEach(() => {
   mockTauriCommand("list_connections", () => []);
   mockTauriCommand("test_connection", async () => undefined);
   mockTauriCommand("delete_connection", async () => undefined);
+  useConnectionSessionOverrideStore.setState({ overrides: {} });
 });
 
 afterEach(() => {
@@ -118,21 +120,26 @@ describe("ConnectionsList", () => {
     ).toBeInTheDocument();
   });
 
-  it("clicking the row opens the ⋮ menu with Edit / Test / Refresh / Delete", async () => {
+  it("clicking the chip opens the quick-edit popover", async () => {
     const user = userEvent.setup();
     mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
     renderWithProviders(<ConnectionsList />);
     await waitFor(() =>
       expect(screen.getByText("local-pg")).toBeInTheDocument(),
     );
-    await user.click(screen.getByText("local-pg"));
-    expect(screen.getByText("Edit")).toBeInTheDocument();
-    expect(screen.getByText("Test Connection")).toBeInTheDocument();
-    expect(screen.getByText("Refresh")).toBeInTheDocument();
-    expect(screen.getByText("Delete")).toBeInTheDocument();
+    await user.click(screen.getByTestId("sidebar-connection-c1"));
+    expect(
+      await screen.findByTestId("conn-quickedit-c1"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("conn-quickedit-rotate")).toBeInTheDocument();
+    expect(screen.getByTestId("conn-quickedit-apply")).toBeInTheDocument();
+    expect(screen.getByTestId("conn-quickedit-test")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("conn-quickedit-duplicate"),
+    ).toBeInTheDocument();
   });
 
-  it("Delete in the menu calls delete_connection then refresh", async () => {
+  it("Delete in the popover calls delete_connection then refresh", async () => {
     const user = userEvent.setup();
     const deleteSpy = vi.fn();
     mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
@@ -144,25 +151,25 @@ describe("ConnectionsList", () => {
     await waitFor(() =>
       expect(screen.getByText("local-pg")).toBeInTheDocument(),
     );
-    await user.click(screen.getByText("local-pg"));
-    await user.click(screen.getByText("Delete"));
+    await user.click(screen.getByTestId("sidebar-connection-c1"));
+    await user.click(await screen.findByTestId("conn-quickedit-delete"));
     await waitFor(() => expect(deleteSpy).toHaveBeenCalled());
     expect(deleteSpy.mock.calls[0][0]).toMatchObject({ id: "c1" });
   });
 
-  it("Edit in the menu opens the form preloaded with the connection", async () => {
+  it("Edit in the popover opens the form preloaded with the connection", async () => {
     const user = userEvent.setup();
     mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
     renderWithProviders(<ConnectionsList />);
     await waitFor(() =>
       expect(screen.getByText("local-pg")).toBeInTheDocument(),
     );
-    await user.click(screen.getByText("local-pg"));
-    await user.click(screen.getByText("Edit"));
+    await user.click(screen.getByTestId("sidebar-connection-c1"));
+    await user.click(await screen.findByTestId("conn-quickedit-edit"));
     expect(screen.getByRole("button", { name: /Save/i })).toBeInTheDocument();
   });
 
-  it("Test Connection in the menu re-pings and updates latency", async () => {
+  it("Test in the popover re-pings and updates latency", async () => {
     const user = userEvent.setup();
     let pingCount = 0;
     mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
@@ -174,11 +181,80 @@ describe("ConnectionsList", () => {
     await waitFor(() =>
       expect(screen.getByText("local-pg")).toBeInTheDocument(),
     );
-    // Auto-ping fires once.
     await waitFor(() => expect(pingCount).toBeGreaterThanOrEqual(1));
     const before = pingCount;
-    await user.click(screen.getByText("local-pg"));
-    await user.click(screen.getByText("Test Connection"));
+    await user.click(screen.getByTestId("sidebar-connection-c1"));
+    await user.click(await screen.findByTestId("conn-quickedit-test"));
     await waitFor(() => expect(pingCount).toBeGreaterThan(before));
+  });
+
+  it("Rotate password sends update_connection with the new password", async () => {
+    const user = userEvent.setup();
+    const updateSpy = vi.fn();
+    mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
+    mockTauriCommand("update_connection", (args) => {
+      updateSpy(args);
+      return mkConn("c1", "local-pg");
+    });
+    renderWithProviders(<ConnectionsList />);
+    await waitFor(() =>
+      expect(screen.getByText("local-pg")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByTestId("sidebar-connection-c1"));
+    await user.type(
+      await screen.findByTestId("conn-quickedit-password"),
+      "s3cret",
+    );
+    await user.click(screen.getByTestId("conn-quickedit-rotate"));
+    await waitFor(() => expect(updateSpy).toHaveBeenCalled());
+    expect(updateSpy.mock.calls[0][0]).toMatchObject({
+      id: "c1",
+      input: { password: "s3cret" },
+    });
+  });
+
+  it("Applying a temporary host:port sets the session override + chip", async () => {
+    const user = userEvent.setup();
+    mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
+    renderWithProviders(<ConnectionsList />);
+    await waitFor(() =>
+      expect(screen.getByText("local-pg")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByTestId("sidebar-connection-c1"));
+    await user.type(
+      await screen.findByTestId("conn-quickedit-host"),
+      "db.staging",
+    );
+    await user.type(screen.getByTestId("conn-quickedit-port"), "5599");
+    await user.click(screen.getByTestId("conn-quickedit-apply"));
+    expect(
+      useConnectionSessionOverrideStore.getState().getOverride("c1"),
+    ).toEqual({ host: "db.staging", port: 5599 });
+    // Chip on the sidebar row reflects the TEMPORARY state.
+    expect(
+      screen.getByTestId("sidebar-connection-c1").getAttribute(
+        "data-temporary",
+      ),
+    ).toBe("true");
+  });
+
+  it("Duplicate sends create_connection cloned from the source", async () => {
+    const user = userEvent.setup();
+    const createSpy = vi.fn();
+    mockTauriCommand("list_connections", () => [mkConn("c1", "local-pg")]);
+    mockTauriCommand("create_connection", (args) => {
+      createSpy(args);
+      return mkConn("c2", "local-pg copy");
+    });
+    renderWithProviders(<ConnectionsList />);
+    await waitFor(() =>
+      expect(screen.getByText("local-pg")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByTestId("sidebar-connection-c1"));
+    await user.click(await screen.findByTestId("conn-quickedit-duplicate"));
+    await waitFor(() => expect(createSpy).toHaveBeenCalled());
+    expect(createSpy.mock.calls[0][0]).toMatchObject({
+      input: { name: "local-pg copy", driver: "postgres" },
+    });
   });
 });

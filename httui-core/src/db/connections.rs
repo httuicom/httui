@@ -7,7 +7,7 @@ use uuid::Uuid;
 // (Epic 20a Story 01 first split). Re-exported here so the existing
 // `use httui_core::db::connections::{PoolManager, StatusEmitter}`
 // callers keep compiling without a sweeping import rewrite.
-pub use super::pool_manager::{PoolManager, StatusEmitter};
+pub use super::pool_manager::{HostPortOverride, PoolManager, StatusEmitter};
 
 // `DatabasePool` enum + lifecycle helpers (`create_pool`, builders,
 // validators, sanitizer) moved to `db::pool` (Epic 20a Story 01 —

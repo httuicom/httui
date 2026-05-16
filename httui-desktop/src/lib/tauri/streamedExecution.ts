@@ -11,6 +11,29 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 
 import type { DbResponse } from "@/components/blocks/db/types";
 import { normalizeDbResponse } from "@/components/blocks/db/types";
+import { useConnectionSessionOverrideStore } from "@/stores/connectionSessionOverride";
+
+/**
+ * Merge any session-scoped host:port override for this run's connection
+ * into the DB params (V11 cenário 2). Read via `getState()` — this is
+ * the single seam every DB execution funnels through, so the override
+ * applies session-wide without touching the `DbFencedPanel` monolith.
+ * No override → params returned unchanged.
+ */
+export function applyConnectionOverride(
+  params: Record<string, unknown>,
+): Record<string, unknown> {
+  const connId = params.connection_id;
+  if (typeof connId !== "string" || connId === "") return params;
+  const ov = useConnectionSessionOverrideStore
+    .getState()
+    .getOverride(connId);
+  if (!ov || (ov.host === undefined && ov.port === undefined)) return params;
+  const next = { ...params };
+  if (ov.host !== undefined) next.session_host_override = ov.host;
+  if (ov.port !== undefined) next.session_port_override = ov.port;
+  return next;
+}
 
 /** Backend-emitted chunk on the execution channel. */
 export type DbChunk =
@@ -85,7 +108,7 @@ export async function executeDbStreamed(
 
   try {
     await invoke<void>("execute_db_streamed", {
-      params,
+      params: applyConnectionOverride(params),
       executionId,
       onChunk: channel,
     });

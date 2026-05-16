@@ -30,6 +30,15 @@ struct DbParams {
     /// surface `ExplainError::Unsupported` verbatim to the consumer.
     #[serde(default)]
     explain: bool,
+    /// Session-scoped host override (V11 cenário 2). In-memory on the
+    /// frontend; passed per run. When set (with/without
+    /// `session_port_override`) the run uses an override-keyed pool —
+    /// the persisted connection record is never touched.
+    #[serde(default)]
+    session_host_override: Option<String>,
+    /// Session-scoped port override (V11 cenário 2).
+    #[serde(default)]
+    session_port_override: Option<i64>,
 }
 
 fn default_fetch_size() -> u32 {
@@ -64,9 +73,17 @@ impl DbExecutor {
         let p: DbParams = serde_json::from_value(params)
             .map_err(|e| ExecutorError(format!("Invalid params: {e}")))?;
 
+        let ov = if p.session_host_override.is_some() || p.session_port_override.is_some() {
+            Some(crate::db::connections::HostPortOverride {
+                host: p.session_host_override.clone(),
+                port: p.session_port_override,
+            })
+        } else {
+            None
+        };
         let pool = self
             .conn_manager
-            .get_pool(&p.connection_id)
+            .get_pool_with_override(&p.connection_id, ov.as_ref())
             .await
             .map_err(ExecutorError)?;
 
