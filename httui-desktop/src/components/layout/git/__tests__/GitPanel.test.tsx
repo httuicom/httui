@@ -49,12 +49,12 @@ describe("GitPanel", () => {
     );
   });
 
-  it("renders the three tabs when status resolves", () => {
+  it("renders Status + Log tabs when status resolves (Audit dropped in v1)", () => {
     renderWithProviders(<GitPanel status={status()} commits={[commit()]} />);
     expect(screen.getByTestId("git-panel-tabs")).toBeInTheDocument();
     expect(screen.getByTestId("git-tab-status")).toBeInTheDocument();
     expect(screen.getByTestId("git-tab-log")).toBeInTheDocument();
-    expect(screen.getByTestId("git-tab-audit")).toBeInTheDocument();
+    expect(screen.queryByTestId("git-tab-audit")).not.toBeInTheDocument();
   });
 
   it("flags clean working tree via data-clean", () => {
@@ -101,12 +101,12 @@ describe("GitPanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("switches to the Audit tab — log, no action-type filters", async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Harness status={status()} commits={[commit()]} />);
-    await user.click(screen.getByTestId("git-tab-audit"));
-    expect(screen.getByTestId("git-panel-section-audit")).toBeInTheDocument();
-    expect(screen.getByTestId("git-log-row-deadbee")).toBeInTheDocument();
+  it("has no Audit tab in v1", () => {
+    renderWithProviders(<GitPanel status={status()} commits={[commit()]} />);
+    expect(screen.queryByTestId("git-tab-audit")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("git-panel-section-audit"),
+    ).not.toBeInTheDocument();
   });
 
   it("fires onSelectTab on tab click", async () => {

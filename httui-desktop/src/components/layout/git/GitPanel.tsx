@@ -18,7 +18,6 @@ import type {
   GitStatus,
 } from "@/lib/tauri/git";
 
-import { GitAuditHeader } from "./GitAuditHeader";
 import { GitCommitDiffViewer } from "./GitCommitDiffViewer";
 import { GitCommitForm } from "./GitCommitForm";
 import { GitConflictBanner } from "./GitConflictBanner";
@@ -30,7 +29,10 @@ import { GitStatusHeader } from "./GitStatusHeader";
 import { GitSyncButtons, type SyncOp } from "./GitSyncButtons";
 import type { LogFilterState } from "./git-log-filter";
 
-export type GitPanelTab = "status" | "log" | "audit";
+// Audit tab dropped from v1 — without the action-type filters
+// (deferred to v1.x) it was identical to Log. It returns alongside
+// those filters. See out-of-scope-v1.md.
+export type GitPanelTab = "status" | "log";
 
 export const GIT_PANEL_TABS: ReadonlyArray<{
   id: GitPanelTab;
@@ -38,7 +40,6 @@ export const GIT_PANEL_TABS: ReadonlyArray<{
 }> = [
   { id: "status", label: "Status" },
   { id: "log", label: "Log" },
-  { id: "audit", label: "Audit" },
 ];
 
 export interface GitPanelProps {
@@ -54,7 +55,6 @@ export interface GitPanelProps {
   onToggleStage?: (file: GitFileChange) => void;
   onSelectFile?: (file: GitFileChange) => void;
   onSelectCommit?: (commit: CommitInfo) => void;
-  onAuditLearnMore?: () => void;
   // --- Commit form (cenário 2) ---
   stagedCount?: number;
   commitMessage?: string;
@@ -110,7 +110,6 @@ export function GitPanel({
   onToggleStage,
   onSelectFile,
   onSelectCommit,
-  onAuditLearnMore,
   stagedCount = 0,
   commitMessage = "",
   commitAmend = false,
@@ -351,21 +350,6 @@ export function GitPanel({
         </Flex>
       )}
 
-      {!resolver && activeTab === "audit" && (
-        <Box
-          data-testid="git-panel-section-audit"
-          flex="1 1 auto"
-          minH={0}
-          overflow="auto"
-        >
-          <GitAuditHeader onLearnMore={onAuditLearnMore} />
-          <GitLogList
-            commits={commits}
-            selectedSha={selectedCommitSha}
-            onSelect={onSelectCommit}
-          />
-        </Box>
-      )}
     </Flex>
   );
 }

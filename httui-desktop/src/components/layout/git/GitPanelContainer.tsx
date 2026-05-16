@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useGitConflictResolve } from "@/hooks/useGitConflictResolve";
 import { useGitRemotes } from "@/hooks/useGitRemotes";
-import { useGitStatus } from "@/hooks/useGitStatus";
+import { useGitStatus, GIT_STATUS_POLL_MS } from "@/hooks/useGitStatus";
 import { writeNote } from "@/lib/tauri/commands";
 import {
   gitConflictVersions,
@@ -85,8 +85,17 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     versions: ConflictVersions;
   } | null>(null);
 
-  const { remotes } = useGitRemotes(vaultPath);
+  const { remotes, refresh: refreshRemotes } = useGitRemotes(vaultPath);
   const hasRemote = remotes.length > 0;
+
+  // useGitRemotes is one-shot; re-poll on the same cadence as the
+  // status poll so a `git remote add` done outside the app is
+  // reflected without a manual reload (V10 cenário 5 follow-up).
+  useEffect(() => {
+    if (!vaultPath) return;
+    const id = setInterval(refreshRemotes, GIT_STATUS_POLL_MS);
+    return () => clearInterval(id);
+  }, [vaultPath, refreshRemotes]);
   const {
     busy: conflictBusy,
     acceptOurs,

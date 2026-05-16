@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { act } from "@testing-library/react";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
@@ -72,6 +73,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Defensive: a fake-timers test that times out before its own
+  // cleanup must not leave timers faked for the next test.
+  vi.useRealTimers();
   clearTauriMocks();
   useWorkspaceStore.setState({ vaultPath: null });
   usePaneStore.setState({ saveSignal: 0 });
@@ -612,23 +616,51 @@ describe("GitPanelContainer", () => {
     });
   });
 
-  describe("audit tab is git log (cenário 9)", () => {
-    it("shows the log under Audit with no action-type filter", async () => {
-      const user = userEvent.setup();
+  describe("remote re-poll (cenário 5 follow-up)", () => {
+    it("detects a remote added out-of-app without a reload", async () => {
+      let remotes: { name: string; url: string }[] = [];
+      mockTauriCommand("git_remote_list_cmd", () => remotes);
+      vi.useFakeTimers();
+      try {
+        renderWithProviders(<GitPanelContainer />);
+        // Flush mount effects (status + remotes one-shot fetch).
+        // No waitFor — it polls on a real timer that never advances
+        // under fake timers; assert directly after draining.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(50);
+        });
+        expect(
+          (screen.getByTestId("git-sync-push") as HTMLButtonElement)
+            .disabled,
+        ).toBe(true);
+        // `git remote add` happens outside the app.
+        remotes = [{ name: "origin", url: "git@github.com:a/b.git" }];
+        // One poll tick later the panel reflects it — no reload.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(2100);
+        });
+        expect(
+          (screen.getByTestId("git-sync-push") as HTMLButtonElement)
+            .disabled,
+        ).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe("no Audit tab in v1 (cenário 9)", () => {
+    it("exposes only Status + Log tabs", async () => {
       renderWithProviders(<GitPanelContainer />);
       await waitFor(() => {
         expect(screen.getByTestId("git-panel-tabs")).toBeInTheDocument();
       });
-      await user.click(screen.getByTestId("git-tab-audit"));
+      expect(screen.getByTestId("git-tab-status")).toBeInTheDocument();
+      expect(screen.getByTestId("git-tab-log")).toBeInTheDocument();
+      // Audit dropped — was identical to Log without the v1.x
+      // action-type filters.
       expect(
-        screen.getByTestId("git-panel-section-audit"),
-      ).toBeInTheDocument();
-      expect(
-        await screen.findByTestId("git-log-row-deadbee"),
-      ).toBeInTheDocument();
-      // Log-only decision: no filter control on Audit.
-      expect(
-        screen.queryByTestId("git-log-filter"),
+        screen.queryByTestId("git-tab-audit"),
       ).not.toBeInTheDocument();
     });
   });
