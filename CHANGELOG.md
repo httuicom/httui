@@ -5,19 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — pre-v1
+## [Unreleased]
 
-httui has not been publicly released yet. The codebase on `main` is being
-reworked toward v1; expect breaking changes between commits. The first
-tagged release will be `v1.0.0`.
+Post-1.0 work lands here.
 
-The list below tracks notable changes accumulated during the v1
-foundation work (epics 00–37). The "v1 launch" line is reached once the
-remaining items in the
-[Definition of Done](docs-llm/v1/backlog/README.md#definition-of-done--v1)
-checklist are green — primarily the React frontend cutover (Epic 19),
-the signed/cross-platform release pipeline (Epics 34–35), and the final
-launch checklist (Epic 38, Story 03).
+## [1.0.0] - 2026-05-17
+
+First public release. httui notes is a git-native, local-first desktop
+markdown editor with executable HTTP and DB blocks inline in documents
+and an embedded Claude chat assistant. Vaults are plain `.md` files
+plus a `.httui/` sidecar — no proprietary store, no account.
+
+This entry consolidates the v1 foundation work (epics 00–37) and the
+v2 vertical pass (V1–V12): the empty-state vault flow (open / clone /
+create), the workbench shell + design system, refined Connections /
+Variables / Environments master-detail surfaces, the document
+DocHeader (frontmatter + tags), the Git side panel + share-via-repo,
+the quick popovers (⌘E / connection chip / `{{var}}` / ⌘⇧V / clone
+env), and the signed/cross-platform release pipeline.
+
+Distribution: macOS `.dmg` (unsigned developer build for v1 — see
+`docs/RELEASE.md` for the Gatekeeper bypass), Windows `.msi` / `.exe`,
+Linux `.deb` / `.rpm` / AppImage, a Homebrew cask, and a winget
+manifest. In-app auto-update is served from GitHub Releases on the
+stable channel by default; pre-releases are opt-in under
+Settings → General.
 
 ### Added
 
@@ -369,4 +381,5 @@ launch checklist (Epic 38, Story 03).
   blocked on real hardware testing. Until then, the keychain prompt
   in dev/unsigned builds is documented but accepted (see audit-008).
 
-[Unreleased]: https://github.com/httuicom/httui/commits/main
+[Unreleased]: https://github.com/httuicom/httui/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/httuicom/httui/releases/tag/v1.0.0
