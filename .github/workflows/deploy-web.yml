@@ -37,7 +37,7 @@ jobs:
       - name: Build httui-web
         run: npm run build --workspace httui-web
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: httui-web/dist
 
