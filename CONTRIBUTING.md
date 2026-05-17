@@ -139,6 +139,8 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). Allowed typ
 - `test` — tests only
 - `style` — formatting / whitespace
 - `perf` — performance improvement
+- `ci` — CI / workflow / build-pipeline config (used by the
+  github-actions Dependabot group)
 
 Scope is optional but encouraged when it disambiguates (`feat(tui):`, `fix(blocks):`, `refactor(http):`). Subject in imperative mood, lowercase, no trailing period. Wrap the body at ~72 columns.
 
