@@ -1,11 +1,12 @@
 // Body of the inline `{{ref}}` quick popover (V11 cenário 3).
 //
-// Visual contract: design-canvas §4.3 PopoverVarQuick — tooltip
-// arrow, 10px radius, layered shadow, uppercase section labels, the
-// key echoed in the same violet as the in-editor chip (continuity),
-// per-env value in a mono field, dashed session-override input.
-// Reuses V5 useSessionOverrideStore + TemporaryChip. Block-ref
-// shaped keys (with dots) get a read-only note.
+// Visual contract: design-canvas §4.3 PopoverVarQuick — 10px radius,
+// layered shadow, uppercase section labels, the key echoed in the
+// same violet as the in-editor chip (continuity), per-env value in a
+// mono field, dashed session-override input. Mounted inside Chakra's
+// Popover (positioning/arrow owned by the host). Reuses V5
+// useSessionOverrideStore + TemporaryChip. Block-ref shaped keys
+// (with dots) get a read-only note.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
@@ -68,21 +69,6 @@ export function RefPopover({ state, vaultPath, onClose }: RefPopoverProps) {
       minW="320px"
       maxW="420px"
     >
-      {/* tooltip arrow — top-left, points at the chip */}
-      <Box
-        position="absolute"
-        top="-6px"
-        left="22px"
-        w="12px"
-        h="12px"
-        bg="bg"
-        borderTopWidth="1px"
-        borderLeftWidth="1px"
-        borderColor="border"
-        transform="rotate(45deg)"
-        aria-hidden
-      />
-
       {/* header */}
       <Flex
         align="center"

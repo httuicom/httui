@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { act } from "@testing-library/react";
 import { renderWithProviders, screen } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 
@@ -18,6 +19,18 @@ function fakeView() {
     dispatch: vi.fn(),
     focus: vi.fn(),
   };
+}
+
+function open(view = fakeView()) {
+  act(() => {
+    openRefPopover({
+      rawKey: "api_base",
+      rect: { left: 30, top: 40, right: 80, bottom: 52 },
+      view: view as never,
+      caret: 3,
+    });
+  });
+  return view;
 }
 
 beforeEach(() => {
@@ -41,48 +54,29 @@ describe("RefPopoverHost", () => {
     expect(screen.queryByTestId("ref-popover-host")).toBeNull();
   });
 
-  it("mounts the popover when a chip is clicked", async () => {
+  it("mounts the Chakra popover when a chip is clicked", async () => {
     renderWithProviders(<RefPopoverHost />);
-    openRefPopover({
-      rawKey: "api_base",
-      rect: { left: 30, top: 40, right: 80, bottom: 52 },
-      view: fakeView() as never,
-      caret: 3,
-    });
+    open();
     expect(await screen.findByTestId("ref-popover-host")).toBeInTheDocument();
     expect(screen.getByTestId("ref-popover")).toBeInTheDocument();
   });
 
-  it("Escape closes the popover and clears state", async () => {
+  it("Escape (Chakra onOpenChange) closes + restores editor focus", async () => {
     const user = userEvent.setup();
     renderWithProviders(<RefPopoverHost />);
-    const view = fakeView();
-    openRefPopover({
-      rawKey: "api_base",
-      rect: { left: 0, top: 0, right: 0, bottom: 0 },
-      view: view as never,
-      caret: 2,
-    });
+    const view = open();
     await screen.findByTestId("ref-popover-host");
     await user.keyboard("{Escape}");
-    expect(getRefPopoverState()).toBeNull();
+    await vi.waitFor(() => expect(getRefPopoverState()).toBeNull());
     expect(view.focus).toHaveBeenCalled();
   });
 
-  it("an outside mousedown closes the popover", async () => {
+  it("the Close button closes + restores editor focus", async () => {
+    const user = userEvent.setup();
     renderWithProviders(<RefPopoverHost />);
-    openRefPopover({
-      rawKey: "api_base",
-      rect: { left: 0, top: 0, right: 0, bottom: 0 },
-      view: fakeView() as never,
-      caret: 0,
-    });
-    await screen.findByTestId("ref-popover-host");
-    // Let the deferred arm fire, then click outside.
-    await new Promise((r) => setTimeout(r, 5));
-    document.body.dispatchEvent(
-      new MouseEvent("mousedown", { bubbles: true }),
-    );
-    await vi.waitFor(() => expect(getRefPopoverState()).toBeNull());
+    const view = open();
+    await user.click(await screen.findByTestId("ref-popover-close"));
+    expect(getRefPopoverState()).toBeNull();
+    expect(view.focus).toHaveBeenCalled();
   });
 });

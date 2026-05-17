@@ -1,14 +1,16 @@
 // Mounts the inline `{{ref}}` popover over CM6 (V11 cenário 3 + 6).
 //
-// Subscribes to the cm-ref-popover emitter; when a chip is clicked it
-// renders <RefPopover> in a Portal+Box (no Dialog → CM6 stays
-// focusable) anchored under the chip. Esc / outside-click close and
-// restore the caret + editor focus.
+// Uses Chakra's Popover (Ark) with a virtual anchor — same pattern as
+// EnvironmentsPage / the EnvSwitcher clone popover. Chakra owns
+// positioning, Esc and interact-outside; `autoFocus={false}` keeps
+// it from trapping focus, and our `onOpenChange → closeRefPopover()`
+// restores the caret + editor focus (no Popover.Trigger exists, so
+// Ark has nothing to yank focus back to). Not a Dialog → CM6 stays
+// keyboard-driveable.
 
-import { Box, Portal } from "@chakra-ui/react";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { Popover, Portal } from "@chakra-ui/react";
+import { useCallback, useSyncExternalStore } from "react";
 
-import { useEscapeClose } from "@/hooks/useEscapeClose";
 import { useWorkspaceStore } from "@/stores/workspace";
 import {
   closeRefPopover,
@@ -25,60 +27,51 @@ export function RefPopoverHost() {
     getRefPopoverState,
   );
   const vaultPath = useWorkspaceStore((s) => s.vaultPath);
-  const boxRef = useRef<HTMLDivElement | null>(null);
 
-  useEscapeClose(() => {
-    if (getRefPopoverState()) closeRefPopover();
-  });
-
-  useEffect(() => {
-    if (!state) return;
-    // Defer one tick so the mousedown that opened the popover doesn't
-    // immediately count as an outside click.
-    let armed = false;
-    const arm = setTimeout(() => {
-      armed = true;
-    }, 0);
-    const onDown = (e: MouseEvent) => {
-      if (!armed) return;
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) {
-        closeRefPopover();
-      }
-    };
-    document.addEventListener("mousedown", onDown, true);
-    return () => {
-      clearTimeout(arm);
-      document.removeEventListener("mousedown", onDown, true);
-    };
-  }, [state]);
-
-  if (!state) return null;
-
-  // Anchor under the chip, clamped into the viewport.
-  const margin = 8;
-  const width = 420;
-  const left = Math.max(
-    margin,
-    Math.min(state.rect.left, window.innerWidth - width - margin),
-  );
-  const top = state.rect.bottom + 4;
+  // Virtual anchor — resolved every positioning tick from the chip
+  // rect captured when the popover opened.
+  const getAnchorRect = useCallback(() => {
+    const s = getRefPopoverState();
+    if (!s) return null;
+    const { left, top, right, bottom } = s.rect;
+    return { x: left, y: top, width: right - left, height: bottom - top };
+  }, []);
 
   return (
-    <Portal>
-      <Box
-        ref={boxRef}
-        data-testid="ref-popover-host"
-        position="fixed"
-        left={`${left}px`}
-        top={`${top}px`}
-        zIndex={1400}
-      >
-        <RefPopover
-          state={state}
-          vaultPath={vaultPath}
-          onClose={() => closeRefPopover()}
-        />
-      </Box>
-    </Portal>
+    <Popover.Root
+      open={!!state}
+      onOpenChange={(e) => {
+        if (!e.open) closeRefPopover();
+      }}
+      autoFocus={false}
+      lazyMount
+      unmountOnExit
+      positioning={{
+        placement: "bottom-start",
+        getAnchorRect,
+        gutter: 6,
+      }}
+    >
+      <Portal>
+        <Popover.Positioner>
+          <Popover.Content
+            data-testid="ref-popover-host"
+            width="auto"
+            bg="transparent"
+            borderWidth={0}
+            boxShadow="none"
+            p={0}
+          >
+            {state && (
+              <RefPopover
+                state={state}
+                vaultPath={vaultPath}
+                onClose={() => closeRefPopover()}
+              />
+            )}
+          </Popover.Content>
+        </Popover.Positioner>
+      </Portal>
+    </Popover.Root>
   );
 }
