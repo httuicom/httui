@@ -5,7 +5,7 @@ import { usePaneStore } from "@/stores/pane";
 import { useSettingsStore } from "@/stores/settings";
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
 import { renderWithProviders, screen } from "@/test/render";
-import type { PaneLayout } from "@/types/pane";
+import type { LeafPane, PaneLayout, SplitPane, TabState } from "@/types/pane";
 
 vi.mock("@/components/layout/pane/DocHeaderedEditor", () => ({
   DocHeaderedEditor: ({
@@ -66,8 +66,8 @@ vi.mock("../../TabBar", () => ({
 }));
 
 vi.mock("../SplitView", () => ({
-  SplitView: ({ layout }: { layout: PaneLayout }) => (
-    <div data-testid="split-view" data-id={layout.id} />
+  SplitView: ({ layout }: { layout: SplitPane }) => (
+    <div data-testid="split-view" data-direction={layout.direction} />
   ),
 }));
 
@@ -86,7 +86,7 @@ afterEach(() => {
   clearTauriMocks();
 });
 
-const leafLayout = (override?: Partial<PaneLayout>): PaneLayout => ({
+const leafLayout = (override?: Partial<LeafPane>): LeafPane => ({
   type: "leaf",
   id: "p1",
   tabs: [
@@ -94,9 +94,8 @@ const leafLayout = (override?: Partial<PaneLayout>): PaneLayout => ({
       kind: "file",
       filePath: "a.md",
       vaultPath: "/v",
-    } as PaneLayout extends { tabs: infer T } ? T : never extends Array<infer Tab>
-      ? Tab
-      : never,
+      unsaved: false,
+    } satisfies TabState,
   ],
   activeTab: 0,
   ...(override ?? {}),
@@ -111,22 +110,16 @@ describe("PaneNode", () => {
       activeTab: 0,
     };
     renderWithProviders(
-      <PaneNode
-        layout={layout}
-        path={[]}
-        handleEditorChange={vi.fn()}
-      />,
+      <PaneNode layout={layout} path={[]} handleEditorChange={vi.fn()} />,
     );
-    expect(screen.getByText(/Open a file to start editing/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Open a file to start editing/),
+    ).toBeInTheDocument();
   });
 
   it("renders the DocHeaderedEditor for a file tab", () => {
     renderWithProviders(
-      <PaneNode
-        layout={leafLayout()}
-        path={[]}
-        handleEditorChange={vi.fn()}
-      />,
+      <PaneNode layout={leafLayout()} path={[]} handleEditorChange={vi.fn()} />,
     );
     const editor = screen.getByTestId("docheadered-editor");
     expect(editor.dataset.file).toBe("a.md");
@@ -147,11 +140,7 @@ describe("PaneNode", () => {
       activeTab: 0,
     };
     renderWithProviders(
-      <PaneNode
-        layout={layout}
-        path={[]}
-        handleEditorChange={vi.fn()}
-      />,
+      <PaneNode layout={layout} path={[]} handleEditorChange={vi.fn()} />,
     );
     expect(screen.getByTestId("diff-viewer")).toBeInTheDocument();
     expect(screen.queryByTestId("docheadered-editor")).not.toBeInTheDocument();
@@ -160,30 +149,25 @@ describe("PaneNode", () => {
   it("delegates non-leaf layouts to SplitView", () => {
     const layout: PaneLayout = {
       type: "split",
-      id: "root",
       direction: "horizontal",
       ratio: 0.5,
-      first: { type: "leaf", id: "p1", tabs: [], activeTab: 0 },
-      second: { type: "leaf", id: "p2", tabs: [], activeTab: 0 },
+      children: [
+        { type: "leaf", id: "p1", tabs: [], activeTab: 0 },
+        { type: "leaf", id: "p2", tabs: [], activeTab: 0 },
+      ],
     };
     renderWithProviders(
-      <PaneNode
-        layout={layout}
-        path={[]}
-        handleEditorChange={vi.fn()}
-      />,
+      <PaneNode layout={layout} path={[]} handleEditorChange={vi.fn()} />,
     );
     expect(screen.getByTestId("split-view")).toBeInTheDocument();
-    expect(screen.getByTestId("split-view").dataset.id).toBe("root");
+    expect(screen.getByTestId("split-view").dataset.direction).toBe(
+      "horizontal",
+    );
   });
 
   it("renders the TabBar with the leaf's tab count", () => {
     renderWithProviders(
-      <PaneNode
-        layout={leafLayout()}
-        path={[]}
-        handleEditorChange={vi.fn()}
-      />,
+      <PaneNode layout={leafLayout()} path={[]} handleEditorChange={vi.fn()} />,
     );
     expect(screen.getByTestId("tab-bar").dataset.count).toBe("1");
   });
@@ -193,11 +177,7 @@ describe("PaneNode", () => {
     // assert the mount path opens the editor at all (the file content
     // is in the editorContents Map keyed by filePath).
     renderWithProviders(
-      <PaneNode
-        layout={leafLayout()}
-        path={[]}
-        handleEditorChange={vi.fn()}
-      />,
+      <PaneNode layout={leafLayout()} path={[]} handleEditorChange={vi.fn()} />,
     );
     expect(screen.getByTestId("docheadered-editor")).toBeInTheDocument();
   });
@@ -217,11 +197,7 @@ describe("PaneNode", () => {
       closeAll,
     } as never);
     renderWithProviders(
-      <PaneNode
-        layout={leafLayout()}
-        path={[]}
-        handleEditorChange={vi.fn()}
-      />,
+      <PaneNode layout={leafLayout()} path={[]} handleEditorChange={vi.fn()} />,
     );
     screen.getByTestId("select-tab").click();
     screen.getByTestId("close-tab").click();

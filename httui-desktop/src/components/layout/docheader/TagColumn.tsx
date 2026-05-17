@@ -9,7 +9,7 @@
 // drawn from `availableTags` minus the currently-applied set.
 
 import { useMemo, useState } from "react";
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
 import { Btn, Input } from "@/components/atoms";
 
@@ -123,9 +123,8 @@ export function TagColumn({
                 borderRadius="4px"
               >
                 {suggestions.map((s) => (
-                  <Text
+                  <chakra.button
                     key={s}
-                    as="button"
                     data-testid={`tag-column-suggestion-${s}`}
                     fontFamily="mono"
                     fontSize="11px"
@@ -139,7 +138,7 @@ export function TagColumn({
                     cursor="pointer"
                   >
                     {s}
-                  </Text>
+                  </chakra.button>
                 ))}
               </Flex>
             )}
@@ -192,8 +191,7 @@ function TagChip({
         #{tag}
       </Text>
       {onRemove && (
-        <Text
-          as="button"
+        <chakra.button
           data-testid={`tag-column-chip-${tag}-remove`}
           fontFamily="mono"
           fontSize="11px"
@@ -207,7 +205,7 @@ function TagChip({
           _hover={{ color: "error" }}
         >
           ×
-        </Text>
+        </chakra.button>
       )}
     </Flex>
   );

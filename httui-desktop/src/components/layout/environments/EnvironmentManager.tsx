@@ -22,10 +22,7 @@ import { LuCopy, LuTrash2, LuX } from "react-icons/lu";
 
 import { Btn, Input } from "@/components/atoms";
 import { useEnvironmentStore } from "@/stores/environment";
-import {
-  resolveEnvVariables,
-  type EnvVariable,
-} from "@/lib/tauri/commands";
+import { resolveEnvVariables, type EnvVariable } from "@/lib/tauri/commands";
 
 import { NewVariableForm } from "../variables/NewVariableForm";
 import { VariableValueRow } from "../variables/VariableValueRow";
@@ -116,7 +113,12 @@ export function EnvironmentManager() {
     }) => {
       const target = environments.find((e) => e.name === payload.env);
       if (!target) return;
-      await setVariable(target.id, payload.name, payload.value, payload.isSecret);
+      await setVariable(
+        target.id,
+        payload.name,
+        payload.value,
+        payload.isSecret,
+      );
       setCreating(false);
       await refreshVars();
     },
@@ -219,11 +221,7 @@ export function EnvironmentManager() {
                 />
               </Flex>
             ) : (
-              <Btn
-                variant="ghost"
-                size="xs"
-                onClick={() => setNewEnvCreating(true)}
-              >
+              <Btn variant="ghost" onClick={() => setNewEnvCreating(true)}>
                 + New env
               </Btn>
             )}
@@ -250,7 +248,6 @@ export function EnvironmentManager() {
                   ) : (
                     <Btn
                       variant="ghost"
-                      size="xs"
                       onClick={() => switchEnvironment(selectedEnv.id)}
                     >
                       Set active
@@ -310,11 +307,7 @@ export function EnvironmentManager() {
                     />
                   ) : (
                     <Box px={4} py={2}>
-                      <Btn
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => setCreating(true)}
-                      >
+                      <Btn variant="ghost" onClick={() => setCreating(true)}>
                         + New variable
                       </Btn>
                     </Box>

@@ -12,7 +12,7 @@
 // don't pass `onTitleSave` (kept the diff viewer + tests working).
 
 import { useContext, useEffect, useRef, useState } from "react";
-import { Box, Flex, Heading, Text } from "@chakra-ui/react";
+import { Box, Flex, Heading, Text, chakra } from "@chakra-ui/react";
 
 import {
   registerDocHeaderTitleInput,
@@ -74,9 +74,7 @@ export function DocHeaderCard({
     firstHeading ?? null,
     filePath,
   );
-  const breadcrumb = relativeFilePath
-    ? deriveBreadcrumb(relativeFilePath)
-    : [];
+  const breadcrumb = relativeFilePath ? deriveBreadcrumb(relativeFilePath) : [];
 
   return (
     <Box
@@ -112,18 +110,14 @@ export function DocHeaderCard({
                   fontFamily="mono"
                   fontSize="11px"
                   color={isLeaf ? "fg.muted" : "fg.subtle"}
-                  cursor={
-                    onBreadcrumbSelect && !isLeaf ? "pointer" : undefined
-                  }
+                  cursor={onBreadcrumbSelect && !isLeaf ? "pointer" : undefined}
                   onClick={
                     onBreadcrumbSelect && !isLeaf
                       ? () => onBreadcrumbSelect(seg.path)
                       : undefined
                   }
                   _hover={
-                    onBreadcrumbSelect && !isLeaf
-                      ? { color: "fg" }
-                      : undefined
+                    onBreadcrumbSelect && !isLeaf ? { color: "fg" } : undefined
                   }
                 >
                   {seg.label}
@@ -139,10 +133,7 @@ export function DocHeaderCard({
       )}
 
       {editable ? (
-        <DocHeaderTitleInput
-          value={editableValue}
-          onSave={onTitleSave!}
-        />
+        <DocHeaderTitleInput value={editableValue} onSave={onTitleSave!} />
       ) : (
         <Heading
           as={onTitleClick ? "button" : "h1"}
@@ -226,8 +217,7 @@ function DocHeaderTitleInput({ value, onSave }: DocHeaderTitleInputProps) {
   };
 
   return (
-    <Box
-      as="input"
+    <chakra.input
       ref={inputRef}
       data-testid="docheader-title"
       type="text"

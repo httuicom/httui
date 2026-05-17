@@ -16,7 +16,6 @@ const env = (over: Partial<Environment> = {}): Environment => ({
   description: null,
   is_active: false,
   created_at: "",
-  updated_at: "",
   ...over,
 });
 
@@ -38,7 +37,12 @@ describe("mergeCrossEnvVariables", () => {
       {
         env: local,
         vars: [
-          v({ id: "v1", environment_id: local.id, key: "API_BASE", value: "x" }),
+          v({
+            id: "v1",
+            environment_id: local.id,
+            key: "API_BASE",
+            value: "x",
+          }),
           v({ id: "v2", environment_id: local.id, key: "DB_URL", value: "y" }),
         ],
       },
@@ -69,7 +73,12 @@ describe("mergeCrossEnvVariables", () => {
       {
         env: prod,
         vars: [
-          v({ key: "TOKEN", environment_id: prod.id, value: "", is_secret: true }),
+          v({
+            key: "TOKEN",
+            environment_id: prod.id,
+            value: "",
+            is_secret: true,
+          }),
         ],
       },
     ]);
@@ -243,9 +252,7 @@ describe("VariablesPageContainer", () => {
       );
       return v({ id: "v-new" });
     });
-    const confirmSpy = vi
-      .spyOn(window, "confirm")
-      .mockReturnValue(true);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
     renderWithProviders(<VariablesPageContainer />);
     const user = userEvent.setup();
@@ -272,9 +279,7 @@ describe("VariablesPageContainer", () => {
       setVarCalls += 1;
       return v({ id: "v-new" });
     });
-    const confirmSpy = vi
-      .spyOn(window, "confirm")
-      .mockReturnValue(false);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
 
     renderWithProviders(<VariablesPageContainer />);
     const user = userEvent.setup();

@@ -14,7 +14,7 @@
 // to a single space on commit (slice-1 schema is single-line scalar).
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Text } from "@chakra-ui/react";
+import { Box, Text, chakra } from "@chakra-ui/react";
 
 import {
   deriveAbstractDisplay,
@@ -169,8 +169,7 @@ function DocHeaderAbstractInput({
 
   return (
     <Box mt={3} position="relative">
-      <Box
-        as="textarea"
+      <chakra.textarea
         data-testid="docheader-abstract-input"
         rows={2}
         value={local}

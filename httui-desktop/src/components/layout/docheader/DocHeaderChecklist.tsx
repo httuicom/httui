@@ -14,7 +14,7 @@
 // the checklist visually.
 
 import { useState } from "react";
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
 import { Btn, Input } from "@/components/atoms";
 import type { TaskItem } from "@/lib/blocks/task-item";
@@ -172,8 +172,7 @@ function ChecklistRow({
       align="center"
       gap={2}
     >
-      <Flex
-        as="button"
+      <chakra.button
         type="button"
         data-testid="docheader-checklist-checkbox"
         data-checked={item.done ? "true" : undefined}
@@ -181,8 +180,9 @@ function ChecklistRow({
         disabled={!editable}
         w="16px"
         h="16px"
-        align="center"
-        justify="center"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
         borderWidth="1px"
         borderRadius="3px"
         cursor={editable ? "pointer" : "default"}
@@ -218,10 +218,9 @@ function ChecklistRow({
             ✓
           </Text>
         )}
-      </Flex>
+      </chakra.button>
       {editable && editingText ? (
-        <Box
-          as="input"
+        <chakra.input
           data-testid="docheader-checklist-text-input"
           type="text"
           value={draft}
@@ -277,8 +276,7 @@ function ChecklistRow({
         </Text>
       )}
       {editable && (
-        <Text
-          as="button"
+        <chakra.button
           type="button"
           data-testid="docheader-checklist-remove"
           fontFamily="mono"
@@ -289,7 +287,7 @@ function ChecklistRow({
           _hover={{ color: "error" }}
         >
           ×
-        </Text>
+        </chakra.button>
       )}
     </Flex>
   );

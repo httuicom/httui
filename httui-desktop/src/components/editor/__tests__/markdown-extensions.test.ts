@@ -74,19 +74,23 @@ vi.mock("@/lib/blocks/cm-references", () => ({
   createMarkdownReferenceTooltip: vi.fn(() => ({ refTooltip: true })),
 }));
 
-import { wikilinks, createWikilinkCompletion } from "@/lib/codemirror/cm-wikilinks";
 import {
-  createDbBlockCompletionSource,
-} from "@/lib/codemirror/cm-db-block";
-import {
-  createHttpBlockCompletionSource,
-} from "@/lib/codemirror/cm-http-block";
+  wikilinks,
+  createWikilinkCompletion,
+} from "@/lib/codemirror/cm-wikilinks";
+import { createDbBlockCompletionSource } from "@/lib/codemirror/cm-db-block";
+import { createHttpBlockCompletionSource } from "@/lib/codemirror/cm-http-block";
 import { createMarkdownReferenceTooltip } from "@/lib/blocks/cm-references";
 import {
   buildExtensions,
   flattenFiles,
 } from "@/components/editor/markdown-extensions";
+import type {
+  BuildExtensionsParams,
+  DocHeaderHandleLike,
+} from "@/components/editor/markdown-extensions";
 import type { FileEntry } from "@/lib/tauri/commands";
+import type { Extension } from "@codemirror/state";
 
 const folderEntry: FileEntry = {
   name: "folder",
@@ -165,15 +169,17 @@ describe("markdown-extensions", () => {
   });
 
   describe("buildExtensions", () => {
-    function makeParams(overrides: Partial<{ docHeader: unknown }> = {}) {
+    function makeParams(
+      overrides: Partial<{
+        docHeader: DocHeaderHandleLike | null;
+        entriesRef: { current: FileEntry[] };
+      }> = {},
+    ): BuildExtensionsParams {
       return {
         filePath: "current.md",
-        entriesRef: { current: [folderEntry] },
+        entriesRef: overrides.entriesRef ?? { current: [folderEntry] },
         handleFileSelectRef: { current: vi.fn() },
-        docHeaderHandle: (overrides.docHeader as
-          | { extension: unknown; instanceId: string }
-          | null
-          | undefined) ?? null,
+        docHeaderHandle: overrides.docHeader ?? null,
         getActiveVariables: () => ({ FOO: "bar" }),
       };
     }
@@ -190,7 +196,11 @@ describe("markdown-extensions", () => {
     });
 
     it("includes the docHeader extension when a handle is provided", () => {
-      const docExt = { docHeaderExt: true };
+      // CM6 modules are fully mocked here; the docHeader extension is an
+      // opaque pass-through value. Cast the fake through `Extension` so the
+      // handle matches `DocHeaderHandleLike` while keeping object identity
+      // for the `toContain` assertion below.
+      const docExt = { docHeaderExt: true } as unknown as Extension;
       const ext = buildExtensions(
         makeParams({ docHeader: { extension: docExt, instanceId: "id-1" } }),
       );
@@ -241,7 +251,8 @@ describe("markdown-extensions", () => {
     });
 
     it("wikilinks.getFiles re-evaluates entriesRef each call", () => {
-      const params = makeParams();
+      const entriesRef: { current: FileEntry[] } = { current: [folderEntry] };
+      const params = makeParams({ entriesRef });
       buildExtensions(params);
       const cfg = vi.mocked(wikilinks).mock.calls.at(-1)![0] as {
         getFiles: () => Array<{ name: string; path: string }>;
@@ -249,34 +260,34 @@ describe("markdown-extensions", () => {
       const initial = cfg.getFiles();
       expect(initial.length).toBe(2);
       // Mutate entries; getFiles should reflect the change.
-      params.entriesRef.current = [];
+      entriesRef.current = [];
       expect(cfg.getFiles()).toEqual([]);
     });
 
     it("createWikilinkCompletion gets a getFiles closure that walks entriesRef", () => {
       const params = makeParams();
       buildExtensions(params);
-      const getFiles = vi.mocked(createWikilinkCompletion).mock.calls.at(
-        -1,
-      )![0] as () => Array<{ name: string; path: string }>;
+      const getFiles = vi
+        .mocked(createWikilinkCompletion)
+        .mock.calls.at(-1)![0] as () => Array<{ name: string; path: string }>;
       expect(getFiles().map((f) => f.path)).toContain("folder/leaf.md");
     });
 
     it("createDbBlockCompletionSource gets a closure returning the filePath", () => {
       const params = makeParams();
       buildExtensions(params);
-      const getter = vi.mocked(createDbBlockCompletionSource).mock.calls.at(
-        -1,
-      )![0] as () => string;
+      const getter = vi
+        .mocked(createDbBlockCompletionSource)
+        .mock.calls.at(-1)![0] as () => string;
       expect(getter()).toBe("current.md");
     });
 
     it("createHttpBlockCompletionSource gets a closure returning the filePath", () => {
       const params = makeParams();
       buildExtensions(params);
-      const getter = vi.mocked(createHttpBlockCompletionSource).mock.calls.at(
-        -1,
-      )![0] as () => string;
+      const getter = vi
+        .mocked(createHttpBlockCompletionSource)
+        .mock.calls.at(-1)![0] as () => string;
       expect(getter()).toBe("current.md");
     });
 

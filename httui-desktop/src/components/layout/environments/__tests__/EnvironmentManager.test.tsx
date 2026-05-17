@@ -183,16 +183,13 @@ describe("EnvironmentManager", () => {
     const user = userEvent.setup();
     renderWithProviders(<EnvironmentManager />);
     await user.click(await screen.findByText("+ New variable"));
-    await user.type(
-      await screen.findByTestId("new-variable-name"),
-      "FRESH",
-    );
+    await user.type(await screen.findByTestId("new-variable-name"), "FRESH");
     await user.type(screen.getByTestId("new-variable-value"), "value");
     await user.click(screen.getByTestId("new-variable-save"));
     await waitFor(() => {
       expect(setCalled).not.toBeNull();
     });
-    expect((setCalled as { key: string }).key).toBe("FRESH");
+    expect(setCalled).toMatchObject({ key: "FRESH" });
   });
 
   it("'Set active' on the selected env dispatches set_active_environment", async () => {
@@ -254,7 +251,7 @@ describe("EnvironmentManager", () => {
     await waitFor(() => {
       expect(deletedId).not.toBeNull();
     });
-    expect((deletedId as { id: string }).id).toBe("v1");
+    expect(deletedId).toMatchObject({ id: "v1" });
   });
 
   it("Escape key cancels the inline creator", async () => {
@@ -266,6 +263,8 @@ describe("EnvironmentManager", () => {
     expect(screen.getByTestId("env-mgr-new-env-name")).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
-    expect(screen.queryByTestId("env-mgr-new-env-name")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("env-mgr-new-env-name"),
+    ).not.toBeInTheDocument();
   });
 });

@@ -6,7 +6,7 @@
 // presentational consumer — the consumer feeds it the
 // `Record<key, CaptureEntry>` from `useCaptureStore.getBlockCaptures`.
 
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Text, chakra } from "@chakra-ui/react";
 import { useState } from "react";
 
 import type { CaptureEntry } from "@/stores/captureStore";
@@ -42,12 +42,12 @@ export function CapturesFooter({
       borderTopColor="border"
       bg="bg.muted"
     >
-      <Flex
-        as="button"
+      <chakra.button
         type="button"
         data-testid="captures-footer-summary"
         onClick={() => setOpen((v) => !v)}
-        align="center"
+        display="flex"
+        alignItems="center"
         gap={2}
         px={4}
         py={2}
@@ -79,7 +79,7 @@ export function CapturesFooter({
         >
           {open ? "▾" : "▸"}
         </Text>
-      </Flex>
+      </chakra.button>
 
       {open && (
         <Box data-testid="captures-footer-list">
@@ -116,14 +116,15 @@ function CaptureRow({
 
   const interactive = !!onCopy;
 
+  const Comp = interactive ? chakra.button : chakra.div;
   return (
-    <Flex
-      as={interactive ? "button" : "div"}
+    <Comp
       type={interactive ? "button" : undefined}
       data-testid={`captures-footer-row-${name}`}
       data-secret={entry.isSecret || undefined}
       onClick={interactive ? () => onCopy?.(name, stringValue) : undefined}
-      align="baseline"
+      display="flex"
+      alignItems="baseline"
       gap={2}
       px={4}
       py={1}
@@ -176,6 +177,6 @@ function CaptureRow({
           🔒
         </Text>
       )}
-    </Flex>
+    </Comp>
   );
 }

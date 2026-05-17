@@ -4,7 +4,7 @@
 // output. Mounted at the bottom of the run-all stream when the runs
 // finish (or stop on first failure when shift-click was NOT held).
 
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
 import type { RunAllAssertionSummary } from "@/lib/blocks/assertions-aggregate";
 
@@ -87,9 +87,9 @@ function FailedBlockRow({
   onJump?: (a: string) => void;
 }) {
   const interactive = !!onJump;
+  const Comp = interactive ? chakra.button : chakra.div;
   return (
-    <Box
-      as={interactive ? "button" : "div"}
+    <Comp
       type={interactive ? "button" : undefined}
       data-testid={`run-all-report-failed-block-${alias}`}
       onClick={interactive ? () => onJump?.(alias) : undefined}
@@ -104,6 +104,6 @@ function FailedBlockRow({
       _hover={interactive ? { textDecoration: "underline" } : undefined}
     >
       ✗ {alias}
-    </Box>
+    </Comp>
   );
 }

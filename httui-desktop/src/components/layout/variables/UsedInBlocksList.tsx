@@ -4,7 +4,7 @@
 // `error`) and groups by file. Click a hit fires `onJump(filePath,
 // line)` so the consumer can open the file at the right line.
 
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
 import type { VarUseEntry } from "@/lib/tauri/var-uses";
 
@@ -118,13 +118,14 @@ function Hit({
   onJump?: (filePath: string, line: number) => void;
 }) {
   const interactive = !!onJump;
+  const Comp = interactive ? chakra.button : chakra.div;
   return (
-    <Flex
-      as={interactive ? "button" : "div"}
+    <Comp
       type={interactive ? "button" : undefined}
       data-testid={`used-in-blocks-hit-${filePath}:${line}`}
       onClick={interactive ? () => onJump?.(filePath, line) : undefined}
-      align="baseline"
+      display="flex"
+      alignItems="baseline"
       gap={2}
       px={4}
       py={1}
@@ -156,6 +157,6 @@ function Hit({
       >
         {snippet}
       </Text>
-    </Flex>
+    </Comp>
   );
 }
