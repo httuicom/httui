@@ -41,6 +41,7 @@ beforeEach(() => {
     },
     colorMode: "system",
     loaded: true,
+    autoUpdateIncludePrereleases: false,
   });
 });
 
@@ -118,6 +119,29 @@ describe("GeneralSection", () => {
     // NaN (empty / non-numeric) also rejected by Number.isFinite.
     fireEvent.change(input, { target: { value: "" } });
     expect(useSettingsStore.getState().settings.historyRetention).toBe(10);
+  });
+
+  it("reflects autoUpdateIncludePrereleases from the store (off by default)", () => {
+    renderWithWorkspace(<GeneralSection />);
+    const sw = screen.getByRole("checkbox", { name: "Include pre-releases" });
+    expect(sw).not.toBeChecked();
+  });
+
+  it("reflects an opted-in pre-release setting", () => {
+    useSettingsStore.setState({ autoUpdateIncludePrereleases: true });
+    renderWithWorkspace(<GeneralSection />);
+    const sw = screen.getByRole("checkbox", { name: "Include pre-releases" });
+    expect(sw).toBeChecked();
+  });
+
+  it("toggling the pre-release switch writes through to the store", async () => {
+    useSettingsStore.setState({ autoUpdateIncludePrereleases: false });
+    renderWithWorkspace(<GeneralSection />);
+    const sw = screen.getByRole("checkbox", { name: "Include pre-releases" });
+    await userEvent.setup().click(sw);
+    expect(
+      useSettingsStore.getState().autoUpdateIncludePrereleases,
+    ).toBe(true);
   });
 
   it("renders 'None' when no vault is active", () => {

@@ -3,6 +3,7 @@ import { Flex, Input, Text, Separator, Box, VStack } from "@chakra-ui/react";
 import { NativeSelectRoot, NativeSelectField } from "@chakra-ui/react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettingsStore } from "@/stores/settings";
+import { Switch } from "@/components/ui/switch";
 import { ColorModePicker } from "./ColorModePicker";
 import { GitCommitTemplateField } from "./GitCommitTemplateField";
 
@@ -18,6 +19,12 @@ export function GeneralSection() {
   const { vaultPath, vaults } = useWorkspace();
   const settings = useSettingsStore((s) => s.settings);
   const updateSetting = useSettingsStore((s) => s.updateSetting);
+  const autoUpdateIncludePrereleases = useSettingsStore(
+    (s) => s.autoUpdateIncludePrereleases,
+  );
+  const setAutoUpdateIncludePrereleases = useSettingsStore(
+    (s) => s.setAutoUpdateIncludePrereleases,
+  );
 
   const handleAutoSaveChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -79,6 +86,32 @@ export function GeneralSection() {
             </Text>
           </Box>
         )}
+      </Box>
+
+      <Separator />
+
+      {/* Software updates */}
+      <Box>
+        <Text fontWeight="semibold" fontSize="sm" mb={3}>
+          Software updates
+        </Text>
+        <Flex align="center" justify="space-between" gap={4}>
+          <Flex direction="column" gap={0} flex={1}>
+            <Text fontSize="sm">Include pre-releases</Text>
+            <Text fontSize="xs" color="fg.muted">
+              Receive release candidates and beta builds when checking for
+              updates. Off by default — only stable releases are offered.
+            </Text>
+          </Flex>
+          <Switch
+            aria-label="Include pre-releases"
+            checked={autoUpdateIncludePrereleases}
+            onCheckedChange={(d) =>
+              setAutoUpdateIncludePrereleases(d.checked)
+            }
+            size="sm"
+          />
+        </Flex>
       </Box>
 
       <Separator />

@@ -51,6 +51,9 @@ interface SettingsState {
   // MVP-to-v1 migration banner
   mvpMigrationDismissed: boolean;
 
+  /** Opt-in to pre-release auto-updates. V12 cenário 9. */
+  autoUpdateIncludePrereleases: boolean;
+
   // Actions
   openSettings: () => void;
   closeSettings: () => void;
@@ -70,6 +73,7 @@ interface SettingsState {
   setGitSidePanelOpen: (open: boolean) => void;
   setGitCommitTemplate: (template: string) => void;
   setMvpMigrationDismissed: (dismissed: boolean) => void;
+  setAutoUpdateIncludePrereleases: (include: boolean) => void;
   loadSettings: () => Promise<void>;
 }
 
@@ -118,6 +122,7 @@ export const useSettingsStore = create<SettingsState>()(
       gitSidePanelOpen: false,
       gitCommitTemplate: "",
       mvpMigrationDismissed: false,
+      autoUpdateIncludePrereleases: false,
 
       openSettings: () => set({ settingsOpen: true }),
       closeSettings: () => set({ settingsOpen: false }),
@@ -217,6 +222,14 @@ export const useSettingsStore = create<SettingsState>()(
         })).catch(() => {});
       },
 
+      setAutoUpdateIncludePrereleases: (include) => {
+        set({ autoUpdateIncludePrereleases: include });
+        patchUiPrefs((ui) => ({
+          ...ui,
+          auto_update_include_prereleases: include,
+        })).catch(() => {});
+      },
+
       loadSettings: async () => {
         const file = await getUserConfig();
         const ui = file.ui;
@@ -256,6 +269,8 @@ export const useSettingsStore = create<SettingsState>()(
           gitSidePanelOpen: ui.git_side_panel_open ?? false,
           gitCommitTemplate: ui.git_commit_template ?? "",
           mvpMigrationDismissed: ui.mvp_migration_dismissed ?? false,
+          autoUpdateIncludePrereleases:
+            ui.auto_update_include_prereleases ?? false,
           loaded: true,
         });
       },

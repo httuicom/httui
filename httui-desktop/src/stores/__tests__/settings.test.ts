@@ -63,6 +63,7 @@ function resetStore() {
     gitSidePanelOpen: false,
     gitCommitTemplate: "",
     mvpMigrationDismissed: false,
+    autoUpdateIncludePrereleases: false,
   });
 }
 
@@ -379,6 +380,60 @@ describe("settingsStore", () => {
       await useSettingsStore.getState().loadSettings();
 
       expect(useSettingsStore.getState().mvpMigrationDismissed).toBe(false);
+    });
+  });
+
+  describe("autoUpdateIncludePrereleases", () => {
+    it("defaults to false", () => {
+      expect(
+        useSettingsStore.getState().autoUpdateIncludePrereleases,
+      ).toBe(false);
+    });
+
+    it("setAutoUpdateIncludePrereleases(true) updates state and persists", async () => {
+      const read = mockUserConfig();
+
+      useSettingsStore.getState().setAutoUpdateIncludePrereleases(true);
+
+      expect(
+        useSettingsStore.getState().autoUpdateIncludePrereleases,
+      ).toBe(true);
+      await flushPersist();
+      expect(read().ui.auto_update_include_prereleases).toBe(true);
+    });
+
+    it("setAutoUpdateIncludePrereleases(false) round-trips back to false", async () => {
+      const read = mockUserConfig({
+        auto_update_include_prereleases: true,
+      });
+
+      useSettingsStore.getState().setAutoUpdateIncludePrereleases(false);
+
+      expect(
+        useSettingsStore.getState().autoUpdateIncludePrereleases,
+      ).toBe(false);
+      await flushPersist();
+      expect(read().ui.auto_update_include_prereleases).toBe(false);
+    });
+
+    it("loadSettings hydrates from ui.auto_update_include_prereleases", async () => {
+      mockUserConfig({ auto_update_include_prereleases: true });
+
+      await useSettingsStore.getState().loadSettings();
+
+      expect(
+        useSettingsStore.getState().autoUpdateIncludePrereleases,
+      ).toBe(true);
+    });
+
+    it("falls back to false when the key is omitted", async () => {
+      mockUserConfig({ auto_update_include_prereleases: undefined });
+
+      await useSettingsStore.getState().loadSettings();
+
+      expect(
+        useSettingsStore.getState().autoUpdateIncludePrereleases,
+      ).toBe(false);
     });
   });
 });

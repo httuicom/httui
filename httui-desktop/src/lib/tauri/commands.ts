@@ -71,6 +71,8 @@ export interface UserUiPrefs {
    * detected.
    */
   mvp_migration_dismissed: boolean;
+  /** Opt-in to pre-release auto-updates (`-rc`/`-beta`/`-alpha`). V12. */
+  auto_update_include_prereleases?: boolean;
 }
 
 /** `[secrets]` section. */

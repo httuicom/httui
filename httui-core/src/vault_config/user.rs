@@ -98,6 +98,12 @@ pub struct UiPrefs {
     /// `default` behavior at runtime if persisted somehow.
     #[serde(default = "default_shortcut_profile")]
     pub shortcut_profile: String,
+    /// Opt-in to receive pre-release auto-updates (`-rc`, `-beta`,
+    /// `-alpha` tags). Default `false`: the updater only offers
+    /// stable releases. V12 cenário 9 — the Settings toggle flips
+    /// this; `useAutoUpdate` reads it to gate the update prompt.
+    #[serde(default)]
+    pub auto_update_include_prereleases: bool,
 }
 
 impl Default for UiPrefs {
@@ -118,6 +124,7 @@ impl Default for UiPrefs {
             mvp_migration_dismissed: false,
             hide_archived_in_quick_open: false,
             shortcut_profile: default_shortcut_profile(),
+            auto_update_include_prereleases: false,
         }
     }
 }
@@ -302,6 +309,26 @@ prompt_timeout_s = 30
         let raw = "version = \"1\"\n[ui]\ntheme = \"dark\"\n";
         let f: UserFile = toml::from_str(raw).unwrap();
         assert!(!f.ui.mvp_migration_dismissed);
+    }
+
+    #[test]
+    fn auto_update_include_prereleases_round_trips() {
+        let raw = "version = \"1\"\n[ui]\nauto_update_include_prereleases = true\n";
+        let f: UserFile = toml::from_str(raw).unwrap();
+        assert!(f.ui.auto_update_include_prereleases);
+
+        let serialized = toml::to_string(&f).unwrap();
+        assert!(serialized.contains("auto_update_include_prereleases = true"));
+
+        let back: UserFile = toml::from_str(&serialized).unwrap();
+        assert!(back.ui.auto_update_include_prereleases);
+    }
+
+    #[test]
+    fn auto_update_include_prereleases_defaults_to_false_when_omitted() {
+        let raw = "version = \"1\"\n[ui]\ntheme = \"dark\"\n";
+        let f: UserFile = toml::from_str(raw).unwrap();
+        assert!(!f.ui.auto_update_include_prereleases);
     }
 
     #[test]
