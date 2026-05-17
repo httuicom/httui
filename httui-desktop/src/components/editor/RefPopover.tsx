@@ -1,12 +1,15 @@
 // Body of the inline `{{ref}}` quick popover (V11 cenário 3).
 //
-// Shows the variable's per-env value, a session-override input
-// (reuses the V5 useSessionOverrideStore + TemporaryChip), and a
-// "Used in N blocks" expander. Block-ref shaped keys (with dots)
-// get a read-only note instead of the override controls.
+// Visual contract: design-canvas §4.3 PopoverVarQuick — tooltip
+// arrow, 10px radius, layered shadow, uppercase section labels, the
+// key echoed in the same violet as the in-editor chip (continuity),
+// per-env value in a mono field, dashed session-override input.
+// Reuses V5 useSessionOverrideStore + TemporaryChip. Block-ref
+// shaped keys (with dots) get a read-only note.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+import { LuChevronDown, LuChevronUp } from "react-icons/lu";
 
 import { Btn, Input } from "@/components/atoms";
 import { TemporaryChip } from "@/components/layout/variables/TemporaryChip";
@@ -19,6 +22,28 @@ export interface RefPopoverProps {
   state: RefPopoverState;
   vaultPath: string | null;
   onClose: () => void;
+}
+
+// Matches the `.cm-reference-highlight` decoration so the popover
+// reads as "this is that chip" (cm-references.ts uses the same hue).
+const REF_VIOLET = "rgb(139, 92, 246)";
+const REF_VIOLET_BG = "rgba(139, 92, 246, 0.14)";
+
+const POPOVER_SHADOW =
+  "0 24px 60px -16px rgba(30,41,59,0.35), 0 4px 12px -4px rgba(30,41,59,0.22)";
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <Text
+      fontSize="10px"
+      fontWeight={600}
+      textTransform="uppercase"
+      letterSpacing="0.06em"
+      color="fg.subtle"
+    >
+      {children}
+    </Text>
+  );
 }
 
 export function RefPopover({ state, vaultPath, onClose }: RefPopoverProps) {
@@ -34,47 +59,108 @@ export function RefPopover({ state, vaultPath, onClose }: RefPopoverProps) {
     <Box
       data-testid="ref-popover"
       data-ref={rawKey}
+      position="relative"
       bg="bg"
       borderWidth="1px"
       borderColor="border"
-      borderRadius="6px"
-      shadow="2xl"
-      minW="300px"
+      borderRadius="10px"
+      boxShadow={POPOVER_SHADOW}
+      minW="320px"
       maxW="420px"
-      p={3}
     >
-      <Flex align="center" gap={2} mb={2}>
-        <Text
-          flex={1}
+      {/* tooltip arrow — top-left, points at the chip */}
+      <Box
+        position="absolute"
+        top="-6px"
+        left="22px"
+        w="12px"
+        h="12px"
+        bg="bg"
+        borderTopWidth="1px"
+        borderLeftWidth="1px"
+        borderColor="border"
+        transform="rotate(45deg)"
+        aria-hidden
+      />
+
+      {/* header */}
+      <Flex
+        align="center"
+        gap={2}
+        px={4}
+        py={3}
+        borderBottomWidth="1px"
+        borderBottomColor="border"
+      >
+        <Box
+          as="span"
           fontFamily="mono"
-          fontSize="12px"
+          fontSize="13px"
           fontWeight={600}
-          color="brand.fg"
+          color={REF_VIOLET}
+          bg={REF_VIOLET_BG}
+          px={2}
+          py={0.5}
+          borderRadius="5px"
+          maxW="220px"
           truncate
         >
           {`{{${rawKey}}}`}
-        </Text>
+        </Box>
         {override !== undefined && envName && (
           <TemporaryChip onClear={() => clearOverride(envName, rawKey)} />
         )}
       </Flex>
 
-      {!isEnvVar ? (
-        <Text fontSize="11px" color="fg.muted" data-testid="ref-popover-blockref">
-          Block reference — resolves from the block above at run time.
-        </Text>
-      ) : (
-        <RefEnvVarBody
-          rawKey={rawKey}
-          envName={envName}
-          override={override}
-          vaultPath={vaultPath}
-        />
-      )}
+      <Box px={4} py={3}>
+        {!isEnvVar ? (
+          <Flex
+            gap={2}
+            align="flex-start"
+            bg="bg.subtle"
+            borderRadius="6px"
+            px={3}
+            py={2}
+            data-testid="ref-popover-blockref"
+          >
+            <Text fontSize="11px" color="fg.muted">
+              Block reference — resolves from the block above at run time.
+            </Text>
+          </Flex>
+        ) : (
+          <RefEnvVarBody
+            rawKey={rawKey}
+            envName={envName}
+            override={override}
+            vaultPath={vaultPath}
+          />
+        )}
+      </Box>
 
-      <Flex justify="flex-end" mt={3}>
+      {/* footer */}
+      <Flex
+        align="center"
+        justify="flex-end"
+        px={4}
+        py={2.5}
+        borderTopWidth="1px"
+        borderTopColor="border"
+      >
         <Btn variant="ghost" data-testid="ref-popover-close" onClick={onClose}>
-          Close
+          Close{" "}
+          <Box
+            as="span"
+            ml={2}
+            fontFamily="mono"
+            fontSize="9px"
+            color="fg.subtle"
+            borderWidth="1px"
+            borderColor="border"
+            borderRadius="3px"
+            px={1}
+          >
+            esc
+          </Box>
         </Btn>
       </Flex>
     </Box>
@@ -97,8 +183,6 @@ function RefEnvVarBody({
   const setOverride = useSessionOverrideStore((s) => s.setOverride);
   const [resolved, setResolved] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [uses, setUses] = useState<VarUseEntry[] | null>(null);
-  const [showUses, setShowUses] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -112,6 +196,102 @@ function RefEnvVarBody({
     };
   }, [rawKey]);
 
+  function applyOverride() {
+    if (!envName || draft.trim() === "") return;
+    setOverride(envName, rawKey, draft);
+    setDraft("");
+  }
+
+  const hasOverride = override !== undefined;
+
+  return (
+    <Flex direction="column" gap={3}>
+      <Box>
+        <SectionLabel>
+          {envName ? `value in ${envName}` : "no active environment"}
+        </SectionLabel>
+        <Flex
+          mt={1}
+          align="center"
+          gap={2}
+          bg="bg.subtle"
+          borderWidth="1px"
+          borderColor={hasOverride ? REF_VIOLET : "border"}
+          borderRadius="6px"
+          px={2.5}
+          py={1.5}
+        >
+          <Text
+            flex={1}
+            fontFamily="mono"
+            fontSize="12px"
+            color={resolved == null && !hasOverride ? "fg.subtle" : "fg"}
+            data-testid="ref-popover-value"
+            wordBreak="break-all"
+          >
+            {override ?? resolved ?? "(not set in active env)"}
+          </Text>
+          {hasOverride && (
+            <Box
+              as="span"
+              fontFamily="serif"
+              fontStyle="italic"
+              fontSize="9px"
+              color={REF_VIOLET}
+              flexShrink={0}
+            >
+              overridden
+            </Box>
+          )}
+        </Flex>
+      </Box>
+
+      <Box>
+        <SectionLabel>session override</SectionLabel>
+        <Flex gap={2} mt={1}>
+          <Input
+            data-testid="ref-popover-override-input"
+            placeholder="temporary value…"
+            value={draft}
+            borderStyle="dashed"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                applyOverride();
+              }
+            }}
+            disabled={!envName}
+          />
+          <Btn
+            variant="primary"
+            data-testid="ref-popover-override-set"
+            onClick={applyOverride}
+            disabled={!envName || draft.trim() === ""}
+          >
+            Set
+          </Btn>
+        </Flex>
+        <Text fontSize="10px" color="fg.subtle" mt={1} fontStyle="italic">
+          reverts to the stored value when the app restarts
+        </Text>
+      </Box>
+
+      <RefUsesSection rawKey={rawKey} vaultPath={vaultPath} />
+    </Flex>
+  );
+}
+
+function RefUsesSection({
+  rawKey,
+  vaultPath,
+}: {
+  rawKey: string;
+  vaultPath: string | null;
+}) {
+  const [uses, setUses] = useState<VarUseEntry[] | null>(null);
+  const [showUses, setShowUses] = useState(false);
+
   useEffect(() => {
     if (!vaultPath) return;
     let alive = true;
@@ -123,70 +303,39 @@ function RefEnvVarBody({
     };
   }, [vaultPath, rawKey]);
 
-  function applyOverride() {
-    if (!envName || draft.trim() === "") return;
-    setOverride(envName, rawKey, draft);
-    setDraft("");
-  }
-
   const count = uses?.length ?? 0;
 
   return (
-    <>
-      <Box mb={3}>
-        <Text fontSize="10px" color="fg.subtle" mb={0.5}>
-          {envName ? `value in ${envName}` : "no active environment"}
-        </Text>
-        <Text
-          fontFamily="mono"
-          fontSize="12px"
-          color={resolved == null ? "fg.subtle" : "fg"}
-          data-testid="ref-popover-value"
-          wordBreak="break-all"
-        >
-          {override ?? resolved ?? "(not set in active env)"}
-        </Text>
-      </Box>
-
-      <Box mb={3}>
-        <Text fontSize="10px" color="fg.subtle" mb={1}>
-          Session override
-        </Text>
-        <Flex gap={2}>
-          <Input
-            data-testid="ref-popover-override-input"
-            placeholder="temporary value…"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                applyOverride();
-              }
-            }}
-            disabled={!envName}
-          />
-          <Btn
-            variant="ghost"
-            data-testid="ref-popover-override-set"
-            onClick={applyOverride}
-            disabled={!envName || draft.trim() === ""}
-          >
-            Set
-          </Btn>
-        </Flex>
-      </Box>
-
+    <Box borderTopWidth="1px" borderTopColor="border" pt={2}>
       <Btn
         variant="ghost"
         data-testid="ref-popover-uses"
         onClick={() => setShowUses((v) => !v)}
         disabled={count === 0}
       >
-        Used in {count} block{count === 1 ? "" : "s"}
+        {count === 0
+          ? "Not used in any block yet"
+          : `Used in ${count} block${count === 1 ? "" : "s"}`}
+        {count > 0 && (
+          <Box as="span" ml={2} color="fg.subtle" display="inline-flex">
+            {showUses ? (
+              <LuChevronUp size={12} />
+            ) : (
+              <LuChevronDown size={12} />
+            )}
+          </Box>
+        )}
       </Btn>
       {showUses && count > 0 && (
-        <Box mt={2} maxH="140px" overflowY="auto">
+        <Box
+          mt={2}
+          maxH="140px"
+          overflowY="auto"
+          bg="bg.subtle"
+          borderRadius="6px"
+          px={2.5}
+          py={1.5}
+        >
           {uses?.map((u, i) => (
             <Text
               key={`${u.file_path}:${u.line}:${i}`}
@@ -201,6 +350,6 @@ function RefEnvVarBody({
           ))}
         </Box>
       )}
-    </>
+    </Box>
   );
 }
