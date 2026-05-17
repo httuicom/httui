@@ -160,13 +160,11 @@ mod tests {
         commit_all(dir.path(), "base");
         // Branch off and write THEIRS.
         git_checkout_b(dir.path(), "feat/theirs").unwrap();
-        std::fs::write(dir.path().join("conflict.txt"), "from-theirs\n")
-            .unwrap();
+        std::fs::write(dir.path().join("conflict.txt"), "from-theirs\n").unwrap();
         commit_all(dir.path(), "theirs change");
         // Back to main and write OURS over the same line.
         git_checkout(dir.path(), "main").unwrap();
-        std::fs::write(dir.path().join("conflict.txt"), "from-ours\n")
-            .unwrap();
+        std::fs::write(dir.path().join("conflict.txt"), "from-ours\n").unwrap();
         commit_all(dir.path(), "ours change");
         // Attempt the merge — must fail with conflict.
         let merge = std::process::Command::new("git");
@@ -185,8 +183,7 @@ mod tests {
     #[test]
     fn checkout_conflict_ours_keeps_ours_version() {
         let dir = make_merge_conflict();
-        git_checkout_conflict_path(dir.path(), "conflict.txt", ConflictSide::Ours)
-            .unwrap();
+        git_checkout_conflict_path(dir.path(), "conflict.txt", ConflictSide::Ours).unwrap();
         let body = std::fs::read_to_string(dir.path().join("conflict.txt")).unwrap();
         assert_eq!(body.trim_end(), "from-ours");
     }
@@ -194,12 +191,7 @@ mod tests {
     #[test]
     fn checkout_conflict_theirs_keeps_theirs_version() {
         let dir = make_merge_conflict();
-        git_checkout_conflict_path(
-            dir.path(),
-            "conflict.txt",
-            ConflictSide::Theirs,
-        )
-        .unwrap();
+        git_checkout_conflict_path(dir.path(), "conflict.txt", ConflictSide::Theirs).unwrap();
         let body = std::fs::read_to_string(dir.path().join("conflict.txt")).unwrap();
         assert_eq!(body.trim_end(), "from-theirs");
     }
@@ -208,9 +200,7 @@ mod tests {
     fn checkout_conflict_rejects_empty_path() {
         let dir = TempDir::new().unwrap();
         init_repo(dir.path());
-        let err =
-            git_checkout_conflict_path(dir.path(), "  ", ConflictSide::Ours)
-                .unwrap_err();
+        let err = git_checkout_conflict_path(dir.path(), "  ", ConflictSide::Ours).unwrap_err();
         assert!(err.contains("empty"));
     }
 
@@ -224,12 +214,8 @@ mod tests {
         init_repo(dir.path());
         std::fs::write(dir.path().join("clean.txt"), "fine\n").unwrap();
         commit_all(dir.path(), "init");
-        let err = git_checkout_conflict_path(
-            dir.path(),
-            "ghost.txt",
-            ConflictSide::Ours,
-        )
-        .unwrap_err();
+        let err =
+            git_checkout_conflict_path(dir.path(), "ghost.txt", ConflictSide::Ours).unwrap_err();
         assert!(!err.is_empty(), "stderr should surface git's reason");
     }
 

@@ -135,9 +135,7 @@ impl WorkspaceStore {
     /// `.local.toml` sibling has that key, regardless of whether the
     /// value matches the base. This is the honest signal — the field
     /// *can* drift even when the values happen to coincide today.
-    pub async fn defaults_with_sources(
-        &self,
-    ) -> Result<WorkspaceDefaultsWithSources, String> {
+    pub async fn defaults_with_sources(&self) -> Result<WorkspaceDefaultsWithSources, String> {
         let merged = self.defaults().await?;
         let local_keys = read_local_defaults_keys(&self.path())?;
         let pick = |key: &str| -> Source {
@@ -193,11 +191,7 @@ impl WorkspaceStore {
             return Err("file_path must not be empty".to_string());
         }
         let mut file = self.load_base_only().await?;
-        let mut entry = file
-            .files
-            .get(file_path)
-            .cloned()
-            .unwrap_or_default();
+        let mut entry = file.files.get(file_path).cloned().unwrap_or_default();
         entry.auto_capture = auto_capture;
         if entry.is_default() {
             file.files.remove(file_path);
@@ -220,11 +214,7 @@ impl WorkspaceStore {
             return Err("file_path must not be empty".to_string());
         }
         let mut file = self.load_base_only().await?;
-        let mut entry = file
-            .files
-            .get(file_path)
-            .cloned()
-            .unwrap_or_default();
+        let mut entry = file.files.get(file_path).cloned().unwrap_or_default();
         entry.docheader_compact = compact;
         if entry.is_default() {
             file.files.remove(file_path);
@@ -261,8 +251,8 @@ fn read_local_defaults_keys(base: &std::path::Path) -> Result<BTreeSet<String>, 
     if !local.exists() {
         return Ok(BTreeSet::new());
     }
-    let text = std::fs::read_to_string(&local)
-        .map_err(|e| format!("read {}: {e}", local.display()))?;
+    let text =
+        std::fs::read_to_string(&local).map_err(|e| format!("read {}: {e}", local.display()))?;
     let value: toml::Value =
         toml::from_str(&text).map_err(|e| format!("parse {}: {e}", local.display()))?;
     let Some(defaults) = value.get("defaults").and_then(|v| v.as_table()) else {
@@ -486,10 +476,7 @@ mod tests {
             raw.contains("[files.\"rollout.md\"]"),
             "table header missing: {raw}"
         );
-        assert!(
-            raw.contains("auto_capture = true"),
-            "value missing: {raw}"
-        );
+        assert!(raw.contains("auto_capture = true"), "value missing: {raw}");
         let read_back = s.file_settings("rollout.md").await.unwrap();
         assert!(read_back.auto_capture);
     }

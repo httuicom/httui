@@ -105,9 +105,19 @@ impl DbConnection for PostgresConfig {
     fn validate_fields(&self, name: &str, report: &mut Report) {
         let base = format!("[connections.{name}]");
         check_field(report, &format!("{base}.host"), "host", &self.host);
-        check_field(report, &format!("{base}.database"), "database", &self.database);
+        check_field(
+            report,
+            &format!("{base}.database"),
+            "database",
+            &self.database,
+        );
         check_field(report, &format!("{base}.user"), "user", &self.user);
-        check_field(report, &format!("{base}.password"), "password", &self.password);
+        check_field(
+            report,
+            &format!("{base}.password"),
+            "password",
+            &self.password,
+        );
     }
 }
 
@@ -136,9 +146,19 @@ impl DbConnection for MysqlConfig {
     fn validate_fields(&self, name: &str, report: &mut Report) {
         let base = format!("[connections.{name}]");
         check_field(report, &format!("{base}.host"), "host", &self.host);
-        check_field(report, &format!("{base}.database"), "database", &self.database);
+        check_field(
+            report,
+            &format!("{base}.database"),
+            "database",
+            &self.database,
+        );
         check_field(report, &format!("{base}.user"), "user", &self.user);
-        check_field(report, &format!("{base}.password"), "password", &self.password);
+        check_field(
+            report,
+            &format!("{base}.password"),
+            "password",
+            &self.password,
+        );
     }
 }
 
@@ -456,7 +476,18 @@ mod tests {
         // variant gets added but its arm is missing, this test still
         // compiles but exhaustiveness in `as_dyn` is enforced by the
         // compiler via the match. Keep this here as a sentinel.
-        for c in [pg(), mysql(), sqlite(), mongo(), http(), ws(), grpc(), graphql(), bigquery(), shell()] {
+        for c in [
+            pg(),
+            mysql(),
+            sqlite(),
+            mongo(),
+            http(),
+            ws(),
+            grpc(),
+            graphql(),
+            bigquery(),
+            shell(),
+        ] {
             let _ = c.as_dyn().driver();
         }
     }

@@ -88,7 +88,9 @@ mod tests {
     fn from_str_rejects_non_db_drivers() {
         // HTTP / mongo / gRPC are valid Connection variants but not
         // pool-backed, so DbDriver::from_str must reject them.
-        for s in ["http", "mongo", "ws", "grpc", "graphql", "bigquery", "shell"] {
+        for s in [
+            "http", "mongo", "ws", "grpc", "graphql", "bigquery", "shell",
+        ] {
             let err = DbDriver::from_str(s).expect_err(s);
             assert!(err.contains("unsupported driver"));
         }

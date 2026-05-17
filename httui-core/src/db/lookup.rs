@@ -101,7 +101,9 @@ mod tests {
         // `Ok(None)`, so the trait impl mirrors the same shape.
         let dir = TempDir::new().unwrap();
         let store = ConnectionsStore::new(dir.path());
-        let res = ConnectionLookup::lookup(store.as_ref(), "missing").await.unwrap();
+        let res = ConnectionLookup::lookup(store.as_ref(), "missing")
+            .await
+            .unwrap();
         assert!(res.is_none());
     }
 }

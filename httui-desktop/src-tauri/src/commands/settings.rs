@@ -16,7 +16,10 @@ use httui_core::config;
 
 /// Read a single key from the `app_config` table.
 #[tauri::command]
-pub async fn get_config(pool: State<'_, SqlitePool>, key: String) -> Result<Option<String>, String> {
+pub async fn get_config(
+    pool: State<'_, SqlitePool>,
+    key: String,
+) -> Result<Option<String>, String> {
     config::get_config(&pool, &key)
         .await
         .map_err(|e| e.to_string())

@@ -110,10 +110,7 @@ fn which_in_path(exe: &str, path_var: &std::ffi::OsStr) -> bool {
             for ext in windows_exe_exts() {
                 let mut candidate = dir.join(exe);
                 if !ext.is_empty() {
-                    let mut name = candidate
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_os_string();
+                    let mut name = candidate.file_name().unwrap_or_default().to_os_string();
                     name.push(ext);
                     candidate.set_file_name(name);
                 }
@@ -277,10 +274,7 @@ mod tests {
     fn which_in_path_fails_when_executable_not_under_supplied_path() {
         let dir = tempdir().unwrap(); // empty
         let path_var = dir.path().as_os_str();
-        let r = evaluate_command_with_path(
-            "definitely-not-installed-xyz",
-            path_var,
-        );
+        let r = evaluate_command_with_path("definitely-not-installed-xyz", path_var);
         if let CheckResult::Fail { reason } = &r {
             assert!(reason.contains("definitely-not-installed-xyz"));
             assert!(reason.contains("PATH"));
@@ -309,10 +303,7 @@ mod tests {
         path_str.push_str(sep);
         path_str.push_str(&dir.path().to_string_lossy());
         path_str.push_str(sep);
-        let r = evaluate_command_with_path(
-            "tool --version",
-            std::ffi::OsStr::new(&path_str),
-        );
+        let r = evaluate_command_with_path("tool --version", std::ffi::OsStr::new(&path_str));
         assert_eq!(r, CheckResult::Pass);
     }
 
@@ -323,7 +314,9 @@ mod tests {
         let conns = HashSet::new();
         let ctx = empty_ctx(&envs, &conns);
         let r = evaluate_preflight_with_io(
-            &[PreflightItem::Command { command: "   ".into() }],
+            &[PreflightItem::Command {
+                command: "   ".into(),
+            }],
             &ctx,
             dir.path(),
         );
@@ -378,7 +371,9 @@ mod tests {
             PreflightItem::EnvVar {
                 name: "API_TOKEN".into(),
             },
-            PreflightItem::Branch { name: "main".into() },
+            PreflightItem::Branch {
+                name: "main".into(),
+            },
             PreflightItem::Unknown {
                 key: "future".into(),
                 value: "x".into(),

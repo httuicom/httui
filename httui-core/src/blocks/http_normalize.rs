@@ -32,9 +32,7 @@
 use serde_json::Value;
 
 const URL_INLINE_LIMIT: usize = 80;
-const HTTP_METHODS: &[&str] = &[
-    "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS",
-];
+const HTTP_METHODS: &[&str] = &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
 /// Walk a markdown string, find ```http fences, and rewrite legacy JSON bodies
 /// in canonical HTTP-message form. Bodies that aren't legacy JSON are
@@ -137,7 +135,9 @@ fn try_normalize_legacy(body: &str) -> Option<String> {
         .unwrap_or("")
         .to_string();
 
-    Some(stringify_http_message(&method, &url, &params, &headers, &body_text))
+    Some(stringify_http_message(
+        &method, &url, &params, &headers, &body_text,
+    ))
 }
 
 fn extract_kv_array(value: Option<&Value>) -> Vec<(String, String)> {

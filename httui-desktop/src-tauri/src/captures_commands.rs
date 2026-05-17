@@ -5,9 +5,7 @@
 //! restores last-run values; `delete_captures_cache_cmd` runs when
 //! the user toggles auto-capture OFF.
 
-use httui_core::captures_cache::{
-    delete_captures_file, read_captures_file, write_captures_file,
-};
+use httui_core::captures_cache::{delete_captures_file, read_captures_file, write_captures_file};
 use std::path::PathBuf;
 
 #[tauri::command]
@@ -51,13 +49,10 @@ mod tests {
         )
         .await
         .unwrap();
-        let r = read_captures_cache_cmd(
-            dir.path().to_string_lossy().into_owned(),
-            "x.md".into(),
-        )
-        .await
-        .unwrap()
-        .unwrap();
+        let r = read_captures_cache_cmd(dir.path().to_string_lossy().into_owned(), "x.md".into())
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(r, r#"{"a":{"k":"v"}}"#);
     }
 
@@ -71,19 +66,14 @@ mod tests {
         )
         .await
         .unwrap();
-        let removed = delete_captures_cache_cmd(
-            dir.path().to_string_lossy().into_owned(),
-            "x.md".into(),
-        )
-        .await
-        .unwrap();
+        let removed =
+            delete_captures_cache_cmd(dir.path().to_string_lossy().into_owned(), "x.md".into())
+                .await
+                .unwrap();
         assert!(removed);
-        let r = read_captures_cache_cmd(
-            dir.path().to_string_lossy().into_owned(),
-            "x.md".into(),
-        )
-        .await
-        .unwrap();
+        let r = read_captures_cache_cmd(dir.path().to_string_lossy().into_owned(), "x.md".into())
+            .await
+            .unwrap();
         assert!(r.is_none());
     }
 

@@ -54,7 +54,11 @@ fn parse_query_block(qb: &Value, root_cost: f64, is_root: bool) -> PlanNode {
     let cost = qb
         .get("cost_info")
         .and_then(|c| c.get("query_cost"))
-        .and_then(|v| v.as_str().map(|s| s.to_string()).or_else(|| v.as_f64().map(|f| format!("{f:.2}"))))
+        .and_then(|v| {
+            v.as_str()
+                .map(|s| s.to_string())
+                .or_else(|| v.as_f64().map(|f| format!("{f:.2}")))
+        })
         .unwrap_or_default();
     let total_cost = parse_cost_str(&cost);
     let pct = pct_of(total_cost, root_cost);
@@ -140,8 +144,7 @@ fn parse_table(table: &Value, root_cost: f64) -> PlanNode {
         "" => "Table",
         _ => access_type,
     };
-    let warn = (access_type == "ALL" && rows > FULL_SCAN_WARN_ROWS)
-        || pct > COST_SHARE_WARN;
+    let warn = (access_type == "ALL" && rows > FULL_SCAN_WARN_ROWS) || pct > COST_SHARE_WARN;
     PlanNode {
         op: op.to_string(),
         target: table_name.to_string(),
@@ -168,7 +171,7 @@ fn pct_of(value: f64, root: f64) -> u8 {
     if root <= 0.0 {
         return 0;
     }
-    ((value / root) * 100.0).round().min(100.0).max(0.0) as u8
+    ((value / root) * 100.0).round().clamp(0.0, 100.0) as u8
 }
 
 #[cfg(test)]

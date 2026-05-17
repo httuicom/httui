@@ -42,12 +42,7 @@ pub fn find_connection_uses(vault_root: &Path, connection_name: &str) -> Vec<Con
     out
 }
 
-fn walk(
-    vault_root: &Path,
-    dir: &Path,
-    connection_name: &str,
-    out: &mut Vec<ConnectionUse>,
-) {
+fn walk(vault_root: &Path, dir: &Path, connection_name: &str, out: &mut Vec<ConnectionUse>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
@@ -136,7 +131,11 @@ mod tests {
     #[test]
     fn empty_name_returns_empty() {
         let tmp = TempDir::new().unwrap();
-        write(tmp.path(), "a.md", "```db-postgres connection=x\nSELECT 1;\n```\n");
+        write(
+            tmp.path(),
+            "a.md",
+            "```db-postgres connection=x\nSELECT 1;\n```\n",
+        );
         assert!(find_connection_uses(tmp.path(), "").is_empty());
     }
 
@@ -168,16 +167,8 @@ mod tests {
     #[test]
     fn matches_across_files_sorted() {
         let tmp = TempDir::new().unwrap();
-        write(
-            tmp.path(),
-            "z.md",
-            "```db-postgres connection=p\n;\n```\n",
-        );
-        write(
-            tmp.path(),
-            "a.md",
-            "```db-postgres connection=p\n;\n```\n",
-        );
+        write(tmp.path(), "z.md", "```db-postgres connection=p\n;\n```\n");
+        write(tmp.path(), "a.md", "```db-postgres connection=p\n;\n```\n");
         let r = find_connection_uses(tmp.path(), "p");
         assert_eq!(r.len(), 2);
         assert_eq!(r[0].file, "a.md");
@@ -200,11 +191,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         // HTTP blocks don't carry connection=; even if a body line
         // mentions it accidentally, we only match opener fences.
-        write(
-            tmp.path(),
-            "x.md",
-            "```http\nGET /api?connection=p\n```\n",
-        );
+        write(tmp.path(), "x.md", "```http\nGET /api?connection=p\n```\n");
         assert!(find_connection_uses(tmp.path(), "p").is_empty());
     }
 
@@ -229,11 +216,7 @@ mod tests {
             "node_modules/foo/x.md",
             "```db connection=p\n;\n```\n",
         );
-        write(
-            tmp.path(),
-            ".git/HEAD/x.md",
-            "```db connection=p\n;\n```\n",
-        );
+        write(tmp.path(), ".git/HEAD/x.md", "```db connection=p\n;\n```\n");
         write(tmp.path(), "ok.md", "```db connection=p\n;\n```\n");
         let r = find_connection_uses(tmp.path(), "p");
         assert_eq!(r.len(), 1);
@@ -243,11 +226,7 @@ mod tests {
     #[test]
     fn uses_posix_separators_in_output() {
         let tmp = TempDir::new().unwrap();
-        write(
-            tmp.path(),
-            "notes/sub/x.md",
-            "```db connection=p\n;\n```\n",
-        );
+        write(tmp.path(), "notes/sub/x.md", "```db connection=p\n;\n```\n");
         let r = find_connection_uses(tmp.path(), "p");
         assert_eq!(r.len(), 1);
         assert!(r[0].file.contains("notes/sub/x.md"));
@@ -262,10 +241,7 @@ mod tests {
 
     #[test]
     fn line_matches_helper_handles_edge_cases() {
-        assert!(line_matches_connection(
-            "```db connection=foo",
-            "foo"
-        ));
+        assert!(line_matches_connection("```db connection=foo", "foo"));
         assert!(line_matches_connection(
             "```db-postgres alias=a connection=foo limit=10",
             "foo"
@@ -274,9 +250,6 @@ mod tests {
         assert!(!line_matches_connection("not a fence", "foo"));
         assert!(!line_matches_connection("```http", "foo"));
         assert!(!line_matches_connection("```db", "foo"));
-        assert!(!line_matches_connection(
-            "  ```db connection=foo",
-            "foo"
-        )); // indented fence — outside our spec
+        assert!(!line_matches_connection("  ```db connection=foo", "foo")); // indented fence — outside our spec
     }
 }

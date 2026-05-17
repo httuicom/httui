@@ -75,7 +75,7 @@ pub fn store_secret(key: &str, value: &str) -> Result<(), String> {
     #[cfg(test)]
     {
         with_test_keychain(|m| m.insert(key.to_string(), value.to_string()));
-        return Ok(());
+        Ok(())
     }
     #[cfg(not(test))]
     {
@@ -93,7 +93,7 @@ pub fn get_secret(key: &str) -> Result<Option<String>, String> {
     }
     #[cfg(test)]
     {
-        return Ok(with_test_keychain(|m| m.get(key).cloned()));
+        Ok(with_test_keychain(|m| m.get(key).cloned()))
     }
     #[cfg(not(test))]
     {
@@ -114,7 +114,7 @@ pub fn delete_secret(key: &str) -> Result<(), String> {
     #[cfg(test)]
     {
         with_test_keychain(|m| m.remove(key));
-        return Ok(());
+        Ok(())
     }
     #[cfg(not(test))]
     {

@@ -862,8 +862,7 @@ impl App {
         // Lookup pulls connection records from the vault's
         // `connections.toml` (Epic 19 Story 02 Phase 3 cutover);
         // legacy SQLite-only lookup is no longer used.
-        let conn_lookup =
-            httui_core::vault_config::ConnectionsStore::new(resolved.vault.clone());
+        let conn_lookup = httui_core::vault_config::ConnectionsStore::new(resolved.vault.clone());
         let pool_manager = Arc::new(PoolManager::new_standalone(conn_lookup, app_pool));
         let connection_names = load_connection_names(pool_manager.app_pool());
         let mut app = Self {

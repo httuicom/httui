@@ -4,9 +4,7 @@
 //! local templates and uses the returned `body` field directly when
 //! the user picks one.
 
-use httui_core::templates::{
-    list_builtin_templates, list_vault_templates, Template,
-};
+use httui_core::templates::{list_builtin_templates, list_vault_templates, Template};
 use std::path::PathBuf;
 
 /// Combined `list_builtin_templates() + list_vault_templates(vault)`

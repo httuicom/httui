@@ -147,11 +147,7 @@ mod tests {
     }
 
     fn write_template(root: &Path, name: &str, body: &str) {
-        stdfs::write(
-            root.join(".httui").join("templates").join(name),
-            body,
-        )
-        .unwrap();
+        stdfs::write(root.join(".httui").join("templates").join(name), body).unwrap();
     }
 
     #[test]
@@ -197,11 +193,7 @@ mod tests {
     fn vault_falls_back_to_stem_when_frontmatter_missing() {
         let dir = tempdir().unwrap();
         mk_template_dir(dir.path());
-        write_template(
-            dir.path(),
-            "raw.md",
-            "# raw runbook\n\nno frontmatter\n",
-        );
+        write_template(dir.path(), "raw.md", "# raw runbook\n\nno frontmatter\n");
 
         let list = list_vault_templates(dir.path());
         assert_eq!(list.len(), 1);

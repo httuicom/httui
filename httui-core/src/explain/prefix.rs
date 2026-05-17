@@ -232,9 +232,7 @@ mod tests {
 
     #[test]
     fn explain_error_implements_std_error_trait() {
-        let err = ExplainError::Unsupported {
-            driver: "x".into(),
-        };
+        let err = ExplainError::Unsupported { driver: "x".into() };
         let _: &dyn std::error::Error = &err;
     }
 }

@@ -204,8 +204,14 @@ mod tests {
 
         let entries = list_workspace(root.to_str().unwrap()).unwrap();
         let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
-        assert!(!names.contains(&"envs"), "envs should be hidden, got: {names:?}");
-        assert!(names.contains(&"runbooks"), "runbooks should appear, got: {names:?}");
+        assert!(
+            !names.contains(&"envs"),
+            "envs should be hidden, got: {names:?}"
+        );
+        assert!(
+            names.contains(&"runbooks"),
+            "runbooks should appear, got: {names:?}"
+        );
     }
 
     #[test]

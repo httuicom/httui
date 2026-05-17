@@ -69,10 +69,9 @@ pub fn summarize_last_run(entries: &[HistoryEntry]) -> LastRunSummary {
         // When timestamps are parseable, restrict the session window;
         // when they aren't, fall through and include the row so a
         // malformed entry doesn't silently drop the count to zero.
-        if let (Some(latest_ts), Ok(entry_ts)) = (
-            latest_ts,
-            DateTime::parse_from_rfc3339(&entry.ran_at),
-        ) {
+        if let (Some(latest_ts), Ok(entry_ts)) =
+            (latest_ts, DateTime::parse_from_rfc3339(&entry.ran_at))
+        {
             let diff = (latest_ts - entry_ts).num_seconds();
             if !(0..=SESSION_WINDOW_SECS).contains(&diff) {
                 continue;

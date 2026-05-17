@@ -89,8 +89,7 @@ pub async fn delete_note(
         let _ = crate::block_history::purge_history_for_file(&pool, path_variant).await;
         let _ = crate::block_settings::purge_settings_for_file(&pool, path_variant).await;
         let _ = crate::block_examples::purge_examples_for_file(&pool, path_variant).await;
-        let _ =
-            crate::block_results::delete_block_results_for_file(&pool, path_variant).await;
+        let _ = crate::block_results::delete_block_results_for_file(&pool, path_variant).await;
     }
     Ok(())
 }
@@ -98,11 +97,7 @@ pub async fn delete_note(
 /// Rename / move a note within the vault. Errors if `new_path` already
 /// exists or escapes the vault.
 #[tauri::command]
-pub fn rename_note(
-    vault_path: String,
-    old_path: String,
-    new_path: String,
-) -> Result<(), String> {
+pub fn rename_note(vault_path: String, old_path: String, new_path: String) -> Result<(), String> {
     crate::fs::rename_note(&vault_path, &old_path, &new_path)
 }
 

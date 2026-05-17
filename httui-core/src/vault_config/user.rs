@@ -333,8 +333,7 @@ prompt_timeout_s = 30
 
     #[test]
     fn hide_archived_in_quick_open_round_trips() {
-        let raw =
-            "version = \"1\"\n[ui]\nhide_archived_in_quick_open = true\n";
+        let raw = "version = \"1\"\n[ui]\nhide_archived_in_quick_open = true\n";
         let f: UserFile = toml::from_str(raw).unwrap();
         assert!(f.ui.hide_archived_in_quick_open);
 

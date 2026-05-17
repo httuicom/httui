@@ -26,8 +26,7 @@ fn resolve_db_path(db_arg: Option<&str>) -> Result<PathBuf> {
     if let Some(db) = db_arg {
         return Ok(PathBuf::from(db));
     }
-    httui_core::paths::default_data_dir()
-        .map_err(|e| anyhow::anyhow!("resolve data dir: {e}"))
+    httui_core::paths::default_data_dir().map_err(|e| anyhow::anyhow!("resolve data dir: {e}"))
 }
 
 /// Initialise the global tracing subscriber for the MCP process.
@@ -83,9 +82,10 @@ struct McpRegistry {
 
 fn build_registry(vault: &str, pool: sqlx::SqlitePool) -> Result<McpRegistry> {
     let conn_lookup = httui_core::vault_config::ConnectionsStore::new(vault.to_string());
-    let conn_manager = Arc::new(
-        httui_core::db::connections::PoolManager::new_standalone(conn_lookup, pool.clone()),
-    );
+    let conn_manager = Arc::new(httui_core::db::connections::PoolManager::new_standalone(
+        conn_lookup,
+        pool.clone(),
+    ));
     let mut executors = httui_core::executor::ExecutorRegistry::new();
     executors.register(Box::new(httui_core::executor::http::HttpExecutor::new()));
     executors.register(Box::new(httui_core::executor::db::DbExecutor::new(
@@ -111,14 +111,9 @@ mod tests {
 
     #[test]
     fn args_parses_with_vault_and_db() {
-        let args = Args::try_parse_from([
-            "httui-mcp",
-            "--vault",
-            "/tmp/v",
-            "--db",
-            "/tmp/notes.db",
-        ])
-        .expect("vault+db should parse");
+        let args =
+            Args::try_parse_from(["httui-mcp", "--vault", "/tmp/v", "--db", "/tmp/notes.db"])
+                .expect("vault+db should parse");
         assert_eq!(args.vault, "/tmp/v");
         assert_eq!(args.db.as_deref(), Some("/tmp/notes.db"));
     }
@@ -151,10 +146,7 @@ mod tests {
         let path = dir.path().join("notes.db");
         let pool = init_pool(&path).await.expect("init_pool should succeed");
         // The pool can answer trivial queries, proving migrations ran.
-        let row: (i64,) = sqlx::query_as("SELECT 1")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let row: (i64,) = sqlx::query_as("SELECT 1").fetch_one(&pool).await.unwrap();
         assert_eq!(row.0, 1);
         // The database file exists on disk after init.
         assert!(path.exists());

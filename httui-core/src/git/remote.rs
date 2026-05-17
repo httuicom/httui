@@ -44,10 +44,7 @@ fn parse_remote_list(raw: &str) -> Vec<Remote> {
         if url.is_empty() {
             continue;
         }
-        if !out
-            .iter()
-            .any(|r| r.name == name && r.url == url)
-        {
+        if !out.iter().any(|r| r.name == name && r.url == url) {
             out.push(Remote {
                 name: name.to_string(),
                 url,

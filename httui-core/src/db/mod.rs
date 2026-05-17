@@ -35,10 +35,8 @@ const MIGRATION_008_SQL: &str = include_str!("../../migrations/008_sqlite_port_n
 const MIGRATION_009_SQL: &str = include_str!("../../migrations/009_block_run_history.sql");
 const MIGRATION_010_SQL: &str = include_str!("../../migrations/010_block_settings.sql");
 const MIGRATION_011_SQL: &str = include_str!("../../migrations/011_block_examples.sql");
-const MIGRATION_012_SQL: &str =
-    include_str!("../../migrations/012_block_run_history_plan.sql");
-const MIGRATION_013_SQL: &str =
-    include_str!("../../migrations/013_schema_cache_drop_fk.sql");
+const MIGRATION_012_SQL: &str = include_str!("../../migrations/012_block_run_history_plan.sql");
+const MIGRATION_013_SQL: &str = include_str!("../../migrations/013_schema_cache_drop_fk.sql");
 
 pub async fn init_db(app_data_dir: &Path) -> Result<SqlitePool, sqlx::Error> {
     std::fs::create_dir_all(app_data_dir).ok();
@@ -251,12 +249,11 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     // at the SQL layer (DROP + RENAME), so guard at the Rust layer
     // by inspecting pragma_foreign_key_list — only re-run while the
     // FK is still present.
-    let fk_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM pragma_foreign_key_list('schema_cache')",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+    let fk_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM pragma_foreign_key_list('schema_cache')")
+            .fetch_one(pool)
+            .await
+            .unwrap_or(0);
     if fk_count > 0 {
         for statement in MIGRATION_013_SQL.split(';') {
             let trimmed = statement.trim();
@@ -395,10 +392,14 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        let result =
-            query_internal_db(&pool, "WITH cte AS (SELECT * FROM t) SELECT * FROM cte", 0, 10)
-                .await
-                .unwrap();
+        let result = query_internal_db(
+            &pool,
+            "WITH cte AS (SELECT * FROM t) SELECT * FROM cte",
+            0,
+            10,
+        )
+        .await
+        .unwrap();
         assert_eq!(result.rows.len(), 1);
     }
 

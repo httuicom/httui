@@ -61,8 +61,7 @@ pub fn write_run_body(
 ) -> Result<PathBuf, String> {
     let block_dir = block_dir_for(vault_root, file_path, alias)?;
     sanitize_id(run_id, "run_id")?;
-    fs::create_dir_all(&block_dir)
-        .map_err(|e| format!("create_dir_all failed: {e}"))?;
+    fs::create_dir_all(&block_dir).map_err(|e| format!("create_dir_all failed: {e}"))?;
 
     let filename = format!("{run_id}.{}", ext_for(kind));
     let final_path = block_dir.join(&filename);
@@ -78,10 +77,8 @@ pub fn write_run_body(
         body.to_vec()
     };
 
-    fs::write(&tmp_path, &payload)
-        .map_err(|e| format!("tmp write failed: {e}"))?;
-    fs::rename(&tmp_path, &final_path)
-        .map_err(|e| format!("rename failed: {e}"))?;
+    fs::write(&tmp_path, &payload).map_err(|e| format!("tmp write failed: {e}"))?;
+    fs::rename(&tmp_path, &final_path).map_err(|e| format!("rename failed: {e}"))?;
     Ok(final_path)
 }
 
@@ -131,9 +128,7 @@ pub fn list_run_bodies(
             None => continue,
         };
         // Ignore in-flight tmp files.
-        if stem.ends_with(".tmp") || path.extension().and_then(|s| s.to_str())
-            == Some("tmp")
-        {
+        if stem.ends_with(".tmp") || path.extension().and_then(|s| s.to_str()) == Some("tmp") {
             continue;
         }
         let ext = match path.extension().and_then(|s| s.to_str()) {
@@ -213,11 +208,9 @@ pub fn rename_alias_runs(
         ));
     }
     if let Some(parent) = new_dir.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("create_dir_all failed: {e}"))?;
+        fs::create_dir_all(parent).map_err(|e| format!("create_dir_all failed: {e}"))?;
     }
-    fs::rename(&old_dir, &new_dir)
-        .map_err(|e| format!("rename failed: {e}"))?;
+    fs::rename(&old_dir, &new_dir).map_err(|e| format!("rename failed: {e}"))?;
     Ok(true)
 }
 
@@ -240,11 +233,7 @@ fn ext_truncation_check(path: &Path, byte_size: u64) -> bool {
     bytes.ends_with(TRUNCATE_MARKER)
 }
 
-fn block_dir_for(
-    vault_root: &Path,
-    file_path: &str,
-    alias: &str,
-) -> Result<PathBuf, String> {
+fn block_dir_for(vault_root: &Path, file_path: &str, alias: &str) -> Result<PathBuf, String> {
     sanitize_id(alias, "alias")?;
     let rel = sanitize_file_path(file_path)?;
     let mut p = vault_root.to_path_buf();
@@ -313,9 +302,7 @@ mod tests {
             br#"{"id":42}"#,
         )
         .unwrap();
-        assert!(path.ends_with(
-            ".httui/runs/runbook.md/fetchUser/01H8XK00000000000000000000.json"
-        ));
+        assert!(path.ends_with(".httui/runs/runbook.md/fetchUser/01H8XK00000000000000000000.json"));
         let read = read_run_body(
             dir.path(),
             "runbook.md",
@@ -353,15 +340,8 @@ mod tests {
     fn body_over_cap_is_truncated_with_marker() {
         let dir = tempdir().unwrap();
         let big = vec![b'A'; MAX_RUN_BODY_BYTES + 1024];
-        let path = write_run_body(
-            dir.path(),
-            "x.md",
-            "a",
-            "r1",
-            RunBodyKind::Binary,
-            &big,
-        )
-        .unwrap();
+        let path =
+            write_run_body(dir.path(), "x.md", "a", "r1", RunBodyKind::Binary, &big).unwrap();
         let bytes = std::fs::read(&path).unwrap();
         assert_eq!(bytes.len(), MAX_RUN_BODY_BYTES);
         assert!(bytes.ends_with(TRUNCATE_MARKER));
@@ -371,15 +351,8 @@ mod tests {
     fn body_at_cap_is_not_truncated() {
         let dir = tempdir().unwrap();
         let exact = vec![b'A'; MAX_RUN_BODY_BYTES];
-        let path = write_run_body(
-            dir.path(),
-            "x.md",
-            "a",
-            "r1",
-            RunBodyKind::Binary,
-            &exact,
-        )
-        .unwrap();
+        let path =
+            write_run_body(dir.path(), "x.md", "a", "r1", RunBodyKind::Binary, &exact).unwrap();
         let bytes = std::fs::read(&path).unwrap();
         assert_eq!(bytes.len(), MAX_RUN_BODY_BYTES);
         assert!(!bytes.ends_with(TRUNCATE_MARKER));
@@ -389,15 +362,7 @@ mod tests {
     fn list_run_bodies_returns_newest_first() {
         let dir = tempdir().unwrap();
         for id in ["01a", "01b", "01c"] {
-            write_run_body(
-                dir.path(),
-                "x.md",
-                "a",
-                id,
-                RunBodyKind::Json,
-                b"{}",
-            )
-            .unwrap();
+            write_run_body(dir.path(), "x.md", "a", id, RunBodyKind::Json, b"{}").unwrap();
         }
         let entries = list_run_bodies(dir.path(), "x.md", "a").unwrap();
         let ids: Vec<&str> = entries.iter().map(|e| e.run_id.as_str()).collect();
@@ -414,19 +379,9 @@ mod tests {
     #[test]
     fn list_skips_non_recognized_extensions() {
         let dir = tempdir().unwrap();
-        write_run_body(
-            dir.path(),
-            "x.md",
-            "a",
-            "01a",
-            RunBodyKind::Json,
-            b"{}",
-        )
-        .unwrap();
+        write_run_body(dir.path(), "x.md", "a", "01a", RunBodyKind::Json, b"{}").unwrap();
         // Sneak in a stray file that should be ignored.
-        let block_dir = dir
-            .path()
-            .join(".httui/runs/x.md/a");
+        let block_dir = dir.path().join(".httui/runs/x.md/a");
         std::fs::write(block_dir.join("something.txt"), "noise").unwrap();
         let entries = list_run_bodies(dir.path(), "x.md", "a").unwrap();
         assert_eq!(entries.len(), 1);
@@ -437,15 +392,7 @@ mod tests {
     fn trim_keeps_newest_n_and_returns_count_deleted() {
         let dir = tempdir().unwrap();
         for id in ["01a", "01b", "01c", "01d", "01e"] {
-            write_run_body(
-                dir.path(),
-                "x.md",
-                "a",
-                id,
-                RunBodyKind::Json,
-                b"{}",
-            )
-            .unwrap();
+            write_run_body(dir.path(), "x.md", "a", id, RunBodyKind::Json, b"{}").unwrap();
         }
         let deleted = trim_run_bodies(dir.path(), "x.md", "a", 2).unwrap();
         assert_eq!(deleted, 3);
@@ -461,22 +408,11 @@ mod tests {
     fn trim_no_op_when_under_cap() {
         let dir = tempdir().unwrap();
         for id in ["01a", "01b"] {
-            write_run_body(
-                dir.path(),
-                "x.md",
-                "a",
-                id,
-                RunBodyKind::Json,
-                b"{}",
-            )
-            .unwrap();
+            write_run_body(dir.path(), "x.md", "a", id, RunBodyKind::Json, b"{}").unwrap();
         }
         let deleted = trim_run_bodies(dir.path(), "x.md", "a", 10).unwrap();
         assert_eq!(deleted, 0);
-        assert_eq!(
-            list_run_bodies(dir.path(), "x.md", "a").unwrap().len(),
-            2
-        );
+        assert_eq!(list_run_bodies(dir.path(), "x.md", "a").unwrap().len(), 2);
     }
 
     #[test]
@@ -534,15 +470,8 @@ mod tests {
     #[test]
     fn leading_slashes_stripped_from_file_path() {
         let dir = tempdir().unwrap();
-        let path = write_run_body(
-            dir.path(),
-            "/x.md",
-            "a",
-            "r1",
-            RunBodyKind::Json,
-            b"{}",
-        )
-        .unwrap();
+        let path =
+            write_run_body(dir.path(), "/x.md", "a", "r1", RunBodyKind::Json, b"{}").unwrap();
         assert!(path.starts_with(dir.path().join(".httui/runs/x.md/a")));
     }
 
@@ -590,15 +519,7 @@ mod tests {
     fn rename_alias_moves_existing_runs() {
         let dir = tempdir().unwrap();
         for run_id in ["r1", "r2", "r3"] {
-            write_run_body(
-                dir.path(),
-                "rb.md",
-                "old",
-                run_id,
-                RunBodyKind::Json,
-                b"{}",
-            )
-            .unwrap();
+            write_run_body(dir.path(), "rb.md", "old", run_id, RunBodyKind::Json, b"{}").unwrap();
         }
         let moved = rename_alias_runs(dir.path(), "rb.md", "old", "new").unwrap();
         assert!(moved);
@@ -617,34 +538,16 @@ mod tests {
     fn rename_alias_returns_false_when_source_missing() {
         let dir = tempdir().unwrap();
         // Nothing has run yet — no source dir.
-        let moved =
-            rename_alias_runs(dir.path(), "rb.md", "missing", "fresh").unwrap();
+        let moved = rename_alias_runs(dir.path(), "rb.md", "missing", "fresh").unwrap();
         assert!(!moved);
     }
 
     #[test]
     fn rename_alias_errors_when_destination_already_has_runs() {
         let dir = tempdir().unwrap();
-        write_run_body(
-            dir.path(),
-            "rb.md",
-            "src",
-            "r1",
-            RunBodyKind::Json,
-            b"{}",
-        )
-        .unwrap();
-        write_run_body(
-            dir.path(),
-            "rb.md",
-            "dst",
-            "r1",
-            RunBodyKind::Json,
-            b"{}",
-        )
-        .unwrap();
-        let err =
-            rename_alias_runs(dir.path(), "rb.md", "src", "dst").unwrap_err();
+        write_run_body(dir.path(), "rb.md", "src", "r1", RunBodyKind::Json, b"{}").unwrap();
+        write_run_body(dir.path(), "rb.md", "dst", "r1", RunBodyKind::Json, b"{}").unwrap();
+        let err = rename_alias_runs(dir.path(), "rb.md", "src", "dst").unwrap_err();
         assert!(err.contains("already"));
         // Source still in place — caller can resolve and retry.
         let from_src = list_run_bodies(dir.path(), "rb.md", "src").unwrap();
@@ -654,17 +557,14 @@ mod tests {
     #[test]
     fn rename_alias_rejects_invalid_alias_names() {
         let dir = tempdir().unwrap();
-        let err =
-            rename_alias_runs(dir.path(), "rb.md", "ok", "bad/slash")
-                .unwrap_err();
+        let err = rename_alias_runs(dir.path(), "rb.md", "ok", "bad/slash").unwrap_err();
         assert!(err.contains("invalid char"));
     }
 
     #[test]
     fn rename_alias_rejects_traversal_in_file_path() {
         let dir = tempdir().unwrap();
-        let err =
-            rename_alias_runs(dir.path(), "../escape.md", "a", "b").unwrap_err();
+        let err = rename_alias_runs(dir.path(), "../escape.md", "a", "b").unwrap_err();
         assert!(err.contains(".."));
     }
 }

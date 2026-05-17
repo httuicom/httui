@@ -36,11 +36,11 @@ pub mod workspace_store;
 pub use connection_views::ConnectionPublic;
 pub use connections::{Connection, ConnectionsFile};
 pub use connections_store::{ConnectionsStore, CreateConnectionInput, UpdateConnectionInput};
-pub use error::{ConnectionsError, VaultConfigError};
 pub use environments_store::{
     EnvVariablePublic, EnvironmentPublic, EnvironmentsStore, SetVarInput,
 };
 pub use envs::{EnvFile, EnvMeta};
+pub use error::{ConnectionsError, VaultConfigError};
 pub use user::UserFile;
 pub use user_store::UserStore;
 pub use workspace::{

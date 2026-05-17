@@ -12,10 +12,10 @@ pub use super::pool_manager::{HostPortOverride, PoolManager, StatusEmitter};
 // `DatabasePool` enum + lifecycle helpers (`create_pool`, builders,
 // validators, sanitizer) moved to `db::pool` (Epic 20a Story 01 —
 // fourth split). Re-exported here so existing imports compile.
-pub use super::pool::DatabasePool;
-use super::pool::validate_sqlite_path;
 #[cfg(test)]
 use super::pool::validate_bind_values;
+use super::pool::validate_sqlite_path;
+pub use super::pool::DatabasePool;
 
 // --- Connection model ---
 
@@ -128,10 +128,10 @@ pub struct UpdateConnection {
 // Query error sanitization + location extraction moved to
 // `db::query_error` (Epic 20a Story 01 — second split). Re-exports
 // keep existing imports compiling.
+pub(crate) use super::query_error::sanitize_query_error;
 pub use super::query_error::{
     enrich_error_with_query, sanitize_query_error_rich, QueryErrorInfo, QueryErrorLocation,
 };
-pub(crate) use super::query_error::sanitize_query_error;
 
 // --- Row mapping ---
 
@@ -395,8 +395,8 @@ pub(crate) use super::pool_exec_sqlite::sqlite_row_to_json;
 // SQL scanner + statement splitter + placeholder helpers moved to
 // `db::sql_scanner` (Epic 20a Story 01 — third split). Re-exports
 // keep existing imports compiling.
-pub use super::sql_scanner::{count_placeholders, normalize_placeholders_to_pg, split_statements};
 pub(crate) use super::sql_scanner::contains_multiple_statements;
+pub use super::sql_scanner::{count_placeholders, normalize_placeholders_to_pg, split_statements};
 
 // --- Tests ---
 

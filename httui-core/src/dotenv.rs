@@ -158,10 +158,8 @@ static SECRET_KEY_RE: Lazy<Regex> = Lazy::new(|| {
     // Case-insensitive match against common secret-shaped key names.
     // Boundary on `_`/`-`/start/end so `STRIPE_KEY` matches but
     // `KEYBOARD_LAYOUT` doesn't.
-    Regex::new(
-        r"(?i)(^|[_-])(password|passwd|pwd|secret|key|token|auth|credential|apikey)([_-]|$)",
-    )
-    .expect("secret regex compiles")
+    Regex::new(r"(?i)(^|[_-])(password|passwd|pwd|secret|key|token|auth|credential|apikey)([_-]|$)")
+        .expect("secret regex compiles")
 });
 
 /// Apply the classifier to a single (key, value) pair.
@@ -355,7 +353,10 @@ mod tests {
     use super::*;
 
     fn first(content: &str) -> DotenvEntry {
-        parse_dotenv(content).into_iter().next().expect("at least one entry")
+        parse_dotenv(content)
+            .into_iter()
+            .next()
+            .expect("at least one entry")
     }
 
     #[test]
@@ -368,9 +369,7 @@ mod tests {
 
     #[test]
     fn skips_comments_and_blank_lines() {
-        let entries = parse_dotenv(
-            "# top comment\n\nHOST=h\n  # indented comment\nPORT=5432\n",
-        );
+        let entries = parse_dotenv("# top comment\n\nHOST=h\n  # indented comment\nPORT=5432\n");
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].key, "HOST");
         assert_eq!(entries[1].key, "PORT");
@@ -461,8 +460,14 @@ mod tests {
     #[test]
     fn classifies_secret_keys() {
         for key in [
-            "PASSWORD", "API_KEY", "APIKEY", "TOKEN",
-            "STRIPE_SECRET", "MY_AUTH", "DB_PWD", "X_CREDENTIAL",
+            "PASSWORD",
+            "API_KEY",
+            "APIKEY",
+            "TOKEN",
+            "STRIPE_SECRET",
+            "MY_AUTH",
+            "DB_PWD",
+            "X_CREDENTIAL",
             "STRIPE_KEY",
         ] {
             let raw = format!("{key}=value-doesnt-matter");

@@ -424,9 +424,12 @@ mod tests {
         let p2 = memory_target_pool().await;
         let p3 = memory_target_pool().await;
 
-        mgr.insert_for_test("expired-1", "a", p1, stale, 60, 30_000).await;
-        mgr.insert_for_test("expired-2", "b", p2, stale, 60, 30_000).await;
-        mgr.insert_for_test("fresh", "c", p3, fresh, 60, 30_000).await;
+        mgr.insert_for_test("expired-1", "a", p1, stale, 60, 30_000)
+            .await;
+        mgr.insert_for_test("expired-2", "b", p2, stale, 60, 30_000)
+            .await;
+        mgr.insert_for_test("fresh", "c", p3, fresh, 60, 30_000)
+            .await;
         assert_eq!(mgr.cache_size().await, 3);
 
         mgr.cleanup_expired().await;

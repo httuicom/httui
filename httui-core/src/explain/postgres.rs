@@ -66,10 +66,7 @@ fn parse_node(plan: &Value, root_total_cost: f64, is_root: bool) -> PlanNode {
         .get("Startup Cost")
         .and_then(|v| v.as_f64())
         .unwrap_or(0.0);
-    let rows = plan
-        .get("Plan Rows")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
+    let rows = plan.get("Plan Rows").and_then(|v| v.as_u64()).unwrap_or(0);
     let pct = if root_total_cost > 0.0 {
         ((total_cost / root_total_cost) * 100.0).round().min(100.0) as u8
     } else {
@@ -231,7 +228,13 @@ mod tests {
         // small Seq Scan plan is clean.
         assert!(!n.warn);
         // Direct check: at child level, 0% pct + 100 rows => no warn.
-        assert!(!super::compute_warn("Seq Scan", 100, 0, &Value::Null, false));
+        assert!(!super::compute_warn(
+            "Seq Scan",
+            100,
+            0,
+            &Value::Null,
+            false
+        ));
     }
 
     #[test]
