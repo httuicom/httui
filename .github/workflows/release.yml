@@ -175,3 +175,97 @@ jobs:
           releaseDraft: false
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
           args: ${{ matrix.args }}
+
+  # ── Homebrew cask (V12 cenário 5) ───────────────────────────────
+  # Bumps the cask in the tap repo (httuicom/homebrew-httui) so
+  # `brew tap httuicom/httui && brew install --cask httui` works.
+  # Stable releases only. Gated on HOMEBREW_TAP_TOKEN (a PAT with
+  # write access to the tap) — without it the step is skipped so the
+  # release still succeeds for contributors. Prerequisite: the tap
+  # repo must exist (see docs/RELEASE.md). Not exercisable in CI
+  # until both exist — CI-bound.
+  homebrew:
+    needs: [validate, release]
+    if: needs.validate.outputs.prerelease == 'false'
+    runs-on: ubuntu-22.04
+    env:
+      TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - name: Bump Homebrew cask
+        if: ${{ env.TAP_TOKEN != '' }}
+        shell: bash
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          REPO="httuicom/httui"
+          TAP="httuicom/homebrew-httui"
+          BASE="https://github.com/${REPO}/releases/download/v${VERSION}"
+          ARM_DMG="httui_${VERSION}_aarch64.dmg"
+          X64_DMG="httui_${VERSION}_x64.dmg"
+
+          tmp="$(mktemp -d)"
+          curl -fsSL "${BASE}/${ARM_DMG}" -o "$tmp/arm.dmg"
+          curl -fsSL "${BASE}/${X64_DMG}" -o "$tmp/x64.dmg"
+          ARM_SHA="$(sha256sum "$tmp/arm.dmg" | cut -d' ' -f1)"
+          X64_SHA="$(sha256sum "$tmp/x64.dmg" | cut -d' ' -f1)"
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${TAP}.git" "$tmp/tap"
+          mkdir -p "$tmp/tap/Casks"
+          cat > "$tmp/tap/Casks/httui.rb" <<RUBY
+          cask "httui" do
+            version "${VERSION}"
+
+            on_arm do
+              sha256 "${ARM_SHA}"
+              url "${BASE}/${ARM_DMG}"
+            end
+            on_intel do
+              sha256 "${X64_SHA}"
+              url "${BASE}/${X64_DMG}"
+            end
+
+            name "httui notes"
+            desc "Desktop markdown editor with executable HTTP/DB blocks"
+            homepage "https://github.com/${REPO}"
+
+            app "httui.app"
+          end
+          RUBY
+
+          cd "$tmp/tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/httui.rb
+          git commit -m "httui ${VERSION}"
+          git push
+
+      - name: Skipped (no tap token)
+        if: ${{ env.TAP_TOKEN == '' }}
+        run: echo "HOMEBREW_TAP_TOKEN not set — skipping Homebrew bump."
+
+  # ── winget manifest (V12 cenário 6) ─────────────────────────────
+  # Opens a PR against microsoft/winget-pkgs with the new MSI.
+  # Stable releases only. Gated on WINGET_TOKEN (a classic PAT that
+  # can fork winget-pkgs). CI-bound: needs the token and a merged
+  # first manifest before `winget install httui` resolves.
+  winget:
+    needs: [validate, release]
+    if: needs.validate.outputs.prerelease == 'false'
+    runs-on: ubuntu-22.04
+    env:
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+    steps:
+      - name: Submit winget manifest
+        if: ${{ env.WINGET_TOKEN != '' }}
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: httui.notes
+          version: ${{ needs.validate.outputs.version }}
+          installers-regex: '\.msi$'
+          token: ${{ secrets.WINGET_TOKEN }}
+
+      - name: Skipped (no winget token)
+        if: ${{ env.WINGET_TOKEN == '' }}
+        run: echo "WINGET_TOKEN not set — skipping winget submission."
