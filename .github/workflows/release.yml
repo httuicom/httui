@@ -9,7 +9,56 @@ permissions:
   contents: write
 
 jobs:
+  # ── Gate ────────────────────────────────────────────────────────
+  # V12 cenário 8: release notes are CURATED in CHANGELOG.md, not
+  # auto-derived. This job fails the whole release if the tag has no
+  # corresponding `## [VERSION]` section (or, for a pre-release tag,
+  # no section for its base version). Nothing builds without notes.
+  validate:
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version + assert CHANGELOG entry
+        id: v
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # Pre-release detection (V12 cenário 9). Accept both the
+          # semver-canonical `-rc.N` and the bare `-rcN` form so the
+          # tag conventions in docs/RELEASE.md stay flexible.
+          if [[ "$VERSION" =~ -(rc|beta|alpha)\.?[0-9]+$ ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::error::CHANGELOG.md is missing."
+            exit 1
+          fi
+
+          # Exact section, else fall back to the base version for a
+          # pre-release (e.g. `1.0.0-rc.1` → `## [1.0.0]`).
+          BASE="${VERSION%%-*}"
+          if grep -qE "^## \[${VERSION}\]" CHANGELOG.md; then
+            echo "Found CHANGELOG section: ## [${VERSION}]"
+          elif grep -qE "^## \[${BASE}\]" CHANGELOG.md; then
+            echo "Found CHANGELOG section: ## [${BASE}] (base for pre-release)"
+          else
+            echo "::error::No CHANGELOG.md section for [${VERSION}] or [${BASE}]. Add a curated entry before tagging — see docs/RELEASE.md."
+            exit 1
+          fi
+
+  # ── Build + publish ─────────────────────────────────────────────
   release:
+    needs: validate
     strategy:
       fail-fast: false
       matrix:
@@ -20,14 +69,16 @@ jobs:
           - platform: macos-latest
             args: --target x86_64-apple-darwin --bundles app,dmg
             target: x86_64-apple-darwin
+          # Linux: deb + rpm + AppImage (V12 cenário 4).
           - platform: ubuntu-22.04
-            args: --bundles appimage,deb
+            args: --bundles appimage,deb,rpm
             target: ""
-          # Windows MSI — Epic 35 Story 01. Code-signing cert is Epic
-          # 34 Story 02; until that lands the MSI ships unsigned and
-          # SmartScreen will warn on first install. Bundle still builds.
+          # Windows: MSI + NSIS .exe (V12 cenário 3). Code-signing
+          # cert is out of scope for v1 (decision 2026-05-17) — the
+          # installers ship unsigned and SmartScreen warns on first
+          # run, which is acceptable for a developer build.
           - platform: windows-latest
-            args: --bundles msi
+            args: --bundles msi,nsis
             target: ""
 
     runs-on: ${{ matrix.platform }}
@@ -50,49 +101,34 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
 
       - name: Sync version from tag
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "Setting version to $VERSION"
-          # Update tauri.conf.json
           sed -i.bak "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" httui-desktop/src-tauri/tauri.conf.json && rm httui-desktop/src-tauri/tauri.conf.json.bak
-          # Update httui-desktop/package.json (the desktop workspace)
           sed -i.bak "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" httui-desktop/package.json && rm httui-desktop/package.json.bak
-          # Update Cargo.toml of the tauri crate
           sed -i.bak "s/^version = \".*\"/version = \"$VERSION\"/" httui-desktop/src-tauri/Cargo.toml && rm httui-desktop/src-tauri/Cargo.toml.bak
 
       - name: Extract release notes from CHANGELOG.md
         id: notes
         shell: bash
         run: |
-          # Pull the matching `## [VERSION]` section out of CHANGELOG.md.
-          # Falls back to a generic body when the section is missing so a
-          # tag without a CHANGELOG entry still ships.
+          set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
+          BASE="${VERSION%%-*}"
           NOTES_FILE="$(mktemp)"
-          if [ -f CHANGELOG.md ] && grep -q "^## \[${VERSION}\]" CHANGELOG.md; then
-            awk -v v="${VERSION}" '
-              $0 ~ "^## \\[" v "\\]" { found = 1; next }
-              found && /^## \[/        { exit }
-              found                    { print }
-            ' CHANGELOG.md > "$NOTES_FILE"
-            echo "Extracted notes for $VERSION (CHANGELOG)"
-          else
-            echo "No CHANGELOG section for $VERSION; using generic body" > "$NOTES_FILE"
-            echo "" >> "$NOTES_FILE"
-            echo "See the assets below to download and install." >> "$NOTES_FILE"
-          fi
-          # Surface the file path to subsequent steps via outputs.
+          # validate already proved one of these sections exists.
+          SECTION="$VERSION"
+          grep -qE "^## \[${VERSION}\]" CHANGELOG.md || SECTION="$BASE"
+          awk -v v="${SECTION}" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/        { exit }
+            found                    { print }
+          ' CHANGELOG.md > "$NOTES_FILE"
           echo "path=$NOTES_FILE" >> "$GITHUB_OUTPUT"
-          # Detect prerelease: tags shaped `vX.Y.Z-rc.N` are prereleases.
-          if [[ "$GITHUB_REF_NAME" =~ -rc\.[0-9]+$ ]] || [[ "$GITHUB_REF_NAME" =~ -beta\.[0-9]+$ ]] || [[ "$GITHUB_REF_NAME" =~ -alpha\.[0-9]+$ ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Install frontend dependencies
         run: npm ci
@@ -101,16 +137,10 @@ jobs:
         run: |
           cd httui-sidecar && bun install && bun run build
 
-      - name: Debug - list bundle directory
-        if: always()
-        run: |
-          find target -path "*/bundle/*" -type f 2>/dev/null || echo "No bundle directory found"
-
       - name: Read release body
         id: body
         shell: bash
         run: |
-          # GitHub Actions multi-line outputs need the heredoc form.
           {
             echo 'body<<HTTUI_NOTES_EOF'
             cat "${{ steps.notes.outputs.path }}"
@@ -121,13 +151,27 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing (minisign). Without this secret tauri-action
+          # builds without updater artifacts and in-app auto-update is
+          # inert — the rest of the release still ships.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          # macOS Developer ID codesign + notarization (V12 cenário 2).
+          # SCAFFOLD ONLY for v1: these secrets are unset, so
+          # tauri-action skips signing and ships an unsigned dev build
+          # (Gatekeeper bypass documented in docs/RELEASE.md). Set the
+          # secrets and the same workflow notarizes with no edits.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: httui-desktop
           tagName: ${{ github.ref_name }}
           releaseName: "httui notes ${{ github.ref_name }}"
           releaseBody: ${{ steps.body.outputs.body }}
           releaseDraft: false
-          prerelease: ${{ steps.notes.outputs.prerelease == 'true' }}
+          prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
           args: ${{ matrix.args }}

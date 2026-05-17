@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-runtime entitlements for the notarized macOS build
+  (V12 cenário 2). Referenced from tauri.conf.json
+  bundle.macOS.entitlements. Required because:
+    - WebKit needs JIT + unsigned executable memory.
+    - The Claude sidecar (bundled Node) is an unsigned nested
+      executable, so library validation must be relaxed.
+    - The HTTP block makes outbound network requests.
+  Unused until an Apple Developer ID cert is configured; harmless
+  for the unsigned v1 dev build.
+-->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+  </dict>
+</plist>
