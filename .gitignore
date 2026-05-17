@@ -3,9 +3,14 @@ node_modules/
 
 # Build output
 dist/
+.httui
 
 # Test coverage
 coverage/
+
+# Vitest artifacts (browser-mode attachments + screenshot snapshots)
+.vitest-attachments/
+__screenshots__/
 
 # Rust
 target/
@@ -40,6 +45,5 @@ httui-sidecar/bun.lockb
 docs-llm/
 
 # Per-machine Claude Code state — do not commit
-.claude/settings.local.json
-.claude/scheduled_tasks.lock
-
+.claude/
+.rtk/

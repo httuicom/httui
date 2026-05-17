@@ -1,7 +1,11 @@
 .PHONY: dev build release install install-deps install-app uninstall lint fmt check clean wipe-config test test-rust test-front test-tui front icons sidecar tui tui-build tui-help coverage-check coverage-rust coverage-fe size-check quality-check setup-hooks
 
-# Development — frontend (Vite HMR) + backend (Rust rebuild on change)
+# Development — frontend (Vite HMR) + backend (Rust rebuild on change).
+# Trims Rust artifacts not touched in the last 7 days before each session
+# so target/ stops inflating past 30 GB. Requires `cargo install cargo-sweep`;
+# falls back silently if missing so dev never blocks on a tooling gap.
 dev: sidecar
+	@command -v cargo-sweep >/dev/null 2>&1 && cargo sweep --time 7 || true
 	npm run tauri dev
 
 # Run the terminal binary. Opens the active vault from the database;

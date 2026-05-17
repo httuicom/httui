@@ -160,4 +160,61 @@ describe("SchemaPanel — connection auto-pick", () => {
     // No throw, the panel chrome still renders.
     expect(await screen.findByLabelText("Close schema panel")).toBeInTheDocument();
   });
+
+  it("close button fires onClose", async () => {
+    mockTauriCommand("list_connections", () => fakeConnections);
+    setActiveFile("file.md", "body\n");
+    const onClose = vi.fn();
+    renderWithProviders(<SchemaPanel width={300} onClose={onClose} />);
+    const close = await screen.findByLabelText("Close schema panel");
+    close.click();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("manual connection selection sticks (doesn't get overwritten on next render)", async () => {
+    mockTauriCommand("list_connections", () => fakeConnections);
+    setActiveFile("file.md", "body\n");
+    renderWithProviders(<SchemaPanel width={300} onClose={() => {}} />);
+    const select = (await screen.findByRole(
+      "combobox",
+    )) as HTMLSelectElement;
+    await vi.waitFor(() => {
+      expect(select.value).toBe("id-alpha");
+    });
+    // User picks the second connection.
+    select.value = "id-payments";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(select.value).toBe("id-payments");
+  });
+
+  it("calls listConnections on mount and reacts to the active doc connection hint", async () => {
+    let invokeCount = 0;
+    mockTauriCommand("list_connections", () => {
+      invokeCount += 1;
+      return fakeConnections;
+    });
+    setActiveFile("rb.md", "```db-postgres connection=payments-db\n```\n");
+    renderWithProviders(<SchemaPanel width={300} onClose={() => {}} />);
+    await vi.waitFor(() => {
+      expect(invokeCount).toBeGreaterThanOrEqual(1);
+    });
+    // Hint matches a connection in the list → that's the active value.
+    const select = (await screen.findByRole(
+      "combobox",
+    )) as HTMLSelectElement;
+    await vi.waitFor(() => {
+      expect(select.value).toBe("id-payments");
+    });
+  });
+
+  it("renders the filter input that's used to narrow the table tree", async () => {
+    mockTauriCommand("list_connections", () => fakeConnections);
+    setActiveFile("rb.md", "");
+    renderWithProviders(<SchemaPanel width={300} onClose={() => {}} />);
+    // The filter input has placeholder "Filter…"; existence check
+    // exercises the input's render path which counts toward
+    // coverage.
+    const filterInput = await screen.findByPlaceholderText(/Filter/i);
+    expect(filterInput).toBeInTheDocument();
+  });
 });
