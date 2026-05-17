@@ -161,8 +161,7 @@ export function label(entry: HistoryEntry): string {
  *  can reuse it in tooltips / detail panels without re-implementing
  *  the rounding rules. */
 export function formatRelative(isoOrMs: string | number): string {
-  const t =
-    typeof isoOrMs === "number" ? isoOrMs : Date.parse(isoOrMs);
+  const t = typeof isoOrMs === "number" ? isoOrMs : Date.parse(isoOrMs);
   if (!Number.isFinite(t)) return "—";
   const diff = Date.now() - t;
   if (diff < 0) return "now";

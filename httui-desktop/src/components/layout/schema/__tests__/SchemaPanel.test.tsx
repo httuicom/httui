@@ -100,9 +100,7 @@ describe("SchemaPanel — connection auto-pick", () => {
     renderWithProviders(<SchemaPanel width={300} onClose={() => {}} />);
     // Wait for the effect to land. The native select shows one
     // <option> per connection; the picked one becomes the value.
-    const select = (await screen.findByRole(
-      "combobox",
-    )) as HTMLSelectElement;
+    const select = (await screen.findByRole("combobox")) as HTMLSelectElement;
     await vi.waitFor(() => {
       expect(select.value).toBe("id-alpha");
     });
@@ -126,9 +124,7 @@ describe("SchemaPanel — connection auto-pick", () => {
       ].join("\n"),
     );
     renderWithProviders(<SchemaPanel width={300} onClose={() => {}} />);
-    const select = (await screen.findByRole(
-      "combobox",
-    )) as HTMLSelectElement;
+    const select = (await screen.findByRole("combobox")) as HTMLSelectElement;
     await vi.waitFor(() => {
       // The most-recent block specifies `payments-db`; expect that
       // connection's id to be selected, not the first list entry.
@@ -143,9 +139,7 @@ describe("SchemaPanel — connection auto-pick", () => {
       "```db-postgres connection=ghost-db\nselect 1\n```\n",
     );
     renderWithProviders(<SchemaPanel width={300} onClose={() => {}} />);
-    const select = (await screen.findByRole(
-      "combobox",
-    )) as HTMLSelectElement;
+    const select = (await screen.findByRole("combobox")) as HTMLSelectElement;
     await vi.waitFor(() => {
       // ghost-db isn't in the connections list → fallback is the
       // first one, alpha-db.
@@ -158,7 +152,9 @@ describe("SchemaPanel — connection auto-pick", () => {
     setActiveFile("file.md", "body\n");
     renderWithProviders(<SchemaPanel width={300} onClose={() => {}} />);
     // No throw, the panel chrome still renders.
-    expect(await screen.findByLabelText("Close schema panel")).toBeInTheDocument();
+    expect(
+      await screen.findByLabelText("Close schema panel"),
+    ).toBeInTheDocument();
   });
 
   it("close button fires onClose", async () => {
@@ -175,9 +171,7 @@ describe("SchemaPanel — connection auto-pick", () => {
     mockTauriCommand("list_connections", () => fakeConnections);
     setActiveFile("file.md", "body\n");
     renderWithProviders(<SchemaPanel width={300} onClose={() => {}} />);
-    const select = (await screen.findByRole(
-      "combobox",
-    )) as HTMLSelectElement;
+    const select = (await screen.findByRole("combobox")) as HTMLSelectElement;
     await vi.waitFor(() => {
       expect(select.value).toBe("id-alpha");
     });
@@ -199,9 +193,7 @@ describe("SchemaPanel — connection auto-pick", () => {
       expect(invokeCount).toBeGreaterThanOrEqual(1);
     });
     // Hint matches a connection in the list → that's the active value.
-    const select = (await screen.findByRole(
-      "combobox",
-    )) as HTMLSelectElement;
+    const select = (await screen.findByRole("combobox")) as HTMLSelectElement;
     await vi.waitFor(() => {
       expect(select.value).toBe("id-payments");
     });

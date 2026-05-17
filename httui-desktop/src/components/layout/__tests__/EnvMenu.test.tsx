@@ -48,9 +48,7 @@ describe("EnvMenu", () => {
       />,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: /Environment local/ }),
-    );
+    await user.click(screen.getByRole("button", { name: /Environment local/ }));
 
     const items = screen.getAllByRole("menuitem");
     expect(items).toHaveLength(2);
@@ -69,9 +67,7 @@ describe("EnvMenu", () => {
     );
     await user.click(screen.getByRole("button", { name: /Environment prod/ }));
     const items = screen.getAllByRole("menuitem");
-    const active = items.find(
-      (i) => i.getAttribute("data-active") === "true",
-    );
+    const active = items.find((i) => i.getAttribute("data-active") === "true");
     expect(active?.getAttribute("data-env-id")).toBe("b");
   });
 
@@ -85,9 +81,7 @@ describe("EnvMenu", () => {
         onSwitch={onSwitch}
       />,
     );
-    await user.click(
-      screen.getByRole("button", { name: /Environment local/ }),
-    );
+    await user.click(screen.getByRole("button", { name: /Environment local/ }));
     await user.click(screen.getByText("prod"));
     expect(onSwitch).toHaveBeenCalledWith("b");
   });
@@ -101,7 +95,9 @@ describe("EnvMenu", () => {
         onSwitch={() => {}}
       />,
     );
-    await user.click(screen.getByRole("button", { name: /Environment no env/ }));
+    await user.click(
+      screen.getByRole("button", { name: /Environment no env/ }),
+    );
     expect(screen.getByText("No environments")).toBeInTheDocument();
   });
 });

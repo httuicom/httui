@@ -100,9 +100,7 @@ export function GitCommitForm({
           variant={disabled ? "ghost" : "primary"}
           data-testid="git-commit-form-submit"
           disabled={disabled}
-          onClick={() =>
-            onCommit({ message: message.trim(), amend })
-          }
+          onClick={() => onCommit({ message: message.trim(), amend })}
         >
           {amend ? "Amend" : "Commit"}
         </Btn>

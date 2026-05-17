@@ -44,7 +44,10 @@ import {
  * lands when the backend exposes it). `isPersonal` therefore stays
  * false for now — the personal/committed split is display-only and
  * can be enriched without breaking page consumers. */
-export function envToSummary(env: Environment, varCount: number): EnvironmentSummary {
+export function envToSummary(
+  env: Environment,
+  varCount: number,
+): EnvironmentSummary {
   return {
     name: env.name,
     filename: `${env.name}.toml`,

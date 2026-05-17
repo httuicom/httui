@@ -41,9 +41,7 @@ describe("Input atom", () => {
 
   it("respects the disabled prop", async () => {
     const onChange = vi.fn();
-    renderWithProviders(
-      <Input aria-label="d" disabled onChange={onChange} />,
-    );
+    renderWithProviders(<Input aria-label="d" disabled onChange={onChange} />);
     const node = screen.getByLabelText("d") as HTMLInputElement;
     expect(node.disabled).toBe(true);
   });

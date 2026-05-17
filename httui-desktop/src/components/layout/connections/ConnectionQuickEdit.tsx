@@ -62,9 +62,7 @@ export function ConnectionQuickEdit({
   const override = useConnectionSessionOverrideStore((s) =>
     s.getOverride(conn.id),
   );
-  const setOverride = useConnectionSessionOverrideStore(
-    (s) => s.setOverride,
-  );
+  const setOverride = useConnectionSessionOverrideStore((s) => s.setOverride);
   const clearOverride = useConnectionSessionOverrideStore(
     (s) => s.clearOverride,
   );
@@ -198,11 +196,7 @@ export function ConnectionQuickEdit({
 
       {/* Test + Duplicate */}
       <HStack gap={2}>
-        <Btn
-          variant="ghost"
-          data-testid="conn-quickedit-test"
-          onClick={onTest}
-        >
+        <Btn variant="ghost" data-testid="conn-quickedit-test" onClick={onTest}>
           <LuPlugZap size={13} />
           Test
         </Btn>
@@ -223,11 +217,7 @@ export function ConnectionQuickEdit({
         borderTopColor="border"
         justify="space-between"
       >
-        <Btn
-          variant="ghost"
-          data-testid="conn-quickedit-edit"
-          onClick={onEdit}
-        >
+        <Btn variant="ghost" data-testid="conn-quickedit-edit" onClick={onEdit}>
           <LuPencil size={13} />
           Edit…
         </Btn>

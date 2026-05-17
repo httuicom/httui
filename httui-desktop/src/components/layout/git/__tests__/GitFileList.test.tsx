@@ -32,19 +32,13 @@ describe("GitFileList", () => {
       />,
     );
     expect(
-      screen
-        .getByTestId("git-file-list-staged")
-        .getAttribute("data-count"),
+      screen.getByTestId("git-file-list-staged").getAttribute("data-count"),
     ).toBe("1");
     expect(
-      screen
-        .getByTestId("git-file-list-unstaged")
-        .getAttribute("data-count"),
+      screen.getByTestId("git-file-list-unstaged").getAttribute("data-count"),
     ).toBe("1");
     expect(
-      screen
-        .getByTestId("git-file-list-untracked")
-        .getAttribute("data-count"),
+      screen.getByTestId("git-file-list-untracked").getAttribute("data-count"),
     ).toBe("1");
   });
 

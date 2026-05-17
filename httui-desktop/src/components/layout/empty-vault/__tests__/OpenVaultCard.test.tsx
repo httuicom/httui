@@ -30,9 +30,7 @@ describe("OpenVaultCard", () => {
   it("respects busy: disables click and dims", async () => {
     const user = userEvent.setup();
     const onOpenClick = vi.fn();
-    renderWithProviders(
-      <OpenVaultCard onOpenClick={onOpenClick} busy />,
-    );
+    renderWithProviders(<OpenVaultCard onOpenClick={onOpenClick} busy />);
     const card = screen.getByTestId("open-vault-card") as HTMLButtonElement;
     expect(card.disabled).toBe(true);
     await user.click(card);

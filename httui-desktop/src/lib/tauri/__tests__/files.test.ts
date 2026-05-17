@@ -67,8 +67,8 @@ describe("files Tauri wrappers", () => {
     mockTauriCommand("set_file_docheader_compact", () => {
       throw new Error("vault not writable");
     });
-    await expect(
-      setFileDocheaderCompact("/v", "a.md", true),
-    ).rejects.toThrow(/vault not writable/);
+    await expect(setFileDocheaderCompact("/v", "a.md", true)).rejects.toThrow(
+      /vault not writable/,
+    );
   });
 });

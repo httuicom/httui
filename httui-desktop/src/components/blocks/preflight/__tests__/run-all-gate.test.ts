@@ -62,9 +62,7 @@ describe("evaluatePreflightGate", () => {
     });
     expect(d.block).toBe(false);
     expect(d.failedCount).toBe(2);
-    expect(d.auditNote).toBe(
-      "2 failed pre-flight, ran anyway via shift",
-    );
+    expect(d.auditNote).toBe("2 failed pre-flight, ran anyway via shift");
   });
 
   it("agrees plural in the override audit note", () => {

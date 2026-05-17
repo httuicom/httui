@@ -96,7 +96,9 @@ export function DocHeaderWidgetPortal({
         onAddTag={view ? callbacks.onAddTag : undefined}
         onRemoveTag={view ? callbacks.onRemoveTag : undefined}
         onChecklistSave={view ? callbacks.onChecklistSave : undefined}
-        onTitleNavigateToBody={view ? callbacks.onTitleNavigateToBody : undefined}
+        onTitleNavigateToBody={
+          view ? callbacks.onTitleNavigateToBody : undefined
+        }
         onAddPreflightCheck={view ? callbacks.onAddPreflightCheck : undefined}
         onEditPreflightCheck={view ? callbacks.onEditPreflightCheck : undefined}
         onRemovePreflightCheck={

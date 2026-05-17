@@ -43,9 +43,7 @@ describe("HistoryList", () => {
   it("renders the empty state when entries is empty", () => {
     renderWithProviders(<HistoryList entries={[]} />);
     expect(screen.getByTestId("history-empty")).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("history-list"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("history-list")).not.toBeInTheDocument();
   });
 
   it("renders one row per entry with id + tone attrs", () => {
@@ -73,9 +71,7 @@ describe("HistoryList", () => {
   it("renders rows as buttons + fires onSelect with the entry", async () => {
     const onSelect = vi.fn();
     const e = entry({ id: 42 });
-    renderWithProviders(
-      <HistoryList entries={[e]} onSelect={onSelect} />,
-    );
+    renderWithProviders(<HistoryList entries={[e]} onSelect={onSelect} />);
     const row = screen.getByTestId("history-row");
     expect(row.tagName).toBe("BUTTON");
     vi.useRealTimers();
@@ -86,9 +82,7 @@ describe("HistoryList", () => {
   it("uses alias when present, else METHOD + URL", () => {
     expect(label(entry({ block_alias: "fetchUser" }))).toBe("fetchUser");
     expect(
-      label(
-        entry({ block_alias: "", method: "POST", url_canonical: "/x" }),
-      ),
+      label(entry({ block_alias: "", method: "POST", url_canonical: "/x" })),
     ).toBe("POST /x");
     expect(
       label(entry({ block_alias: "  ", method: "PUT", url_canonical: "/y" })),
@@ -96,9 +90,7 @@ describe("HistoryList", () => {
   });
 
   it("hides status text when entry.status is null", () => {
-    renderWithProviders(
-      <HistoryList entries={[entry({ status: null })]} />,
-    );
+    renderWithProviders(<HistoryList entries={[entry({ status: null })]} />);
     const row = screen.getByTestId("history-row");
     expect(row.textContent).not.toMatch(/^200/);
   });
@@ -131,9 +123,7 @@ describe("HistoryList", () => {
   });
 
   it("hides the plan chip when entry.plan is empty / whitespace", () => {
-    renderWithProviders(
-      <HistoryList entries={[entry({ plan: "   " })]} />,
-    );
+    renderWithProviders(<HistoryList entries={[entry({ plan: "   " })]} />);
     expect(screen.queryByTestId("history-row-plan")).not.toBeInTheDocument();
   });
 });

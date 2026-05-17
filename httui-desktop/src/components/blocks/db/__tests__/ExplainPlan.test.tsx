@@ -33,7 +33,9 @@ describe("formatRows", () => {
 
 describe("ExplainPlan", () => {
   it("renders the unsupported state with optional driver label", () => {
-    renderWithProviders(<ExplainPlan plan={null} unsupported driverLabel="SQLite" />);
+    renderWithProviders(
+      <ExplainPlan plan={null} unsupported driverLabel="SQLite" />,
+    );
     const root = screen.getByTestId("explain-plan");
     expect(root.getAttribute("data-state")).toBe("unsupported");
     expect(root.textContent).toMatch(/SQLite/);
@@ -41,16 +43,16 @@ describe("ExplainPlan", () => {
 
   it("renders the loading state when plan is null", () => {
     renderWithProviders(<ExplainPlan plan={null} />);
-    expect(
-      screen.getByTestId("explain-plan").getAttribute("data-state"),
-    ).toBe("loading");
+    expect(screen.getByTestId("explain-plan").getAttribute("data-state")).toBe(
+      "loading",
+    );
   });
 
   it("renders a single-node plan with op + cost + rows", () => {
     renderWithProviders(<ExplainPlan plan={node()} />);
-    expect(
-      screen.getByTestId("explain-plan").getAttribute("data-state"),
-    ).toBe("ready");
+    expect(screen.getByTestId("explain-plan").getAttribute("data-state")).toBe(
+      "ready",
+    );
     expect(screen.getByTestId("explain-plan-op").textContent).toBe("Limit");
     expect(screen.getByTestId("explain-plan-cost").textContent).toBe(
       "0.42..18.7",
@@ -113,9 +115,7 @@ describe("ExplainPlan", () => {
 
   it("hides the target text when target is empty", () => {
     renderWithProviders(<ExplainPlan plan={node({ target: "" })} />);
-    expect(
-      screen.queryByTestId("explain-plan-target"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("explain-plan-target")).not.toBeInTheDocument();
   });
 
   it("flags the last child via data-last", () => {

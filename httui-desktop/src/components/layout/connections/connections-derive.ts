@@ -114,9 +114,7 @@ export function countsByKind(
 /** Aggregate counts + status intent per environment for the
  * sidebar POR AMBIENTE section. Production envs (name matches
  * `isProductionName`) get the `warn` intent. */
-export function envSummaries(
-  enrichment: ConnectionEnrichment[],
-): EnvSummary[] {
+export function envSummaries(enrichment: ConnectionEnrichment[]): EnvSummary[] {
   const counts = new Map<string, number>();
   for (const e of enrichment) {
     if (e.env === null) continue;
@@ -134,9 +132,7 @@ export function envSummaries(
 /** Aggregate the list header status counts:
  *  total / ok / slow / down. Untested rows are counted toward total
  *  but not toward any of the three sub-buckets. */
-export function listStatusCounts(
-  rows: ListRowItem[],
-): ListStatusCounts {
+export function listStatusCounts(rows: ListRowItem[]): ListStatusCounts {
   let ok = 0;
   let slow = 0;
   let down = 0;

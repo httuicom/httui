@@ -39,9 +39,7 @@ describe("GitConflictResolver", () => {
     expect(
       screen.queryByTestId("git-conflict-resolver-base"),
     ).not.toBeInTheDocument();
-    await user.click(
-      screen.getByTestId("git-conflict-resolver-base-toggle"),
-    );
+    await user.click(screen.getByTestId("git-conflict-resolver-base-toggle"));
     const base = screen.getByTestId("git-conflict-resolver-base");
     expect(base.textContent).toContain("base line");
   });
@@ -56,9 +54,7 @@ describe("GitConflictResolver", () => {
         onCancel={vi.fn()}
       />,
     );
-    await user.click(
-      screen.getByTestId("git-conflict-resolver-base-toggle"),
-    );
+    await user.click(screen.getByTestId("git-conflict-resolver-base-toggle"));
     expect(
       screen.getByTestId("git-conflict-resolver-base").textContent,
     ).toContain("no common ancestor");

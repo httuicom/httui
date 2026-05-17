@@ -39,9 +39,9 @@ describe("extractFrontmatterTags", () => {
   });
 
   it("dedups same-tag-twice within the file", () => {
-    expect(
-      extractFrontmatterTags("---\ntags: [foo, foo, bar]\n---\n"),
-    ).toEqual(["foo", "bar"]);
+    expect(extractFrontmatterTags("---\ntags: [foo, foo, bar]\n---\n")).toEqual(
+      ["foo", "bar"],
+    );
   });
 
   it("returns [] on block-list shape (out of slice-1 schema)", () => {
@@ -82,7 +82,7 @@ describe("extractFrontmatterTags", () => {
 
   it("returns [] when the value isn't a flow array", () => {
     expect(extractFrontmatterTags("---\ntags: notabracket\n---\n")).toEqual([]);
-    expect(extractFrontmatterTags("---\ntags: \"hello\"\n---\n")).toEqual([]);
+    expect(extractFrontmatterTags('---\ntags: "hello"\n---\n')).toEqual([]);
     expect(extractFrontmatterTags("---\ntags: 42\n---\n")).toEqual([]);
   });
 
@@ -159,8 +159,7 @@ describe("extractFrontmatter", () => {
   });
 
   it("extracts a tasks checklist", () => {
-    const doc =
-      '---\ntitle: x\ntasks: ["[ ] Verify", "[x] Done"]\n---\nbody\n';
+    const doc = '---\ntitle: x\ntasks: ["[ ] Verify", "[x] Done"]\n---\nbody\n';
     expect(extractFrontmatter(doc).tasks).toEqual([
       { text: "Verify", done: false },
       { text: "Done", done: true },
@@ -168,12 +167,12 @@ describe("extractFrontmatter", () => {
   });
 
   it("unquotes both quote styles for title", () => {
-    expect(
-      extractFrontmatter("---\ntitle: 'single quoted'\n---\n").title,
-    ).toBe("single quoted");
-    expect(
-      extractFrontmatter('---\ntitle: "double quoted"\n---\n').title,
-    ).toBe("double quoted");
+    expect(extractFrontmatter("---\ntitle: 'single quoted'\n---\n").title).toBe(
+      "single quoted",
+    );
+    expect(extractFrontmatter('---\ntitle: "double quoted"\n---\n').title).toBe(
+      "double quoted",
+    );
   });
 
   it("treats `abstract: |` block-scalar marker as undefined (Rust slice-1)", () => {
@@ -186,8 +185,9 @@ describe("extractFrontmatter", () => {
   });
 
   it("treats `abstract: >` folded-scalar marker as undefined", () => {
-    expect(extractFrontmatter("---\nabstract: >\n  folded\n---\n").abstract)
-      .toBeUndefined();
+    expect(
+      extractFrontmatter("---\nabstract: >\n  folded\n---\n").abstract,
+    ).toBeUndefined();
   });
 
   it("returns title undefined when blank / empty-quoted (Rust slice-1)", () => {
@@ -196,7 +196,7 @@ describe("extractFrontmatter", () => {
     // (`'   '`) survives as-is — pickH1Title trims it downstream
     // before falling back through firstHeading → filename.
     expect(extractFrontmatter("---\ntitle: \n---\n").title).toBeUndefined();
-    expect(extractFrontmatter("---\ntitle: \"\"\n---\n").title).toBeUndefined();
+    expect(extractFrontmatter('---\ntitle: ""\n---\n').title).toBeUndefined();
     expect(extractFrontmatter("---\ntitle: ''\n---\n").title).toBeUndefined();
   });
 
@@ -250,7 +250,7 @@ describe("extractFrontmatter — error path (V6 cenário 6)", () => {
   });
 
   it("flags `tasks:` block-list shape", () => {
-    const doc = "---\ntasks:\n  - \"[ ] do thing\"\n---\n";
+    const doc = '---\ntasks:\n  - "[ ] do thing"\n---\n';
     expect(extractFrontmatter(doc).error).toBeDefined();
   });
 
@@ -273,7 +273,7 @@ describe("extractFrontmatter — error path (V6 cenário 6)", () => {
 
   it("does not flag a valid frontmatter", () => {
     const doc =
-      "---\ntitle: x\nabstract: y\ntags: [a, b]\ntasks: [\"[ ] z\"]\n---\nbody\n";
+      '---\ntitle: x\nabstract: y\ntags: [a, b]\ntasks: ["[ ] z"]\n---\nbody\n';
     expect(extractFrontmatter(doc).error).toBeUndefined();
   });
 
@@ -291,52 +291,48 @@ describe("extractFrontmatter — status (V6 cenário 8)", () => {
   });
 
   it("extracts status: archived", () => {
-    expect(
-      extractFrontmatter("---\nstatus: archived\n---\n").status,
-    ).toBe("archived");
+    expect(extractFrontmatter("---\nstatus: archived\n---\n").status).toBe(
+      "archived",
+    );
   });
 
   it("normalizes case and trims whitespace", () => {
-    expect(
-      extractFrontmatter("---\nstatus:   ARCHIVED   \n---\n").status,
-    ).toBe("archived");
+    expect(extractFrontmatter("---\nstatus:   ARCHIVED   \n---\n").status).toBe(
+      "archived",
+    );
   });
 
   it("preserves forward-compat unknown values (lower-cased)", () => {
-    expect(
-      extractFrontmatter("---\nstatus: review\n---\n").status,
-    ).toBe("review");
+    expect(extractFrontmatter("---\nstatus: review\n---\n").status).toBe(
+      "review",
+    );
   });
 
   it("unquotes both quote styles", () => {
-    expect(
-      extractFrontmatter('---\nstatus: "archived"\n---\n').status,
-    ).toBe("archived");
-    expect(
-      extractFrontmatter("---\nstatus: 'draft'\n---\n").status,
-    ).toBe("draft");
+    expect(extractFrontmatter('---\nstatus: "archived"\n---\n').status).toBe(
+      "archived",
+    );
+    expect(extractFrontmatter("---\nstatus: 'draft'\n---\n").status).toBe(
+      "draft",
+    );
   });
 
   it("first-wins on duplicate status: lines", () => {
     expect(
-      extractFrontmatter(
-        "---\nstatus: draft\nstatus: archived\n---\n",
-      ).status,
+      extractFrontmatter("---\nstatus: draft\nstatus: archived\n---\n").status,
     ).toBe("draft");
   });
 });
 
 describe("extractFrontmatterArchived", () => {
   it("true when status: archived", () => {
-    expect(
-      extractFrontmatterArchived("---\nstatus: archived\n---\n"),
-    ).toBe(true);
+    expect(extractFrontmatterArchived("---\nstatus: archived\n---\n")).toBe(
+      true,
+    );
   });
 
   it("false for any other status (or none)", () => {
-    expect(
-      extractFrontmatterArchived("---\nstatus: draft\n---\n"),
-    ).toBe(false);
+    expect(extractFrontmatterArchived("---\nstatus: draft\n---\n")).toBe(false);
     expect(extractFrontmatterArchived("---\ntitle: x\n---\n")).toBe(false);
     expect(extractFrontmatterArchived("# no fence\n")).toBe(false);
   });

@@ -8,11 +8,8 @@ describe("NewConnectionStringTab", () => {
   it("disables Apply when the textarea is empty", () => {
     renderWithProviders(<NewConnectionStringTab onApply={vi.fn()} />);
     expect(
-      (
-        screen.getByTestId(
-          "new-connection-string-apply",
-        ) as HTMLButtonElement
-      ).disabled,
+      (screen.getByTestId("new-connection-string-apply") as HTMLButtonElement)
+        .disabled,
     ).toBe(true);
   });
 
@@ -24,11 +21,8 @@ describe("NewConnectionStringTab", () => {
       />,
     );
     expect(
-      (
-        screen.getByTestId(
-          "new-connection-string-input",
-        ) as HTMLTextAreaElement
-      ).value,
+      (screen.getByTestId("new-connection-string-input") as HTMLTextAreaElement)
+        .value,
     ).toBe("postgres://localhost/x");
   });
 
@@ -70,16 +64,10 @@ describe("NewConnectionStringTab", () => {
   it("re-enables apply once user types non-empty content", async () => {
     renderWithProviders(<NewConnectionStringTab onApply={vi.fn()} />);
     const user = userEvent.setup();
-    await user.type(
-      screen.getByTestId("new-connection-string-input"),
-      "x",
-    );
+    await user.type(screen.getByTestId("new-connection-string-input"), "x");
     expect(
-      (
-        screen.getByTestId(
-          "new-connection-string-apply",
-        ) as HTMLButtonElement
-      ).disabled,
+      (screen.getByTestId("new-connection-string-apply") as HTMLButtonElement)
+        .disabled,
     ).toBe(false);
   });
 });

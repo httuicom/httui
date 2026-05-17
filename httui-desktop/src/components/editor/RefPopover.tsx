@@ -304,11 +304,7 @@ function RefUsesSection({
           : `Used in ${count} block${count === 1 ? "" : "s"}`}
         {count > 0 && (
           <Box as="span" ml={2} color="fg.subtle" display="inline-flex">
-            {showUses ? (
-              <LuChevronUp size={12} />
-            ) : (
-              <LuChevronDown size={12} />
-            )}
+            {showUses ? <LuChevronUp size={12} /> : <LuChevronDown size={12} />}
           </Box>
         )}
       </Btn>

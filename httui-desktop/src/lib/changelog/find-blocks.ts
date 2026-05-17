@@ -31,7 +31,12 @@ const FENCE_REGEX = /^```(http|db-[A-Za-z0-9_-]+|sh|ws|gql)(?:\s+(.+))?$/;
 export function findFencedBlocks(content: string): FencedBlock[] {
   const lines = content.split("\n");
   const blocks: FencedBlock[] = [];
-  let open: { kind: BlockKind; infoString: string; alias: string | null; start: number } | null = null;
+  let open: {
+    kind: BlockKind;
+    infoString: string;
+    alias: string | null;
+    start: number;
+  } | null = null;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     if (open === null) {
@@ -42,7 +47,9 @@ export function findFencedBlocks(content: string): FencedBlock[] {
         const kind: BlockKind = tag.startsWith("db-")
           ? "db"
           : (tag as BlockKind);
-        const infoString = tag.startsWith("db-") ? `${tag} ${rest}`.trim() : rest;
+        const infoString = tag.startsWith("db-")
+          ? `${tag} ${rest}`.trim()
+          : rest;
         const alias = parseAliasFromInfoString(rest);
         open = {
           kind,

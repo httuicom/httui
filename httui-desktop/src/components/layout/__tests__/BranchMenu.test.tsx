@@ -21,9 +21,7 @@ describe("BranchMenu", () => {
     expect(
       screen.getByRole("button", { name: /Branch feat\/login/ }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("status-branch").textContent).toBe(
-      "feat/login",
-    );
+    expect(screen.getByTestId("status-branch").textContent).toBe("feat/login");
   });
 
   it("hides the counts cell when every category is zero", () => {
@@ -51,9 +49,7 @@ describe("BranchMenu", () => {
   });
 
   it("only renders nonzero categories", () => {
-    renderWithProviders(
-      <BranchMenu branch="main" added={2} />,
-    );
+    renderWithProviders(<BranchMenu branch="main" added={2} />);
     const counts = screen.getByTestId("status-changes");
     expect(counts.textContent).toContain("+2");
     expect(counts.textContent).not.toContain("↑");
@@ -68,13 +64,11 @@ describe("BranchMenu", () => {
 
     await user.click(screen.getByRole("button", { name: /Branch main/ }));
 
-    expect(
-      screen.getByTestId("branch-menu-placeholder"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("branch-menu-placeholder")).toBeInTheDocument();
     // Mentions V10 so users know what's coming.
-    expect(
-      screen.getByTestId("branch-menu-placeholder").textContent,
-    ).toMatch(/V10/);
+    expect(screen.getByTestId("branch-menu-placeholder").textContent).toMatch(
+      /V10/,
+    );
   });
 
   describe("switcher mode (V10 cenário 4)", () => {
@@ -122,9 +116,7 @@ describe("BranchMenu", () => {
         />,
       );
       await user.click(screen.getByRole("button", { name: /Branch main/ }));
-      await user.click(
-        screen.getByTestId("git-branch-picker-row-feat/x"),
-      );
+      await user.click(screen.getByTestId("git-branch-picker-row-feat/x"));
       expect(onSelectBranch).toHaveBeenCalledWith(BRANCHES[1]);
     });
   });

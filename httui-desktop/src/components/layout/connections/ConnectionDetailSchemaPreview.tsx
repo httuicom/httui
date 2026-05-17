@@ -48,11 +48,7 @@ export function ConnectionDetailSchemaPreview({
   onRefresh,
 }: ConnectionDetailSchemaPreviewProps) {
   return (
-    <Stack
-      data-testid="connection-schema-preview"
-      gap={3}
-      align="stretch"
-    >
+    <Stack data-testid="connection-schema-preview" gap={3} align="stretch">
       <Flex justify="space-between" align="center">
         <Text
           fontFamily="mono"
@@ -77,31 +73,19 @@ export function ConnectionDetailSchemaPreview({
       </Flex>
 
       {error !== null && (
-        <Text
-          data-testid="schema-error"
-          fontSize="11px"
-          color="red.fg"
-        >
+        <Text data-testid="schema-error" fontSize="11px" color="red.fg">
           {error}
         </Text>
       )}
 
       {loading && schema === null && (
-        <Text
-          data-testid="schema-loading"
-          fontSize="11px"
-          color="fg.subtle"
-        >
+        <Text data-testid="schema-loading" fontSize="11px" color="fg.subtle">
           Loading schema…
         </Text>
       )}
 
       {!loading && error === null && schema === null && (
-        <Text
-          data-testid="schema-empty"
-          fontSize="11px"
-          color="fg.subtle"
-        >
+        <Text data-testid="schema-empty" fontSize="11px" color="fg.subtle">
           Pick "Refresh" to introspect this connection's schema.
         </Text>
       )}
@@ -119,10 +103,7 @@ export function ConnectionDetailSchemaPreview({
             All tables ({schema.tables.length})
           </Text>
           {schema.tables.map((t) => (
-            <TableNode
-              key={`${t.schema ?? ""}\0${t.name}`}
-              table={t}
-            />
+            <TableNode key={`${t.schema ?? ""}\0${t.name}`} table={t} />
           ))}
         </Stack>
       )}
@@ -130,24 +111,12 @@ export function ConnectionDetailSchemaPreview({
   );
 }
 
-function HotTablesSection({
-  hotTables,
-}: {
-  hotTables: HotTableEntry[];
-}) {
+function HotTablesSection({ hotTables }: { hotTables: HotTableEntry[] }) {
   if (hotTables.length === 0) return null;
   const top = hotTables.slice(0, HOT_TABLES_LIMIT);
   return (
-    <Stack
-      data-testid="schema-hot-tables"
-      gap={1}
-      align="stretch"
-    >
-      <Text
-        fontSize="11px"
-        color="fg.subtle"
-        fontFamily="mono"
-      >
+    <Stack data-testid="schema-hot-tables" gap={1} align="stretch">
+      <Text fontSize="11px" color="fg.subtle" fontFamily="mono">
         Hot tables (most queried)
       </Text>
       {top.map((t) => (
@@ -165,7 +134,12 @@ function HotTablesSection({
           <Text fontFamily="mono" fontSize="11px" color="fg" truncate>
             {t.tableName}
           </Text>
-          <Text fontFamily="mono" fontSize="11px" color="fg.subtle" flexShrink={0}>
+          <Text
+            fontFamily="mono"
+            fontSize="11px"
+            color="fg.subtle"
+            flexShrink={0}
+          >
             {t.hits} hits
           </Text>
         </Flex>
@@ -178,10 +152,7 @@ function TableNode({ table }: { table: SchemaTable }) {
   const [open, setOpen] = useState(false);
   const display = table.schema ? `${table.schema}.${table.name}` : table.name;
   return (
-    <Box
-      data-testid={`schema-table-${display}`}
-      borderRadius="4px"
-    >
+    <Box data-testid={`schema-table-${display}`} borderRadius="4px">
       <TableHeader
         type="button"
         data-testid={`schema-table-toggle-${display}`}
@@ -231,12 +202,7 @@ function TableNode({ table }: { table: SchemaTable }) {
           pb={1}
         >
           {table.columns.map((c) => (
-            <HStack
-              key={c.name}
-              gap={2}
-              fontFamily="mono"
-              fontSize="11px"
-            >
+            <HStack key={c.name} gap={2} fontFamily="mono" fontSize="11px">
               <Text color="fg" flex={1} truncate>
                 {c.name}
               </Text>

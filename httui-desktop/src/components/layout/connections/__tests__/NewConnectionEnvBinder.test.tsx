@@ -64,9 +64,9 @@ describe("NewConnectionEnvBinder", () => {
         onToggle={onToggle}
       />,
     );
-    await userEvent.setup().click(
-      screen.getByTestId("new-connection-env-pill-local"),
-    );
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("new-connection-env-pill-local"));
     expect(onToggle).toHaveBeenCalledWith("local");
   });
 
@@ -105,9 +105,9 @@ describe("NewConnectionEnvBinder", () => {
         onCreateNew={onCreateNew}
       />,
     );
-    await userEvent.setup().click(
-      screen.getByTestId("new-connection-env-pill-new"),
-    );
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("new-connection-env-pill-new"));
     expect(onCreateNew).toHaveBeenCalledTimes(1);
   });
 

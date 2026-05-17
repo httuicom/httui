@@ -118,9 +118,9 @@ describe("GitPanelContainer", () => {
   it("shows the loading state when no vault is open", () => {
     useWorkspaceStore.setState({ vaultPath: null });
     renderWithProviders(<GitPanelContainer />);
-    expect(
-      screen.getByTestId("git-panel").getAttribute("data-loading"),
-    ).toBe("true");
+    expect(screen.getByTestId("git-panel").getAttribute("data-loading")).toBe(
+      "true",
+    );
   });
 
   describe("stage + commit (cenário 2)", () => {
@@ -178,11 +178,8 @@ describe("GitPanelContainer", () => {
       await waitFor(() => expect(committed).toBe("fix: typo"));
       await waitFor(() =>
         expect(
-          (
-            screen.getByTestId(
-              "git-commit-form-message",
-            ) as HTMLTextAreaElement
-          ).value,
+          (screen.getByTestId("git-commit-form-message") as HTMLTextAreaElement)
+            .value,
         ).toBe(""),
       );
     });
@@ -319,10 +316,7 @@ describe("GitPanelContainer", () => {
       await user.click(screen.getByTestId("git-tab-log"));
       expect(await screen.findByTestId("git-log-row-deadbee")).toBeVisible();
       expect(screen.getByTestId("git-log-row-f00")).toBeVisible();
-      await user.type(
-        screen.getByTestId("git-log-filter-input"),
-        "Other",
-      );
+      await user.type(screen.getByTestId("git-log-filter-input"), "Other");
       await waitFor(() => {
         expect(
           screen.queryByTestId("git-log-row-deadbee"),
@@ -345,14 +339,9 @@ describe("GitPanelContainer", () => {
       });
       await user.click(screen.getByTestId("git-tab-log"));
       await user.click(screen.getByTestId("git-log-filter-mode-path"));
-      await user.type(
-        screen.getByTestId("git-log-filter-input"),
-        "src/app",
-      );
+      await user.type(screen.getByTestId("git-log-filter-input"), "src/app");
       await waitFor(() => {
-        expect((lastArgs as { pathFilter: string }).pathFilter).toBe(
-          "src/app",
-        );
+        expect((lastArgs as { pathFilter: string }).pathFilter).toBe("src/app");
       });
     });
 
@@ -426,9 +415,7 @@ describe("GitPanelContainer", () => {
       renderWithProviders(<GitPanelContainer />);
       await user.click(await screen.findByTestId("git-sync-push"));
       await waitFor(() =>
-        expect((pushArgs as { setUpstream: boolean }).setUpstream).toBe(
-          false,
-        ),
+        expect((pushArgs as { setUpstream: boolean }).setUpstream).toBe(false),
       );
       expect(
         screen.queryByTestId("git-upstream-prompt"),
@@ -448,9 +435,7 @@ describe("GitPanelContainer", () => {
       await user.click(await screen.findByTestId("git-sync-push"));
       const prompt = await screen.findByTestId("git-upstream-prompt");
       expect(prompt.textContent).toContain("feat/new");
-      await user.click(
-        screen.getByTestId("git-upstream-prompt-confirm"),
-      );
+      await user.click(screen.getByTestId("git-upstream-prompt-confirm"));
       await waitFor(() => expect(pushArgs).not.toBeNull());
       expect(pushArgs!.setUpstream).toBe(true);
       expect(pushArgs!.branch).toBe("feat/new");
@@ -471,9 +456,7 @@ describe("GitPanelContainer", () => {
       const user = userEvent.setup();
       renderWithProviders(<GitPanelContainer />);
       await user.click(await screen.findByTestId("git-sync-push"));
-      await user.click(
-        await screen.findByTestId("git-upstream-prompt-cancel"),
-      );
+      await user.click(await screen.findByTestId("git-upstream-prompt-cancel"));
       await waitFor(() =>
         expect(
           screen.queryByTestId("git-upstream-prompt"),
@@ -499,13 +482,9 @@ describe("GitPanelContainer", () => {
       mockTauriCommand("git_status_cmd", () => conflicted);
       renderWithProviders(<GitPanelContainer />);
       await waitFor(() => {
-        expect(
-          screen.getByTestId("git-conflict-banner"),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId("git-conflict-banner")).toBeInTheDocument();
       });
-      expect(
-        screen.getByTestId("git-conflict-row-c.md"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("git-conflict-row-c.md")).toBeInTheDocument();
     });
 
     it("accepts ours via git_checkout_conflict_path_cmd", async () => {
@@ -541,9 +520,7 @@ describe("GitPanelContainer", () => {
         await screen.findByTestId("git-conflict-row-c.md-resolve"),
       );
       await waitFor(() => {
-        expect(
-          screen.getByTestId("git-conflict-resolver"),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId("git-conflict-resolver")).toBeInTheDocument();
       });
       await user.click(screen.getByTestId("git-conflict-resolver-mark"));
       await waitFor(() => expect(wrote).toBe("ours\n"));
@@ -585,32 +562,23 @@ describe("GitPanelContainer", () => {
       const user = userEvent.setup();
       renderWithProviders(<GitPanelContainer />);
       await waitFor(() => {
-        expect(
-          screen.getByTestId("git-sync-buttons"),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId("git-sync-buttons")).toBeInTheDocument();
       });
       expect(
-        (screen.getByTestId("git-sync-fetch") as HTMLButtonElement)
-          .disabled,
+        (screen.getByTestId("git-sync-fetch") as HTMLButtonElement).disabled,
       ).toBe(true);
       expect(
-        (screen.getByTestId("git-sync-pull") as HTMLButtonElement)
-          .disabled,
+        (screen.getByTestId("git-sync-pull") as HTMLButtonElement).disabled,
       ).toBe(true);
       expect(
-        (screen.getByTestId("git-sync-push") as HTMLButtonElement)
-          .disabled,
+        (screen.getByTestId("git-sync-push") as HTMLButtonElement).disabled,
       ).toBe(true);
-      expect(
-        screen.getByTestId("git-sync-no-remote-hint"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("git-sync-no-remote-hint")).toBeInTheDocument();
       // Toolbar Share popover surfaces the empty state.
       await user.click(screen.getByTestId("share-menu-trigger"));
       await waitFor(() => {
         expect(
-          screen
-            .getByTestId("share-popover")
-            .getAttribute("data-state"),
+          screen.getByTestId("share-popover").getAttribute("data-state"),
         ).toBe("empty");
       });
     });
@@ -630,8 +598,7 @@ describe("GitPanelContainer", () => {
           await vi.advanceTimersByTimeAsync(50);
         });
         expect(
-          (screen.getByTestId("git-sync-push") as HTMLButtonElement)
-            .disabled,
+          (screen.getByTestId("git-sync-push") as HTMLButtonElement).disabled,
         ).toBe(true);
         // `git remote add` happens outside the app.
         remotes = [{ name: "origin", url: "git@github.com:a/b.git" }];
@@ -640,8 +607,7 @@ describe("GitPanelContainer", () => {
           await vi.advanceTimersByTimeAsync(2100);
         });
         expect(
-          (screen.getByTestId("git-sync-push") as HTMLButtonElement)
-            .disabled,
+          (screen.getByTestId("git-sync-push") as HTMLButtonElement).disabled,
         ).toBe(false);
       } finally {
         vi.useRealTimers();
@@ -659,9 +625,7 @@ describe("GitPanelContainer", () => {
       expect(screen.getByTestId("git-tab-log")).toBeInTheDocument();
       // Audit dropped — was identical to Log without the v1.x
       // action-type filters.
-      expect(
-        screen.queryByTestId("git-tab-audit"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("git-tab-audit")).not.toBeInTheDocument();
     });
   });
 });

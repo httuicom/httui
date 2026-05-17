@@ -82,16 +82,14 @@ export const BLOCK_TEMPLATES: Readonly<Record<BlockKind, BlockTemplate>> = {
     kind: "websocket",
     label: "WebSocket",
     executable: false,
-    insert:
-      "```ws alias=ws1 executable=false\nwss://example.com/socket\n```\n",
+    insert: "```ws alias=ws1 executable=false\nwss://example.com/socket\n```\n",
     cursorOffset: -6,
   },
   graphql: {
     kind: "graphql",
     label: "GraphQL",
     executable: false,
-    insert:
-      "```graphql alias=q1 executable=false\nquery {\n  \n}\n```\n",
+    insert: "```graphql alias=q1 executable=false\nquery {\n  \n}\n```\n",
     cursorOffset: -8,
   },
   shell: {

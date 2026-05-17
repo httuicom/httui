@@ -34,9 +34,7 @@ describe("NetworkFields", () => {
   });
 
   it("uses MySQL placeholder when driver is mysql", () => {
-    renderWithProviders(
-      <NetworkFields {...defaults()} driver="mysql" />,
-    );
+    renderWithProviders(<NetworkFields {...defaults()} driver="mysql" />);
     expect(screen.getByPlaceholderText("root")).toBeInTheDocument();
   });
 
@@ -61,9 +59,12 @@ describe("NetworkFields", () => {
       <NetworkFields {...defaults()} onSslModeChange={onSslModeChange} />,
     );
     const select = screen.getByRole("combobox") as HTMLSelectElement;
-    expect(
-      Array.from(select.options).map((o) => o.value),
-    ).toEqual(["disable", "require", "verify-ca", "verify-full"]);
+    expect(Array.from(select.options).map((o) => o.value)).toEqual([
+      "disable",
+      "require",
+      "verify-ca",
+      "verify-full",
+    ]);
     await userEvent.setup().selectOptions(select, "require");
     expect(onSslModeChange).toHaveBeenCalled();
   });

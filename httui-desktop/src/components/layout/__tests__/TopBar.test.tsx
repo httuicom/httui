@@ -122,7 +122,9 @@ describe("TopBar", () => {
     it("chat button calls onToggleChat", async () => {
       const user = userEvent.setup();
       const onToggleChat = vi.fn();
-      renderWithWorkspace(<TopBar {...baseProps} onToggleChat={onToggleChat} />);
+      renderWithWorkspace(
+        <TopBar {...baseProps} onToggleChat={onToggleChat} />,
+      );
       await user.click(screen.getByRole("button", { name: /open chat/i }));
       expect(onToggleChat).toHaveBeenCalledTimes(1);
     });
@@ -161,9 +163,7 @@ describe("TopBar", () => {
       const user = userEvent.setup();
       const onSearch = vi.fn();
       renderWithWorkspace(<TopBar {...baseProps} onSearch={onSearch} />);
-      await user.click(
-        screen.getByLabelText("Search blocks, vars, schema"),
-      );
+      await user.click(screen.getByLabelText("Search blocks, vars, schema"));
       expect(onSearch).toHaveBeenCalledTimes(1);
     });
 
@@ -172,9 +172,7 @@ describe("TopBar", () => {
       const dispatch = vi.spyOn(window, "dispatchEvent");
       renderWithWorkspace(<TopBar {...baseProps} />);
 
-      await user.click(
-        screen.getByLabelText("Search blocks, vars, schema"),
-      );
+      await user.click(screen.getByLabelText("Search blocks, vars, schema"));
 
       const calls = dispatch.mock.calls.filter(
         (c) => (c[0] as KeyboardEvent).key === "p",

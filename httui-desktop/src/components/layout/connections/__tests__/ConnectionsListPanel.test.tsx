@@ -16,7 +16,9 @@ function defaults() {
 describe("ConnectionsListPanel", () => {
   it("renders the heading and the canvas-spec status counts", () => {
     renderWithProviders(<ConnectionsListPanel {...defaults()} />);
-    expect(screen.getByRole("heading", { name: "Connections" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Connections" }),
+    ).toBeInTheDocument();
     const status = screen.getByTestId("connections-list-status");
     expect(status.textContent).toContain("16");
     expect(status.textContent).toContain("14 ok");
@@ -27,14 +29,9 @@ describe("ConnectionsListPanel", () => {
   it("New button dispatches its handler", async () => {
     const onCreateNew = vi.fn();
     renderWithProviders(
-      <ConnectionsListPanel
-        {...defaults()}
-        onCreateNew={onCreateNew}
-      />,
+      <ConnectionsListPanel {...defaults()} onCreateNew={onCreateNew} />,
     );
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("connections-create-new"));
+    await userEvent.setup().click(screen.getByTestId("connections-create-new"));
     expect(onCreateNew).toHaveBeenCalledTimes(1);
   });
 
@@ -46,14 +43,9 @@ describe("ConnectionsListPanel", () => {
   it("dispatches onSearchChange as the user types", async () => {
     const onSearchChange = vi.fn();
     renderWithProviders(
-      <ConnectionsListPanel
-        {...defaults()}
-        onSearchChange={onSearchChange}
-      />,
+      <ConnectionsListPanel {...defaults()} onSearchChange={onSearchChange} />,
     );
-    await userEvent
-      .setup()
-      .type(screen.getByTestId("connections-search"), "p");
+    await userEvent.setup().type(screen.getByTestId("connections-search"), "p");
     expect(onSearchChange).toHaveBeenCalled();
   });
 
@@ -67,9 +59,9 @@ describe("ConnectionsListPanel", () => {
     renderWithProviders(
       <ConnectionsListPanel {...defaults()} emptyHint="No matches" />,
     );
-    expect(
-      screen.getByTestId("connections-list-empty").textContent,
-    ).toContain("No matches");
+    expect(screen.getByTestId("connections-list-empty").textContent).toContain(
+      "No matches",
+    );
   });
 
   it("legacy footer hint is gone", () => {

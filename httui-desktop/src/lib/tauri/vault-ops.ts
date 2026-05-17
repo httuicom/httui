@@ -60,9 +60,6 @@ export function createVault(
  * first-run secrets modal. Empty key/value pairs are rejected at
  * the backend.
  */
-export function saveSecret(
-  keychainKey: string,
-  value: string,
-): Promise<void> {
+export function saveSecret(keychainKey: string, value: string): Promise<void> {
   return invoke("save_secret_cmd", { keychainKey, value });
 }

@@ -13,15 +13,11 @@ describe("extractOutline", () => {
 
   it("captures a single H1", () => {
     const r = extractOutline("# Hello world\n");
-    expect(r).toEqual([
-      { level: 1, text: "Hello world", line: 1, offset: 0 },
-    ]);
+    expect(r).toEqual([{ level: 1, text: "Hello world", line: 1, offset: 0 }]);
   });
 
   it("captures H1 / H2 / H3 by default and rejects H4+", () => {
-    const r = extractOutline(
-      "# A\n## B\n### C\n#### D\n##### E\n###### F\n",
-    );
+    const r = extractOutline("# A\n## B\n### C\n#### D\n##### E\n###### F\n");
     expect(r.map((e) => e.level)).toEqual([1, 2, 3]);
     expect(r.map((e) => e.text)).toEqual(["A", "B", "C"]);
   });
@@ -52,7 +48,9 @@ describe("extractOutline", () => {
   });
 
   it("only matches a fence-close with the same marker", () => {
-    const r = extractOutline("```\n# fake-inside-block\n~~~ bogus\n```\n# real\n");
+    const r = extractOutline(
+      "```\n# fake-inside-block\n~~~ bogus\n```\n# real\n",
+    );
     expect(r.map((e) => e.text)).toEqual(["real"]);
   });
 

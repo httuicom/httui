@@ -33,10 +33,7 @@ describe("NewConnectionKindPicker", () => {
 
   it("marks the selected row via data-selected and aria-pressed", () => {
     renderWithProviders(
-      <NewConnectionKindPicker
-        selectedKind="mysql"
-        onSelectKind={vi.fn()}
-      />,
+      <NewConnectionKindPicker selectedKind="mysql" onSelectKind={vi.fn()} />,
     );
     const mysql = screen.getByTestId("new-connection-kind-mysql");
     expect(mysql.getAttribute("data-selected")).toBe("true");
@@ -54,9 +51,9 @@ describe("NewConnectionKindPicker", () => {
         onSelectKind={onSelectKind}
       />,
     );
-    await userEvent.setup().click(
-      screen.getByTestId("new-connection-kind-mongo"),
-    );
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("new-connection-kind-mongo"));
     expect(onSelectKind).toHaveBeenCalledWith("mongo");
   });
 
@@ -72,9 +69,9 @@ describe("NewConnectionKindPicker", () => {
         onSelectKind={onSelectKind}
       />,
     );
-    await userEvent.setup().click(
-      screen.getByTestId("new-connection-kind-postgres"),
-    );
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("new-connection-kind-postgres"));
     expect(onSelectKind).toHaveBeenCalledWith("postgres");
   });
 });

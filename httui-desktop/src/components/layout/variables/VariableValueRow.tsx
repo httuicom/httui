@@ -272,7 +272,12 @@ function ValueDisplay({
 
   if (reveal.kind === "loading") {
     return (
-      <Text fontFamily="mono" fontSize="11px" color="fg.subtle" data-testid={testId}>
+      <Text
+        fontFamily="mono"
+        fontSize="11px"
+        color="fg.subtle"
+        data-testid={testId}
+      >
         loading…
       </Text>
     );
@@ -292,7 +297,12 @@ function ValueDisplay({
   }
   if (isSecret && reveal.kind !== "revealed") {
     return (
-      <Text fontFamily="mono" fontSize="11px" color="fg.muted" data-testid={testId}>
+      <Text
+        fontFamily="mono"
+        fontSize="11px"
+        color="fg.muted"
+        data-testid={testId}
+      >
         {SECRET_MASK}
       </Text>
     );
@@ -317,7 +327,12 @@ function ValueDisplay({
   }
   if (value === undefined) {
     return (
-      <Text fontFamily="mono" fontSize="11px" color="fg.subtle" data-testid={testId}>
+      <Text
+        fontFamily="mono"
+        fontSize="11px"
+        color="fg.subtle"
+        data-testid={testId}
+      >
         —
       </Text>
     );

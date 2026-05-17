@@ -178,7 +178,11 @@ export const useTagIndexStore = create<TagIndexState>()(
           // Defensive: ignore entries the backend mis-shaped (extra
           // walker calls might surface a future bug here without
           // crashing the whole store load).
-          if (!entry || typeof entry.path !== "string" || !Array.isArray(entry.tags)) {
+          if (
+            !entry ||
+            typeof entry.path !== "string" ||
+            !Array.isArray(entry.tags)
+          ) {
             continue;
           }
           // Dedup tags within a file before indexing — covers

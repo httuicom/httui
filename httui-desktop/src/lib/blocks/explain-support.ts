@@ -30,7 +30,9 @@ export const EXPLAIN_BODY_CAP = 200_000;
  *  capture as a JSON plan (Postgres / MySQL family). False for
  *  SQLite / BigQuery / Snowflake / Mongo / unknown — those map to
  *  `ExplainError::Unsupported` in the backend. */
-export function driverSupportsExplain(driver: string | null | undefined): boolean {
+export function driverSupportsExplain(
+  driver: string | null | undefined,
+): boolean {
   if (!driver) return false;
   return EXPLAIN_SUPPORTED_DRIVERS.has(driver.trim().toLowerCase());
 }

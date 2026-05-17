@@ -10,11 +10,7 @@ import { Box, Flex, Text } from "@chakra-ui/react";
 
 export function NewConnectionSshTab() {
   return (
-    <Flex
-      data-testid="new-connection-ssh-tab"
-      direction="column"
-      gap={3}
-    >
+    <Flex data-testid="new-connection-ssh-tab" direction="column" gap={3}>
       <Box
         data-testid="new-connection-ssh-coming-soon"
         bg="bg.muted"
@@ -28,10 +24,9 @@ export function NewConnectionSshTab() {
           SSH tunnel — coming soon
         </Text>
         <Text fontSize="12px" color="fg.muted" mt={1}>
-          The native assistant (host, port, jump-host, key file) ships
-          in a future release. For v1, open a local tunnel
-          (<Mono>ssh -L</Mono>) and point the connection at{" "}
-          <Mono>localhost:&lt;local-port&gt;</Mono>.
+          The native assistant (host, port, jump-host, key file) ships in a
+          future release. For v1, open a local tunnel (<Mono>ssh -L</Mono>) and
+          point the connection at <Mono>localhost:&lt;local-port&gt;</Mono>.
         </Text>
       </Box>
 
@@ -53,9 +48,9 @@ export function NewConnectionSshTab() {
       </Box>
 
       <Text fontSize="11px" color="fg.subtle">
-        When native SSH lands, existing connections won't need
-        migration — the tunnel becomes just another connection detail
-        and the rest of the form stays the same.
+        When native SSH lands, existing connections won't need migration — the
+        tunnel becomes just another connection detail and the rest of the form
+        stays the same.
       </Text>
     </Flex>
   );

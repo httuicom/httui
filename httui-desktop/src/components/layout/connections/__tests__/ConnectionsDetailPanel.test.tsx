@@ -32,9 +32,7 @@ describe("ConnectionsDetailPanel", () => {
     renderWithProviders(
       <ConnectionsDetailPanel selectedConnectionName={null} />,
     );
-    expect(
-      screen.getByTestId("connections-detail-empty"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("connections-detail-empty")).toBeInTheDocument();
     expect(screen.getByText(/Nothing selected/i)).toBeInTheDocument();
   });
 
@@ -42,9 +40,7 @@ describe("ConnectionsDetailPanel", () => {
     renderWithProviders(
       <ConnectionsDetailPanel selectedConnectionName="prod-db" />,
     );
-    const placeholder = screen.getByTestId(
-      "connections-detail-placeholder",
-    );
+    const placeholder = screen.getByTestId("connections-detail-placeholder");
     expect(placeholder).toBeInTheDocument();
     expect(placeholder.textContent).toContain("prod-db");
   });
@@ -56,16 +52,10 @@ describe("ConnectionsDetailPanel", () => {
         selectedConnection={conn()}
       />,
     );
-    expect(
-      screen.getByTestId("connections-detail-loaded"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("connection-credentials"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("connections-detail-loaded")).toBeInTheDocument();
+    expect(screen.getByTestId("connection-credentials")).toBeInTheDocument();
     // Placeholder must NOT render alongside the loaded panel.
-    expect(
-      screen.queryByTestId("connections-detail-placeholder"),
-    ).toBeNull();
+    expect(screen.queryByTestId("connections-detail-placeholder")).toBeNull();
   });
 
   it("forwards onSaveCredentials + onRotatePassword to the credentials section", () => {
@@ -81,11 +71,7 @@ describe("ConnectionsDetailPanel", () => {
     );
     // Smoke: the credentials section is mounted; deeper button
     // semantics are covered in ConnectionDetailCredentials.test.tsx.
-    expect(
-      screen.getByTestId("credentials-edit"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("credentials-rotate"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("credentials-edit")).toBeInTheDocument();
+    expect(screen.getByTestId("credentials-rotate")).toBeInTheDocument();
   });
 });

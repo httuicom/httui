@@ -13,11 +13,7 @@ const mkEnv = (id: string, name: string) => ({
   created_at: "2026-01-01T00:00:00Z",
 });
 
-const mkVar = (
-  key: string,
-  value: string,
-  isSecret = false,
-): EnvVariable => ({
+const mkVar = (key: string, value: string, isSecret = false): EnvVariable => ({
   id: `var-${key}`,
   environment_id: "env-1",
   key,
@@ -93,12 +89,8 @@ describe("VariablesPanel", () => {
     expect(screen.queryByText("supersecret")).toBeNull();
     expect(screen.getByText("••••••••")).toBeInTheDocument();
     // LuKey icon present for the secret row only.
-    expect(
-      screen.getByTestId("var-key-icon-DB_PASSWORD"),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("var-key-icon-API_URL"),
-    ).toBeNull();
+    expect(screen.getByTestId("var-key-icon-DB_PASSWORD")).toBeInTheDocument();
+    expect(screen.queryByTestId("var-key-icon-API_URL")).toBeNull();
   });
 
   it("clicking the edit button opens the manager", async () => {
@@ -116,9 +108,7 @@ describe("VariablesPanel", () => {
 
   it("re-fetches when activeEnvironment changes", async () => {
     const loadVariables = vi.fn(async (envId: string) =>
-      envId === "env-1"
-        ? [mkVar("ONE", "1")]
-        : [mkVar("TWO", "2")],
+      envId === "env-1" ? [mkVar("ONE", "1")] : [mkVar("TWO", "2")],
     );
     useEnvironmentStore.setState({
       activeEnvironment: mkEnv("env-1", "local"),

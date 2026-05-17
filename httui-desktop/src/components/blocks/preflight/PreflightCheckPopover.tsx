@@ -245,10 +245,7 @@ interface KindPickerProps {
 
 function KindPicker({ onSelect }: KindPickerProps) {
   return (
-    <Stack
-      data-testid="preflight-check-popover-kind-picker"
-      gap={1}
-    >
+    <Stack data-testid="preflight-check-popover-kind-picker" gap={1}>
       {KIND_OPTIONS.map((opt) => (
         <Box
           key={opt.kind}

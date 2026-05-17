@@ -131,8 +131,9 @@ export const useEnvironmentStore = create<EnvironmentState>()(
         // top of the resolved values so block runs see the TEMPORARY
         // value the user set, not the vault-stored one.
         const overrides =
-          useSessionOverrideStore.getState().overrides[activeEnvironment.name] ??
-          {};
+          useSessionOverrideStore.getState().overrides[
+            activeEnvironment.name
+          ] ?? {};
         return { ...resolved, ...overrides };
       },
     }),

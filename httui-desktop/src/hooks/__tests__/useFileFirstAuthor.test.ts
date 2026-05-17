@@ -1,10 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
@@ -25,9 +19,7 @@ afterEach(() => clearTauriMocks());
 
 describe("useFileFirstAuthor", () => {
   it("idles when vaultPath is null", async () => {
-    const { result } = renderHook(() =>
-      useFileFirstAuthor(null, "runbook.md"),
-    );
+    const { result } = renderHook(() => useFileFirstAuthor(null, "runbook.md"));
     await act(async () => {
       await Promise.resolve();
     });
@@ -48,9 +40,7 @@ describe("useFileFirstAuthor", () => {
 
   it("populates the author after the initial fetch", async () => {
     mockTauriCommand("git_first_commit_author_cmd", () => ALICE);
-    const { result } = renderHook(() =>
-      useFileFirstAuthor("/v", "runbook.md"),
-    );
+    const { result } = renderHook(() => useFileFirstAuthor("/v", "runbook.md"));
     await waitFor(() => expect(result.current.loaded).toBe(true));
     expect(result.current.author).toEqual(ALICE);
     expect(result.current.error).toBeNull();
@@ -70,9 +60,7 @@ describe("useFileFirstAuthor", () => {
     mockTauriCommand("git_first_commit_author_cmd", () => {
       throw new Error("not a git repo");
     });
-    const { result } = renderHook(() =>
-      useFileFirstAuthor("/v", "runbook.md"),
-    );
+    const { result } = renderHook(() => useFileFirstAuthor("/v", "runbook.md"));
     await waitFor(() => expect(result.current.error).toBe("not a git repo"));
     expect(result.current.author).toBeNull();
     expect(result.current.loaded).toBe(false);
@@ -82,18 +70,14 @@ describe("useFileFirstAuthor", () => {
     mockTauriCommand("git_first_commit_author_cmd", () => {
       throw "boom";
     });
-    const { result } = renderHook(() =>
-      useFileFirstAuthor("/v", "runbook.md"),
-    );
+    const { result } = renderHook(() => useFileFirstAuthor("/v", "runbook.md"));
     await waitFor(() => expect(result.current.error).toBe("boom"));
   });
 
   it("refresh re-fetches and replaces stale data", async () => {
     let next: CommitInfo | null = ALICE;
     mockTauriCommand("git_first_commit_author_cmd", () => next);
-    const { result } = renderHook(() =>
-      useFileFirstAuthor("/v", "runbook.md"),
-    );
+    const { result } = renderHook(() => useFileFirstAuthor("/v", "runbook.md"));
     await waitFor(() => expect(result.current.author).toEqual(ALICE));
 
     next = null;
@@ -125,9 +109,7 @@ describe("useFileFirstAuthor", () => {
       if (mode === "throw") throw new Error("transient");
       return ALICE;
     });
-    const { result } = renderHook(() =>
-      useFileFirstAuthor("/v", "runbook.md"),
-    );
+    const { result } = renderHook(() => useFileFirstAuthor("/v", "runbook.md"));
     await waitFor(() => expect(result.current.error).toBe("transient"));
 
     mode = "ok";

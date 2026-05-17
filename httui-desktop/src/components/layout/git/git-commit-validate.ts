@@ -33,11 +33,14 @@ export function validateCommitMessage(message: string): CommitValidation {
   // empty and subject is the entire single-line message.
   const lines = trimmed.split("\n");
   const subject = lines[0]!.replace(/^\s+/u, "");
-  const blankIdx = lines.findIndex(
-    (l, i) => i > 0 && l.trim().length === 0,
-  );
+  const blankIdx = lines.findIndex((l, i) => i > 0 && l.trim().length === 0);
   const body =
-    blankIdx === -1 ? "" : lines.slice(blankIdx + 1).join("\n").trim();
+    blankIdx === -1
+      ? ""
+      : lines
+          .slice(blankIdx + 1)
+          .join("\n")
+          .trim();
 
   if (subject.length === 0) {
     errors.push("Commit subject (first line) cannot be empty.");

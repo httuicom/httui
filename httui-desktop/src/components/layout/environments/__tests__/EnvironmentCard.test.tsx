@@ -164,11 +164,7 @@ describe("EnvironmentCard", () => {
     const onActivate = vi.fn();
     const onClone = vi.fn();
     renderWithProviders(
-      <EnvironmentCard
-        env={env()}
-        onActivate={onActivate}
-        onClone={onClone}
-      />,
+      <EnvironmentCard env={env()} onActivate={onActivate} onClone={onClone} />,
     );
     await userEvent
       .setup()

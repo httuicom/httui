@@ -129,7 +129,13 @@ export function GitConflictResolver({
           >
             Merge base
           </Text>
-          <Box as="pre" m={0} fontFamily="mono" fontSize="11px" color="fg.muted">
+          <Box
+            as="pre"
+            m={0}
+            fontFamily="mono"
+            fontSize="11px"
+            color="fg.muted"
+          >
             {versions.base.length > 0
               ? versions.base
               : "(no common ancestor — add/add conflict)"}

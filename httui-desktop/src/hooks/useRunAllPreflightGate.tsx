@@ -91,7 +91,11 @@ interface RunAllConfirmProps {
   onRunAnyway: () => void;
 }
 
-function RunAllConfirm({ decision, onCancel, onRunAnyway }: RunAllConfirmProps) {
+function RunAllConfirm({
+  decision,
+  onCancel,
+  onRunAnyway,
+}: RunAllConfirmProps) {
   return (
     <Portal>
       <Box

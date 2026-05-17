@@ -33,9 +33,7 @@ describe("useShareRepoUrl", () => {
       { name: "origin", url: "git@github.com:acme/widgets.git" },
     ]);
     const { result } = renderHook(() => useShareRepoUrl("/v"));
-    await waitFor(() =>
-      expect(result.current.options).toHaveLength(3),
-    );
+    await waitFor(() => expect(result.current.options).toHaveLength(3));
     const byName = Object.fromEntries(
       result.current.options.map((o) => [o.name, o]),
     );
@@ -67,9 +65,7 @@ describe("useShareRepoUrl", () => {
     // The hook lazy-imports the shell plugin, so the call lands on
     // a microtask — wait for it.
     await waitFor(() =>
-      expect(shellOpen).toHaveBeenCalledWith(
-        "https://github.com/acme/widgets",
-      ),
+      expect(shellOpen).toHaveBeenCalledWith("https://github.com/acme/widgets"),
     );
   });
 });

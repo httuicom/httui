@@ -222,7 +222,9 @@ describe("tagIndex store", () => {
 
   it("refreshTagsForFile parses content and indexes the tags", () => {
     const content = "---\ntags: [payments, debug]\n---\nbody\n";
-    const tags = useTagIndexStore.getState().refreshTagsForFile("a.md", content);
+    const tags = useTagIndexStore
+      .getState()
+      .refreshTagsForFile("a.md", content);
     expect(tags).toEqual(["payments", "debug"]);
     const s = useTagIndexStore.getState();
     expect(s.getFilesByTag("payments")).toEqual(["a.md"]);
@@ -315,10 +317,7 @@ describe("tagIndex store", () => {
 
     it("archived + tagged in same file: both indexed, both cleared on remove", () => {
       const s = useTagIndexStore.getState();
-      s.refreshTagsForFile(
-        "a.md",
-        "---\nstatus: archived\ntags: [api]\n---\n",
-      );
+      s.refreshTagsForFile("a.md", "---\nstatus: archived\ntags: [api]\n---\n");
       const after = useTagIndexStore.getState();
       expect(after.isArchived("a.md")).toBe(true);
       expect(after.getFilesByTag("api")).toEqual(["a.md"]);

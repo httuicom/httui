@@ -156,7 +156,9 @@ describe("useCaptureStore", () => {
   it("loadFromCacheJson is a no-op when top-level isn't an object", () => {
     useCaptureStore.getState().setBlockCaptures("a.md", "x", { a: 1 });
     const before = useCaptureStore.getState().values;
-    useCaptureStore.getState().loadFromCacheJson("a.md", JSON.stringify([1, 2]));
+    useCaptureStore
+      .getState()
+      .loadFromCacheJson("a.md", JSON.stringify([1, 2]));
     expect(useCaptureStore.getState().values).toBe(before);
     useCaptureStore.getState().loadFromCacheJson("a.md", JSON.stringify(null));
     expect(useCaptureStore.getState().values).toBe(before);

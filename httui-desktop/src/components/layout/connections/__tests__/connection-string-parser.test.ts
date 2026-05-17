@@ -49,9 +49,7 @@ describe("parseConnectionString", () => {
   });
 
   it("normalizes postgresql:// alias to kind postgres", () => {
-    const result = parseConnectionString(
-      "postgresql://localhost/orders",
-    );
+    const result = parseConnectionString("postgresql://localhost/orders");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.kind).toBe("postgres");
@@ -106,9 +104,7 @@ describe("parseConnectionString", () => {
   });
 
   it("decodes percent-encoded credentials", () => {
-    const result = parseConnectionString(
-      "postgres://us%40er:pa%2Fss@h/db",
-    );
+    const result = parseConnectionString("postgres://us%40er:pa%2Fss@h/db");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.username).toBe("us@er");

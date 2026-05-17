@@ -62,9 +62,7 @@ export function DocHeaderStatusBadge({
     : FALLBACK_PALETTE;
   const interactive = !!onSelect;
 
-  const handleClick = interactive
-    ? () => onSelect?.(normalized)
-    : undefined;
+  const handleClick = interactive ? () => onSelect?.(normalized) : undefined;
 
   return (
     <Box

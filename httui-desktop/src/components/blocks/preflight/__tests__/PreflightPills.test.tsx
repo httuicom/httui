@@ -31,18 +31,15 @@ function skip(id: string, reason: string): PreflightPillItem {
 describe("PreflightPills", () => {
   it("renders nothing when items is empty", () => {
     const { container } = renderWithProviders(<PreflightPills items={[]} />);
-    expect(container.querySelector('[data-testid="preflight-pills"]'))
-      .toBeNull();
+    expect(
+      container.querySelector('[data-testid="preflight-pills"]'),
+    ).toBeNull();
   });
 
   it("renders one pill per item with the right data-kind", () => {
     renderWithProviders(
       <PreflightPills
-        items={[
-          pass("a"),
-          fail("b", "missing"),
-          skip("c", "irrelevant"),
-        ]}
+        items={[pass("a"), fail("b", "missing"), skip("c", "irrelevant")]}
       />,
     );
     expect(
@@ -61,27 +58,16 @@ describe("PreflightPills", () => {
 
   it("renders the canvas glyphs (✓ ✗ –)", () => {
     renderWithProviders(
-      <PreflightPills
-        items={[pass("a"), fail("b", "x"), skip("c", "y")]}
-      />,
+      <PreflightPills items={[pass("a"), fail("b", "x"), skip("c", "y")]} />,
     );
-    expect(screen.getByTestId("preflight-pill-a-glyph").textContent).toBe(
-      "✓",
-    );
-    expect(screen.getByTestId("preflight-pill-b-glyph").textContent).toBe(
-      "✗",
-    );
-    expect(screen.getByTestId("preflight-pill-c-glyph").textContent).toBe(
-      "–",
-    );
+    expect(screen.getByTestId("preflight-pill-a-glyph").textContent).toBe("✓");
+    expect(screen.getByTestId("preflight-pill-b-glyph").textContent).toBe("✗");
+    expect(screen.getByTestId("preflight-pill-c-glyph").textContent).toBe("–");
   });
 
   it("flips all pills to 'running' when rechecking is true", () => {
     renderWithProviders(
-      <PreflightPills
-        items={[pass("a"), fail("b", "x")]}
-        rechecking
-      />,
+      <PreflightPills items={[pass("a"), fail("b", "x")]} rechecking />,
     );
     expect(
       screen.getByTestId("preflight-pill-a").getAttribute("data-kind"),
@@ -89,9 +75,7 @@ describe("PreflightPills", () => {
     expect(
       screen.getByTestId("preflight-pill-b").getAttribute("data-kind"),
     ).toBe("running");
-    expect(screen.getByTestId("preflight-pill-a-glyph").textContent).toBe(
-      "◌",
-    );
+    expect(screen.getByTestId("preflight-pill-a-glyph").textContent).toBe("◌");
   });
 
   it("makes failed pills actionable only when onSelectFailure is provided", async () => {
@@ -113,9 +97,7 @@ describe("PreflightPills", () => {
   });
 
   it("renders failed pills as inert spans without the callback", () => {
-    renderWithProviders(
-      <PreflightPills items={[fail("b", "missing")]} />,
-    );
+    renderWithProviders(<PreflightPills items={[fail("b", "missing")]} />);
     const pill = screen.getByTestId("preflight-pill-b");
     expect(pill.getAttribute("data-actionable")).toBeNull();
     expect(pill.tagName).toBe("SPAN");
@@ -145,11 +127,7 @@ describe("PreflightPills", () => {
 
   it("disables Re-check + flips its label while rechecking", () => {
     renderWithProviders(
-      <PreflightPills
-        items={[pass("a")]}
-        onRecheck={() => {}}
-        rechecking
-      />,
+      <PreflightPills items={[pass("a")]} onRecheck={() => {}} rechecking />,
     );
     const btn = screen.getByTestId(
       "preflight-pills-recheck",
@@ -172,25 +150,19 @@ describe("PreflightPills", () => {
         onSelectFailure={() => {}}
       />,
     );
-    expect(
-      screen.getByTestId("preflight-pill-b").getAttribute("title"),
-    ).toBe("Connection x not found");
+    expect(screen.getByTestId("preflight-pill-b").getAttribute("title")).toBe(
+      "Connection x not found",
+    );
   });
 
   describe("builder (V6 cenário 9)", () => {
     it("renders + Add check button when onAddCheck is wired", () => {
-      renderWithProviders(
-        <PreflightPills items={[]} onAddCheck={() => {}} />,
-      );
-      expect(
-        screen.getByTestId("preflight-pills-add"),
-      ).toBeInTheDocument();
+      renderWithProviders(<PreflightPills items={[]} onAddCheck={() => {}} />);
+      expect(screen.getByTestId("preflight-pills-add")).toBeInTheDocument();
     });
 
     it("does not render + Add check when onAddCheck is omitted", () => {
-      renderWithProviders(
-        <PreflightPills items={[fail("a", "x")]} />,
-      );
+      renderWithProviders(<PreflightPills items={[fail("a", "x")]} />);
       expect(
         screen.queryByTestId("preflight-pills-add"),
       ).not.toBeInTheDocument();
@@ -198,9 +170,7 @@ describe("PreflightPills", () => {
 
     it("clicking + Add check opens the popover at the kind picker", async () => {
       const user = userEvent.setup();
-      renderWithProviders(
-        <PreflightPills items={[]} onAddCheck={() => {}} />,
-      );
+      renderWithProviders(<PreflightPills items={[]} onAddCheck={() => {}} />);
       await user.click(screen.getByTestId("preflight-pills-add"));
       expect(
         screen.getByTestId("preflight-check-popover-kind-picker"),
@@ -209,9 +179,7 @@ describe("PreflightPills", () => {
 
     it("Add → kind picker opens with all six options", async () => {
       const user = userEvent.setup();
-      renderWithProviders(
-        <PreflightPills items={[]} onAddCheck={() => {}} />,
-      );
+      renderWithProviders(<PreflightPills items={[]} onAddCheck={() => {}} />);
       await user.click(screen.getByTestId("preflight-pills-add"));
       expect(
         screen.getByTestId("preflight-check-popover-kind-command"),
@@ -297,9 +265,7 @@ describe("PreflightPills", () => {
         />,
       );
       await user.click(screen.getByTestId("preflight-pill-p0"));
-      await user.click(
-        screen.getByTestId("preflight-check-popover-remove"),
-      );
+      await user.click(screen.getByTestId("preflight-check-popover-remove"));
       expect(onRemoveCheck).toHaveBeenCalledWith(0);
     });
 

@@ -18,7 +18,10 @@ export interface ShareMenuProps {
   variant?: "statusbar" | "toolbar";
 }
 
-export function ShareMenu({ vaultPath, variant = "statusbar" }: ShareMenuProps) {
+export function ShareMenu({
+  vaultPath,
+  variant = "statusbar",
+}: ShareMenuProps) {
   const { options, copy, open } = useShareRepoUrl(vaultPath);
 
   return (
@@ -55,11 +58,7 @@ export function ShareMenu({ vaultPath, variant = "statusbar" }: ShareMenuProps) 
             shadow="none"
             p={0}
           >
-            <SharePopover
-              remotes={options}
-              onCopy={copy}
-              onOpen={open}
-            />
+            <SharePopover remotes={options} onCopy={copy} onOpen={open} />
           </Menu.Content>
         </Menu.Positioner>
       </Portal>

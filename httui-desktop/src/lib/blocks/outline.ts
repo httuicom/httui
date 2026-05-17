@@ -60,9 +60,7 @@ export function extractOutline(
     while (scanFrom < content.length) {
       const eol = content.indexOf("\n", scanFrom);
       const lineEnd = eol === -1 ? content.length : eol;
-      const lineText = content
-        .slice(scanFrom, lineEnd)
-        .replace(/\r$/, "");
+      const lineText = content.slice(scanFrom, lineEnd).replace(/\r$/, "");
       if (lineText === "---") {
         bodyStartOffset = lineEnd + 1;
         bodyStartLine = scanLine + 1;

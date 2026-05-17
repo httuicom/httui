@@ -35,9 +35,12 @@ describe("Btn atom", () => {
       </Btn>,
     );
     const btn = screen.getByRole("button", { name: "Disabled" });
-    await userEvent.setup().click(btn).catch(() => {
-      // some chakra builds throw on disabled click; we still expect 0 calls
-    });
+    await userEvent
+      .setup()
+      .click(btn)
+      .catch(() => {
+        // some chakra builds throw on disabled click; we still expect 0 calls
+      });
     expect(onClick).not.toHaveBeenCalled();
   });
 

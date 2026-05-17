@@ -124,7 +124,11 @@ export function ConnectionListRow({
       border="none"
       _hover={{ bg: selected ? "brand.subtle" : "bg.muted" }}
     >
-      {item.kind ? <ConnectionKindIcon kind={item.kind} size={22} /> : fallbackIcon()}
+      {item.kind ? (
+        <ConnectionKindIcon kind={item.kind} size={22} />
+      ) : (
+        fallbackIcon()
+      )}
 
       <HStack gap={2} minW={0}>
         <Text
@@ -153,21 +157,11 @@ export function ConnectionListRow({
         )}
       </HStack>
 
-      <Text
-        fontFamily="mono"
-        fontSize="10px"
-        color="fg.subtle"
-        truncate
-      >
+      <Text fontFamily="mono" fontSize="10px" color="fg.subtle" truncate>
         {item.host ?? "—"}
       </Text>
 
-      <Text
-        fontFamily="mono"
-        fontSize="11px"
-        color="fg.muted"
-        truncate
-      >
+      <Text fontFamily="mono" fontSize="11px" color="fg.muted" truncate>
         {item.env ?? "—"}
       </Text>
 
@@ -210,19 +204,13 @@ export function ConnectionListRow({
               <Menu.Positioner>
                 <Menu.Content>
                   {onEdit && (
-                    <Menu.Item
-                      value="edit"
-                      onSelect={() => onEdit(item.id)}
-                    >
+                    <Menu.Item value="edit" onSelect={() => onEdit(item.id)}>
                       <LuPencil />
                       Edit
                     </Menu.Item>
                   )}
                   {onTest && (
-                    <Menu.Item
-                      value="test"
-                      onSelect={() => onTest(item.id)}
-                    >
+                    <Menu.Item value="test" onSelect={() => onTest(item.id)}>
                       <LuPlay />
                       Test
                     </Menu.Item>

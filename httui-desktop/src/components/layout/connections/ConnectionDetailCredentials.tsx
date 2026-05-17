@@ -10,14 +10,7 @@
 // behavior with vi.fn() promises.
 
 import { useEffect, useState } from "react";
-import {
-  Box,
-  Flex,
-  HStack,
-  Stack,
-  Text,
-  chakra,
-} from "@chakra-ui/react";
+import { Box, Flex, HStack, Stack, Text, chakra } from "@chakra-ui/react";
 
 import { LuKey } from "react-icons/lu";
 
@@ -106,9 +99,7 @@ export function ConnectionDetailCredentials({
       const input: UpdateConnectionInput = {
         host: draft.host,
         port:
-          draft.port.trim().length === 0
-            ? undefined
-            : Number(draft.port) || 0,
+          draft.port.trim().length === 0 ? undefined : Number(draft.port) || 0,
         database_name: draft.database,
         username: draft.username,
       };
@@ -152,11 +143,7 @@ export function ConnectionDetailCredentials({
   }
 
   return (
-    <Stack
-      data-testid="connection-credentials"
-      gap={3}
-      align="stretch"
-    >
+    <Stack data-testid="connection-credentials" gap={3} align="stretch">
       <Flex justify="space-between" align="center">
         <Text
           fontFamily="mono"
@@ -199,11 +186,7 @@ export function ConnectionDetailCredentials({
       </Flex>
 
       {!editing ? (
-        <Stack
-          gap={2}
-          data-testid="credentials-readonly"
-          fontSize="12px"
-        >
+        <Stack gap={2} data-testid="credentials-readonly" fontSize="12px">
           <SummaryRow label="Host" value={connection.host ?? "—"} />
           <SummaryRow
             label="Port"
@@ -217,11 +200,7 @@ export function ConnectionDetailCredentials({
           <SummaryRow label="Password" value={PASSWORD_MASK} mono />
         </Stack>
       ) : (
-        <Stack
-          gap={2}
-          data-testid="credentials-editing"
-          fontSize="12px"
-        >
+        <Stack gap={2} data-testid="credentials-editing" fontSize="12px">
           <EditField
             label="Host"
             testId="credentials-host"
@@ -277,8 +256,8 @@ export function ConnectionDetailCredentials({
         ) : (
           <Stack gap={2}>
             <Text fontSize="11px" color="fg.muted">
-              Enter the new password — it will be written to the OS
-              keychain. The vault file only stores a{" "}
+              Enter the new password — it will be written to the OS keychain.
+              The vault file only stores a{" "}
               <Box as="code" fontFamily="mono">
                 {"{{keychain:…}}"}
               </Box>{" "}

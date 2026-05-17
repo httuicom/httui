@@ -19,7 +19,9 @@ describe("GitLogFilter", () => {
     ) as HTMLInputElement;
     expect(input.placeholder).toBe("Filter by author…");
 
-    rerender(<GitLogFilter state={state({ mode: "path" })} onChange={() => {}} />);
+    rerender(
+      <GitLogFilter state={state({ mode: "path" })} onChange={() => {}} />,
+    );
     expect(
       (screen.getByTestId("git-log-filter-input") as HTMLInputElement)
         .placeholder,
@@ -30,9 +32,9 @@ describe("GitLogFilter", () => {
     renderWithProviders(
       <GitLogFilter state={state({ mode: "author" })} onChange={() => {}} />,
     );
-    expect(
-      screen.getByTestId("git-log-filter").getAttribute("data-mode"),
-    ).toBe("author");
+    expect(screen.getByTestId("git-log-filter").getAttribute("data-mode")).toBe(
+      "author",
+    );
     expect(
       screen
         .getByTestId("git-log-filter-mode-author")
@@ -47,9 +49,7 @@ describe("GitLogFilter", () => {
 
   it("fires onChange with the next state on input change", async () => {
     const onChange = vi.fn();
-    renderWithProviders(
-      <GitLogFilter state={state()} onChange={onChange} />,
-    );
+    renderWithProviders(<GitLogFilter state={state()} onChange={onChange} />);
     await userEvent
       .setup()
       .type(screen.getByTestId("git-log-filter-input"), "j");
@@ -59,9 +59,7 @@ describe("GitLogFilter", () => {
 
   it("fires onChange when toggling mode buttons", async () => {
     const onChange = vi.fn();
-    renderWithProviders(
-      <GitLogFilter state={state()} onChange={onChange} />,
-    );
+    renderWithProviders(<GitLogFilter state={state()} onChange={onChange} />);
     await userEvent
       .setup()
       .click(screen.getByTestId("git-log-filter-mode-path"));
@@ -99,9 +97,7 @@ describe("GitLogFilter", () => {
     renderWithProviders(
       <GitLogFilter state={state({ query: "alice" })} onChange={onChange} />,
     );
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("git-log-filter-clear"));
+    await userEvent.setup().click(screen.getByTestId("git-log-filter-clear"));
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange.mock.calls[0]![0].query).toBe("");
   });

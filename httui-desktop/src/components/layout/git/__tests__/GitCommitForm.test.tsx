@@ -78,9 +78,9 @@ describe("GitCommitForm", () => {
 
   it("agrees sing/plural in the staged-files summary", () => {
     render({ stagedCount: 1 });
-    expect(
-      screen.getByTestId("git-commit-form-summary").textContent,
-    ).toMatch(/1 file staged/);
+    expect(screen.getByTestId("git-commit-form-summary").textContent).toMatch(
+      /1 file staged/,
+    );
 
     render({ stagedCount: 3 });
     const sums = screen.getAllByTestId("git-commit-form-summary");

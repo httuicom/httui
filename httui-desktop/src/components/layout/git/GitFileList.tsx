@@ -49,7 +49,11 @@ export function GitFileList({
   return (
     <Box data-testid="git-file-list" data-count={changed.length}>
       {staged.length > 0 && (
-        <Group testId="git-file-list-staged" label="Staged" count={staged.length}>
+        <Group
+          testId="git-file-list-staged"
+          label="Staged"
+          count={staged.length}
+        >
           {staged.map((f) => (
             <Row
               key={f.path}

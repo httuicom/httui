@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { HistoryEntry } from "@/lib/tauri/commands";
 
-import {
-  KEEP_PER_BLOCK,
-  pickKeepN,
-  trimToKeepN,
-} from "../run-history-trim";
+import { KEEP_PER_BLOCK, pickKeepN, trimToKeepN } from "../run-history-trim";
 
 function entry(over: Partial<HistoryEntry> = {}): HistoryEntry {
   return {

@@ -171,7 +171,11 @@ describe("useFilePreflight", () => {
       { kind: "connection", label: "payments-db", result: { outcome: "pass" } },
       { kind: "env_var", label: "API_TOKEN", result: { outcome: "pass" } },
       { kind: "branch", label: "main", result: { outcome: "pass" } },
-      { kind: "unknown", label: "future", result: { outcome: "skip", reason: "x" } },
+      {
+        kind: "unknown",
+        label: "future",
+        result: { outcome: "skip", reason: "x" },
+      },
     ];
     mockTauriCommand("evaluate_preflight_cmd", () => raw);
 

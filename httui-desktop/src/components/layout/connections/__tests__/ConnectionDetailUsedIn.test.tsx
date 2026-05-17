@@ -29,10 +29,7 @@ describe("ConnectionDetailUsedIn", () => {
   it("renders one row per usage with file path and :line", () => {
     renderWithProviders(
       <ConnectionDetailUsedIn
-        usages={[
-          usage("runbooks/a.md", 12),
-          usage("runbooks/b.md", 7, null),
-        ]}
+        usages={[usage("runbooks/a.md", 12), usage("runbooks/b.md", 7, null)]}
       />,
     );
     expect(screen.getByTestId("used-in-count").textContent).toBe("2");
@@ -49,9 +46,9 @@ describe("ConnectionDetailUsedIn", () => {
         usages={[usage("a.md", 1, "SELECT count(*) FROM orders;")]}
       />,
     );
-    expect(
-      screen.getByTestId("used-in-row-0-preview").textContent,
-    ).toContain("orders");
+    expect(screen.getByTestId("used-in-row-0-preview").textContent).toContain(
+      "orders",
+    );
   });
 
   it("hides the preview slot when null", () => {

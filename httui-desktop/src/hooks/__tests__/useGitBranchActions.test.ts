@@ -42,9 +42,7 @@ describe("useGitBranchActions", () => {
   it("loads branches on demand", async () => {
     const { result } = renderHook(() => useGitBranchActions("/v"));
     act(() => result.current.loadBranches());
-    await waitFor(() =>
-      expect(result.current.branches).toHaveLength(3),
-    );
+    await waitFor(() => expect(result.current.branches).toHaveLength(3));
     expect(result.current.error).toBeNull();
   });
 
@@ -54,9 +52,7 @@ describe("useGitBranchActions", () => {
     });
     const { result } = renderHook(() => useGitBranchActions("/v"));
     act(() => result.current.loadBranches());
-    await waitFor(() =>
-      expect(result.current.error).toBe("not a git repo"),
-    );
+    await waitFor(() => expect(result.current.error).toBe("not a git repo"));
     expect(result.current.branches).toEqual([]);
   });
 

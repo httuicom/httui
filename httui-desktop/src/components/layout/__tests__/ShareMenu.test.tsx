@@ -40,9 +40,7 @@ describe("ShareMenu", () => {
     expect(
       screen.getByTestId("share-popover-remote-HTTPS"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("share-popover-remote-Web"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("share-popover-remote-Web")).toBeInTheDocument();
   });
 
   it("shows the empty state when no remote is configured", async () => {

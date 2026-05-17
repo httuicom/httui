@@ -12,9 +12,8 @@ describe("editorTheme", () => {
   });
 
   it("is a stable single-instance reference (Emotion caching guarantee)", async () => {
-    const reimport = (
-      await import("@/components/editor/editor-theme")
-    ).editorTheme;
+    const reimport = (await import("@/components/editor/editor-theme"))
+      .editorTheme;
     expect(reimport).toBe(editorTheme);
   });
 });

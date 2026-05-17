@@ -43,9 +43,7 @@ export function useFileCapturesPersistence(
       if (!vaultPath || !filePath) return;
       try {
         if (next) {
-          const json = useCaptureStore
-            .getState()
-            .dumpForCacheJson(filePath);
+          const json = useCaptureStore.getState().dumpForCacheJson(filePath);
           if (json !== null) {
             await writeCapturesCache(vaultPath, filePath, json);
           }

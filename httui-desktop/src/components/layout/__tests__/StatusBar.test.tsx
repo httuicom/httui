@@ -201,9 +201,9 @@ describe("StatusBar — pending secrets badge", () => {
     usePendingSecretsStore.getState().setPending([PENDING_REF]);
     usePendingSecretsStore.getState().dismiss();
     renderWithProviders(<StatusBar />);
-    expect(
-      screen.getByTestId("status-pending-secrets").textContent,
-    ).toContain("1 secret pendente");
+    expect(screen.getByTestId("status-pending-secrets").textContent).toContain(
+      "1 secret pendente",
+    );
   });
 
   it("shows pluralized label for 2+ pending refs", () => {
@@ -218,9 +218,9 @@ describe("StatusBar — pending secrets badge", () => {
     ]);
     usePendingSecretsStore.getState().dismiss();
     renderWithProviders(<StatusBar />);
-    expect(
-      screen.getByTestId("status-pending-secrets").textContent,
-    ).toContain("2 secrets pendentes");
+    expect(screen.getByTestId("status-pending-secrets").textContent).toContain(
+      "2 secrets pendentes",
+    );
   });
 
   it("clicking the badge reopens the modal", async () => {

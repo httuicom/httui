@@ -59,9 +59,14 @@ function EmptyState() {
       <Text fontFamily="serif" fontSize="16px" color="fg.muted">
         Select a variable
       </Text>
-      <Text fontSize="11px" color="fg.subtle" textAlign="center" lineHeight={1.5}>
-        Click a row on the left to view and edit the value per env,
-        configure a session override, and list the blocks that use it.
+      <Text
+        fontSize="11px"
+        color="fg.subtle"
+        textAlign="center"
+        lineHeight={1.5}
+      >
+        Click a row on the left to view and edit the value per env, configure a
+        session override, and list the blocks that use it.
       </Text>
     </Flex>
   );

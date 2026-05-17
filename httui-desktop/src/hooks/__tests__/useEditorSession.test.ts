@@ -370,13 +370,13 @@ describe("useEditorSession", () => {
         layout: {
           type: "leaf",
           id: "p1",
-          tabs: [{ filePath: "rb.md", vaultPath: VAULT, kind: "file" } as never],
+          tabs: [
+            { filePath: "rb.md", vaultPath: VAULT, kind: "file" } as never,
+          ],
           activeTab: 0,
         } as never,
         activePaneId: "p1",
-        editorContents: new Map([
-          ["rb.md", "---\ntags: [solo]\n---\nbody\n"],
-        ]),
+        editorContents: new Map([["rb.md", "---\ntags: [solo]\n---\nbody\n"]]),
         unsavedFiles: new Set(["rb.md"]),
       } as never);
       useTagIndexStore.getState().clearAll();

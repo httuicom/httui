@@ -15,11 +15,7 @@ describe("GitSyncButtons", () => {
 
   it("renders each button when its handler is supplied", () => {
     renderWithProviders(
-      <GitSyncButtons
-        onFetch={() => {}}
-        onPull={() => {}}
-        onPush={() => {}}
-      />,
+      <GitSyncButtons onFetch={() => {}} onPull={() => {}} onPush={() => {}} />,
     );
     expect(screen.getByTestId("git-sync-fetch")).toBeInTheDocument();
     expect(screen.getByTestId("git-sync-pull")).toBeInTheDocument();
@@ -80,14 +76,10 @@ describe("GitSyncButtons", () => {
   });
 
   it("disables Push and shows the no-remote hint when hasRemote is false", () => {
-    renderWithProviders(
-      <GitSyncButtons hasRemote={false} onPush={() => {}} />,
-    );
+    renderWithProviders(<GitSyncButtons hasRemote={false} onPush={() => {}} />);
     const pushBtn = screen.getByTestId("git-sync-push") as HTMLButtonElement;
     expect(pushBtn.disabled).toBe(true);
-    expect(
-      screen.getByTestId("git-sync-no-remote-hint"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("git-sync-no-remote-hint")).toBeInTheDocument();
     expect(
       screen.getByTestId("git-sync-buttons").getAttribute("data-no-remote"),
     ).toBe("true");
@@ -143,9 +135,7 @@ describe("GitSyncButtons", () => {
   });
 
   it("encodes the in-flight op via root data-in-flight attribute", () => {
-    renderWithProviders(
-      <GitSyncButtons inFlight="push" onPush={() => {}} />,
-    );
+    renderWithProviders(<GitSyncButtons inFlight="push" onPush={() => {}} />);
     expect(
       screen.getByTestId("git-sync-buttons").getAttribute("data-in-flight"),
     ).toBe("push");

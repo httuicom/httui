@@ -5,7 +5,9 @@ import { DocHeaderShell } from "@/components/layout/docheader/DocHeaderShell";
 import type { PreflightPillItem } from "@/components/blocks/preflight/PreflightPills";
 import { renderWithProviders, screen } from "@/test/render";
 
-function preflightItem(over: Partial<PreflightPillItem> = {}): PreflightPillItem {
+function preflightItem(
+  over: Partial<PreflightPillItem> = {},
+): PreflightPillItem {
   return {
     id: "i1",
     label: "i1",
@@ -66,9 +68,7 @@ describe("DocHeaderShell", () => {
   });
 
   it("hides the preflight slot when items array is empty even in non-compact mode", () => {
-    renderWithProviders(
-      <DocHeaderShell filePath="x.md" preflightItems={[]} />,
-    );
+    renderWithProviders(<DocHeaderShell filePath="x.md" preflightItems={[]} />);
     expect(
       screen.queryByTestId("docheader-shell-preflight-slot"),
     ).not.toBeInTheDocument();
@@ -128,9 +128,7 @@ describe("DocHeaderShell", () => {
 
   it("forwards Run-all through the action row", async () => {
     const onRunAll = vi.fn();
-    renderWithProviders(
-      <DocHeaderShell filePath="x.md" onRunAll={onRunAll} />,
-    );
+    renderWithProviders(<DocHeaderShell filePath="x.md" onRunAll={onRunAll} />);
     await userEvent
       .setup()
       .click(screen.getByTestId("docheader-action-run-all"));

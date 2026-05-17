@@ -16,9 +16,7 @@ describe("NewConnectionFormTab", () => {
         onChange={vi.fn()}
       />,
     );
-    expect(
-      screen.getByTestId("new-connection-form-tab"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("new-connection-form-tab")).toBeInTheDocument();
     for (const field of [
       "name",
       "host",
@@ -47,12 +45,8 @@ describe("NewConnectionFormTab", () => {
         onChange={vi.fn()}
       />,
     );
-    expect(
-      screen.getByTestId("new-connection-form-tab"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("new-connection-field-host"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("new-connection-form-tab")).toBeInTheDocument();
+    expect(screen.getByTestId("new-connection-field-host")).toBeInTheDocument();
   });
 
   it("renders the stub for non-postgres-shape kinds", () => {
@@ -175,8 +169,8 @@ describe("NewConnectionFormTab", () => {
             f.id === "host"
               ? "localhost" + f.typed
               : f.id === "port"
-              ? "5432" + f.typed
-              : f.typed,
+                ? "5432" + f.typed
+                : f.typed,
         }),
       );
     }

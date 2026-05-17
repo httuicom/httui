@@ -23,9 +23,7 @@ describe("VariableDetailHeader", () => {
     );
     // Lucide renders the icon as an inline SVG inside the slot.
     expect(
-      screen
-        .getByTestId("variable-detail-header-glyph")
-        .querySelector("svg"),
+      screen.getByTestId("variable-detail-header-glyph").querySelector("svg"),
     ).not.toBeNull();
   });
 

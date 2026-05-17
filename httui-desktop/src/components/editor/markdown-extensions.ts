@@ -9,10 +9,7 @@
 import { EditorView, keymap } from "@codemirror/view";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages as cmLanguages } from "@codemirror/language-data";
-import {
-  syntaxHighlighting,
-  bracketMatching,
-} from "@codemirror/language";
+import { syntaxHighlighting, bracketMatching } from "@codemirror/language";
 import {
   defaultKeymap,
   history,
@@ -63,10 +60,7 @@ import {
 import { refClickExtension } from "@/lib/blocks/cm-ref-popover";
 
 import type { FileEntry } from "@/lib/tauri/commands";
-import {
-  vimCompartment,
-  docLineNavKeymap,
-} from "./markdown-vim-motions";
+import { vimCompartment, docLineNavKeymap } from "./markdown-vim-motions";
 import {
   dbSqlLanguages,
   markdownHighlightStyle,
@@ -159,9 +153,7 @@ export function buildExtensions(params: BuildExtensionsParams) {
         const files = flattenFiles(entriesRef.current);
         const match = files.find(
           (f) =>
-            f.path === target ||
-            f.name === target ||
-            f.name === `${target}.md`,
+            f.path === target || f.name === target || f.name === `${target}.md`,
         );
         if (match) handleFileSelectRef.current(match.path);
       },

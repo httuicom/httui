@@ -77,9 +77,7 @@ describe("EmptyVaultSidebar", () => {
     expect(screen.getByTestId("explore-variables").textContent).toContain(
       "(0)",
     );
-    expect(screen.getByTestId("explore-members").textContent).toContain(
-      "(1)",
-    );
+    expect(screen.getByTestId("explore-members").textContent).toContain("(1)");
   });
 
   it("tags the wrapper with data-atom='empty-vault-sidebar'", () => {

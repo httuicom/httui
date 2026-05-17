@@ -186,11 +186,7 @@ export function EnvMenu({
                   borderRadius="3px"
                 >
                   <HStack gap={2} w="100%">
-                    <Box
-                      w="14px"
-                      display="inline-flex"
-                      justifyContent="center"
-                    >
+                    <Box w="14px" display="inline-flex" justifyContent="center">
                       <LuCopy size={12} />
                     </Box>
                     <Box

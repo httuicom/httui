@@ -15,7 +15,10 @@ const { getDocHeaderEntries, returnFocusToBody } = cmDocHeader;
 // Bypass typing for the parts of `EditorView` we don't need for these
 // portal-only tests. The portal only ever calls `view.state.doc.toString`
 // (in the editable callbacks) plus passes the view to `dispatchDocReplace`.
-type FakeView = { state: { doc: { toString: () => string } }; dispatch: ReturnType<typeof vi.fn> };
+type FakeView = {
+  state: { doc: { toString: () => string } };
+  dispatch: ReturnType<typeof vi.fn>;
+};
 
 function makeFakeView(content: string): FakeView {
   return {

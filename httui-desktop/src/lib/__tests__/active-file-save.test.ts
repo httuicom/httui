@@ -1,8 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  setActiveFileSaver,
-  saveActiveFileNow,
-} from "@/lib/active-file-save";
+import { setActiveFileSaver, saveActiveFileNow } from "@/lib/active-file-save";
 
 describe("active-file-save", () => {
   beforeEach(() => {

@@ -7,9 +7,7 @@ import { renderWithProviders, screen } from "@/test/render";
 describe("DocHeaderChecklist", () => {
   it("renders nothing when there are no items and no save handler", () => {
     renderWithProviders(<DocHeaderChecklist items={[]} />);
-    expect(
-      screen.queryByTestId("docheader-checklist"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("docheader-checklist")).not.toBeInTheDocument();
   });
 
   it("renders read-only rows when no save handler is provided", () => {
@@ -79,7 +77,9 @@ describe("DocHeaderChecklist", () => {
     );
 
     await user.click(screen.getByTestId("docheader-checklist-add"));
-    const input = screen.getByTestId("docheader-checklist-add-input") as HTMLInputElement;
+    const input = screen.getByTestId(
+      "docheader-checklist-add-input",
+    ) as HTMLInputElement;
     await user.type(input, "Verify the thing");
     await user.keyboard("{Enter}");
     expect(onChecklistSave).toHaveBeenCalledWith([
@@ -95,7 +95,9 @@ describe("DocHeaderChecklist", () => {
     );
 
     await user.click(screen.getByTestId("docheader-checklist-add"));
-    const input = screen.getByTestId("docheader-checklist-add-input") as HTMLInputElement;
+    const input = screen.getByTestId(
+      "docheader-checklist-add-input",
+    ) as HTMLInputElement;
     await user.type(input, "Cancelled");
     await user.keyboard("{Escape}");
     expect(onChecklistSave).not.toHaveBeenCalled();

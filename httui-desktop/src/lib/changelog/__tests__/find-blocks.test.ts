@@ -28,11 +28,7 @@ describe("findFencedBlocks", () => {
   });
 
   it("finds a DB block with the connection id baked into the kind tag", () => {
-    const md = [
-      "```db-payments alias=q1",
-      "SELECT 1",
-      "```",
-    ].join("\n");
+    const md = ["```db-payments alias=q1", "SELECT 1", "```"].join("\n");
     const blocks = findFencedBlocks(md);
     expect(blocks).toHaveLength(1);
     expect(blocks[0]!.kind).toBe("db");
@@ -80,15 +76,9 @@ describe("findFencedBlocks", () => {
   });
 
   it("ignores plain code fences (```ts, ```rust, plain ```)", () => {
-    const md = [
-      "```ts",
-      "const x = 1",
-      "```",
-      "",
-      "```",
-      "plain",
-      "```",
-    ].join("\n");
+    const md = ["```ts", "const x = 1", "```", "", "```", "plain", "```"].join(
+      "\n",
+    );
     expect(findFencedBlocks(md)).toEqual([]);
   });
 

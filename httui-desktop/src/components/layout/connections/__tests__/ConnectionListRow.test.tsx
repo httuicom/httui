@@ -25,11 +25,7 @@ function item(overrides: Partial<ListRowItem> = {}): ListRowItem {
 describe("ConnectionListRow", () => {
   it("renders the kind icon for postgres", () => {
     renderWithProviders(
-      <ConnectionListRow
-        item={item()}
-        selected={false}
-        onSelect={() => {}}
-      />,
+      <ConnectionListRow item={item()} selected={false} onSelect={() => {}} />,
     );
     const row = screen.getByTestId("connection-row-c1");
     expect(row.querySelector('[data-kind="postgres"]')).toBeTruthy();
@@ -63,11 +59,7 @@ describe("ConnectionListRow", () => {
 
   it("hides the PROD chip when isProd is false", () => {
     renderWithProviders(
-      <ConnectionListRow
-        item={item()}
-        selected={false}
-        onSelect={() => {}}
-      />,
+      <ConnectionListRow item={item()} selected={false} onSelect={() => {}} />,
     );
     expect(screen.queryByTestId("connection-row-c1-prod")).toBeNull();
   });
@@ -114,11 +106,7 @@ describe("ConnectionListRow", () => {
   it("clicking the row dispatches onSelect with the id", async () => {
     const onSelect = vi.fn();
     renderWithProviders(
-      <ConnectionListRow
-        item={item()}
-        selected={false}
-        onSelect={onSelect}
-      />,
+      <ConnectionListRow item={item()} selected={false} onSelect={onSelect} />,
     );
     await userEvent.setup().click(screen.getByTestId("connection-row-c1"));
     expect(onSelect).toHaveBeenCalledWith("c1");
@@ -135,9 +123,7 @@ describe("ConnectionListRow", () => {
         onEdit={onEdit}
       />,
     );
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("connection-row-c1-more"));
+    await userEvent.setup().click(screen.getByTestId("connection-row-c1-more"));
     // Trigger click should not select the row.
     expect(onSelect).not.toHaveBeenCalled();
   });
@@ -151,11 +137,7 @@ describe("ConnectionListRow", () => {
 
   it("marks selected via data-selected", () => {
     renderWithProviders(
-      <ConnectionListRow
-        item={item()}
-        selected={true}
-        onSelect={() => {}}
-      />,
+      <ConnectionListRow item={item()} selected={true} onSelect={() => {}} />,
     );
     expect(
       screen.getByTestId("connection-row-c1").getAttribute("data-selected"),

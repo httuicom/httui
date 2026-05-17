@@ -55,9 +55,7 @@ describe("DocHeaderMetaStrip", () => {
 
   it("renders the edited chip with mtime + dirty flag", () => {
     const tenMinAgo = Date.now() - 10 * 60_000;
-    renderWithProviders(
-      <DocHeaderMetaStrip mtimeMs={tenMinAgo} dirty />,
-    );
+    renderWithProviders(<DocHeaderMetaStrip mtimeMs={tenMinAgo} dirty />);
     const chip = screen.getByTestId("docheader-meta-edited");
     expect(chip.textContent).toMatch(/Edited 10m ago/);
     expect(chip.textContent).toMatch(/unsaved/);
@@ -101,9 +99,7 @@ describe("DocHeaderMetaStrip", () => {
       />,
     );
     expect(
-      screen
-        .getByTestId("docheader-meta-last-run")
-        .getAttribute("data-tone"),
+      screen.getByTestId("docheader-meta-last-run").getAttribute("data-tone"),
     ).toBe("fail");
   });
 
@@ -148,9 +144,9 @@ describe("DocHeaderMetaStrip", () => {
 
   it("renders the edited chip even when mtimeMs is null (loading state)", () => {
     renderWithProviders(<DocHeaderMetaStrip mtimeMs={null} />);
-    expect(
-      screen.getByTestId("docheader-meta-edited").textContent,
-    ).toMatch(/Not yet saved/);
+    expect(screen.getByTestId("docheader-meta-edited").textContent).toMatch(
+      /Not yet saved/,
+    );
   });
 
   it("renders the owner chip with @-prefix when owner is set", () => {
@@ -182,9 +178,7 @@ describe("DocHeaderMetaStrip", () => {
 
   it("trims owner whitespace before render", () => {
     renderWithProviders(<DocHeaderMetaStrip owner="  bob  " />);
-    expect(screen.getByTestId("docheader-meta-owner").textContent).toBe(
-      "@bob",
-    );
+    expect(screen.getByTestId("docheader-meta-owner").textContent).toBe("@bob");
   });
 
   it("owner chip becomes a button and fires onSelectOwner with trimmed value", async () => {

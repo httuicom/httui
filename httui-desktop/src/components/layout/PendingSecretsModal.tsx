@@ -98,10 +98,10 @@ function PendingSecretsModalContent() {
             Secrets pendentes
           </Heading>
           <Text fontSize="13px" color="fg.muted" mb={5}>
-            Este vault referencia secrets que ainda não estão no seu
-            keychain. Preencha cada um abaixo. Você pode pular agora e
-            preencher depois — o app não conseguirá executar blocos
-            que dependam dos secrets pulados.
+            Este vault referencia secrets que ainda não estão no seu keychain.
+            Preencha cada um abaixo. Você pode pular agora e preencher depois —
+            o app não conseguirá executar blocos que dependam dos secrets
+            pulados.
           </Text>
 
           <Stack gap={3} data-testid="pending-secrets-list">

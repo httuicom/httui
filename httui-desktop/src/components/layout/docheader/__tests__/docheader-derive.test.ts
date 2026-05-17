@@ -11,15 +11,15 @@ import {
 
 describe("pickH1Title", () => {
   it("prefers frontmatter title when present", () => {
-    expect(
-      pickH1Title({ title: "Custom" }, "Heading", "notes/db.md"),
-    ).toBe("Custom");
+    expect(pickH1Title({ title: "Custom" }, "Heading", "notes/db.md")).toBe(
+      "Custom",
+    );
   });
 
   it("treats blank frontmatter title as absent", () => {
-    expect(
-      pickH1Title({ title: "   " }, "Heading", "notes/db.md"),
-    ).toBe("Heading");
+    expect(pickH1Title({ title: "   " }, "Heading", "notes/db.md")).toBe(
+      "Heading",
+    );
   });
 
   it("falls back to first heading when frontmatter title is missing", () => {
@@ -27,9 +27,7 @@ describe("pickH1Title", () => {
   });
 
   it("falls back to filename when no frontmatter and no heading", () => {
-    expect(pickH1Title(null, null, "notes/db-runbook.md")).toBe(
-      "db-runbook",
-    );
+    expect(pickH1Title(null, null, "notes/db-runbook.md")).toBe("db-runbook");
   });
 
   it("trims surrounding whitespace on the picked value", () => {
@@ -97,9 +95,7 @@ describe("deriveAbstractDisplay", () => {
   it("returns null when frontmatter has no abstract", () => {
     expect(deriveAbstractDisplay(null)).toBeNull();
     expect(deriveAbstractDisplay({})).toBeNull();
-    expect(
-      deriveAbstractDisplay({ abstract: "" }),
-    ).toBeNull();
+    expect(deriveAbstractDisplay({ abstract: "" })).toBeNull();
     expect(deriveAbstractDisplay({ abstract: "   " })).toBeNull();
   });
 

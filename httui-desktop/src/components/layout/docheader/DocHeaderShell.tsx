@@ -97,7 +97,9 @@ export interface DocHeaderShellProps {
    *  surfaces a `+ Add check` button and click-to-edit on existing
    *  pills. The consumer mutates the frontmatter via the
    *  `updateFrontmatterPreflightChecks` writer. */
-  onAddPreflightCheck?: (check: import("@/lib/blocks/preflight-checks").PreflightCheck) => void;
+  onAddPreflightCheck?: (
+    check: import("@/lib/blocks/preflight-checks").PreflightCheck,
+  ) => void;
   onEditPreflightCheck?: (
     idx: number,
     next: import("@/lib/blocks/preflight-checks").PreflightCheck,
@@ -165,8 +167,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
   const showAbstract = !effectiveCompact;
   const showPreflight =
     !effectiveCompact &&
-    ((preflightItems?.length ?? 0) > 0 ||
-      onAddPreflightCheck !== undefined);
+    ((preflightItems?.length ?? 0) > 0 || onAddPreflightCheck !== undefined);
   const showTags =
     !effectiveCompact &&
     (onAddTag !== undefined ||
@@ -174,8 +175,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
       (frontmatter?.tags?.length ?? 0) > 0);
   const showChecklist =
     !effectiveCompact &&
-    (onChecklistSave !== undefined ||
-      (frontmatter?.tasks?.length ?? 0) > 0);
+    (onChecklistSave !== undefined || (frontmatter?.tasks?.length ?? 0) > 0);
 
   return (
     <Box

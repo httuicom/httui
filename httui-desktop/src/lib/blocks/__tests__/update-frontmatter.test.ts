@@ -64,9 +64,7 @@ describe("updateFrontmatterTitle", () => {
   });
 
   it("trims leading/trailing whitespace before writing", () => {
-    expect(updateFrontmatterTitle("", "   Hello   ")).toContain(
-      "title: Hello",
-    );
+    expect(updateFrontmatterTitle("", "   Hello   ")).toContain("title: Hello");
   });
 
   it("handles CRLF documents", () => {
@@ -82,18 +80,14 @@ describe("updateFrontmatterTitle", () => {
     // Indented `title:` is not a top-level key per the slice-1 schema.
     const before = "---\nmeta:\n  title: nested\n---\nbody\n";
     const after = updateFrontmatterTitle(before, "Top");
-    expect(after).toBe(
-      "---\ntitle: Top\nmeta:\n  title: nested\n---\nbody\n",
-    );
+    expect(after).toBe("---\ntitle: Top\nmeta:\n  title: nested\n---\nbody\n");
   });
 
   it("only modifies the first occurrence of `title:`", () => {
     // Malformed input with duplicate keys — first wins, mirrors parser.
     const before = "---\ntitle: First\ntitle: Second\n---\nbody\n";
     const after = updateFrontmatterTitle(before, "Renamed");
-    expect(after).toBe(
-      "---\ntitle: Renamed\ntitle: Second\n---\nbody\n",
-    );
+    expect(after).toBe("---\ntitle: Renamed\ntitle: Second\n---\nbody\n");
   });
 });
 
@@ -216,9 +210,7 @@ describe("updateFrontmatterTags", () => {
 describe("updateFrontmatterTasks", () => {
   it("inserts a fresh frontmatter when adding items to a doc with none", () => {
     expect(
-      updateFrontmatterTasks("body\n", [
-        { text: "First", done: false },
-      ]),
+      updateFrontmatterTasks("body\n", [{ text: "First", done: false }]),
     ).toBe('---\ntasks: ["[ ] First"]\n---\n\nbody\n');
   });
 
@@ -228,8 +220,7 @@ describe("updateFrontmatterTasks", () => {
   });
 
   it("removes the line when the new list is empty", () => {
-    const before =
-      '---\ntitle: x\ntasks: ["[ ] foo"]\n---\nbody\n';
+    const before = '---\ntitle: x\ntasks: ["[ ] foo"]\n---\nbody\n';
     expect(updateFrontmatterTasks(before, [])).toBe(
       "---\ntitle: x\n---\nbody\n",
     );
@@ -248,12 +239,9 @@ describe("updateFrontmatterTasks", () => {
   });
 
   it("replaces an existing tasks line in place", () => {
-    const before =
-      '---\ntasks: ["[ ] old"]\n---\nbody\n';
-    expect(
-      updateFrontmatterTasks(before, [
-        { text: "new", done: true },
-      ]),
-    ).toBe('---\ntasks: ["[x] new"]\n---\nbody\n');
+    const before = '---\ntasks: ["[ ] old"]\n---\nbody\n';
+    expect(updateFrontmatterTasks(before, [{ text: "new", done: true }])).toBe(
+      '---\ntasks: ["[x] new"]\n---\nbody\n',
+    );
   });
 });

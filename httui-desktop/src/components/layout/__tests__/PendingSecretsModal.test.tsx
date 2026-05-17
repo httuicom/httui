@@ -61,9 +61,7 @@ describe("PendingSecretsModal", () => {
 
     renderWithProviders(<PendingSecretsModal />);
 
-    const rowA = screen.getByTestId(
-      `pending-secret-row-${REF_A.keychain_key}`,
-    );
+    const rowA = screen.getByTestId(`pending-secret-row-${REF_A.keychain_key}`);
     const input = rowA.querySelector(
       '[data-testid="pending-secret-input"]',
     ) as HTMLInputElement;
@@ -119,16 +117,13 @@ describe("PendingSecretsModal", () => {
     });
 
     renderWithProviders(<PendingSecretsModal />);
-    await user.type(
-      screen.getByTestId("pending-secret-input"),
-      "topsecret",
-    );
+    await user.type(screen.getByTestId("pending-secret-input"), "topsecret");
     await user.click(screen.getByTestId("pending-secret-save"));
 
     await waitFor(() =>
-      expect(
-        screen.getByTestId("pending-secret-error").textContent,
-      ).toContain("keychain locked"),
+      expect(screen.getByTestId("pending-secret-error").textContent).toContain(
+        "keychain locked",
+      ),
     );
     // Row stayed because save failed.
     expect(
@@ -141,9 +136,7 @@ describe("PendingSecretsModal", () => {
     usePendingSecretsStore.getState().setPending([REF_A, REF_B]);
     renderWithProviders(<PendingSecretsModal />);
 
-    const rowA = screen.getByTestId(
-      `pending-secret-row-${REF_A.keychain_key}`,
-    );
+    const rowA = screen.getByTestId(`pending-secret-row-${REF_A.keychain_key}`);
     const skipBtn = rowA.querySelector(
       '[data-testid="pending-secret-skip"]',
     ) as HTMLButtonElement;
@@ -167,17 +160,13 @@ describe("PendingSecretsModal", () => {
     renderWithProviders(<PendingSecretsModal />);
 
     // Skip both rows.
-    const rowA = screen.getByTestId(
-      `pending-secret-row-${REF_A.keychain_key}`,
-    );
+    const rowA = screen.getByTestId(`pending-secret-row-${REF_A.keychain_key}`);
     await user.click(
       rowA.querySelector(
         '[data-testid="pending-secret-skip"]',
       ) as HTMLButtonElement,
     );
-    const rowB = screen.getByTestId(
-      `pending-secret-row-${REF_B.keychain_key}`,
-    );
+    const rowB = screen.getByTestId(`pending-secret-row-${REF_B.keychain_key}`);
     await user.click(
       rowB.querySelector(
         '[data-testid="pending-secret-skip"]',
@@ -262,10 +251,7 @@ describe("PendingSecretsModal", () => {
     mockTauriCommand("save_secret_cmd", () => null);
 
     renderWithProviders(<PendingSecretsModal />);
-    await user.type(
-      screen.getByTestId("pending-secret-input"),
-      "topsecret",
-    );
+    await user.type(screen.getByTestId("pending-secret-input"), "topsecret");
     await user.click(screen.getByTestId("pending-secret-save"));
 
     await waitFor(() =>

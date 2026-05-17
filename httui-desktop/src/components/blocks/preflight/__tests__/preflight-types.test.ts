@@ -8,9 +8,7 @@ import {
 
 describe("pillKindFromResult", () => {
   it("maps each outcome 1:1 to a pill kind", () => {
-    expect(pillKindFromResult({ outcome: "pass" } as CheckResult)).toBe(
-      "pass",
-    );
+    expect(pillKindFromResult({ outcome: "pass" } as CheckResult)).toBe("pass");
     expect(
       pillKindFromResult({ outcome: "fail", reason: "x" } as CheckResult),
     ).toBe("fail");

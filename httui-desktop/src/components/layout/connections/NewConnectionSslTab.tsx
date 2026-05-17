@@ -7,7 +7,15 @@
 // the secondary patch surface when a connection string carries
 // ?sslmode=...&sslrootcert=... params.
 
-import { Box, Flex, Grid, HStack, IconButton, Text, chakra } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Grid,
+  HStack,
+  IconButton,
+  Text,
+  chakra,
+} from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { LuFolderOpen } from "react-icons/lu";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
@@ -71,11 +79,7 @@ export function NewConnectionSslTab({
   }
 
   return (
-    <Flex
-      data-testid="new-connection-ssl-tab"
-      direction="column"
-      gap={4}
-    >
+    <Flex data-testid="new-connection-ssl-tab" direction="column" gap={4}>
       <Field label="sslmode" hint="Choose how the client negotiates TLS.">
         <ModeSelect
           value={value.mode}
@@ -131,9 +135,9 @@ export function NewConnectionSslTab({
         px={3}
         py={2}
       >
-        Absolute paths resolve from the app disk at connection time.
-        Relative paths resolve from the vault. In `verify-full`, the
-        cert host must match the configured host.
+        Absolute paths resolve from the app disk at connection time. Relative
+        paths resolve from the vault. In `verify-full`, the cert host must match
+        the configured host.
       </Box>
     </Flex>
   );

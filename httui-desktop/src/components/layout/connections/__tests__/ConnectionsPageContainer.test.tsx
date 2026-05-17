@@ -81,9 +81,7 @@ describe("ConnectionsPageContainer", () => {
     await waitFor(() => {
       expect(screen.getByTestId("connections-page")).toBeTruthy();
     });
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("connections-create-new"));
+    await userEvent.setup().click(screen.getByTestId("connections-create-new"));
     expect(screen.getByTestId("new-connection-modal")).toBeTruthy();
   });
 

@@ -60,10 +60,7 @@ describe("EnvSwitcher", () => {
     await user.click(screen.getByTestId("status-env"));
     await user.click(await screen.findByTestId("env-menu-clone"));
     await screen.findByTestId("clone-environment-form");
-    await user.type(
-      screen.getByTestId("clone-environment-name"),
-      "local-copy",
-    );
+    await user.type(screen.getByTestId("clone-environment-name"), "local-copy");
     await user.click(screen.getByTestId("clone-environment-save"));
     expect(duplicateEnvironment).toHaveBeenCalledWith("a", "local-copy");
   });

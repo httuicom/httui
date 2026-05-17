@@ -138,7 +138,11 @@ export function EmptyVaultScreen() {
           return;
         }
         await scaffoldVault(picked);
-        await writeNote(picked, PASTE_URL_RUNBOOK_PATH, buildRunbookFromUrl(url));
+        await writeNote(
+          picked,
+          PASTE_URL_RUNBOOK_PATH,
+          buildRunbookFromUrl(url),
+        );
         await switchVault(picked);
       } catch (err) {
         setFlow({

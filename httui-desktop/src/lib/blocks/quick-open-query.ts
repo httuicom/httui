@@ -37,11 +37,7 @@ export function parseQuickOpenQuery(raw: string): QuickOpenQuery {
     const operands = tokens.filter((_, i) => i % 2 === 0);
     const ops = new Set(operators.map((o) => o.toLowerCase()));
     const allTagTokens = operands.every((o) => TAG_PATTERN.test(o));
-    if (
-      allTagTokens &&
-      ops.size === 1 &&
-      (ops.has("or") || ops.has("and"))
-    ) {
+    if (allTagTokens && ops.size === 1 && (ops.has("or") || ops.has("and"))) {
       const op = ops.has("or") ? "or" : "and";
       const tags = operands.map((o) => o.replace(/^#/, ""));
       return { kind: "tag-bool", op, tags };

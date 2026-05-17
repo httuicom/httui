@@ -82,9 +82,7 @@ describe("GeneralSection", () => {
       loaded: true,
     });
     renderWithWorkspace(<GeneralSection />);
-    expect(
-      screen.getByText(/Auto-save is disabled\./i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Auto-save is disabled\./i)).toBeInTheDocument();
   });
 
   it("does not show the autosave-disabled banner when interval is positive", () => {
@@ -139,9 +137,7 @@ describe("GeneralSection", () => {
     renderWithWorkspace(<GeneralSection />);
     const sw = screen.getByRole("checkbox", { name: "Include pre-releases" });
     await userEvent.setup().click(sw);
-    expect(
-      useSettingsStore.getState().autoUpdateIncludePrereleases,
-    ).toBe(true);
+    expect(useSettingsStore.getState().autoUpdateIncludePrereleases).toBe(true);
   });
 
   it("renders 'None' when no vault is active", () => {

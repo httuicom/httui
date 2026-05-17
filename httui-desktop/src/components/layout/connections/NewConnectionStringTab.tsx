@@ -51,9 +51,9 @@ export function NewConnectionStringTab({
   kind,
 }: NewConnectionStringTabProps) {
   const [text, setText] = useState(initial);
-  const [result, setResult] = useState<
-    ConnectionStringParseResult | null
-  >(null);
+  const [result, setResult] = useState<ConnectionStringParseResult | null>(
+    null,
+  );
 
   function handleParse() {
     const parsed = parseConnectionString(text);
@@ -66,11 +66,7 @@ export function NewConnectionStringTab({
   const isMysql = kind === "mysql";
 
   return (
-    <Flex
-      data-testid="new-connection-string-tab"
-      direction="column"
-      gap={3}
-    >
+    <Flex data-testid="new-connection-string-tab" direction="column" gap={3}>
       <Text fontSize="11px" color="fg.muted">
         {isMysql ? (
           <>
@@ -79,10 +75,9 @@ export function NewConnectionStringTab({
           </>
         ) : (
           <>
-            Paste a <Mono>postgres://</Mono> or{" "}
-            <Mono>postgresql://</Mono> URL. Form fields and the{" "}
-            <Mono>sslmode</Mono> /<Mono>sslrootcert</Mono> params are
-            filled from the URL.
+            Paste a <Mono>postgres://</Mono> or <Mono>postgresql://</Mono> URL.
+            Form fields and the <Mono>sslmode</Mono> /<Mono>sslrootcert</Mono>{" "}
+            params are filled from the URL.
           </>
         )}
       </Text>

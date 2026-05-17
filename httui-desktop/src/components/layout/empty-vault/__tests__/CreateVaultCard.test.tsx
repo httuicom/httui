@@ -119,11 +119,7 @@ describe("CreateVaultCard — expanded state", () => {
     const onCreate = vi.fn(async () => {});
     const onPickParent = vi.fn(async () => null as string | null);
     renderWithProviders(
-      <CreateVaultCard
-        onCreate={onCreate}
-        onPickParent={onPickParent}
-        busy
-      />,
+      <CreateVaultCard onCreate={onCreate} onPickParent={onPickParent} busy />,
     );
     const cta = screen.getByTestId("create-vault-expand") as HTMLButtonElement;
     expect(cta.disabled).toBe(true);

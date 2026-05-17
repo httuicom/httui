@@ -19,12 +19,7 @@ export type TabbarProps = Omit<StackProps, "children" | "onSelect"> & {
   onSelect: (id: string) => void;
 };
 
-export function Tabbar({
-  tabs,
-  activeId,
-  onSelect,
-  ...rest
-}: TabbarProps) {
+export function Tabbar({ tabs, activeId, onSelect, ...rest }: TabbarProps) {
   return (
     <HStack
       data-atom="tabbar"

@@ -57,11 +57,7 @@ export function NewVariableForm({
   }
 
   return (
-    <Box
-      data-testid="new-variable-form"
-      mx={5}
-      my={2}
-    >
+    <Box data-testid="new-variable-form" mx={5} my={2}>
       <Flex
         align="stretch"
         borderWidth="1px"
@@ -92,11 +88,7 @@ export function NewVariableForm({
             }}
           />
         </Box>
-        <Box
-          w="1px"
-          bg="border"
-          flexShrink={0}
-        />
+        <Box w="1px" bg="border" flexShrink={0} />
         <Box flex={1} minW={0}>
           <Input
             data-testid="new-variable-value"
@@ -183,7 +175,11 @@ export function NewVariableForm({
               {validation.reason}
             </Text>
           ) : (
-            <Text fontSize="11px" color="fg.subtle" data-testid="new-variable-hint">
+            <Text
+              fontSize="11px"
+              color="fg.subtle"
+              data-testid="new-variable-hint"
+            >
               landing in env{" "}
               <Text as="span" fontFamily="mono" color="fg.muted">
                 {activeEnv}

@@ -136,9 +136,7 @@ describe("applyTagQuery", () => {
   });
 
   it("applyTagQuery returns [] for non-tag queries", () => {
-    expect(
-      applyTagQuery({ kind: "fuzzy", value: "x" }, byTag),
-    ).toEqual([]);
+    expect(applyTagQuery({ kind: "fuzzy", value: "x" }, byTag)).toEqual([]);
     expect(applyTagQuery({ kind: "empty" }, byTag)).toEqual([]);
   });
 

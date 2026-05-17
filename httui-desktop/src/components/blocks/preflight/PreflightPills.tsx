@@ -139,8 +139,7 @@ export function PreflightPills({
               onSelectFailure={onSelectFailure}
               onEdit={
                 canEdit
-                  ? (target) =>
-                      openEdit(idx, item.kind!, item.value!, target)
+                  ? (target) => openEdit(idx, item.kind!, item.value!, target)
                   : undefined
               }
             />
@@ -215,7 +214,9 @@ function Pill({
    *  in the title attribute as a hover hint. */
   onEdit?: (target: HTMLElement) => void;
 }) {
-  const kind: PillKind = forceRunning ? "running" : pillKindFromResult(item.result);
+  const kind: PillKind = forceRunning
+    ? "running"
+    : pillKindFromResult(item.result);
   const editable = !!onEdit;
   const isFailWithSuggestion =
     !editable && kind === "fail" && !!onSelectFailure;
@@ -266,12 +267,7 @@ function Pill({
         >
           {pillGlyph(kind)}
         </Text>
-        <Text
-          as="span"
-          fontFamily="mono"
-          fontSize="11px"
-          color="fg.muted"
-        >
+        <Text as="span" fontFamily="mono" fontSize="11px" color="fg.muted">
           {item.label}
         </Text>
       </Flex>

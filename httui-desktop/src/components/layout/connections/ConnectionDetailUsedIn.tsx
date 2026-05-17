@@ -29,11 +29,7 @@ export function ConnectionDetailUsedIn({
   onOpen,
 }: ConnectionDetailUsedInProps) {
   return (
-    <Stack
-      data-testid="connection-used-in"
-      gap={2}
-      align="stretch"
-    >
+    <Stack data-testid="connection-used-in" gap={2} align="stretch">
       <Flex justify="space-between" align="center">
         <Text
           fontFamily="mono"
@@ -56,31 +52,19 @@ export function ConnectionDetailUsedIn({
       </Flex>
 
       {loading && usages.length === 0 && (
-        <Text
-          data-testid="used-in-loading"
-          fontSize="11px"
-          color="fg.subtle"
-        >
+        <Text data-testid="used-in-loading" fontSize="11px" color="fg.subtle">
           Searching vault…
         </Text>
       )}
 
       {!loading && usages.length === 0 && (
-        <Text
-          data-testid="used-in-empty"
-          fontSize="11px"
-          color="fg.subtle"
-        >
+        <Text data-testid="used-in-empty" fontSize="11px" color="fg.subtle">
           Not referenced in any runbook yet.
         </Text>
       )}
 
       {usages.length > 0 && (
-        <Stack
-          gap={0.5}
-          align="stretch"
-          data-testid="used-in-list"
-        >
+        <Stack gap={0.5} align="stretch" data-testid="used-in-list">
           {usages.map((u, i) => (
             <UsageButton
               key={`${u.filePath}:${u.line}:${i}`}
