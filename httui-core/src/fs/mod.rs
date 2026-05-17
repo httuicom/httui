@@ -92,7 +92,13 @@ fn list_dir_recursive(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String>
 
 pub fn read_note(vault_path: &str, file_path: &str) -> Result<String, String> {
     let path = resolve_path(vault_path, file_path);
-    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {}", file_path, e))
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read {}: {}", file_path, e))?;
+    // Normalize legacy JSON-bodied http blocks on read so every read
+    // path (editor open, watcher reload, session restore) sees the
+    // canonical HTTP-message form. Idempotent + early-outs when there
+    // is no ```http fence, so it is safe on this hot path.
+    Ok(crate::blocks::http_normalize::normalize_http_blocks(&raw))
 }
 
 pub fn write_note(vault_path: &str, file_path: &str, content: &str) -> Result<(), String> {
@@ -208,6 +214,28 @@ mod tests {
         let vault = tmp.path().to_str().unwrap();
         let content = read_note(vault, "README.md").unwrap();
         assert_eq!(content, "# Hello");
+    }
+
+    #[test]
+    fn read_note_normalizes_legacy_http_block() {
+        let tmp = setup_vault();
+        let vault = tmp.path().to_str().unwrap();
+        let legacy = concat!(
+            "```http alias=req1\n",
+            "{\"method\":\"GET\",\"url\":\"https://x.com\",\"params\":[],\"headers\":[],\"body\":\"\"}\n",
+            "```\n",
+        );
+        write_note(vault, "legacy.md", legacy).unwrap();
+        let content = read_note(vault, "legacy.md").unwrap();
+        assert_eq!(content, "```http alias=req1\nGET https://x.com\n```\n");
+    }
+
+    #[test]
+    fn read_note_leaves_plain_markdown_untouched() {
+        let tmp = setup_vault();
+        let vault = tmp.path().to_str().unwrap();
+        let content = read_note(vault, "notes.md").unwrap();
+        assert_eq!(content, "Some notes");
     }
 
     #[test]
