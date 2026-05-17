@@ -102,7 +102,6 @@ describe("DocHeaderedEditor", () => {
     onNavigateFile: undefined,
   };
 
-
   it("mounts the DocHeader card above the editor with filePath threaded", () => {
     mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
     renderWithProviders(<DocHeaderedEditor {...baseProps} />);
@@ -182,9 +181,7 @@ describe("DocHeaderedEditor", () => {
 
   it("renders the editor with the same filePath + content length", () => {
     mockTauriCommand("get_file_settings", () => ({ auto_capture: false }));
-    renderWithProviders(
-      <DocHeaderedEditor {...baseProps} content={"abcd"} />,
-    );
+    renderWithProviders(<DocHeaderedEditor {...baseProps} content={"abcd"} />);
     const editor = screen.getByTestId("markdown-editor");
     expect(editor.dataset.file).toBe("notes/foo.md");
     expect(editor.dataset.len).toBe("4");

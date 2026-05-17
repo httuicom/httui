@@ -24,10 +24,7 @@
 // _for_block_list_or_other_shapes` in the Rust tests + the matching
 // "returns [] on block-list shape" test below.
 
-import {
-  parseTaskItem,
-  type TaskItem,
-} from "./task-item";
+import { parseTaskItem, type TaskItem } from "./task-item";
 
 export interface FrontmatterShape {
   title?: string;
@@ -125,10 +122,7 @@ export function extractFrontmatter(content: string): FrontmatterShape {
     } else if (key === "tasks") {
       seen.add(key);
       tasks = parseFlowList(valuePart).map(parseTaskItem);
-      if (
-        tasks.length === 0 &&
-        isMalformedListValue(lines, i, valuePart)
-      ) {
+      if (tasks.length === 0 && isMalformedListValue(lines, i, valuePart)) {
         listError = ERR_LIST_NOT_FLOW;
       }
     }

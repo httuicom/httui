@@ -89,7 +89,10 @@ export function useFilePreflight({
   return { items, rechecking, recheck: run };
 }
 
-function toPillItem(raw: EvaluatedPreflightItem, idx: number): PreflightPillItem {
+function toPillItem(
+  raw: EvaluatedPreflightItem,
+  idx: number,
+): PreflightPillItem {
   // `unknown` items came from YAML the parser couldn't recognize — they
   // can't round-trip back to a valid `PreflightCheck` so the pill stays
   // read-only (kind/value undefined keeps `canEdit` false in
@@ -100,7 +103,9 @@ function toPillItem(raw: EvaluatedPreflightItem, idx: number): PreflightPillItem
     label: raw.label,
     result: raw.result,
     suggestion: suggestionFor(raw.kind, raw.label),
-    kind: editable ? (raw.kind as Exclude<PreflightItemKind, "unknown">) : undefined,
+    kind: editable
+      ? (raw.kind as Exclude<PreflightItemKind, "unknown">)
+      : undefined,
     value: editable ? raw.label : undefined,
   };
 }

@@ -158,16 +158,10 @@ export function replacePaneInLayout(
 
 // --- Singleton tab helper ---
 
-type SingletonTabKind =
-  | "connections"
-  | "variables"
-  | "environments"
-  | "git";
+type SingletonTabKind = "connections" | "variables" | "environments" | "git";
 
 function openSingletonTab(
-  set: (
-    fn: (state: PaneState) => PaneState | Partial<PaneState>,
-  ) => void,
+  set: (fn: (state: PaneState) => PaneState | Partial<PaneState>) => void,
   get: () => PaneState,
   kind: SingletonTabKind,
   filePath: string,
@@ -563,7 +557,9 @@ export function useLayoutAndActive() {
  * tabs (cold start / empty vault).
  */
 export function selectActiveTabPath(s: PaneState): string | null {
-  function find(node: PaneLayout): { filePath: string; unsaved: boolean } | null {
+  function find(
+    node: PaneLayout,
+  ): { filePath: string; unsaved: boolean } | null {
     if (node.type === "split") {
       return find(node.children[0]) ?? find(node.children[1]);
     }

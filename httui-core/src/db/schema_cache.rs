@@ -26,8 +26,7 @@ pub const MYSQL_INTROSPECT_SQL: &str = r#"SELECT table_schema, table_name, colum
 
 /// SQLite introspection: tables + views (excluding sqlite_-prefixed
 /// internals) followed by `PRAGMA table_info(...)` per object.
-pub const SQLITE_OBJECTS_SQL: &str =
-    "SELECT name FROM sqlite_master \
+pub const SQLITE_OBJECTS_SQL: &str = "SELECT name FROM sqlite_master \
      WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'";
 
 #[derive(Debug, Clone, Serialize)]
@@ -402,25 +401,21 @@ mod tests {
 
     #[test]
     fn first_string_or_bytes_lossy_falls_back_to_bytes_decoded_lossily() {
-        let s: Result<String, sqlx::Error> =
-            Err(sqlx::Error::ColumnNotFound("x".into()));
+        let s: Result<String, sqlx::Error> = Err(sqlx::Error::ColumnNotFound("x".into()));
         let b: Result<Vec<u8>, sqlx::Error> = Ok(b"bytes".to_vec());
         assert_eq!(first_string_or_bytes_lossy(s, b).as_deref(), Some("bytes"));
     }
 
     #[test]
     fn first_string_or_bytes_lossy_returns_none_when_both_fail() {
-        let s: Result<String, sqlx::Error> =
-            Err(sqlx::Error::ColumnNotFound("x".into()));
-        let b: Result<Vec<u8>, sqlx::Error> =
-            Err(sqlx::Error::ColumnNotFound("x".into()));
+        let s: Result<String, sqlx::Error> = Err(sqlx::Error::ColumnNotFound("x".into()));
+        let b: Result<Vec<u8>, sqlx::Error> = Err(sqlx::Error::ColumnNotFound("x".into()));
         assert!(first_string_or_bytes_lossy(s, b).is_none());
     }
 
     #[test]
     fn first_string_or_bytes_lossy_decodes_invalid_utf8_with_replacement() {
-        let s: Result<String, sqlx::Error> =
-            Err(sqlx::Error::ColumnNotFound("x".into()));
+        let s: Result<String, sqlx::Error> = Err(sqlx::Error::ColumnNotFound("x".into()));
         // 0xFF is invalid UTF-8 — `from_utf8_lossy` substitutes the
         // U+FFFD replacement char.
         let b: Result<Vec<u8>, sqlx::Error> = Ok(vec![0xFF]);
@@ -467,13 +462,7 @@ mod tests {
 
     #[test]
     fn build_mysql_entry_allows_missing_schema_and_type() {
-        let e = build_mysql_entry(
-            None,
-            Some("t".into()),
-            Some("c".into()),
-            None,
-        )
-        .unwrap();
+        let e = build_mysql_entry(None, Some("t".into()), Some("c".into()), None).unwrap();
         assert!(e.schema_name.is_none());
         assert!(e.data_type.is_none());
     }

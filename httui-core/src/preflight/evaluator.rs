@@ -171,7 +171,9 @@ mod tests {
         let (envs, conns, branch) = ctx_with(None, &[], &[]);
         let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
-            &[PreflightItem::Branch { name: "main".into() }],
+            &[PreflightItem::Branch {
+                name: "main".into(),
+            }],
             &ctx,
         );
         assert!(matches!(r[0], CheckResult::Skip { .. }));
@@ -182,7 +184,9 @@ mod tests {
         let (envs, conns, branch) = ctx_with(Some("main"), &[], &[]);
         let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
-            &[PreflightItem::Branch { name: "main".into() }],
+            &[PreflightItem::Branch {
+                name: "main".into(),
+            }],
             &ctx,
         );
         assert_eq!(r[0], CheckResult::Pass);
@@ -193,7 +197,9 @@ mod tests {
         let (envs, conns, branch) = ctx_with(Some("feat/x"), &[], &[]);
         let ctx = make_ctx(&branch, &envs, &conns);
         let r = evaluate_preflight(
-            &[PreflightItem::Branch { name: "main".into() }],
+            &[PreflightItem::Branch {
+                name: "main".into(),
+            }],
             &ctx,
         );
         if let CheckResult::Fail { reason } = &r[0] {
@@ -208,12 +214,7 @@ mod tests {
     fn file_exists_skips_in_pure_layer() {
         let (envs, conns, branch) = ctx_with(None, &[], &[]);
         let ctx = make_ctx(&branch, &envs, &conns);
-        let r = evaluate_preflight(
-            &[PreflightItem::FileExists {
-                path: "x".into(),
-            }],
-            &ctx,
-        );
+        let r = evaluate_preflight(&[PreflightItem::FileExists { path: "x".into() }], &ctx);
         if let CheckResult::Skip { reason } = &r[0] {
             assert!(reason.contains("FS"));
         } else {
@@ -263,7 +264,9 @@ mod tests {
         let items = vec![
             PreflightItem::Connection { name: "c1".into() },
             PreflightItem::EnvVar { name: "A".into() },
-            PreflightItem::Branch { name: "main".into() },
+            PreflightItem::Branch {
+                name: "main".into(),
+            },
         ];
         let r = evaluate_preflight(&items, &ctx);
         assert_eq!(
@@ -276,10 +279,7 @@ mod tests {
     fn check_result_serializes_with_outcome_tag() {
         let pass = serde_json::to_string(&CheckResult::Pass).unwrap();
         assert!(pass.contains("\"outcome\":\"pass\""));
-        let fail = serde_json::to_string(&CheckResult::Fail {
-            reason: "x".into(),
-        })
-        .unwrap();
+        let fail = serde_json::to_string(&CheckResult::Fail { reason: "x".into() }).unwrap();
         assert!(fail.contains("\"outcome\":\"fail\""));
         assert!(fail.contains("\"reason\":\"x\""));
     }

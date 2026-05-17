@@ -124,9 +124,7 @@ export function ConnectionsPage({
   selectedId: selectedIdProp,
   onSelectId,
 }: ConnectionsPageProps) {
-  const [selectedKind, setSelectedKind] = useState<ConnectionKind | null>(
-    null,
-  );
+  const [selectedKind, setSelectedKind] = useState<ConnectionKind | null>(null);
   const [searchValue, setSearchValue] = useState("");
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(
     null,
@@ -174,12 +172,7 @@ export function ConnectionsPage({
   );
 
   return (
-    <Flex
-      data-testid="connections-page"
-      h="full"
-      w="full"
-      overflow="hidden"
-    >
+    <Flex data-testid="connections-page" h="full" w="full" overflow="hidden">
       <ConnectionsKindSidebar
         countsByKind={countsByKind}
         selectedKind={selectedKind}
@@ -219,22 +212,22 @@ export function ConnectionsPage({
         }
         schema={
           selectedConnection
-            ? schemaByConnection?.[selectedConnection.id]?.schema ?? null
+            ? (schemaByConnection?.[selectedConnection.id]?.schema ?? null)
             : null
         }
         schemaLoading={
           selectedConnection
-            ? schemaByConnection?.[selectedConnection.id]?.loading ?? false
+            ? (schemaByConnection?.[selectedConnection.id]?.loading ?? false)
             : false
         }
         schemaError={
           selectedConnection
-            ? schemaByConnection?.[selectedConnection.id]?.error ?? null
+            ? (schemaByConnection?.[selectedConnection.id]?.error ?? null)
             : null
         }
         hotTables={
           selectedConnection
-            ? hotTablesByConnection?.[selectedConnection.id] ?? []
+            ? (hotTablesByConnection?.[selectedConnection.id] ?? [])
             : []
         }
         onRefreshSchema={
@@ -244,12 +237,12 @@ export function ConnectionsPage({
         }
         usages={
           selectedConnection
-            ? usagesByConnection?.[selectedConnection.id] ?? []
+            ? (usagesByConnection?.[selectedConnection.id] ?? [])
             : []
         }
         usagesLoading={
           selectedConnection
-            ? usagesLoadingByConnection?.[selectedConnection.id] ?? false
+            ? (usagesLoadingByConnection?.[selectedConnection.id] ?? false)
             : false
         }
         onOpenUsage={onOpenUsage}

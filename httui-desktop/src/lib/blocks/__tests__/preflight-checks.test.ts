@@ -79,8 +79,7 @@ describe("extractPreflightChecks", () => {
   });
 
   it("tolerates blank lines inside the block", () => {
-    const doc =
-      "---\npreflight:\n  - connection: a\n\n  - env_var: B\n---\n";
+    const doc = "---\npreflight:\n  - connection: a\n\n  - env_var: B\n---\n";
     expect(extractPreflightChecks(doc)).toEqual<PreflightCheck[]>([
       { kind: "connection", value: "a" },
       { kind: "env_var", value: "B" },
@@ -124,8 +123,7 @@ describe("updateFrontmatterPreflightChecks", () => {
   });
 
   it("replaces an existing block in place", () => {
-    const before =
-      "---\npreflight:\n  - connection: old\n---\nbody\n";
+    const before = "---\npreflight:\n  - connection: old\n---\nbody\n";
     const next = updateFrontmatterPreflightChecks(before, [
       { kind: "connection", value: "new" },
       { kind: "env_var", value: "X" },

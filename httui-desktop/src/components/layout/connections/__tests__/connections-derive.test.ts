@@ -115,10 +115,7 @@ describe("buildListRows", () => {
 
   it("filters by kind when kindFilter is set", () => {
     const rows = buildListRows({
-      connections: [
-        conn("a", "x", "postgres"),
-        conn("b", "y", "mysql"),
-      ],
+      connections: [conn("a", "x", "postgres"), conn("b", "y", "mysql")],
       kindFilter: "postgres",
     });
     expect(rows).toHaveLength(1);
@@ -135,10 +132,7 @@ describe("buildListRows", () => {
 
   it("filters by name substring (case-insensitive)", () => {
     const rows = buildListRows({
-      connections: [
-        conn("a", "Alpha", "postgres"),
-        conn("b", "Beta", "mysql"),
-      ],
+      connections: [conn("a", "Alpha", "postgres"), conn("b", "Beta", "mysql")],
       search: "alp",
     });
     expect(rows).toHaveLength(1);
@@ -226,11 +220,7 @@ describe("envSummaries", () => {
       { id: "b", env: "alpha", latencyMs: 0, uses: 0 },
       { id: "c", env: "mango", latencyMs: 0, uses: 0 },
     ]);
-    expect(summaries.map((s) => s.name)).toEqual([
-      "alpha",
-      "mango",
-      "zebra",
-    ]);
+    expect(summaries.map((s) => s.name)).toEqual(["alpha", "mango", "zebra"]);
   });
 });
 

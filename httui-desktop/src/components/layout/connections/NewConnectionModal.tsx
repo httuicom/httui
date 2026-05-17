@@ -121,10 +121,8 @@ export function NewConnectionModal({
   editingName,
 }: NewConnectionModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [internalKind, setInternalKind] =
-    useState<ConnectionKind>(initialKind);
-  const [internalTab, setInternalTab] =
-    useState<NewConnectionTabId>("form");
+  const [internalKind, setInternalKind] = useState<ConnectionKind>(initialKind);
+  const [internalTab, setInternalTab] = useState<NewConnectionTabId>("form");
   const selectedKind = kindProp ?? internalKind;
   const activeTab = activeTabProp ?? internalTab;
   const setSelectedKind = (next: ConnectionKind) => {
@@ -261,10 +259,7 @@ export function NewConnectionModal({
                 />
               </>
             ) : (
-              <ComingSoonState
-                kindLabel={meta.label}
-                onCancel={onCancel}
-              />
+              <ComingSoonState kindLabel={meta.label} onCancel={onCancel} />
             )}
           </Flex>
         </Box>
@@ -413,8 +408,8 @@ function ComingSoonState({
         {kindLabel} — coming soon
       </Text>
       <Text fontSize="13px" color="fg.muted" maxW="360px">
-        Support for {kindLabel} connections lands in a future release.
-        Pick another kind on the left or close this dialog.
+        Support for {kindLabel} connections lands in a future release. Pick
+        another kind on the left or close this dialog.
       </Text>
       <Box mt={2}>
         <Btn variant="ghost" onClick={onCancel}>

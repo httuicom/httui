@@ -8,25 +8,19 @@ import { renderWithProviders, screen } from "@/test/render";
 describe("DocHeaderAbstract", () => {
   it("renders nothing when frontmatter is null", () => {
     renderWithProviders(<DocHeaderAbstract frontmatter={null} />);
-    expect(
-      screen.queryByTestId("docheader-abstract"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("docheader-abstract")).not.toBeInTheDocument();
   });
 
   it("renders nothing when frontmatter has no abstract", () => {
     renderWithProviders(<DocHeaderAbstract frontmatter={{}} />);
-    expect(
-      screen.queryByTestId("docheader-abstract"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("docheader-abstract")).not.toBeInTheDocument();
   });
 
   it("renders nothing when abstract is whitespace-only", () => {
     renderWithProviders(
       <DocHeaderAbstract frontmatter={{ abstract: "   " }} />,
     );
-    expect(
-      screen.queryByTestId("docheader-abstract"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("docheader-abstract")).not.toBeInTheDocument();
   });
 
   it("renders a short abstract without truncation hints", () => {
@@ -43,31 +37,23 @@ describe("DocHeaderAbstract", () => {
       screen.queryByTestId("docheader-abstract-fade"),
     ).not.toBeInTheDocument();
     expect(
-      screen
-        .getByTestId("docheader-abstract")
-        .getAttribute("data-clamped"),
+      screen.getByTestId("docheader-abstract").getAttribute("data-clamped"),
     ).toBeNull();
   });
 
   it("renders the toggle + fade for long abstracts (>250 chars)", () => {
     const long = "x".repeat(ABSTRACT_FADE_THRESHOLD + 1);
-    renderWithProviders(
-      <DocHeaderAbstract frontmatter={{ abstract: long }} />,
-    );
+    renderWithProviders(<DocHeaderAbstract frontmatter={{ abstract: long }} />);
     expect(screen.getByTestId("docheader-abstract-toggle")).toBeInTheDocument();
     expect(screen.getByTestId("docheader-abstract-fade")).toBeInTheDocument();
     expect(
-      screen
-        .getByTestId("docheader-abstract")
-        .getAttribute("data-clamped"),
+      screen.getByTestId("docheader-abstract").getAttribute("data-clamped"),
     ).toBe("true");
   });
 
   it("toggle reads 'more' when collapsed and 'less' when expanded", async () => {
     const long = "x".repeat(ABSTRACT_FADE_THRESHOLD + 1);
-    renderWithProviders(
-      <DocHeaderAbstract frontmatter={{ abstract: long }} />,
-    );
+    renderWithProviders(<DocHeaderAbstract frontmatter={{ abstract: long }} />);
     const toggle = screen.getByTestId("docheader-abstract-toggle");
     expect(toggle.textContent).toBe("more");
     await userEvent.setup().click(toggle);
@@ -76,9 +62,7 @@ describe("DocHeaderAbstract", () => {
 
   it("removes the fade and clamp flag when expanded", async () => {
     const long = "x".repeat(ABSTRACT_FADE_THRESHOLD + 1);
-    renderWithProviders(
-      <DocHeaderAbstract frontmatter={{ abstract: long }} />,
-    );
+    renderWithProviders(<DocHeaderAbstract frontmatter={{ abstract: long }} />);
     await userEvent
       .setup()
       .click(screen.getByTestId("docheader-abstract-toggle"));
@@ -86,9 +70,7 @@ describe("DocHeaderAbstract", () => {
       screen.queryByTestId("docheader-abstract-fade"),
     ).not.toBeInTheDocument();
     expect(
-      screen
-        .getByTestId("docheader-abstract")
-        .getAttribute("data-clamped"),
+      screen.getByTestId("docheader-abstract").getAttribute("data-clamped"),
     ).toBeNull();
   });
 

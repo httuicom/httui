@@ -41,9 +41,7 @@ describe("ConnectionDetailFooter — Test action", () => {
     await user.click(screen.getByTestId("footer-test"));
     await flush();
     expect(onTest).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId("footer-test-ok").textContent).toContain(
-      "47ms",
-    );
+    expect(screen.getByTestId("footer-test-ok").textContent).toContain("47ms");
   });
 
   it("Test → err banner with the message from onTest", async () => {
@@ -92,9 +90,9 @@ describe("ConnectionDetailFooter — Duplicate action", () => {
     const user = userEvent.setup();
     await user.click(screen.getByTestId("footer-duplicate"));
     await flush();
-    expect(
-      screen.getByTestId("footer-duplicate-error").textContent,
-    ).toContain("name taken");
+    expect(screen.getByTestId("footer-duplicate-error").textContent).toContain(
+      "name taken",
+    );
   });
 });
 
@@ -152,9 +150,7 @@ describe("ConnectionDetailFooter — Delete action (two-step confirm)", () => {
     // Wait past the reset window
     await new Promise((r) => setTimeout(r, 120));
     await flush();
-    expect(screen.getByTestId("footer-delete").textContent).toContain(
-      "Delete",
-    );
+    expect(screen.getByTestId("footer-delete").textContent).toContain("Delete");
     expect(screen.getByTestId("footer-delete").textContent).not.toContain(
       "Click again",
     );
@@ -174,8 +170,8 @@ describe("ConnectionDetailFooter — Delete action (two-step confirm)", () => {
     await user.click(screen.getByTestId("footer-delete"));
     await user.click(screen.getByTestId("footer-delete"));
     await flush();
-    expect(
-      screen.getByTestId("footer-delete-error").textContent,
-    ).toContain("in use");
+    expect(screen.getByTestId("footer-delete-error").textContent).toContain(
+      "in use",
+    );
   });
 });

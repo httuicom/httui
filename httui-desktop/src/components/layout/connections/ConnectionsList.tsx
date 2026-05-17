@@ -180,118 +180,118 @@ export function ConnectionsList() {
             const isProd = PROD_PATTERN.test(conn.name);
             const hasOverride = conn.id in overrides;
             return (
-            <Popover.Root
-              key={conn.id}
-              lazyMount
-              unmountOnExit
-              positioning={{ placement: "right-start", gutter: 6 }}
-            >
-              <Popover.Trigger asChild>
-                <Flex
-                  data-testid={`sidebar-connection-${conn.id}`}
-                  data-status={ping?.status ?? "idle"}
-                  data-prod={isProd ? "true" : "false"}
-                  data-temporary={hasOverride ? "true" : "false"}
-                  align="center"
-                  gap={2}
-                  px={2}
-                  py={1}
-                  mx={1}
-                  rounded="md"
-                  cursor="pointer"
-                  _hover={{ bg: "bg.subtle" }}
-                  fontSize="sm"
-                >
-                  <LuDatabase size={14} />
-                  <Text flex={1} truncate fontFamily="mono" fontSize="xs">
-                    {conn.name}
-                  </Text>
-                  {hasOverride && (
-                    <Box flexShrink={0}>
-                      <TemporaryChip />
-                    </Box>
-                  )}
-                  {isProd && (
-                    <Text
-                      data-testid={`sidebar-connection-${conn.id}-prod`}
-                      fontSize="2xs"
-                      fontWeight={700}
-                      letterSpacing="0.06em"
-                      px="4px"
-                      py="1px"
-                      color="red.fg"
-                      bg="red.subtle"
-                      borderRadius="3px"
-                      flexShrink={0}
-                    >
-                      PROD
-                    </Text>
-                  )}
-                  <Badge
-                    size="sm"
-                    variant="subtle"
-                    colorPalette={DRIVER_COLORS[conn.driver] ?? "gray"}
-                    fontFamily="mono"
-                    fontSize="2xs"
+              <Popover.Root
+                key={conn.id}
+                lazyMount
+                unmountOnExit
+                positioning={{ placement: "right-start", gutter: 6 }}
+              >
+                <Popover.Trigger asChild>
+                  <Flex
+                    data-testid={`sidebar-connection-${conn.id}`}
+                    data-status={ping?.status ?? "idle"}
+                    data-prod={isProd ? "true" : "false"}
+                    data-temporary={hasOverride ? "true" : "false"}
+                    align="center"
+                    gap={2}
+                    px={2}
+                    py={1}
+                    mx={1}
+                    rounded="md"
+                    cursor="pointer"
+                    _hover={{ bg: "bg.subtle" }}
+                    fontSize="sm"
                   >
-                    {DRIVER_LABELS[conn.driver] ?? conn.driver}
-                  </Badge>
-                  <Flex align="center" gap={1} flexShrink={0}>
-                    {testing === conn.id ? (
-                      <Spinner size="xs" />
-                    ) : (
-                      <Box
-                        data-testid={`sidebar-connection-${conn.id}-dot`}
-                        w={2}
-                        h={2}
-                        rounded="full"
-                        bg={
-                          ping?.status === "ok"
-                            ? "green.500"
-                            : ping?.status === "err"
-                              ? "red.500"
-                              : "gray.500"
-                        }
-                      />
+                    <LuDatabase size={14} />
+                    <Text flex={1} truncate fontFamily="mono" fontSize="xs">
+                      {conn.name}
+                    </Text>
+                    {hasOverride && (
+                      <Box flexShrink={0}>
+                        <TemporaryChip />
+                      </Box>
                     )}
-                    {ping?.latencyMs != null && (
+                    {isProd && (
                       <Text
-                        data-testid={`sidebar-connection-${conn.id}-latency`}
-                        fontFamily="mono"
+                        data-testid={`sidebar-connection-${conn.id}-prod`}
                         fontSize="2xs"
-                        color="fg.subtle"
+                        fontWeight={700}
+                        letterSpacing="0.06em"
+                        px="4px"
+                        py="1px"
+                        color="red.fg"
+                        bg="red.subtle"
+                        borderRadius="3px"
+                        flexShrink={0}
                       >
-                        {ping.latencyMs}ms
+                        PROD
                       </Text>
                     )}
+                    <Badge
+                      size="sm"
+                      variant="subtle"
+                      colorPalette={DRIVER_COLORS[conn.driver] ?? "gray"}
+                      fontFamily="mono"
+                      fontSize="2xs"
+                    >
+                      {DRIVER_LABELS[conn.driver] ?? conn.driver}
+                    </Badge>
+                    <Flex align="center" gap={1} flexShrink={0}>
+                      {testing === conn.id ? (
+                        <Spinner size="xs" />
+                      ) : (
+                        <Box
+                          data-testid={`sidebar-connection-${conn.id}-dot`}
+                          w={2}
+                          h={2}
+                          rounded="full"
+                          bg={
+                            ping?.status === "ok"
+                              ? "green.500"
+                              : ping?.status === "err"
+                                ? "red.500"
+                                : "gray.500"
+                          }
+                        />
+                      )}
+                      {ping?.latencyMs != null && (
+                        <Text
+                          data-testid={`sidebar-connection-${conn.id}-latency`}
+                          fontFamily="mono"
+                          fontSize="2xs"
+                          color="fg.subtle"
+                        >
+                          {ping.latencyMs}ms
+                        </Text>
+                      )}
+                    </Flex>
                   </Flex>
-                </Flex>
-              </Popover.Trigger>
-              <Portal>
-                <Popover.Positioner>
-                  <Popover.Content
-                    width="auto"
-                    bg="transparent"
-                    borderWidth={0}
-                    boxShadow="none"
-                  >
-                    <ConnectionQuickEdit
-                      conn={conn}
-                      pingStatus={ping?.status ?? "idle"}
-                      pingLatencyMs={ping?.latencyMs ?? null}
-                      onTest={() => handleTest(conn.id)}
-                      onEdit={() => {
-                        setEditingConn(conn);
-                        setShowForm(true);
-                      }}
-                      onDelete={() => handleDelete(conn.id)}
-                      onDuplicate={() => handleDuplicate(conn)}
-                      onChanged={() => refresh()}
-                    />
-                  </Popover.Content>
-                </Popover.Positioner>
-              </Portal>
-            </Popover.Root>
+                </Popover.Trigger>
+                <Portal>
+                  <Popover.Positioner>
+                    <Popover.Content
+                      width="auto"
+                      bg="transparent"
+                      borderWidth={0}
+                      boxShadow="none"
+                    >
+                      <ConnectionQuickEdit
+                        conn={conn}
+                        pingStatus={ping?.status ?? "idle"}
+                        pingLatencyMs={ping?.latencyMs ?? null}
+                        onTest={() => handleTest(conn.id)}
+                        onEdit={() => {
+                          setEditingConn(conn);
+                          setShowForm(true);
+                        }}
+                        onDelete={() => handleDelete(conn.id)}
+                        onDuplicate={() => handleDuplicate(conn)}
+                        onChanged={() => refresh()}
+                      />
+                    </Popover.Content>
+                  </Popover.Positioner>
+                </Portal>
+              </Popover.Root>
             );
           })}
         </Box>

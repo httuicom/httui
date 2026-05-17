@@ -29,12 +29,12 @@ describe("GitLogList", () => {
         commits={[commit(), commit({ short_sha: "f00ba12", subject: "next" })]}
       />,
     );
-    expect(
-      screen.getByTestId("git-log-list").getAttribute("data-count"),
-    ).toBe("2");
-    expect(
-      screen.getByTestId("git-log-row-deadbee-initials").textContent,
-    ).toBe("JD");
+    expect(screen.getByTestId("git-log-list").getAttribute("data-count")).toBe(
+      "2",
+    );
+    expect(screen.getByTestId("git-log-row-deadbee-initials").textContent).toBe(
+      "JD",
+    );
     expect(screen.getByTestId("git-log-row-f00ba12")).toBeInTheDocument();
   });
 
@@ -63,9 +63,7 @@ describe("GitLogList", () => {
   it("renders relative time as '<N>s ago' for recent commits", () => {
     renderWithProviders(
       <GitLogList
-        commits={[
-          commit({ timestamp: Math.floor(Date.now() / 1000) - 10 }),
-        ]}
+        commits={[commit({ timestamp: Math.floor(Date.now() / 1000) - 10 })]}
       />,
     );
     expect(screen.getByTestId("git-log-row-deadbee").textContent).toMatch(

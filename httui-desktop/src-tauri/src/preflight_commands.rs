@@ -304,11 +304,7 @@ mod tests {
     fn connection_fails_when_name_not_declared() {
         let dir = tempdir().unwrap();
         let f = dir.path().join("note.md");
-        fs::write(
-            &f,
-            "---\npreflight:\n  - connection: payments-db\n---\n",
-        )
-        .unwrap();
+        fs::write(&f, "---\npreflight:\n  - connection: payments-db\n---\n").unwrap();
         let (envs, conns) = empty_ctx();
         let r = evaluate_preflight_for_paths(
             &f.to_string_lossy(),
@@ -325,11 +321,7 @@ mod tests {
     fn connection_passes_when_name_in_context() {
         let dir = tempdir().unwrap();
         let f = dir.path().join("note.md");
-        fs::write(
-            &f,
-            "---\npreflight:\n  - connection: payments-db\n---\n",
-        )
-        .unwrap();
+        fs::write(&f, "---\npreflight:\n  - connection: payments-db\n---\n").unwrap();
         let mut conns = HashSet::new();
         conns.insert("payments-db".to_string());
         let envs = HashSet::new();

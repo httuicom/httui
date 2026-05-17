@@ -47,7 +47,10 @@ export function pickH1Title(
 export function filenameWithoutExtension(filePath: string): string {
   // Use the last `/` in either separator family — vaults are POSIX
   // by convention but Windows backslashes can leak in via paste.
-  const lastSlash = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
+  const lastSlash = Math.max(
+    filePath.lastIndexOf("/"),
+    filePath.lastIndexOf("\\"),
+  );
   const base = lastSlash === -1 ? filePath : filePath.slice(lastSlash + 1);
   const dotIdx = base.lastIndexOf(".");
   return dotIdx <= 0 ? base : base.slice(0, dotIdx);

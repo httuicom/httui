@@ -13,7 +13,15 @@
 //
 // Pure presentational: form value + slots lifted to the consumer.
 
-import { Box, Flex, Grid, HStack, IconButton, Text, chakra } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Grid,
+  HStack,
+  IconButton,
+  Text,
+  chakra,
+} from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { LuFolderOpen, LuKey } from "react-icons/lu";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
@@ -48,9 +56,7 @@ export const EMPTY_POSTGRES_VALUE: PostgresFormValue = {
 
 /** Per-kind defaults for the network-shape form. Keeps port + sample
  * placeholders honest when the user switches between drivers. */
-export function emptyFormValueForKind(
-  kind: ConnectionKind,
-): PostgresFormValue {
+export function emptyFormValueForKind(kind: ConnectionKind): PostgresFormValue {
   switch (kind) {
     case "mysql":
       return { ...EMPTY_POSTGRES_VALUE, port: "3306" };
@@ -167,11 +173,7 @@ export function NewConnectionFormTab({
   }
 
   return (
-    <Flex
-      data-testid="new-connection-form-tab"
-      direction="column"
-      gap={4}
-    >
+    <Flex data-testid="new-connection-form-tab" direction="column" gap={4}>
       <Field label="Name">
         <Input
           data-testid="new-connection-field-name"

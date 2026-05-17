@@ -13,9 +13,7 @@ function makeFakeView(content: string): EditorView {
   } as unknown as EditorView;
 }
 
-function makeEntry(
-  over: Partial<DocHeaderEntry> = {},
-): DocHeaderEntry {
+function makeEntry(over: Partial<DocHeaderEntry> = {}): DocHeaderEntry {
   return {
     id: "i1",
     container: document.createElement("div"),
@@ -35,9 +33,9 @@ function makeDeps(): CallbackDeps & {
   flushSave: ReturnType<typeof vi.fn>;
 } {
   return {
-    dispatchDocReplace: vi.fn(),
-    returnFocusToBody: vi.fn(),
-    flushSave: vi.fn(),
+    dispatchDocReplace: vi.fn<(view: EditorView, next: string) => void>(),
+    returnFocusToBody: vi.fn<(instanceId: string) => void>(),
+    flushSave: vi.fn<() => void>(),
   };
 }
 
@@ -199,7 +197,7 @@ describe("buildDocHeaderCallbacks", () => {
 
     it("onChecklistSave rewrites the tasks list", () => {
       const deps = makeDeps();
-      const view = makeFakeView("---\ntasks: [\"[ ] one\"]\n---\n");
+      const view = makeFakeView('---\ntasks: ["[ ] one"]\n---\n');
       const entry = makeEntry({ view });
       const cb = buildDocHeaderCallbacks(entry, "i1", deps);
       cb.onChecklistSave([

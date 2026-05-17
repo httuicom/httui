@@ -4,9 +4,9 @@ import { buildConnectionPreview } from "@/components/layout/connections/form/con
 
 describe("buildConnectionPreview", () => {
   it("returns the file path verbatim for sqlite", () => {
-    expect(
-      buildConnectionPreview("sqlite", "", "", "/tmp/notes.db", ""),
-    ).toBe("/tmp/notes.db");
+    expect(buildConnectionPreview("sqlite", "", "", "/tmp/notes.db", "")).toBe(
+      "/tmp/notes.db",
+    );
   });
 
   it("returns a placeholder when sqlite path is empty", () => {
@@ -17,13 +17,7 @@ describe("buildConnectionPreview", () => {
 
   it("builds a postgres URI from fields", () => {
     expect(
-      buildConnectionPreview(
-        "postgres",
-        "db.local",
-        "5432",
-        "app",
-        "alice",
-      ),
+      buildConnectionPreview("postgres", "db.local", "5432", "app", "alice"),
     ).toBe("postgres://alice@db.local:5432/app");
   });
 

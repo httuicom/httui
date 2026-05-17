@@ -72,16 +72,10 @@ describe("GitCommitDiffViewer", () => {
 
   it("renders the header with shortSha + subject when provided", () => {
     renderWithProviders(
-      <GitCommitDiffViewer
-        shortSha="abc1234"
-        subject="fix bug"
-        diff="+a"
-      />,
+      <GitCommitDiffViewer shortSha="abc1234" subject="fix bug" diff="+a" />,
     );
     expect(
-      screen
-        .getByTestId("git-commit-diff-viewer-header")
-        .textContent,
+      screen.getByTestId("git-commit-diff-viewer-header").textContent,
     ).toMatch(/abc1234.*fix bug/);
   });
 

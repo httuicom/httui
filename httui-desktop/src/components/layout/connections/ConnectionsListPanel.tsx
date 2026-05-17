@@ -12,10 +12,7 @@ import { LuPlus } from "react-icons/lu";
 
 import { Btn, Input } from "@/components/atoms";
 import { MasterDetailListHeader } from "@/components/layout/shared";
-import {
-  ConnectionListRow,
-  type ListRowItem,
-} from "./ConnectionListRow";
+import { ConnectionListRow, type ListRowItem } from "./ConnectionListRow";
 
 export interface ListStatusCounts {
   total: number;
@@ -146,7 +143,6 @@ export function ConnectionsListPanel({
           </Text>
         </Flex>
       )}
-
     </Stack>
   );
 }

@@ -15,8 +15,7 @@ describe("serializeExplainPlan", () => {
     // The 200 KB cap path stores the truncated text as Value::String
     // on the Rust side. The wire delivers a plain string; we keep
     // it as-is so the consumer sees the truncation marker.
-    const truncated =
-      "[".padEnd(190_000, "x") + "[explain payload truncated]";
+    const truncated = "[".padEnd(190_000, "x") + "[explain payload truncated]";
     expect(serializeExplainPlan(truncated)).toBe(truncated);
   });
 

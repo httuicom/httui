@@ -3,10 +3,7 @@ import { renderWithWorkspace, screen } from "@/test/render";
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useEnvironmentStore } from "@/stores/environment";
-import {
-  mockTauriCommand,
-  clearTauriMocks,
-} from "@/test/mocks/tauri";
+import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
 
 beforeEach(() => {
   clearTauriMocks();

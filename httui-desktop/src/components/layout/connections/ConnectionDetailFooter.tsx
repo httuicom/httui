@@ -238,13 +238,7 @@ function TestResultBanner({ result }: { result: TestResult }) {
       fontSize="11px"
     >
       <Flex align="center" gap={2}>
-        <Box
-          h="6px"
-          w="6px"
-          borderRadius="full"
-          bg="red.solid"
-          aria-hidden
-        />
+        <Box h="6px" w="6px" borderRadius="full" bg="red.solid" aria-hidden />
         <Text fontWeight={500}>Failed</Text>
         <Text fontFamily="mono" color="red.fg" truncate>
           {result.message}

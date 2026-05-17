@@ -17,9 +17,7 @@ describe("OutlineList", () => {
   it("renders the empty state when entries is empty", () => {
     renderWithProviders(<OutlineList entries={[]} />);
     expect(screen.getByTestId("outline-empty")).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("outline-list"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("outline-list")).not.toBeInTheDocument();
   });
 
   it("renders one row per entry with level + line attrs", () => {
@@ -53,9 +51,7 @@ describe("OutlineList", () => {
 
   it("renders rows as buttons + fires onSelect with the entry", async () => {
     const onSelect = vi.fn();
-    renderWithProviders(
-      <OutlineList entries={SAMPLE} onSelect={onSelect} />,
-    );
+    renderWithProviders(<OutlineList entries={SAMPLE} onSelect={onSelect} />);
     const rows = screen.getAllByTestId("outline-row");
     expect(rows[0].tagName).toBe("BUTTON");
     await userEvent.click(rows[2]);
@@ -63,9 +59,7 @@ describe("OutlineList", () => {
   });
 
   it("highlights the entry whose line is largest <= activeLine", () => {
-    renderWithProviders(
-      <OutlineList entries={SAMPLE} activeLine={22} />,
-    );
+    renderWithProviders(<OutlineList entries={SAMPLE} activeLine={22} />);
     const rows = screen.getAllByTestId("outline-row");
     // activeLine=22 sits between Rollout (line 20) and PATCH (line 25)
     // → Rollout (idx 2) highlights.
@@ -77,19 +71,13 @@ describe("OutlineList", () => {
   });
 
   it("highlights nothing when activeLine is before every heading", () => {
-    renderWithProviders(
-      <OutlineList entries={SAMPLE} activeLine={1} />,
-    );
+    renderWithProviders(<OutlineList entries={SAMPLE} activeLine={1} />);
     const rows = screen.getAllByTestId("outline-row");
-    rows.forEach((r) =>
-      expect(r).toHaveAttribute("data-active", "false"),
-    );
+    rows.forEach((r) => expect(r).toHaveAttribute("data-active", "false"));
   });
 
   it("highlights the last entry when activeLine is far past the end", () => {
-    renderWithProviders(
-      <OutlineList entries={SAMPLE} activeLine={9999} />,
-    );
+    renderWithProviders(<OutlineList entries={SAMPLE} activeLine={9999} />);
     const rows = screen.getAllByTestId("outline-row");
     expect(rows[rows.length - 1]).toHaveAttribute("data-active", "true");
   });
@@ -97,9 +85,7 @@ describe("OutlineList", () => {
   it("highlights nothing when activeLine is omitted", () => {
     renderWithProviders(<OutlineList entries={SAMPLE} />);
     const rows = screen.getAllByTestId("outline-row");
-    rows.forEach((r) =>
-      expect(r).toHaveAttribute("data-active", "false"),
-    );
+    rows.forEach((r) => expect(r).toHaveAttribute("data-active", "false"));
   });
 
   it("indent class scales with level via inline padding", () => {

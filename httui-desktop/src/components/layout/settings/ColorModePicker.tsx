@@ -30,8 +30,8 @@ export function ColorModePicker() {
         Color mode
       </Text>
       <Text fontSize="xs" color="fg.muted">
-        Switch between Fuji at dusk (dark) and Fuji photo (light), or
-        follow the OS preference.
+        Switch between Fuji at dusk (dark) and Fuji photo (light), or follow the
+        OS preference.
       </Text>
       <HStack
         role="radiogroup"

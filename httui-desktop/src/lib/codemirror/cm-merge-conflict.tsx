@@ -79,11 +79,7 @@ function resolveRegion(
   const ours = slice(region.oursMarker + 1, region.separator - 1);
   const theirs = slice(region.separator + 1, region.theirsMarker - 1);
   const insert =
-    side === "ours"
-      ? ours
-      : side === "theirs"
-        ? theirs
-        : `${ours}\n${theirs}`;
+    side === "ours" ? ours : side === "theirs" ? theirs : `${ours}\n${theirs}`;
   view.dispatch({ changes: { from, to, insert } });
 }
 

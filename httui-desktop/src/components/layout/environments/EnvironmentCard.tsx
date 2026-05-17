@@ -16,14 +16,10 @@ import {
   Menu,
   Portal,
   Text,
+  chakra,
 } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
-import {
-  LuCopy,
-  LuEllipsisVertical,
-  LuPencil,
-  LuTrash2,
-} from "react-icons/lu";
+import { LuCopy, LuEllipsisVertical, LuPencil, LuTrash2 } from "react-icons/lu";
 
 import type { EnvironmentSummary } from "./envs-meta";
 
@@ -45,6 +41,7 @@ export function EnvironmentCard({
   onDelete,
 }: EnvironmentCardProps) {
   const interactive = !!onActivate;
+  const BodyComp = interactive ? chakra.button : chakra.div;
   const hasActions = !!(onClone || onRename || onDelete);
 
   // Detect false → true transition on isActive to fire a one-shot
@@ -107,8 +104,7 @@ export function EnvironmentCard({
           : undefined
       }
     >
-      <Box
-        as={interactive ? "button" : "div"}
+      <BodyComp
         type={interactive ? "button" : undefined}
         onClick={interactive ? () => onActivate?.(env.filename) : undefined}
         textAlign="left"
@@ -151,7 +147,13 @@ export function EnvironmentCard({
           )}
         </Flex>
 
-        <Flex gap={3} fontFamily="mono" fontSize="11px" color="fg.muted" mb={1.5}>
+        <Flex
+          gap={3}
+          fontFamily="mono"
+          fontSize="11px"
+          color="fg.muted"
+          mb={1.5}
+        >
           <Text data-testid={`environment-card-${env.filename}-vars`}>
             {env.varCount} {env.varCount === 1 ? "var" : "vars"}
           </Text>
@@ -189,7 +191,7 @@ export function EnvironmentCard({
             {env.description}
           </Text>
         )}
-      </Box>
+      </BodyComp>
 
       {hasActions && (
         <Box position="absolute" top={1.5} right={1.5}>
@@ -209,7 +211,10 @@ export function EnvironmentCard({
               <Menu.Positioner>
                 <Menu.Content>
                   {onClone && (
-                    <Menu.Item value="clone" onSelect={() => onClone(env.filename)}>
+                    <Menu.Item
+                      value="clone"
+                      onSelect={() => onClone(env.filename)}
+                    >
                       <LuCopy />
                       Clone
                     </Menu.Item>

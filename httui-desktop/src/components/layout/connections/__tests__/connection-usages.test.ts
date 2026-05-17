@@ -109,9 +109,7 @@ describe("findUsagesAcrossVault", () => {
   });
 
   it("returns empty when no file matches", () => {
-    const files = [
-      { path: "a.md", content: "no fences here\n" },
-    ];
+    const files = [{ path: "a.md", content: "no fences here\n" }];
     expect(findUsagesAcrossVault(files, "c1")).toEqual([]);
   });
 });

@@ -26,7 +26,9 @@ describe("FileTreeTagDots", () => {
     renderWithProviders(<FileTreeTagDots filePath="/v/x.md" />);
     expect(screen.getByTestId("file-tree-tag-dots")).toBeInTheDocument();
     expect(screen.getByTestId("file-tree-tag-dot-api")).toBeInTheDocument();
-    expect(screen.getByTestId("file-tree-tag-dot-payments")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("file-tree-tag-dot-payments"),
+    ).toBeInTheDocument();
     expect(
       screen.queryByTestId("file-tree-tag-dots-overflow"),
     ).not.toBeInTheDocument();
@@ -40,18 +42,14 @@ describe("FileTreeTagDots", () => {
     expect(screen.getByTestId("file-tree-tag-dot-a")).toBeInTheDocument();
     expect(screen.getByTestId("file-tree-tag-dot-b")).toBeInTheDocument();
     expect(screen.getByTestId("file-tree-tag-dot-c")).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("file-tree-tag-dot-d"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("file-tree-tag-dot-d")).not.toBeInTheDocument();
     expect(screen.getByTestId("file-tree-tag-dots-overflow").textContent).toBe(
       "+2",
     );
   });
 
   it("the wrapper title attribute lists every tag (incl. overflow)", () => {
-    useTagIndexStore
-      .getState()
-      .setTagsForFile("/v/z.md", ["a", "b", "c", "d"]);
+    useTagIndexStore.getState().setTagsForFile("/v/z.md", ["a", "b", "c", "d"]);
     renderWithProviders(<FileTreeTagDots filePath="/v/z.md" />);
     expect(screen.getByTestId("file-tree-tag-dots").title).toBe("a, b, c, d");
   });

@@ -41,9 +41,7 @@ describe("AddBlockMenu", () => {
       "shell",
     ];
     for (const kind of expectedKinds) {
-      expect(
-        screen.getByText(BLOCK_TEMPLATES[kind].label),
-      ).toBeInTheDocument();
+      expect(screen.getByText(BLOCK_TEMPLATES[kind].label)).toBeInTheDocument();
     }
   });
 

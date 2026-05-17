@@ -37,9 +37,7 @@ describe("VariablesScopesSidebar", () => {
         .getAttribute("data-selected"),
     ).toBe("true");
     expect(
-      screen
-        .getByTestId("variables-scope-all")
-        .getAttribute("data-selected"),
+      screen.getByTestId("variables-scope-all").getAttribute("data-selected"),
     ).toBe("false");
     expect(screen.getByTestId("variables-scope-all-count").textContent).toBe(
       "8",

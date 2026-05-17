@@ -82,9 +82,7 @@ function ArchiveFilterToggle() {
     (s) => Object.keys(s.archivedFiles).length,
   );
   const showArchived = useArchiveFilterStore((s) => s.showArchived);
-  const toggleShowArchived = useArchiveFilterStore(
-    (s) => s.toggleShowArchived,
-  );
+  const toggleShowArchived = useArchiveFilterStore((s) => s.toggleShowArchived);
   if (archivedCount === 0) return null;
   return (
     <Flex

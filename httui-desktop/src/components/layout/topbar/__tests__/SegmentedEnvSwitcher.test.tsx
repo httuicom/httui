@@ -97,14 +97,20 @@ describe("SegmentedEnvSwitcher", () => {
 
   it("renders a Dot variant=err on environments whose name starts with 'prod'", () => {
     useEnvironmentStore.setState({
-      environments: [mkEnv("a", "local"), mkEnv("b", "prod"), mkEnv("c", "prod-canary")],
+      environments: [
+        mkEnv("a", "local"),
+        mkEnv("b", "prod"),
+        mkEnv("c", "prod-canary"),
+      ],
       activeEnvironment: mkEnv("a", "local"),
       switchEnvironment: switchSpy,
     } as never);
 
     const { container } = renderWithProviders(<SegmentedEnvSwitcher />);
     // 2 prod-prefixed envs → 2 err dots inside the prod cells
-    const errDots = container.querySelectorAll('[data-atom="dot"][data-variant="err"]');
+    const errDots = container.querySelectorAll(
+      '[data-atom="dot"][data-variant="err"]',
+    );
     expect(errDots.length).toBe(2);
   });
 });

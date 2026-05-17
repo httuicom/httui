@@ -22,10 +22,7 @@ use std::path::{Path, PathBuf};
 /// Read the captures JSON for `file_path`. Returns `Ok(None)` when
 /// the file doesn't exist (the auto-capture was either OFF or
 /// nothing was persisted yet) — that's normal, not an error.
-pub fn read_captures_file(
-    vault_root: &Path,
-    file_path: &str,
-) -> Result<Option<String>, String> {
+pub fn read_captures_file(vault_root: &Path, file_path: &str) -> Result<Option<String>, String> {
     let path = captures_path_for(vault_root, file_path)?;
     match fs::read_to_string(&path) {
         Ok(s) => Ok(Some(s)),
@@ -53,10 +50,7 @@ pub fn write_captures_file(
 
 /// Delete the captures cache for `file_path`. Returns `true` when
 /// a file was removed, `false` when there was nothing to delete.
-pub fn delete_captures_file(
-    vault_root: &Path,
-    file_path: &str,
-) -> Result<bool, String> {
+pub fn delete_captures_file(vault_root: &Path, file_path: &str) -> Result<bool, String> {
     let path = captures_path_for(vault_root, file_path)?;
     match fs::remove_file(&path) {
         Ok(()) => Ok(true),
@@ -124,7 +118,9 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = write_captures_file(dir.path(), "runbook.md", SAMPLE_JSON).unwrap();
         assert!(path.ends_with(".httui/captures/runbook.md.json"));
-        let read = read_captures_file(dir.path(), "runbook.md").unwrap().unwrap();
+        let read = read_captures_file(dir.path(), "runbook.md")
+            .unwrap()
+            .unwrap();
         assert_eq!(read, SAMPLE_JSON);
     }
 

@@ -36,9 +36,7 @@ describe("GitStatusHeader", () => {
       screen.queryByTestId("git-status-header-upstream"),
     ).not.toBeInTheDocument();
     expect(
-      screen
-        .getByTestId("git-status-header")
-        .getAttribute("data-no-upstream"),
+      screen.getByTestId("git-status-header").getAttribute("data-no-upstream"),
     ).toBe("true");
   });
 

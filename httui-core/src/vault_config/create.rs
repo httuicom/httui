@@ -35,10 +35,7 @@ pub struct CreateOutcome {
 /// Validate, mkdir, `git init`, scaffold. See module docs.
 pub fn create_new_vault(parent: &Path, name: &str) -> Result<CreateOutcome, String> {
     if !parent.exists() {
-        return Err(format!(
-            "pasta pai '{}' não existe",
-            parent.display()
-        ));
+        return Err(format!("pasta pai '{}' não existe", parent.display()));
     }
     if !parent.is_dir() {
         return Err(format!("'{}' não é uma pasta", parent.display()));
@@ -63,10 +60,7 @@ pub fn create_new_vault(parent: &Path, name: &str) -> Result<CreateOutcome, Stri
             .map(|mut it| it.next().is_none())
             .unwrap_or(false);
         if !is_empty {
-            return Err(format!(
-                "'{}' já existe e não está vazio",
-                dest.display()
-            ));
+            return Err(format!("'{}' já existe e não está vazio", dest.display()));
         }
     } else {
         std::fs::create_dir(&dest)
@@ -91,8 +85,7 @@ pub fn create_new_vault(parent: &Path, name: &str) -> Result<CreateOutcome, Stri
         });
     }
 
-    let scaffold = scaffold_new_vault(&dest)
-        .map_err(|e| format!("scaffold vault: {e}"))?;
+    let scaffold = scaffold_new_vault(&dest).map_err(|e| format!("scaffold vault: {e}"))?;
 
     Ok(CreateOutcome {
         destination: dest,
@@ -177,7 +170,11 @@ mod tests {
             "scaffold should have created .httui/",
         );
         assert!(
-            outcome.scaffold.created.iter().any(|f| f == "connections.toml"),
+            outcome
+                .scaffold
+                .created
+                .iter()
+                .any(|f| f == "connections.toml"),
             "scaffold report should list created files: {:?}",
             outcome.scaffold.created,
         );

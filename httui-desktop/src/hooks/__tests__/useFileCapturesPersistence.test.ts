@@ -1,11 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
@@ -182,9 +175,7 @@ describe("useFileCapturesPersistence", () => {
       return true;
     });
 
-    const { result } = renderHook(() =>
-      useFileCapturesPersistence(null, FILE),
-    );
+    const { result } = renderHook(() => useFileCapturesPersistence(null, FILE));
     // Inner is idle when vault is null — no Tauri calls fired.
     await act(async () => {
       await result.current.setAutoCapture(true);

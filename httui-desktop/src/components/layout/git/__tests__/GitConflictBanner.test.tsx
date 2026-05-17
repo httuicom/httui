@@ -22,9 +22,7 @@ describe("GitConflictBanner", () => {
   });
 
   it("agrees plural for >1 conflicts", () => {
-    renderWithProviders(
-      <GitConflictBanner conflicts={["a.md", "b.md"]} />,
-    );
+    renderWithProviders(<GitConflictBanner conflicts={["a.md", "b.md"]} />);
     expect(screen.getByTestId("git-conflict-banner").textContent).toMatch(
       /2 conflicts to resolve/,
     );
@@ -41,9 +39,7 @@ describe("GitConflictBanner", () => {
   });
 
   it("encodes count via data-count", () => {
-    renderWithProviders(
-      <GitConflictBanner conflicts={["a", "b", "c"]} />,
-    );
+    renderWithProviders(<GitConflictBanner conflicts={["a", "b", "c"]} />);
     expect(
       screen.getByTestId("git-conflict-banner").getAttribute("data-count"),
     ).toBe("3");
@@ -51,10 +47,7 @@ describe("GitConflictBanner", () => {
 
   it("only renders the action buttons whose handlers are provided", () => {
     renderWithProviders(
-      <GitConflictBanner
-        conflicts={["a.md"]}
-        onOpenDiff={() => {}}
-      />,
+      <GitConflictBanner conflicts={["a.md"]} onOpenDiff={() => {}} />,
     );
     expect(
       screen.getByTestId("git-conflict-row-a.md-resolve"),
@@ -81,10 +74,7 @@ describe("GitConflictBanner", () => {
   it("fires onAcceptYours on Accept-yours click", async () => {
     const onAcceptYours = vi.fn();
     renderWithProviders(
-      <GitConflictBanner
-        conflicts={["a.md"]}
-        onAcceptYours={onAcceptYours}
-      />,
+      <GitConflictBanner conflicts={["a.md"]} onAcceptYours={onAcceptYours} />,
     );
     await userEvent
       .setup()
@@ -117,19 +107,22 @@ describe("GitConflictBanner", () => {
       />,
     );
     expect(
-      (screen.getByTestId(
-        "git-conflict-row-a.md-resolve",
-      ) as HTMLButtonElement).disabled,
+      (screen.getByTestId("git-conflict-row-a.md-resolve") as HTMLButtonElement)
+        .disabled,
     ).toBe(true);
     expect(
-      (screen.getByTestId(
-        "git-conflict-row-a.md-accept-yours",
-      ) as HTMLButtonElement).disabled,
+      (
+        screen.getByTestId(
+          "git-conflict-row-a.md-accept-yours",
+        ) as HTMLButtonElement
+      ).disabled,
     ).toBe(true);
     expect(
-      (screen.getByTestId(
-        "git-conflict-row-a.md-accept-theirs",
-      ) as HTMLButtonElement).disabled,
+      (
+        screen.getByTestId(
+          "git-conflict-row-a.md-accept-theirs",
+        ) as HTMLButtonElement
+      ).disabled,
     ).toBe(true);
     expect(
       screen.getByTestId("git-conflict-banner").getAttribute("data-busy"),

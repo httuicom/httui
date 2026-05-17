@@ -52,11 +52,6 @@ impl PlanNode {
     /// Maximum depth (root = 1). Useful for the "tree handles 6+
     /// levels without horizontal scroll issues" acceptance test.
     pub fn depth(&self) -> usize {
-        1 + self
-            .children
-            .iter()
-            .map(|c| c.depth())
-            .max()
-            .unwrap_or(0)
+        1 + self.children.iter().map(|c| c.depth()).max().unwrap_or(0)
     }
 }

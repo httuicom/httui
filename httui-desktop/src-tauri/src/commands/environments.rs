@@ -181,10 +181,7 @@ pub async fn rename_environment(
     new_name: String,
 ) -> Result<Environment, String> {
     let stores = registry.for_active_vault(&pool).await?;
-    stores
-        .environments
-        .rename_env(&old_id, &new_name)
-        .await?;
+    stores.environments.rename_env(&old_id, &new_name).await?;
     let active = stores.environments.active_env().await?;
     let envs = stores.environments.list_envs().await?;
     let renamed = envs

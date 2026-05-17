@@ -83,9 +83,7 @@ describe("NewConnectionModalContainer", () => {
         onCreated={() => {}}
       />,
     );
-    const save = screen.getByTestId(
-      "new-connection-save",
-    ) as HTMLButtonElement;
+    const save = screen.getByTestId("new-connection-save") as HTMLButtonElement;
     expect(save.disabled).toBe(true);
   });
 

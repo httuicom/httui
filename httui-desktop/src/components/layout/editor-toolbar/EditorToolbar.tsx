@@ -54,7 +54,10 @@ export function shortenPath(filePath: string): string {
 
 /** Render a relative-time string like "2m ago" / "3h ago" /
  * "5d ago" / "just now". Resolution caps at days; older is "Apr 5". */
-export function formatRelativeTime(date: Date | null, now = new Date()): string {
+export function formatRelativeTime(
+  date: Date | null,
+  now = new Date(),
+): string {
   if (!date) return "—";
   const ms = now.getTime() - date.getTime();
   if (ms < 30_000) return "just now";
@@ -147,10 +150,7 @@ export function EditorToolbar({
       </ToggleButton>
 
       {onAddBlock && (
-        <AddBlockMenu
-          onInsert={onAddBlock}
-          ariaLabel="Add block to document"
-        />
+        <AddBlockMenu onInsert={onAddBlock} ariaLabel="Add block to document" />
       )}
     </HStack>
   );

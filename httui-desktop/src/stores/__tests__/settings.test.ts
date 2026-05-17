@@ -9,6 +9,7 @@ vi.mock("@/lib/theme/apply", () => ({
 
 import { useSettingsStore } from "@/stores/settings";
 import { applyTheme } from "@/lib/theme/apply";
+import type { UserConfigFile, UserUiPrefs } from "@/lib/tauri/commands";
 
 const DEFAULT_SETTINGS = {
   autoSaveMs: 1000,
@@ -17,7 +18,7 @@ const DEFAULT_SETTINGS = {
   historyRetention: 10,
 };
 
-function userFile(uiOverrides: Record<string, unknown> = {}) {
+function userFile(uiOverrides: Partial<UserUiPrefs> = {}): UserConfigFile {
   return {
     version: "1",
     ui: {
@@ -41,7 +42,7 @@ function userFile(uiOverrides: Record<string, unknown> = {}) {
   };
 }
 
-function mockUserConfig(uiOverrides: Record<string, unknown> = {}) {
+function mockUserConfig(uiOverrides: Partial<UserUiPrefs> = {}) {
   let current = userFile(uiOverrides);
   mockTauriCommand("get_user_config", () => current);
   mockTauriCommand("set_user_config", (args) => {
@@ -385,9 +386,9 @@ describe("settingsStore", () => {
 
   describe("autoUpdateIncludePrereleases", () => {
     it("defaults to false", () => {
-      expect(
-        useSettingsStore.getState().autoUpdateIncludePrereleases,
-      ).toBe(false);
+      expect(useSettingsStore.getState().autoUpdateIncludePrereleases).toBe(
+        false,
+      );
     });
 
     it("setAutoUpdateIncludePrereleases(true) updates state and persists", async () => {
@@ -395,9 +396,9 @@ describe("settingsStore", () => {
 
       useSettingsStore.getState().setAutoUpdateIncludePrereleases(true);
 
-      expect(
-        useSettingsStore.getState().autoUpdateIncludePrereleases,
-      ).toBe(true);
+      expect(useSettingsStore.getState().autoUpdateIncludePrereleases).toBe(
+        true,
+      );
       await flushPersist();
       expect(read().ui.auto_update_include_prereleases).toBe(true);
     });
@@ -409,9 +410,9 @@ describe("settingsStore", () => {
 
       useSettingsStore.getState().setAutoUpdateIncludePrereleases(false);
 
-      expect(
-        useSettingsStore.getState().autoUpdateIncludePrereleases,
-      ).toBe(false);
+      expect(useSettingsStore.getState().autoUpdateIncludePrereleases).toBe(
+        false,
+      );
       await flushPersist();
       expect(read().ui.auto_update_include_prereleases).toBe(false);
     });
@@ -421,9 +422,9 @@ describe("settingsStore", () => {
 
       await useSettingsStore.getState().loadSettings();
 
-      expect(
-        useSettingsStore.getState().autoUpdateIncludePrereleases,
-      ).toBe(true);
+      expect(useSettingsStore.getState().autoUpdateIncludePrereleases).toBe(
+        true,
+      );
     });
 
     it("falls back to false when the key is omitted", async () => {
@@ -431,9 +432,9 @@ describe("settingsStore", () => {
 
       await useSettingsStore.getState().loadSettings();
 
-      expect(
-        useSettingsStore.getState().autoUpdateIncludePrereleases,
-      ).toBe(false);
+      expect(useSettingsStore.getState().autoUpdateIncludePrereleases).toBe(
+        false,
+      );
     });
   });
 });

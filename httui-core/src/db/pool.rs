@@ -398,8 +398,8 @@ pub(super) async fn create_pool(conn: &Connection) -> Result<DatabasePool, Strin
 
     // Boundary parse — surface the same "Unsupported driver: <name>"
     // shape the legacy match used to.
-    let drv =
-        DbDriver::from_str(&conn.driver).map_err(|_| format!("Unsupported driver: {}", conn.driver))?;
+    let drv = DbDriver::from_str(&conn.driver)
+        .map_err(|_| format!("Unsupported driver: {}", conn.driver))?;
     match drv {
         DbDriver::Postgres => {
             let opts = build_pg_connect_options(conn)?;

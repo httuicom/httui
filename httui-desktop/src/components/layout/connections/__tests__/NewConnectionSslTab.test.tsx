@@ -64,14 +64,8 @@ describe("NewConnectionSslTab", () => {
       <NewConnectionSslTab value={EMPTY_SSL_VALUE} onChange={onChange} />,
     );
     const user = userEvent.setup();
-    await user.type(
-      screen.getByTestId("new-connection-ssl-client-cert"),
-      "c",
-    );
-    await user.type(
-      screen.getByTestId("new-connection-ssl-client-key"),
-      "k",
-    );
+    await user.type(screen.getByTestId("new-connection-ssl-client-cert"), "c");
+    await user.type(screen.getByTestId("new-connection-ssl-client-key"), "k");
     expect(onChange).toHaveBeenNthCalledWith(1, {
       ...EMPTY_SSL_VALUE,
       clientCertPath: "c",
@@ -100,25 +94,16 @@ describe("NewConnectionSslTab", () => {
       />,
     );
     expect(
-      (
-        screen.getByTestId(
-          "new-connection-ssl-root-cert",
-        ) as HTMLInputElement
-      ).value,
+      (screen.getByTestId("new-connection-ssl-root-cert") as HTMLInputElement)
+        .value,
     ).toBe("/ca");
     expect(
-      (
-        screen.getByTestId(
-          "new-connection-ssl-client-cert",
-        ) as HTMLInputElement
-      ).value,
+      (screen.getByTestId("new-connection-ssl-client-cert") as HTMLInputElement)
+        .value,
     ).toBe("/cert");
     expect(
-      (
-        screen.getByTestId(
-          "new-connection-ssl-client-key",
-        ) as HTMLInputElement
-      ).value,
+      (screen.getByTestId("new-connection-ssl-client-key") as HTMLInputElement)
+        .value,
     ).toBe("/key");
     expect(
       (screen.getByTestId("new-connection-ssl-mode") as HTMLSelectElement)

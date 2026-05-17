@@ -11,10 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  getFileSettings,
-  setFileAutoCapture,
-} from "@/lib/tauri/files";
+import { getFileSettings, setFileAutoCapture } from "@/lib/tauri/files";
 
 export interface UseFileAutoCaptureResult {
   autoCapture: boolean;

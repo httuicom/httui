@@ -371,12 +371,7 @@ export function createDocHeaderExtension(): DocHeaderExtensionHandle {
   });
 
   return {
-    extension: [
-      field,
-      guard,
-      updateListener,
-      Prec.high(keymap.of(navKeymap)),
-    ],
+    extension: [field, guard, updateListener, Prec.high(keymap.of(navKeymap))],
     instanceId,
   };
 }

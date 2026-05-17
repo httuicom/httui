@@ -135,9 +135,7 @@ describe("NewVariablePopover", () => {
     openPopover();
     expect(screen.getByTestId("new-variable-popover")).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 5));
-    document.body.dispatchEvent(
-      new MouseEvent("mousedown", { bubbles: true }),
-    );
+    document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
     await vi.waitFor(() =>
       expect(useNewVariablePopoverStore.getState().open).toBe(false),
     );

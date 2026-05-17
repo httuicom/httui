@@ -14,7 +14,7 @@
 // - Body: bulleted list, 12px, fg.1, line-height 1.5
 // - Each item: `• <blockId mono>: <text>`
 
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 import { Kbd } from "@/components/atoms";
 
 export interface CommitChangelogEntry {
@@ -54,7 +54,13 @@ export function CommitChangelog({
     <Box
       data-testid="commit-changelog"
       data-state={
-        error ? "error" : loading ? "loading" : entries.length ? "ready" : "empty"
+        error
+          ? "error"
+          : loading
+            ? "loading"
+            : entries.length
+              ? "ready"
+              : "empty"
       }
       bg="bg.muted"
       borderRadius="6px"
@@ -83,8 +89,7 @@ export function CommitChangelog({
         <Box flex={1} />
         <Kbd data-testid="commit-changelog-tab-hint">tab</Kbd>
         {onDismiss && (
-          <Box
-            as="button"
+          <chakra.button
             type="button"
             data-testid="commit-changelog-dismiss"
             aria-label="Dismiss AI changelog"
@@ -101,7 +106,7 @@ export function CommitChangelog({
             _hover={{ color: "fg" }}
           >
             ×
-          </Box>
+          </chakra.button>
         )}
       </Flex>
       {error ? (
@@ -153,9 +158,9 @@ interface ChangelogRowProps {
 
 function ChangelogRow({ entry, onAccept }: ChangelogRowProps) {
   const interactive = typeof onAccept === "function";
+  const RowComp = interactive ? chakra.button : chakra.li;
   return (
-    <Box
-      as={interactive ? "button" : "li"}
+    <RowComp
       type={interactive ? "button" : undefined}
       role={interactive ? undefined : "listitem"}
       onClick={interactive ? () => onAccept!(entry) : undefined}
@@ -190,6 +195,6 @@ function ChangelogRow({ entry, onAccept }: ChangelogRowProps) {
       <Text as="span" data-testid="commit-changelog-row-text">
         {entry.text}
       </Text>
-    </Box>
+    </RowComp>
   );
 }

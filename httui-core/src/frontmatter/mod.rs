@@ -31,6 +31,5 @@
 pub mod parser;
 
 pub use parser::{
-    assemble_with_body, parse_frontmatter, split_frontmatter, Frontmatter,
-    FrontmatterStatus, Split,
+    assemble_with_body, parse_frontmatter, split_frontmatter, Frontmatter, FrontmatterStatus, Split,
 };

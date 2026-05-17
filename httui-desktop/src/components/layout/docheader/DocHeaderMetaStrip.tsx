@@ -7,7 +7,7 @@
 // the relevant panel (Git / History / etc.).
 
 import { useState } from "react";
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Flex, Text, chakra } from "@chakra-ui/react";
 
 import { gravatarUrl } from "@/lib/avatars/gravatar";
 
@@ -66,17 +66,14 @@ export function DocHeaderMetaStrip({
       mt={2}
       flexWrap="wrap"
     >
-      {author && (
-        <AuthorChip
-          author={author}
-          onClick={onSelectAuthor}
-        />
-      )}
+      {author && <AuthorChip author={author} onClick={onSelectAuthor} />}
       {trimmedOwner && (
         <Chip
           testId="docheader-meta-owner"
           tone="muted"
-          onClick={onSelectOwner ? () => onSelectOwner(trimmedOwner) : undefined}
+          onClick={
+            onSelectOwner ? () => onSelectOwner(trimmedOwner) : undefined
+          }
           title={`owner: ${trimmedOwner}`}
         >
           @{trimmedOwner}
@@ -230,8 +227,7 @@ function AuthorChip({
       flexShrink={0}
     >
       {gravatar && gravatarOk ? (
-        <Box
-          as="img"
+        <chakra.img
           data-testid="docheader-meta-author-avatar"
           src={gravatar}
           alt=""

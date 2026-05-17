@@ -151,9 +151,7 @@ describe("GitPanel", () => {
 
     it("omits the commit form when handlers are absent", () => {
       renderWithProviders(<GitPanel status={status()} commits={[]} />);
-      expect(
-        screen.queryByTestId("git-commit-form"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("git-commit-form")).not.toBeInTheDocument();
     });
 
     it("hides the diff inspector when diff is undefined", () => {
@@ -174,13 +172,11 @@ describe("GitPanel", () => {
           diff={null}
         />,
       );
+      expect(screen.getByTestId("git-panel-section-diff")).toBeInTheDocument();
       expect(
-        screen.getByTestId("git-panel-section-diff"),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByTestId("git-commit-diff-viewer").getAttribute(
-          "data-loading",
-        ),
+        screen
+          .getByTestId("git-commit-diff-viewer")
+          .getAttribute("data-loading"),
       ).toBe("true");
     });
 
@@ -194,9 +190,7 @@ describe("GitPanel", () => {
           diffSubject="Working tree changes"
         />,
       );
-      expect(
-        screen.getByTestId("git-commit-diff-viewer"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("git-commit-diff-viewer")).toBeInTheDocument();
       expect(screen.getByText("+added")).toBeInTheDocument();
     });
   });
@@ -217,15 +211,9 @@ describe("GitPanel", () => {
 
     it("omits the log filter when not wired", () => {
       renderWithProviders(
-        <GitPanel
-          status={status()}
-          commits={[commit()]}
-          activeTab="log"
-        />,
+        <GitPanel status={status()} commits={[commit()]} activeTab="log" />,
       );
-      expect(
-        screen.queryByTestId("git-log-filter"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("git-log-filter")).not.toBeInTheDocument();
     });
 
     it("shows the commit diff inspector on the Log tab", () => {
@@ -240,9 +228,7 @@ describe("GitPanel", () => {
           diffSubject="first commit"
         />,
       );
-      expect(
-        screen.getByTestId("git-panel-section-diff"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("git-panel-section-diff")).toBeInTheDocument();
       expect(screen.getByText("+log line")).toBeInTheDocument();
     });
   });
@@ -263,9 +249,7 @@ describe("GitPanel", () => {
 
     it("omits the sync toolbar when no sync handlers", () => {
       renderWithProviders(<GitPanel status={status()} commits={[]} />);
-      expect(
-        screen.queryByTestId("git-sync-buttons"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("git-sync-buttons")).not.toBeInTheDocument();
     });
 
     it("shows the upstream prompt and fires confirm/cancel", async () => {
@@ -285,9 +269,7 @@ describe("GitPanel", () => {
       const prompt = screen.getByTestId("git-upstream-prompt");
       expect(prompt.textContent).toContain("feat/x");
       expect(prompt.textContent).toContain("origin/feat/x");
-      await user.click(
-        screen.getByTestId("git-upstream-prompt-confirm"),
-      );
+      await user.click(screen.getByTestId("git-upstream-prompt-confirm"));
       expect(onConfirm).toHaveBeenCalledTimes(1);
       await user.click(screen.getByTestId("git-upstream-prompt-cancel"));
       expect(onCancel).toHaveBeenCalledTimes(1);
@@ -302,13 +284,9 @@ describe("GitPanel", () => {
           hasRemote={false}
         />,
       );
-      const pushBtn = screen.getByTestId(
-        "git-sync-push",
-      ) as HTMLButtonElement;
+      const pushBtn = screen.getByTestId("git-sync-push") as HTMLButtonElement;
       expect(pushBtn.disabled).toBe(true);
-      expect(
-        screen.getByTestId("git-sync-no-remote-hint"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("git-sync-no-remote-hint")).toBeInTheDocument();
     });
   });
 
@@ -324,12 +302,8 @@ describe("GitPanel", () => {
           onAcceptTheirs={vi.fn()}
         />,
       );
-      expect(
-        screen.getByTestId("git-conflict-banner"),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByTestId("git-conflict-row-a.md"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("git-conflict-banner")).toBeInTheDocument();
+      expect(screen.getByTestId("git-conflict-row-a.md")).toBeInTheDocument();
     });
 
     it("omits the banner when there are no conflicts", () => {
@@ -355,9 +329,7 @@ describe("GitPanel", () => {
         />,
       );
       expect(screen.getByTestId("git-panel-resolver")).toBeInTheDocument();
-      expect(
-        screen.getByTestId("git-conflict-resolver"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("git-conflict-resolver")).toBeInTheDocument();
       // Tab bodies are suppressed while resolving.
       expect(
         screen.queryByTestId("git-panel-section-working-tree"),
@@ -375,9 +347,7 @@ describe("GitPanel", () => {
           toolbarExtra={<div data-testid="share-slot-probe" />}
         />,
       );
-      expect(
-        screen.getByTestId("share-slot-probe"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("share-slot-probe")).toBeInTheDocument();
     });
 
     it("shows the toolbar for the slot even without sync handlers", () => {
@@ -388,12 +358,8 @@ describe("GitPanel", () => {
           toolbarExtra={<div data-testid="share-slot-probe" />}
         />,
       );
-      expect(
-        screen.getByTestId("share-slot-probe"),
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByTestId("git-sync-buttons"),
-      ).not.toBeInTheDocument();
+      expect(screen.getByTestId("share-slot-probe")).toBeInTheDocument();
+      expect(screen.queryByTestId("git-sync-buttons")).not.toBeInTheDocument();
     });
   });
 });

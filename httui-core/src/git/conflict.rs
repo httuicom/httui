@@ -31,10 +31,7 @@ pub struct ConflictVersions {
 /// path has no conflict stages at all (not unmerged / bad path) so
 /// the UI can distinguish "nothing to resolve" from "one side was
 /// an add".
-pub fn git_conflict_versions(
-    vault: &Path,
-    path: &str,
-) -> Result<ConflictVersions, String> {
+pub fn git_conflict_versions(vault: &Path, path: &str) -> Result<ConflictVersions, String> {
     let stage = |n: u8| -> String {
         let spec = format!(":{n}:{path}");
         run_git(vault, &["show", &spec]).unwrap_or_default()
@@ -109,8 +106,7 @@ mod tests {
         init_repo(dir.path());
         std::fs::write(dir.path().join("clean.txt"), "x\n").unwrap();
         commit_all(dir.path(), "clean");
-        let err =
-            git_conflict_versions(dir.path(), "clean.txt").unwrap_err();
+        let err = git_conflict_versions(dir.path(), "clean.txt").unwrap_err();
         assert!(err.contains("no conflict stages"), "got: {err}");
     }
 }

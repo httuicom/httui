@@ -39,7 +39,8 @@ export function formatEditedTime(
   const suffix = dirty ? " · unsaved" : "";
   if (diffSec < 60) return `Edited just now${suffix}`;
   if (diffSec < 3600) return `Edited ${Math.floor(diffSec / 60)}m ago${suffix}`;
-  if (diffSec < 86400) return `Edited ${Math.floor(diffSec / 3600)}h ago${suffix}`;
+  if (diffSec < 86400)
+    return `Edited ${Math.floor(diffSec / 3600)}h ago${suffix}`;
   return `Edited ${Math.floor(diffSec / 86400)}d ago${suffix}`;
 }
 
@@ -74,9 +75,7 @@ export function formatLastRun(summary: LastRunSummary): string {
   const time = formatHHMM(summary.ranAt);
   const blocks = `${summary.blockCount} block${summary.blockCount === 1 ? "" : "s"}`;
   const failed =
-    summary.failedCount > 0
-      ? ` · ${summary.failedCount} failed`
-      : "";
+    summary.failedCount > 0 ? ` · ${summary.failedCount} failed` : "";
   return `Last run ${time} · ${blocks}${failed}`;
 }
 

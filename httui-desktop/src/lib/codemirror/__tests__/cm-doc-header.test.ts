@@ -137,10 +137,7 @@ describe("DocHeader nav keymap (M3)", () => {
 
   it("does NOT focus the input when cursor is below the body's first line", () => {
     const idRef = { current: "" };
-    const view = createView(
-      "---\ntitle: x\n---\nline one\nline two\n",
-      idRef,
-    );
+    const view = createView("---\ntitle: x\n---\nline one\nline two\n", idRef);
 
     const fakeInput = document.createElement("input");
     document.body.appendChild(fakeInput);

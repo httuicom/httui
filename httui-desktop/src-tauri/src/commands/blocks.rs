@@ -48,10 +48,7 @@ impl Executor for SharedDbExecutor {
         self.0.validate(params).await
     }
 
-    async fn execute(
-        &self,
-        params: serde_json::Value,
-    ) -> Result<BlockResult, ExecutorError> {
+    async fn execute(&self, params: serde_json::Value) -> Result<BlockResult, ExecutorError> {
         self.0.execute(params).await
     }
 }
@@ -72,10 +69,7 @@ impl Executor for SharedHttpExecutor {
         self.0.validate(params).await
     }
 
-    async fn execute(
-        &self,
-        params: serde_json::Value,
-    ) -> Result<BlockResult, ExecutorError> {
+    async fn execute(&self, params: serde_json::Value) -> Result<BlockResult, ExecutorError> {
         self.0.execute(params).await
     }
 }

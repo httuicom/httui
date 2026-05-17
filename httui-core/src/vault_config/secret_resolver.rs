@@ -91,7 +91,10 @@ mod tests {
 
     #[test]
     fn format_keychain_ref_wraps_key_in_braces() {
-        assert_eq!(format_keychain_ref("conn:pg:password"), "{{keychain:conn:pg:password}}");
+        assert_eq!(
+            format_keychain_ref("conn:pg:password"),
+            "{{keychain:conn:pg:password}}"
+        );
         assert_eq!(format_keychain_ref(""), "{{keychain:}}");
     }
 

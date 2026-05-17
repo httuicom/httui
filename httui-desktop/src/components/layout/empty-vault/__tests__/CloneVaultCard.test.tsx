@@ -8,11 +8,7 @@ function setup(over: Partial<Parameters<typeof CloneVaultCard>[0]> = {}) {
   const onClone = vi.fn(async () => {});
   const onPickParent = vi.fn(async () => null as string | null);
   const utils = renderWithProviders(
-    <CloneVaultCard
-      onClone={onClone}
-      onPickParent={onPickParent}
-      {...over}
-    />,
+    <CloneVaultCard onClone={onClone} onPickParent={onPickParent} {...over} />,
   );
   return { ...utils, onClone, onPickParent };
 }
@@ -119,11 +115,7 @@ describe("CloneVaultCard — expanded state", () => {
     const onClone = vi.fn(async () => {});
     const onPickParent = vi.fn(async () => null as string | null);
     renderWithProviders(
-      <CloneVaultCard
-        onClone={onClone}
-        onPickParent={onPickParent}
-        busy
-      />,
+      <CloneVaultCard onClone={onClone} onPickParent={onPickParent} busy />,
     );
     const cta = screen.getByTestId("clone-vault-expand") as HTMLButtonElement;
     expect(cta.disabled).toBe(true);

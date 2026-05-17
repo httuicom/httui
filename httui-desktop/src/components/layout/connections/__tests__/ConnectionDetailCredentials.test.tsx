@@ -59,20 +59,25 @@ describe("ConnectionDetailCredentials — read mode", () => {
   it("shows '—' for null fields", () => {
     renderWithProviders(
       <ConnectionDetailCredentials
-        connection={conn({ host: null, port: null, username: null, database_name: null })}
+        connection={conn({
+          host: null,
+          port: null,
+          username: null,
+          database_name: null,
+        })}
         onSave={vi.fn()}
         onRotatePassword={vi.fn()}
       />,
     );
-    expect(
-      screen.getByTestId("credentials-row-host").textContent,
-    ).toContain("—");
-    expect(
-      screen.getByTestId("credentials-row-port").textContent,
-    ).toContain("—");
-    expect(
-      screen.getByTestId("credentials-row-user").textContent,
-    ).toContain("—");
+    expect(screen.getByTestId("credentials-row-host").textContent).toContain(
+      "—",
+    );
+    expect(screen.getByTestId("credentials-row-port").textContent).toContain(
+      "—",
+    );
+    expect(screen.getByTestId("credentials-row-user").textContent).toContain(
+      "—",
+    );
     expect(
       screen.getByTestId("credentials-row-database").textContent,
     ).toContain("—");
@@ -88,13 +93,9 @@ describe("ConnectionDetailCredentials — edit mode", () => {
         onRotatePassword={vi.fn()}
       />,
     );
-    expect(
-      screen.queryByTestId("credentials-editing"),
-    ).toBeNull();
+    expect(screen.queryByTestId("credentials-editing")).toBeNull();
     await userEvent.setup().click(screen.getByTestId("credentials-edit"));
-    expect(
-      screen.getByTestId("credentials-editing"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("credentials-editing")).toBeInTheDocument();
     expect(screen.getByTestId("credentials-save")).toBeInTheDocument();
     expect(screen.getByTestId("credentials-cancel")).toBeInTheDocument();
   });
@@ -116,9 +117,9 @@ describe("ConnectionDetailCredentials — edit mode", () => {
     expect(host.value).toBe("other.local");
     await user.click(screen.getByTestId("credentials-cancel"));
     expect(onSave).not.toHaveBeenCalled();
-    expect(
-      screen.getByTestId("credentials-readonly").textContent,
-    ).toContain("db.local");
+    expect(screen.getByTestId("credentials-readonly").textContent).toContain(
+      "db.local",
+    );
   });
 
   it("Save dispatches onSave with the edited fields and exits edit mode", async () => {
@@ -141,9 +142,7 @@ describe("ConnectionDetailCredentials — edit mode", () => {
     );
     // Wait microtask for the promise to settle and the button toggle.
     await new Promise((r) => setTimeout(r, 10));
-    expect(
-      screen.queryByTestId("credentials-editing"),
-    ).toBeNull();
+    expect(screen.queryByTestId("credentials-editing")).toBeNull();
   });
 
   it("surfaces the save error and stays in edit mode on failure", async () => {
@@ -159,12 +158,10 @@ describe("ConnectionDetailCredentials — edit mode", () => {
     await user.click(screen.getByTestId("credentials-edit"));
     await user.click(screen.getByTestId("credentials-save"));
     await new Promise((r) => setTimeout(r, 10));
-    expect(
-      screen.getByTestId("credentials-save-error").textContent,
-    ).toContain("conflict");
-    expect(
-      screen.getByTestId("credentials-editing"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("credentials-save-error").textContent).toContain(
+      "conflict",
+    );
+    expect(screen.getByTestId("credentials-editing")).toBeInTheDocument();
   });
 
   it("blank port → input.port is undefined in the save payload", async () => {
@@ -196,13 +193,9 @@ describe("ConnectionDetailCredentials — rotate password", () => {
         onRotatePassword={vi.fn()}
       />,
     );
-    expect(
-      screen.queryByTestId("credentials-rotate-input"),
-    ).toBeNull();
+    expect(screen.queryByTestId("credentials-rotate-input")).toBeNull();
     await userEvent.setup().click(screen.getByTestId("credentials-rotate"));
-    expect(
-      screen.getByTestId("credentials-rotate-input"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("credentials-rotate-input")).toBeInTheDocument();
   });
 
   it("rejects empty new password", async () => {
@@ -241,9 +234,7 @@ describe("ConnectionDetailCredentials — rotate password", () => {
     await user.click(screen.getByTestId("credentials-rotate-save"));
     expect(onRotatePassword).toHaveBeenCalledWith("new-secret");
     await new Promise((r) => setTimeout(r, 10));
-    expect(
-      screen.queryByTestId("credentials-rotate-input"),
-    ).toBeNull();
+    expect(screen.queryByTestId("credentials-rotate-input")).toBeNull();
   });
 
   it("Cancel closes the rotate section without dispatching", async () => {
@@ -257,15 +248,10 @@ describe("ConnectionDetailCredentials — rotate password", () => {
     );
     const user = userEvent.setup();
     await user.click(screen.getByTestId("credentials-rotate"));
-    await user.type(
-      screen.getByTestId("credentials-rotate-input"),
-      "secret",
-    );
+    await user.type(screen.getByTestId("credentials-rotate-input"), "secret");
     await user.click(screen.getByTestId("credentials-rotate-cancel"));
     expect(onRotatePassword).not.toHaveBeenCalled();
-    expect(
-      screen.queryByTestId("credentials-rotate-input"),
-    ).toBeNull();
+    expect(screen.queryByTestId("credentials-rotate-input")).toBeNull();
   });
 
   it("surfaces rotate error and stays open on failure", async () => {
@@ -281,18 +267,13 @@ describe("ConnectionDetailCredentials — rotate password", () => {
     );
     const user = userEvent.setup();
     await user.click(screen.getByTestId("credentials-rotate"));
-    await user.type(
-      screen.getByTestId("credentials-rotate-input"),
-      "x",
-    );
+    await user.type(screen.getByTestId("credentials-rotate-input"), "x");
     await user.click(screen.getByTestId("credentials-rotate-save"));
     await new Promise((r) => setTimeout(r, 10));
     expect(
       screen.getByTestId("credentials-rotate-error").textContent,
     ).toContain("keychain locked");
-    expect(
-      screen.getByTestId("credentials-rotate-input"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("credentials-rotate-input")).toBeInTheDocument();
   });
 });
 
@@ -307,9 +288,7 @@ describe("ConnectionDetailCredentials — connection switching", () => {
     );
     const user = userEvent.setup();
     await user.click(screen.getByTestId("credentials-edit"));
-    expect(
-      screen.getByTestId("credentials-editing"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("credentials-editing")).toBeInTheDocument();
     rerender(
       <ConnectionDetailCredentials
         connection={conn({ id: "b", name: "beta", host: "b.local" })}
@@ -317,11 +296,9 @@ describe("ConnectionDetailCredentials — connection switching", () => {
         onRotatePassword={vi.fn()}
       />,
     );
-    expect(
-      screen.queryByTestId("credentials-editing"),
-    ).toBeNull();
-    expect(
-      screen.getByTestId("credentials-readonly").textContent,
-    ).toContain("b.local");
+    expect(screen.queryByTestId("credentials-editing")).toBeNull();
+    expect(screen.getByTestId("credentials-readonly").textContent).toContain(
+      "b.local",
+    );
   });
 });

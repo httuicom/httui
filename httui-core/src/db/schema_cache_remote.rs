@@ -34,7 +34,10 @@ pub async fn introspect_postgres(pool: &sqlx::PgPool) -> Result<Vec<SchemaEntry>
 }
 
 fn mysql_str(row: &sqlx::mysql::MySqlRow, col: &str) -> Option<String> {
-    first_string_or_bytes_lossy(row.try_get::<String, _>(col), row.try_get::<Vec<u8>, _>(col))
+    first_string_or_bytes_lossy(
+        row.try_get::<String, _>(col),
+        row.try_get::<Vec<u8>, _>(col),
+    )
 }
 
 pub async fn introspect_mysql(pool: &sqlx::MySqlPool) -> Result<Vec<SchemaEntry>, String> {

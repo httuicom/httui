@@ -40,7 +40,9 @@ describe("buildHeadingDecorations", () => {
   });
 
   it("skips headings inside fenced code blocks", () => {
-    const doc = asLines("# A\n\n```\n# inside-fence\n## inside-fence-2\n```\n\n# B\n");
+    const doc = asLines(
+      "# A\n\n```\n# inside-fence\n## inside-fence-2\n```\n\n# B\n",
+    );
     const result = buildHeadingDecorations(doc);
     expect(result.count).toBe(2);
     expect(numbers(result)).toEqual([1, 2]);

@@ -14,9 +14,7 @@ afterEach(() => {
 
 describe("useFileAutoCapture", () => {
   it("idles when vaultPath is null", async () => {
-    const { result } = renderHook(() =>
-      useFileAutoCapture(null, "rollout.md"),
-    );
+    const { result } = renderHook(() => useFileAutoCapture(null, "rollout.md"));
     await act(async () => {
       await Promise.resolve();
     });
@@ -36,9 +34,7 @@ describe("useFileAutoCapture", () => {
   it("populates auto_capture after the initial poll", async () => {
     mockTauriCommand("get_file_settings", () => ({ auto_capture: true }));
 
-    const { result } = renderHook(() =>
-      useFileAutoCapture("/v", "rollout.md"),
-    );
+    const { result } = renderHook(() => useFileAutoCapture("/v", "rollout.md"));
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -53,9 +49,7 @@ describe("useFileAutoCapture", () => {
       throw new Error("io error");
     });
 
-    const { result } = renderHook(() =>
-      useFileAutoCapture("/v", "rollout.md"),
-    );
+    const { result } = renderHook(() => useFileAutoCapture("/v", "rollout.md"));
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -71,13 +65,13 @@ describe("useFileAutoCapture", () => {
     const setCalls: { autoCapture: boolean }[] = [];
     mockTauriCommand("set_file_auto_capture", (args) => {
       setCalls.push(args as { autoCapture: boolean });
-      nextSettings = { auto_capture: Boolean((args as { autoCapture: boolean }).autoCapture) };
+      nextSettings = {
+        auto_capture: Boolean((args as { autoCapture: boolean }).autoCapture),
+      };
       return null;
     });
 
-    const { result } = renderHook(() =>
-      useFileAutoCapture("/v", "rollout.md"),
-    );
+    const { result } = renderHook(() => useFileAutoCapture("/v", "rollout.md"));
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -99,9 +93,7 @@ describe("useFileAutoCapture", () => {
       throw new Error("disk full");
     });
 
-    const { result } = renderHook(() =>
-      useFileAutoCapture("/v", "rollout.md"),
-    );
+    const { result } = renderHook(() => useFileAutoCapture("/v", "rollout.md"));
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -127,9 +119,7 @@ describe("useFileAutoCapture", () => {
       return null;
     });
 
-    const { result } = renderHook(() =>
-      useFileAutoCapture(null, "rollout.md"),
-    );
+    const { result } = renderHook(() => useFileAutoCapture(null, "rollout.md"));
     await act(async () => {
       await Promise.resolve();
     });

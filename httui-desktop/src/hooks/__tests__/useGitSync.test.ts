@@ -4,8 +4,9 @@ import { renderHook, act } from "@testing-library/react";
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
 import { resetGitStore, useGitStore } from "@/stores/git";
 import { useGitSync } from "@/hooks/useGitSync";
+import type { GitStatus } from "@/lib/tauri/git";
 
-const CLEAN = {
+const CLEAN: GitStatus = {
   branch: "main",
   upstream: "origin/main",
   ahead: 0,

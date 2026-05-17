@@ -25,6 +25,7 @@ jobs:
             test
             style
             perf
+            ci
           # Subject must be lowercase and not end with a period.
           subjectPattern: ^(?![A-Z])(?!.*\.$).+$
           subjectPatternError: |

@@ -34,7 +34,11 @@ afterEach(() => clearTauriMocks());
 describe("RefPopover — env variable", () => {
   it("shows the per-env value", async () => {
     renderWithProviders(
-      <RefPopover state={mkState("api_base")} vaultPath="/v" onClose={() => {}} />,
+      <RefPopover
+        state={mkState("api_base")}
+        vaultPath="/v"
+        onClose={() => {}}
+      />,
     );
     expect(
       (await screen.findByTestId("ref-popover-value")).textContent,
@@ -44,7 +48,11 @@ describe("RefPopover — env variable", () => {
   it("Set writes a session override and renders the TEMPORARY chip", async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <RefPopover state={mkState("api_base")} vaultPath="/v" onClose={() => {}} />,
+      <RefPopover
+        state={mkState("api_base")}
+        vaultPath="/v"
+        onClose={() => {}}
+      />,
     );
     await user.type(
       screen.getByTestId("ref-popover-override-input"),
@@ -61,7 +69,11 @@ describe("RefPopover — env variable", () => {
     const user = userEvent.setup();
     useSessionOverrideStore.getState().setOverride("local", "api_base", "ov");
     renderWithProviders(
-      <RefPopover state={mkState("api_base")} vaultPath="/v" onClose={() => {}} />,
+      <RefPopover
+        state={mkState("api_base")}
+        vaultPath="/v"
+        onClose={() => {}}
+      />,
     );
     await user.click(screen.getByTestId("temporary-chip"));
     expect(
@@ -72,7 +84,11 @@ describe("RefPopover — env variable", () => {
   it("lists the blocks the variable is used in", async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <RefPopover state={mkState("api_base")} vaultPath="/v" onClose={() => {}} />,
+      <RefPopover
+        state={mkState("api_base")}
+        vaultPath="/v"
+        onClose={() => {}}
+      />,
     );
     const usesBtn = await screen.findByTestId("ref-popover-uses");
     expect(usesBtn.textContent).toContain("Used in 2 blocks");
@@ -84,7 +100,11 @@ describe("RefPopover — env variable", () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderWithProviders(
-      <RefPopover state={mkState("api_base")} vaultPath="/v" onClose={onClose} />,
+      <RefPopover
+        state={mkState("api_base")}
+        vaultPath="/v"
+        onClose={onClose}
+      />,
     );
     await user.click(screen.getByTestId("ref-popover-close"));
     expect(onClose).toHaveBeenCalled();

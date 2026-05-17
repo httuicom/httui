@@ -52,10 +52,7 @@ impl VaultStoreRegistry {
     /// existing SQLite-backed key). Returns an error if no active
     /// vault is set — callers should surface this as "open a vault
     /// first".
-    pub async fn for_active_vault(
-        &self,
-        pool: &SqlitePool,
-    ) -> Result<VaultStores, String> {
+    pub async fn for_active_vault(&self, pool: &SqlitePool) -> Result<VaultStores, String> {
         let vault_path = get_config(pool, "active_vault")
             .await
             .map_err(|e| format!("read active_vault: {e}"))?
@@ -189,10 +186,7 @@ mod tests {
         let registry = VaultStoreRegistry::new();
 
         let stores = registry.for_active_vault(&pool).await.unwrap();
-        let again = registry
-            .for_vault(v.path().to_path_buf())
-            .await
-            .unwrap();
+        let again = registry.for_vault(v.path().to_path_buf()).await.unwrap();
         // for_active_vault populated the cache — the second call hits it.
         assert!(Arc::ptr_eq(&stores.connections, &again.connections));
     }
@@ -201,7 +195,11 @@ mod tests {
     async fn for_active_vault_errors_when_unset() {
         let (_db_dir, pool) = pool_with_active_vault(None).await;
         let registry = VaultStoreRegistry::new();
-        let err = registry.for_active_vault(&pool).await.err().expect("expected an error");
+        let err = registry
+            .for_active_vault(&pool)
+            .await
+            .err()
+            .expect("expected an error");
         assert!(err.contains("No active vault"), "got: {err}");
     }
 
@@ -221,7 +219,10 @@ mod tests {
         let (_db_dir, pool) = pool_with_active_vault(None).await;
         let registry = VaultStoreRegistry::new();
         let lookup = VaultRegistryLookup::new(pool, registry);
-        let err = lookup.lookup("anything").await.err().expect("expected an error");
+        let err = lookup
+            .lookup("anything")
+            .await
+            .expect_err("expected an error");
         assert!(err.contains("No active vault"), "got: {err}");
     }
 }

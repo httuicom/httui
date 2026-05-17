@@ -54,20 +54,10 @@ pub fn git_log(
 /// or a chain when `--follow` walks renames. We pick the **last**
 /// (oldest) entry as the original author. Avoids `--reverse -n 1`,
 /// whose ordering interaction is git-version-dependent.
-pub fn git_first_commit_author(
-    vault: &Path,
-    path: &str,
-) -> Result<Option<CommitInfo>, String> {
+pub fn git_first_commit_author(vault: &Path, path: &str) -> Result<Option<CommitInfo>, String> {
     let raw = run_git(
         vault,
-        &[
-            "log",
-            "--follow",
-            "--diff-filter=A",
-            PRETTY,
-            "--",
-            path,
-        ],
+        &["log", "--follow", "--diff-filter=A", PRETTY, "--", path],
     )?;
     let parsed = parse_log(&raw)?;
     Ok(parsed.into_iter().last())

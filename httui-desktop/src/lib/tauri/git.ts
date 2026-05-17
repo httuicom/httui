@@ -140,10 +140,7 @@ export function gitCommit(
   return invoke("git_commit_cmd", { vaultPath, message, amend });
 }
 
-export function gitFetch(
-  vaultPath: string,
-  remote?: string,
-): Promise<string> {
+export function gitFetch(vaultPath: string, remote?: string): Promise<string> {
   return invoke("git_fetch_cmd", { vaultPath, remote: remote ?? null });
 }
 

@@ -16,7 +16,10 @@ export interface OpenVaultCardProps {
   busy?: boolean;
 }
 
-export function OpenVaultCard({ onOpenClick, busy = false }: OpenVaultCardProps) {
+export function OpenVaultCard({
+  onOpenClick,
+  busy = false,
+}: OpenVaultCardProps) {
   return (
     <CardBox
       type="button"

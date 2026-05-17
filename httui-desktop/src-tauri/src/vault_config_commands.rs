@@ -92,9 +92,7 @@ pub async fn set_file_docheader_compact(
     compact: bool,
 ) -> Result<(), String> {
     let store = WorkspaceStore::new(vault_path);
-    store
-        .set_file_docheader_compact(&file_path, compact)
-        .await
+    store.set_file_docheader_compact(&file_path, compact).await
 }
 
 #[tauri::command]
@@ -169,10 +167,7 @@ pub async fn save_secret_cmd(keychain_key: String, value: String) -> Result<(), 
 /// name is the user's input; the backend rejects empty/path-traversal
 /// inputs and refuses to overwrite an existing non-empty folder.
 #[tauri::command]
-pub async fn create_vault_cmd(
-    parent_path: String,
-    name: String,
-) -> Result<CreateOutcome, String> {
+pub async fn create_vault_cmd(parent_path: String, name: String) -> Result<CreateOutcome, String> {
     let parent = PathBuf::from(parent_path);
     create_new_vault(&parent, &name)
 }
@@ -185,9 +180,7 @@ pub async fn create_vault_cmd(
 /// initialised. Frontend gates the banner on this AND the
 /// `mvp_migration_dismissed` user pref.
 #[tauri::command]
-pub async fn detect_vault_migration(
-    vault_path: String,
-) -> Result<MigrationCandidate, String> {
+pub async fn detect_vault_migration(vault_path: String) -> Result<MigrationCandidate, String> {
     Ok(detect_migration_candidate(&PathBuf::from(vault_path)))
 }
 
@@ -402,9 +395,7 @@ mod tests {
 
     #[tokio::test]
     async fn save_secret_cmd_rejects_empty_key() {
-        let err = save_secret_cmd("  ".into(), "v".into())
-            .await
-            .unwrap_err();
+        let err = save_secret_cmd("  ".into(), "v".into()).await.unwrap_err();
         assert!(err.contains("keychain_key"), "got: {err}");
     }
 

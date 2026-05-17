@@ -22,9 +22,7 @@ const CONFLICT = [
 describe("parseConflictRegions", () => {
   it("finds a well-formed hunk", () => {
     const r = parseConflictRegions(lines(CONFLICT));
-    expect(r).toEqual([
-      { oursMarker: 2, separator: 4, theirsMarker: 6 },
-    ]);
+    expect(r).toEqual([{ oursMarker: 2, separator: 4, theirsMarker: 6 }]);
   });
 
   it("returns nothing for a clean doc", () => {
@@ -74,9 +72,7 @@ describe("mergeConflict extension", () => {
     expect(view.dom.querySelector(".cm-conflict-ours")).toBeTruthy();
     expect(view.dom.querySelector(".cm-conflict-theirs")).toBeTruthy();
     expect(view.dom.querySelector(".cm-conflict-sep")).toBeTruthy();
-    expect(
-      view.dom.querySelectorAll(".cm-conflict-marker"),
-    ).toHaveLength(2);
+    expect(view.dom.querySelectorAll(".cm-conflict-marker")).toHaveLength(2);
     expect(view.dom.querySelector(".cm-conflict-toolbar")).toBeTruthy();
   });
 

@@ -35,8 +35,7 @@ export const usePendingSecretsStore = create<PendingSecretsState>()(
       pending: [],
       modalOpen: false,
 
-      setPending: (refs) =>
-        set({ pending: refs, modalOpen: refs.length > 0 }),
+      setPending: (refs) => set({ pending: refs, modalOpen: refs.length > 0 }),
 
       removePending: (keychainKey) =>
         set((state) => {

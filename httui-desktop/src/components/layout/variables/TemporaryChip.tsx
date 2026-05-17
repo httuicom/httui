@@ -5,7 +5,7 @@
 // `onClear` is supplied the chip becomes a button that drops the
 // override on click.
 
-import { Box } from "@chakra-ui/react";
+import { chakra } from "@chakra-ui/react";
 
 export interface TemporaryChipProps {
   /** Click handler to clear the override. When omitted the chip is purely informational. */
@@ -19,9 +19,9 @@ export function TemporaryChip({
   label = "TEMPORARY",
 }: TemporaryChipProps) {
   const interactive = !!onClear;
+  const Comp = interactive ? chakra.button : chakra.span;
   return (
-    <Box
-      as={interactive ? "button" : "span"}
+    <Comp
       type={interactive ? "button" : undefined}
       data-testid="temporary-chip"
       data-interactive={interactive || undefined}
@@ -41,6 +41,6 @@ export function TemporaryChip({
       _hover={interactive ? { opacity: 0.85 } : undefined}
     >
       {label}
-    </Box>
+    </Comp>
   );
 }

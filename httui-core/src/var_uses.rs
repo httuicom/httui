@@ -48,12 +48,7 @@ pub fn grep_var_uses(vault_path: &str, key: &str) -> Result<Vec<VarUseEntry>, St
     Ok(out)
 }
 
-fn walk(
-    dir: &Path,
-    root: &Path,
-    key: &str,
-    out: &mut Vec<VarUseEntry>,
-) -> Result<(), String> {
+fn walk(dir: &Path, root: &Path, key: &str, out: &mut Vec<VarUseEntry>) -> Result<(), String> {
     let read_dir = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
     for entry in read_dir {
         let entry = entry.map_err(|e| e.to_string())?;
@@ -181,10 +176,7 @@ mod tests {
     #[test]
     fn matches_plain_double_brace() {
         let v = TempVault::new("plain");
-        v.write(
-            "runbook.md",
-            "url: {{API_BASE}}/users\nmethod: GET\n",
-        );
+        v.write("runbook.md", "url: {{API_BASE}}/users\nmethod: GET\n");
         let out = grep_var_uses(v.as_str(), "API_BASE").unwrap();
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].file_path, "runbook.md");

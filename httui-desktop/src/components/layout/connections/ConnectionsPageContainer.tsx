@@ -65,14 +65,11 @@ export function ConnectionsPageContainer({
     let cancelled = false;
     let unlisten: (() => void) | null = null;
     void (async () => {
-      const fn = await listen<{ category: string }>(
-        "config-changed",
-        (e) => {
-          if (e.payload.category === "connections") {
-            void reload();
-          }
-        },
-      );
+      const fn = await listen<{ category: string }>("config-changed", (e) => {
+        if (e.payload.category === "connections") {
+          void reload();
+        }
+      });
       if (cancelled) {
         fn();
       } else {
@@ -182,7 +179,7 @@ export function ConnectionsPageContainer({
   }, [schemaByConn]);
 
   const editing = editingId
-    ? connections.find((c) => c.id === editingId) ?? null
+    ? (connections.find((c) => c.id === editingId) ?? null)
     : null;
   const modalOpen = newOpen || Boolean(editing);
 

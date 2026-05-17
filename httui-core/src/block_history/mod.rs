@@ -354,7 +354,9 @@ mod tests {
     #[tokio::test]
     async fn plan_defaults_to_none_for_regular_runs() {
         let pool = setup().await;
-        insert_history_entry(&pool, entry("GET", 200)).await.unwrap();
+        insert_history_entry(&pool, entry("GET", 200))
+            .await
+            .unwrap();
         let rows = list_history(&pool, "/notes/test.md", "req1").await.unwrap();
         assert_eq!(rows.len(), 1);
         assert!(rows[0].plan.is_none());
@@ -425,7 +427,10 @@ mod tests {
         assert_eq!(removed, 2);
         // Other file's row survives.
         assert_eq!(
-            list_history(&pool, "/other.md", "req1").await.unwrap().len(),
+            list_history(&pool, "/other.md", "req1")
+                .await
+                .unwrap()
+                .len(),
             1,
         );
     }
@@ -469,8 +474,10 @@ mod tests {
         }"#;
         let parsed: InsertEntry = serde_json::from_str(json).unwrap();
         assert_eq!(parsed.method, "GET");
-        assert!(parsed.plan.is_none(),
-                "plan should default to None when omitted from wire");
+        assert!(
+            parsed.plan.is_none(),
+            "plan should default to None when omitted from wire"
+        );
     }
 
     #[test]
@@ -541,7 +548,9 @@ mod tests {
     async fn list_history_for_file_respects_explicit_limit() {
         let pool = setup().await;
         for i in 0..6 {
-            insert_history_entry(&pool, entry("GET", 200 + i)).await.unwrap();
+            insert_history_entry(&pool, entry("GET", 200 + i))
+                .await
+                .unwrap();
         }
         let rows = list_history_for_file(&pool, "/notes/test.md", 3)
             .await
@@ -553,7 +562,9 @@ mod tests {
     async fn list_history_for_file_falls_back_to_50_when_limit_non_positive() {
         let pool = setup().await;
         for i in 0..3 {
-            insert_history_entry(&pool, entry("GET", 200 + i)).await.unwrap();
+            insert_history_entry(&pool, entry("GET", 200 + i))
+                .await
+                .unwrap();
         }
         // limit <= 0 → effective fallback of 50; 3 inserted rows fit easily.
         let rows = list_history_for_file(&pool, "/notes/test.md", 0)
@@ -569,9 +580,7 @@ mod tests {
     #[tokio::test]
     async fn list_history_for_file_returns_empty_when_no_rows() {
         let pool = setup().await;
-        let rows = list_history_for_file(&pool, "/empty.md", 50)
-            .await
-            .unwrap();
+        let rows = list_history_for_file(&pool, "/empty.md", 50).await.unwrap();
         assert!(rows.is_empty());
     }
 
@@ -590,7 +599,9 @@ mod tests {
             .await
             .unwrap();
         for _ in 0..2 {
-            insert_history_entry(&pool, entry("GET", 200)).await.unwrap();
+            insert_history_entry(&pool, entry("GET", 200))
+                .await
+                .unwrap();
         }
         // 2 rows fits the default cap (10) with room to spare.
         let rows = list_history(&pool, "/notes/test.md", "req1").await.unwrap();
@@ -604,7 +615,9 @@ mod tests {
             .await
             .unwrap();
         for _ in 0..2 {
-            insert_history_entry(&pool, entry("GET", 200)).await.unwrap();
+            insert_history_entry(&pool, entry("GET", 200))
+                .await
+                .unwrap();
         }
         let rows = list_history(&pool, "/notes/test.md", "req1").await.unwrap();
         // 4 inserted total, default cap is 10 — all 4 visible.

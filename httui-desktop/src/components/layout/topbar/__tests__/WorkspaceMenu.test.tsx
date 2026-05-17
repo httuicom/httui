@@ -56,9 +56,7 @@ describe("WorkspaceMenu", () => {
     );
 
     const items = screen.getAllByRole("menuitem");
-    const active = items.find(
-      (i) => i.getAttribute("data-active") === "true",
-    );
+    const active = items.find((i) => i.getAttribute("data-active") === "true");
     expect(active?.getAttribute("data-vault-path")).toBe(
       "/Users/me/secret-test",
     );
@@ -67,9 +65,7 @@ describe("WorkspaceMenu", () => {
   it("clicking another vault calls onSwitch with its path", async () => {
     const user = userEvent.setup();
     const onSwitch = vi.fn();
-    renderWithProviders(
-      <WorkspaceMenu {...baseProps} onSwitch={onSwitch} />,
-    );
+    renderWithProviders(<WorkspaceMenu {...baseProps} onSwitch={onSwitch} />);
 
     await user.click(
       screen.getByRole("button", { name: /Workspace secret-test/ }),
@@ -121,9 +117,9 @@ describe("WorkspaceMenu", () => {
     expect(screen.getByText("Abrir outro vault…")).toBeInTheDocument();
     // No data-vault-path items
     expect(
-      screen.queryAllByRole("menuitem").filter(
-        (i) => !!i.getAttribute("data-vault-path"),
-      ),
+      screen
+        .queryAllByRole("menuitem")
+        .filter((i) => !!i.getAttribute("data-vault-path")),
     ).toHaveLength(0);
   });
 });

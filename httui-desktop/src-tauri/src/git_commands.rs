@@ -69,10 +69,7 @@ pub async fn git_checkout_cmd(vault_path: String, branch: String) -> Result<(), 
 /// `git checkout -b <new>` — create branch + switch. Forks from the
 /// current branch (git's default).
 #[tauri::command]
-pub async fn git_checkout_b_cmd(
-    vault_path: String,
-    new_branch: String,
-) -> Result<(), String> {
+pub async fn git_checkout_b_cmd(vault_path: String, new_branch: String) -> Result<(), String> {
     git_checkout_b(&PathBuf::from(vault_path), &new_branch)
 }
 
@@ -129,10 +126,7 @@ pub async fn git_commit_cmd(
 /// `git fetch [<remote>]`. Powers Story 05's `<GitSyncButtons>`
 /// fetch action. Returns the combined stdout+stderr for the toast.
 #[tauri::command]
-pub async fn git_fetch_cmd(
-    vault_path: String,
-    remote: Option<String>,
-) -> Result<String, String> {
+pub async fn git_fetch_cmd(vault_path: String, remote: Option<String>) -> Result<String, String> {
     git_fetch(&PathBuf::from(vault_path), remote.as_deref())
 }
 
@@ -181,10 +175,7 @@ pub async fn git_push_cmd(
 /// Returns the absolute path of the clone so the frontend can
 /// `switchVault` straight in.
 #[tauri::command]
-pub async fn clone_vault_cmd(
-    url: String,
-    parent: Option<String>,
-) -> Result<CloneOutcome, String> {
+pub async fn clone_vault_cmd(url: String, parent: Option<String>) -> Result<CloneOutcome, String> {
     let parent = parent.map(PathBuf::from);
     git_clone(&url, parent.as_deref())
 }
@@ -201,12 +192,14 @@ mod tests {
 
     fn init_with_commit(dir: &TempDir) {
         let p = dir.path();
-        let _ = Command::new("git").arg("init").arg(p).output();
+        let _ = Command::new("git")
+            .args(["init", "-b", "main"])
+            .arg(p)
+            .output();
         for (k, v) in [
             ("user.email", "t@t"),
             ("user.name", "t"),
             ("commit.gpgsign", "false"),
-            ("init.defaultBranch", "main"),
         ] {
             let _ = Command::new("git")
                 .arg("-C")
@@ -295,19 +288,13 @@ mod tests {
         let dir = TempDir::new().unwrap();
         init_with_commit(&dir);
         // Create + switch to feat/x.
-        git_checkout_b_cmd(
-            dir.path().to_string_lossy().into(),
-            "feat/x".into(),
-        )
-        .await
-        .unwrap();
+        git_checkout_b_cmd(dir.path().to_string_lossy().into(), "feat/x".into())
+            .await
+            .unwrap();
         // Switch back to main.
-        git_checkout_cmd(
-            dir.path().to_string_lossy().into(),
-            "main".into(),
-        )
-        .await
-        .unwrap();
+        git_checkout_cmd(dir.path().to_string_lossy().into(), "main".into())
+            .await
+            .unwrap();
         let head = Command::new("git")
             .arg("-C")
             .arg(dir.path())
@@ -322,18 +309,12 @@ mod tests {
         let dir = TempDir::new().unwrap();
         init_with_commit(&dir);
         std::fs::write(dir.path().join("new"), "x").unwrap();
-        stage_path_cmd(
-            dir.path().to_string_lossy().into(),
-            "new".into(),
-        )
-        .await
-        .unwrap();
-        unstage_path_cmd(
-            dir.path().to_string_lossy().into(),
-            "new".into(),
-        )
-        .await
-        .unwrap();
+        stage_path_cmd(dir.path().to_string_lossy().into(), "new".into())
+            .await
+            .unwrap();
+        unstage_path_cmd(dir.path().to_string_lossy().into(), "new".into())
+            .await
+            .unwrap();
         // After unstage, "new" should still be untracked.
         let s = Command::new("git")
             .arg("-C")
@@ -352,13 +333,9 @@ mod tests {
         stage_path_cmd(dir.path().to_string_lossy().into(), "b".into())
             .await
             .unwrap();
-        git_commit_cmd(
-            dir.path().to_string_lossy().into(),
-            "second".into(),
-            false,
-        )
-        .await
-        .unwrap();
+        git_commit_cmd(dir.path().to_string_lossy().into(), "second".into(), false)
+            .await
+            .unwrap();
         let l = git_log_cmd(dir.path().to_string_lossy().into(), 10, None)
             .await
             .unwrap();
@@ -387,21 +364,15 @@ mod tests {
     async fn first_commit_author_round_trip() {
         let dir = TempDir::new().unwrap();
         init_with_commit(&dir);
-        let info = git_first_commit_author_cmd(
-            dir.path().to_string_lossy().into(),
-            "a".into(),
-        )
-        .await
-        .unwrap()
-        .expect("`a` was added by init_with_commit");
+        let info = git_first_commit_author_cmd(dir.path().to_string_lossy().into(), "a".into())
+            .await
+            .unwrap()
+            .expect("`a` was added by init_with_commit");
         assert_eq!(info.subject, "init");
         // Path that was never committed → None.
-        let none = git_first_commit_author_cmd(
-            dir.path().to_string_lossy().into(),
-            "ghost".into(),
-        )
-        .await
-        .unwrap();
+        let none = git_first_commit_author_cmd(dir.path().to_string_lossy().into(), "ghost".into())
+            .await
+            .unwrap();
         assert!(none.is_none());
     }
 
@@ -414,34 +385,25 @@ mod tests {
         // The wrapper just must not panic.
         let _ = git_fetch_cmd(dir.path().to_string_lossy().into(), None).await;
         // pull/push without a remote always error.
-        assert!(git_pull_cmd(
-            dir.path().to_string_lossy().into(),
-            None,
-            None,
-            false,
-        )
-        .await
-        .is_err());
-        assert!(git_push_cmd(
-            dir.path().to_string_lossy().into(),
-            None,
-            None,
-            false,
-        )
-        .await
-        .is_err());
+        assert!(
+            git_pull_cmd(dir.path().to_string_lossy().into(), None, None, false,)
+                .await
+                .is_err()
+        );
+        assert!(
+            git_push_cmd(dir.path().to_string_lossy().into(), None, None, false,)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
     async fn clone_vault_cmd_rejects_empty_url() {
         let dir = TempDir::new().unwrap();
         let dest = dir.path().join("repo");
-        let err = clone_vault_cmd(
-            "".into(),
-            Some(dest.to_string_lossy().into()),
-        )
-        .await
-        .unwrap_err();
+        let err = clone_vault_cmd("".into(), Some(dest.to_string_lossy().into()))
+            .await
+            .unwrap_err();
         assert!(err.contains("vazia"), "got: {err}");
     }
 
@@ -450,15 +412,36 @@ mod tests {
         // Set up a local bare remote with one seeded commit.
         let bare = TempDir::new().unwrap();
         let mut init = Command::new("git");
-        init.arg("init").arg("--bare").arg(bare.path());
+        init.arg("init")
+            .arg("--bare")
+            .arg("--initial-branch=main")
+            .arg(bare.path());
         let _ = init.output();
 
         let work = TempDir::new().unwrap();
         for args in [
-            vec!["init", work.path().to_str().unwrap()],
-            vec!["-C", work.path().to_str().unwrap(), "config", "user.email", "t@t"],
-            vec!["-C", work.path().to_str().unwrap(), "config", "user.name", "t"],
-            vec!["-C", work.path().to_str().unwrap(), "config", "commit.gpgsign", "false"],
+            vec!["init", "-b", "main", work.path().to_str().unwrap()],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "config",
+                "user.email",
+                "t@t",
+            ],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "config",
+                "user.name",
+                "t",
+            ],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "config",
+                "commit.gpgsign",
+                "false",
+            ],
         ] {
             let _ = Command::new("git").args(args).output();
         }
@@ -474,7 +457,13 @@ mod tests {
                 "origin",
                 bare.path().to_str().unwrap(),
             ],
-            vec!["-C", work.path().to_str().unwrap(), "push", "origin", "HEAD:main"],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "push",
+                "origin",
+                "HEAD:main",
+            ],
         ] {
             let _ = Command::new("git").args(args).output();
         }

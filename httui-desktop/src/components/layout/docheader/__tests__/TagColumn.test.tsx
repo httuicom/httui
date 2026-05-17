@@ -15,9 +15,9 @@ describe("TagColumn", () => {
     expect(
       screen.getByTestId("tag-column-chip-payments-label").textContent,
     ).toBe("#payments");
-    expect(
-      screen.getByTestId("tag-column-chip-debug-label").textContent,
-    ).toBe("#debug");
+    expect(screen.getByTestId("tag-column-chip-debug-label").textContent).toBe(
+      "#debug",
+    );
   });
 
   it("encodes tag count via data-tag-count", () => {
@@ -29,9 +29,7 @@ describe("TagColumn", () => {
 
   it("makes chips interactive only when onSelectTag is supplied", async () => {
     const onSelectTag = vi.fn();
-    renderWithProviders(
-      <TagColumn tags={["a"]} onSelectTag={onSelectTag} />,
-    );
+    renderWithProviders(<TagColumn tags={["a"]} onSelectTag={onSelectTag} />);
     const label = screen.getByTestId("tag-column-chip-a-label");
     expect(label.tagName).toBe("BUTTON");
     await userEvent.setup().click(label);
@@ -40,9 +38,7 @@ describe("TagColumn", () => {
 
   it("renders chip labels as inert spans without onSelectTag", () => {
     renderWithProviders(<TagColumn tags={["a"]} />);
-    expect(screen.getByTestId("tag-column-chip-a-label").tagName).toBe(
-      "SPAN",
-    );
+    expect(screen.getByTestId("tag-column-chip-a-label").tagName).toBe("SPAN");
   });
 
   it("hides + Add tag when no onAddTag is supplied", () => {
@@ -62,9 +58,7 @@ describe("TagColumn", () => {
     );
     expect(onAddTag).toHaveBeenCalledWith("new-tag");
     // Form closes after submit.
-    expect(
-      screen.queryByTestId("tag-column-add-form"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tag-column-add-form")).not.toBeInTheDocument();
   });
 
   it("does not fire onAddTag when the value is whitespace", async () => {
@@ -72,10 +66,7 @@ describe("TagColumn", () => {
     renderWithProviders(<TagColumn tags={[]} onAddTag={onAddTag} />);
     const user = userEvent.setup();
     await user.click(screen.getByTestId("tag-column-add"));
-    await user.type(
-      screen.getByTestId("tag-column-add-input"),
-      "   {Enter}",
-    );
+    await user.type(screen.getByTestId("tag-column-add-input"), "   {Enter}");
     expect(onAddTag).not.toHaveBeenCalled();
   });
 
@@ -84,10 +75,7 @@ describe("TagColumn", () => {
     renderWithProviders(<TagColumn tags={["dup"]} onAddTag={onAddTag} />);
     const user = userEvent.setup();
     await user.click(screen.getByTestId("tag-column-add"));
-    await user.type(
-      screen.getByTestId("tag-column-add-input"),
-      "dup{Enter}",
-    );
+    await user.type(screen.getByTestId("tag-column-add-input"), "dup{Enter}");
     expect(onAddTag).not.toHaveBeenCalled();
   });
 
@@ -96,21 +84,14 @@ describe("TagColumn", () => {
     renderWithProviders(<TagColumn tags={[]} onAddTag={onAddTag} />);
     const user = userEvent.setup();
     await user.click(screen.getByTestId("tag-column-add"));
-    await user.type(
-      screen.getByTestId("tag-column-add-input"),
-      "x{Escape}",
-    );
+    await user.type(screen.getByTestId("tag-column-add-input"), "x{Escape}");
     expect(onAddTag).not.toHaveBeenCalled();
-    expect(
-      screen.queryByTestId("tag-column-add-form"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tag-column-add-form")).not.toBeInTheDocument();
   });
 
   it("fires onRemoveTag on chip × click", async () => {
     const onRemoveTag = vi.fn();
-    renderWithProviders(
-      <TagColumn tags={["a"]} onRemoveTag={onRemoveTag} />,
-    );
+    renderWithProviders(<TagColumn tags={["a"]} onRemoveTag={onRemoveTag} />);
     await userEvent
       .setup()
       .click(screen.getByTestId("tag-column-chip-a-remove"));
@@ -135,8 +116,9 @@ describe("TagColumn", () => {
     const user = userEvent.setup();
     await user.click(screen.getByTestId("tag-column-add"));
     await user.type(screen.getByTestId("tag-column-add-input"), "de");
-    expect(screen.getByTestId("tag-column-suggestion-debug"))
-      .toBeInTheDocument();
+    expect(
+      screen.getByTestId("tag-column-suggestion-debug"),
+    ).toBeInTheDocument();
     expect(
       screen.queryByTestId("tag-column-suggestion-payments"),
     ).not.toBeInTheDocument();
@@ -156,9 +138,7 @@ describe("TagColumn", () => {
     await user.type(screen.getByTestId("tag-column-add-input"), "pay");
     await user.click(screen.getByTestId("tag-column-suggestion-payments"));
     expect(onAddTag).toHaveBeenCalledWith("payments");
-    expect(
-      screen.queryByTestId("tag-column-add-form"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tag-column-add-form")).not.toBeInTheDocument();
   });
 
   it("hides suggestions for already-applied tags", async () => {
@@ -188,8 +168,8 @@ describe("TagColumn", () => {
     );
     const add = screen.getByTestId("tag-column-add") as HTMLButtonElement;
     expect(add.disabled).toBe(true);
-    expect(
-      screen.getByTestId("tag-column").getAttribute("data-busy"),
-    ).toBe("true");
+    expect(screen.getByTestId("tag-column").getAttribute("data-busy")).toBe(
+      "true",
+    );
   });
 });

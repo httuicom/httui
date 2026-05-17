@@ -106,9 +106,7 @@ export function GeneralSection() {
           <Switch
             aria-label="Include pre-releases"
             checked={autoUpdateIncludePrereleases}
-            onCheckedChange={(d) =>
-              setAutoUpdateIncludePrereleases(d.checked)
-            }
+            onCheckedChange={(d) => setAutoUpdateIncludePrereleases(d.checked)}
             size="sm"
           />
         </Flex>

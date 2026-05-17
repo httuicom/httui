@@ -54,9 +54,7 @@ export function StatusBar({
   const { status: gitState } = useGitStatus(vaultPath);
   const branchActions = useGitBranchActions(vaultPath);
   const activeConnection = useWorkspaceStore((s) => s.activeConnection);
-  const pendingSecretsCount = usePendingSecretsStore(
-    (s) => s.pending.length,
-  );
+  const pendingSecretsCount = usePendingSecretsStore((s) => s.pending.length);
   const pendingModalOpen = usePendingSecretsStore((s) => s.modalOpen);
   const reopenPendingSecrets = usePendingSecretsStore((s) => s.reopen);
 
@@ -112,9 +110,7 @@ export function StatusBar({
             data-testid="status-conn"
           >
             <Dot
-              variant={
-                activeConnection.status === "connected" ? "ok" : "err"
-              }
+              variant={activeConnection.status === "connected" ? "ok" : "err"}
             />
             <Text>{activeConnection.name}</Text>
           </Box>

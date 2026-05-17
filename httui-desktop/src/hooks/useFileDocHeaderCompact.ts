@@ -11,10 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  getFileSettings,
-  setFileDocheaderCompact,
-} from "@/lib/tauri/files";
+import { getFileSettings, setFileDocheaderCompact } from "@/lib/tauri/files";
 
 export interface UseFileDocHeaderCompactResult {
   compact: boolean;

@@ -193,8 +193,7 @@ function rhex(n: number): string {
   const hex = "0123456789abcdef";
   let s = "";
   for (let i = 0; i < 4; i += 1) {
-    s +=
-      hex[(n >> (i * 8 + 4)) & 0x0f]! + hex[(n >> (i * 8)) & 0x0f]!;
+    s += hex[(n >> (i * 8 + 4)) & 0x0f]! + hex[(n >> (i * 8)) & 0x0f]!;
   }
   return s;
 }

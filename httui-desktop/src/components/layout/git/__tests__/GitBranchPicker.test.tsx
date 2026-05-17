@@ -82,10 +82,7 @@ describe("GitBranchPicker", () => {
   it("filters branches case-insensitively as the user types", async () => {
     renderWithProviders(
       <GitBranchPicker
-        branches={[
-          branch({ name: "main" }),
-          branch({ name: "feat/payments" }),
-        ]}
+        branches={[branch({ name: "main" }), branch({ name: "feat/payments" })]}
       />,
     );
     await userEvent

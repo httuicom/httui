@@ -31,7 +31,11 @@ function skip(idx = 0): PreflightPillItem {
 
 interface HostProps {
   items: PreflightPillItem[];
-  onRunAll: (...args: Parameters<Parameters<typeof useRunAllPreflightGate>[0]["onRunAll"]>) => void;
+  onRunAll: (
+    ...args: Parameters<
+      Parameters<typeof useRunAllPreflightGate>[0]["onRunAll"]
+    >
+  ) => void;
   initialOverride?: boolean;
 }
 
@@ -129,11 +133,7 @@ describe("useRunAllPreflightGate", () => {
     const user = userEvent.setup();
     const onRunAll = vi.fn();
     renderWithProviders(
-      <HostWithButton
-        items={[fail(0)]}
-        onRunAll={onRunAll}
-        initialOverride
-      />,
+      <HostWithButton items={[fail(0)]} onRunAll={onRunAll} initialOverride />,
     );
     await user.click(screen.getByTestId("host-trigger"));
     expect(
@@ -153,9 +153,7 @@ describe("useRunAllPreflightGate", () => {
       />,
     );
     await user.click(screen.getByTestId("host-trigger"));
-    const note = screen.getByTestId(
-      "preflight-run-all-confirm-skipped",
-    );
+    const note = screen.getByTestId("preflight-run-all-confirm-skipped");
     expect(note.textContent).toMatch(/2 pre-flight checks skipped/);
   });
 
@@ -166,9 +164,7 @@ describe("useRunAllPreflightGate", () => {
       <HostWithButton items={[fail(0)]} onRunAll={onRunAll} />,
     );
     await user.click(screen.getByTestId("host-trigger"));
-    await user.click(
-      screen.getByTestId("preflight-run-all-confirm-overlay"),
-    );
+    await user.click(screen.getByTestId("preflight-run-all-confirm-overlay"));
     expect(
       screen.queryByTestId("preflight-run-all-confirm"),
     ).not.toBeInTheDocument();

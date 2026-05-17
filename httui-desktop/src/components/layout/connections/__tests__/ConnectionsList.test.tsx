@@ -58,7 +58,9 @@ describe("ConnectionsList", () => {
       mkConn("c2", "prod-mysql", "mysql"),
     ]);
     renderWithProviders(<ConnectionsList />);
-    await waitFor(() => expect(screen.getByText("local-pg")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("local-pg")).toBeInTheDocument(),
+    );
     expect(screen.getByText("prod-mysql")).toBeInTheDocument();
   });
 
@@ -69,14 +71,14 @@ describe("ConnectionsList", () => {
       mkConn("c3", "staging-rep", "postgres"),
     ]);
     renderWithProviders(<ConnectionsList />);
-    await waitFor(() => expect(screen.getByText("PROD-mysql")).toBeInTheDocument());
-    expect(screen.getByTestId("sidebar-connection-c2-prod")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("PROD-mysql")).toBeInTheDocument(),
+    );
     expect(
-      screen.queryByTestId("sidebar-connection-c1-prod"),
-    ).toBeNull();
-    expect(
-      screen.queryByTestId("sidebar-connection-c3-prod"),
-    ).toBeNull();
+      screen.getByTestId("sidebar-connection-c2-prod"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("sidebar-connection-c1-prod")).toBeNull();
+    expect(screen.queryByTestId("sidebar-connection-c3-prod")).toBeNull();
   });
 
   it("auto-pings each connection on mount and shows latency + ok dot", async () => {
@@ -115,9 +117,7 @@ describe("ConnectionsList", () => {
     const user = userEvent.setup();
     renderWithProviders(<ConnectionsList />);
     await user.click(screen.getByLabelText("New connection"));
-    expect(
-      screen.getByRole("button", { name: /Create/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Create/i })).toBeInTheDocument();
   });
 
   it("clicking the chip opens the quick-edit popover", async () => {
@@ -128,15 +128,11 @@ describe("ConnectionsList", () => {
       expect(screen.getByText("local-pg")).toBeInTheDocument(),
     );
     await user.click(screen.getByTestId("sidebar-connection-c1"));
-    expect(
-      await screen.findByTestId("conn-quickedit-c1"),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId("conn-quickedit-c1")).toBeInTheDocument();
     expect(screen.getByTestId("conn-quickedit-rotate")).toBeInTheDocument();
     expect(screen.getByTestId("conn-quickedit-apply")).toBeInTheDocument();
     expect(screen.getByTestId("conn-quickedit-test")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("conn-quickedit-duplicate"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("conn-quickedit-duplicate")).toBeInTheDocument();
   });
 
   it("Delete in the popover calls delete_connection then refresh", async () => {
@@ -232,9 +228,9 @@ describe("ConnectionsList", () => {
     ).toEqual({ host: "db.staging", port: 5599 });
     // Chip on the sidebar row reflects the TEMPORARY state.
     expect(
-      screen.getByTestId("sidebar-connection-c1").getAttribute(
-        "data-temporary",
-      ),
+      screen
+        .getByTestId("sidebar-connection-c1")
+        .getAttribute("data-temporary"),
     ).toBe("true");
   });
 

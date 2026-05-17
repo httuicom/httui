@@ -25,10 +25,7 @@ describe("resolveFileTreeDrop", () => {
   it("returns null when the drop target is the source itself", () => {
     expect(
       resolveFileTreeDrop(
-        event(
-          overWith("a", "a.md"),
-          activeWith("a", "a.md"),
-        ),
+        event(overWith("a", "a.md"), activeWith("a", "a.md")),
       ),
     ).toBeNull();
   });
@@ -43,19 +40,14 @@ describe("resolveFileTreeDrop", () => {
 
   it("returns null when over has no dirPath data", () => {
     expect(
-      resolveFileTreeDrop(
-        event(overWith("dir"), activeWith("a", "a.md")),
-      ),
+      resolveFileTreeDrop(event(overWith("dir"), activeWith("a", "a.md"))),
     ).toBeNull();
   });
 
   it("returns null when source equals target dir (drop on own dir)", () => {
     expect(
       resolveFileTreeDrop(
-        event(
-          overWith("dir", "notes"),
-          activeWith("notes", "notes"),
-        ),
+        event(overWith("dir", "notes"), activeWith("notes", "notes")),
       ),
     ).toBeNull();
   });
@@ -63,10 +55,7 @@ describe("resolveFileTreeDrop", () => {
   it("returns null when target dir is a descendant of the source", () => {
     expect(
       resolveFileTreeDrop(
-        event(
-          overWith("subdir", "notes/subdir"),
-          activeWith("notes", "notes"),
-        ),
+        event(overWith("subdir", "notes/subdir"), activeWith("notes", "notes")),
       ),
     ).toBeNull();
   });
@@ -85,10 +74,7 @@ describe("resolveFileTreeDrop", () => {
   it("accepts an empty-string targetDir (root drop)", () => {
     expect(
       resolveFileTreeDrop(
-        event(
-          overWith("root", ""),
-          activeWith("note", "drafts/note.md"),
-        ),
+        event(overWith("root", ""), activeWith("note", "drafts/note.md")),
       ),
     ).toEqual({ sourcePath: "drafts/note.md", targetDir: "" });
   });

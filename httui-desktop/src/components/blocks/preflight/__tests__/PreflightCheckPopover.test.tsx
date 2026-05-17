@@ -197,9 +197,7 @@ describe("PreflightCheckPopover (V6 cenário 9 builder)", () => {
       renderWithProviders(
         <PreflightCheckPopover onSave={vi.fn()} onClose={onClose} />,
       );
-      await user.click(
-        screen.getByTestId("preflight-check-popover-overlay"),
-      );
+      await user.click(screen.getByTestId("preflight-check-popover-overlay"));
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 

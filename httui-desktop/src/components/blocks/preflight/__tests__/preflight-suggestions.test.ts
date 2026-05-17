@@ -2,10 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { defaultSuggestionProvider } from "@/components/blocks/preflight/preflight-suggestions";
 import { useEnvironmentStore } from "@/stores/environment";
-import {
-  clearTauriMocks,
-  mockTauriCommand,
-} from "@/test/mocks/tauri";
+import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
 
 describe("defaultSuggestionProvider", () => {
   beforeEach(() => {

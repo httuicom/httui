@@ -19,16 +19,18 @@ describe("NewConnectionTestBanner", () => {
     expect(
       screen.getByTestId("new-connection-test-banner-running"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("dot-running"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("dot-running")).toBeInTheDocument();
     expect(screen.getByText("Testing…")).toBeInTheDocument();
   });
 
   it("renders the ok banner with detail line + latency", () => {
     renderWithProviders(
       <NewConnectionTestBanner
-        state={{ kind: "ok", detail: "postgres 15.4 · 47 tables", latencyMs: 18 }}
+        state={{
+          kind: "ok",
+          detail: "postgres 15.4 · 47 tables",
+          latencyMs: 18,
+        }}
       />,
     );
     const banner = screen.getByTestId("new-connection-test-banner-ok");
@@ -60,9 +62,9 @@ describe("NewConnectionTestBanner", () => {
         onRetry={onRetry}
       />,
     );
-    await userEvent.setup().click(
-      screen.getByTestId("new-connection-test-retry"),
-    );
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("new-connection-test-retry"));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
@@ -74,9 +76,9 @@ describe("NewConnectionTestBanner", () => {
         onRetry={onRetry}
       />,
     );
-    await userEvent.setup().click(
-      screen.getByTestId("new-connection-test-retry"),
-    );
+    await userEvent
+      .setup()
+      .click(screen.getByTestId("new-connection-test-retry"));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 

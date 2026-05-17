@@ -165,7 +165,11 @@ mod tests {
         let remote = TempDir::new().unwrap();
         let mut init = Command::new("git");
         scrub_git_env(&mut init);
-        init.arg("init").arg("--bare").arg(remote.path()).output().unwrap();
+        init.arg("init")
+            .arg("--bare")
+            .arg(remote.path())
+            .output()
+            .unwrap();
         let local = TempDir::new().unwrap();
         init_repo(local.path());
         std::fs::write(local.path().join("a"), "x").unwrap();

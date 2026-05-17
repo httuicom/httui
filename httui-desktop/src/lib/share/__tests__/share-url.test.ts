@@ -137,9 +137,7 @@ describe("composeCompareUrl", () => {
       "feat/x",
     );
     if (!r.ok) throw new Error("expected ok");
-    expect(r.url).toBe(
-      "https://github.com/owner/repo/compare/main...feat/x",
-    );
+    expect(r.url).toBe("https://github.com/owner/repo/compare/main...feat/x");
   });
 
   it("composes a GitLab compare URL with /-/compare/ shape", () => {
@@ -163,11 +161,7 @@ describe("composeCompareUrl", () => {
   });
 
   it("returns the manual hint for Bitbucket / Gitea / Other", () => {
-    const r = composeCompareUrl(
-      parsed("git@bitbucket.org:t/r.git"),
-      "a",
-      "b",
-    );
+    const r = composeCompareUrl(parsed("git@bitbucket.org:t/r.git"), "a", "b");
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.fallback).toBe("https://bitbucket.org/t/r");

@@ -46,12 +46,7 @@ pub async fn read_run_body_cmd(
     alias: String,
     run_id: String,
 ) -> Result<Option<Vec<u8>>, String> {
-    read_run_body(
-        &PathBuf::from(vault_path),
-        &file_path,
-        &alias,
-        &run_id,
-    )
+    read_run_body(&PathBuf::from(vault_path), &file_path, &alias, &run_id)
 }
 
 #[tauri::command]
@@ -70,12 +65,7 @@ pub async fn trim_run_bodies_cmd(
     alias: String,
     keep_n: usize,
 ) -> Result<usize, String> {
-    trim_run_bodies(
-        &PathBuf::from(vault_path),
-        &file_path,
-        &alias,
-        keep_n,
-    )
+    trim_run_bodies(&PathBuf::from(vault_path), &file_path, &alias, keep_n)
 }
 
 /// Move every cached run body for `(file_path, old_alias)` to

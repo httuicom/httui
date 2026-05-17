@@ -40,7 +40,9 @@ use super::PlanNode;
 pub const COLLSCAN_WARN_DOCS: u64 = 10_000;
 
 pub fn parse_mongo_explain(json: &Value) -> Option<PlanNode> {
-    let winning = json.get("queryPlanner").and_then(|v| v.get("winningPlan"))?;
+    let winning = json
+        .get("queryPlanner")
+        .and_then(|v| v.get("winningPlan"))?;
     Some(parse_stage(winning, true))
 }
 

@@ -211,10 +211,7 @@ mod tests {
     fn parse_drops_lines_without_dash_marker() {
         let raw = "preflight:\n  not_a_list_item\n  - connection: ok\n";
         let items = parse_preflight(raw);
-        assert_eq!(
-            items,
-            vec![PreflightItem::Connection { name: "ok".into() }]
-        );
+        assert_eq!(items, vec![PreflightItem::Connection { name: "ok".into() }]);
     }
 
     #[test]
@@ -254,10 +251,7 @@ mod tests {
     fn parse_handles_tab_indentation() {
         let raw = "preflight:\n\t- connection: a\n";
         let items = parse_preflight(raw);
-        assert_eq!(
-            items,
-            vec![PreflightItem::Connection { name: "a".into() }]
-        );
+        assert_eq!(items, vec![PreflightItem::Connection { name: "a".into() }]);
     }
 
     #[test]
@@ -266,17 +260,12 @@ mod tests {
         // stops after the first one and ignores the rest.
         let raw = "preflight:\n  - connection: a\nowner: alice\npreflight:\n  - connection: b\n";
         let items = parse_preflight(raw);
-        assert_eq!(
-            items,
-            vec![PreflightItem::Connection { name: "a".into() }]
-        );
+        assert_eq!(items, vec![PreflightItem::Connection { name: "a".into() }]);
     }
 
     #[test]
     fn parse_serializes_kind_via_serde() {
-        let item = PreflightItem::Connection {
-            name: "db".into(),
-        };
+        let item = PreflightItem::Connection { name: "db".into() };
         let json = serde_json::to_string(&item).unwrap();
         assert!(json.contains("\"kind\":\"connection\""));
         assert!(json.contains("\"name\":\"db\""));

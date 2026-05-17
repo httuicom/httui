@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  pluralizeFiles,
-  validateCommitMessage,
-} from "../git-commit-validate";
+import { pluralizeFiles, validateCommitMessage } from "../git-commit-validate";
 
 describe("validateCommitMessage", () => {
   it("rejects an empty message", () => {

@@ -5,7 +5,7 @@
 // are no assertions to evaluate (the consumer can short-circuit on
 // `total === 0` without an outer guard).
 
-import { Box } from "@chakra-ui/react";
+import { chakra } from "@chakra-ui/react";
 
 import type { AssertionResult } from "@/lib/blocks/assertions";
 
@@ -36,10 +36,10 @@ export function AssertionsBadge({
   const label = result === null ? `0/${total}` : `${passed}/${total}`;
 
   const interactive = !!onClick;
+  const Comp = interactive ? chakra.button : chakra.span;
 
   return (
-    <Box
-      as={interactive ? "button" : "span"}
+    <Comp
       type={interactive ? "button" : undefined}
       data-testid="assertions-badge"
       data-pass={allPass || undefined}
@@ -65,6 +65,6 @@ export function AssertionsBadge({
       }
     >
       ✓ {label}
-    </Box>
+    </Comp>
   );
 }

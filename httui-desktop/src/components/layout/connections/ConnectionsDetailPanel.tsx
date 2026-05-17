@@ -104,8 +104,8 @@ export function ConnectionsDetailPanel({
             Nothing selected
           </Text>
           <Text fontSize="11px" color="fg.subtle" textAlign="center">
-            Pick a connection on the left to see credentials,
-            schema preview, and where it's used.
+            Pick a connection on the left to see credentials, schema preview,
+            and where it's used.
           </Text>
         </Stack>
       ) : selectedConnection ? (
@@ -145,8 +145,8 @@ export function ConnectionsDetailPanel({
             {selectedConnectionName}
           </Text>
           <Text fontSize="11px" color="fg.subtle">
-            Detail sections (credentials / schema / used in runbooks)
-            land in the Story 02-04 slices.
+            Detail sections (credentials / schema / used in runbooks) land in
+            the Story 02-04 slices.
           </Text>
         </Stack>
       )}

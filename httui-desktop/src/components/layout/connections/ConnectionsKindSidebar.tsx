@@ -116,12 +116,7 @@ export function ConnectionsKindSidebar({
                     flexShrink={0}
                     aria-hidden
                   />
-                  <Text
-                    flex={1}
-                    fontFamily="mono"
-                    fontSize="12px"
-                    color="fg"
-                  >
+                  <Text flex={1} fontFamily="mono" fontSize="12px" color="fg">
                     {e.name}
                   </Text>
                   <Text

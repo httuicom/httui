@@ -7,7 +7,7 @@
 // supplies the diff (already computed) so this component has no
 // effects.
 
-import { Box, Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 import { useState } from "react";
 
 import type {
@@ -78,8 +78,7 @@ function TabBtn({
 }) {
   const active = current === value;
   return (
-    <Box
-      as="button"
+    <chakra.button
       type="button"
       data-testid={`run-diff-tab-${value}`}
       data-active={active || undefined}
@@ -102,7 +101,7 @@ function TabBtn({
           ({count})
         </Text>
       )}
-    </Box>
+    </chakra.button>
   );
 }
 

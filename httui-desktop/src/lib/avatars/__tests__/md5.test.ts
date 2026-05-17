@@ -17,9 +17,7 @@ describe("md5", () => {
   });
 
   it("hashes the message-digest ASCII vector", () => {
-    expect(md5("message digest")).toBe(
-      "f96b697d7cb7938d525a2f31aaf161d0",
-    );
+    expect(md5("message digest")).toBe("f96b697d7cb7938d525a2f31aaf161d0");
   });
 
   it("hashes the lowercase alphabet", () => {

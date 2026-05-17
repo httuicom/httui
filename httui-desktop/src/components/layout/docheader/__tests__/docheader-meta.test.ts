@@ -20,9 +20,9 @@ describe("authorInitialsFromFirstCommit", () => {
   });
 
   it("returns first two letters for single-word names", () => {
-    expect(
-      authorInitialsFromFirstCommit({ name: "alice", email: null }),
-    ).toBe("AL");
+    expect(authorInitialsFromFirstCommit({ name: "alice", email: null })).toBe(
+      "AL",
+    );
   });
 
   it("falls back to email local-part when name is empty", () => {
@@ -33,9 +33,9 @@ describe("authorInitialsFromFirstCommit", () => {
 
   it("returns ? when name and email are both empty", () => {
     expect(authorInitialsFromFirstCommit({ name: "", email: "" })).toBe("?");
-    expect(
-      authorInitialsFromFirstCommit({ name: null, email: null }),
-    ).toBe("?");
+    expect(authorInitialsFromFirstCommit({ name: null, email: null })).toBe(
+      "?",
+    );
   });
 });
 
@@ -170,9 +170,9 @@ describe("formatLastRun", () => {
 
 describe("lastRunTone", () => {
   it("returns muted when no runs", () => {
-    expect(
-      lastRunTone({ ranAt: null, blockCount: 0, failedCount: 0 }),
-    ).toBe("muted");
+    expect(lastRunTone({ ranAt: null, blockCount: 0, failedCount: 0 })).toBe(
+      "muted",
+    );
   });
 
   it("returns ok when all blocks passed", () => {

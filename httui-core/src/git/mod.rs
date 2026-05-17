@@ -23,8 +23,8 @@ pub mod status;
 pub mod sync;
 
 pub use checkout::{git_checkout, git_checkout_b, git_checkout_conflict_path, ConflictSide};
-pub use conflict::{git_conflict_versions, ConflictVersions};
 pub use clone::{git_clone, CloneOutcome};
+pub use conflict::{git_conflict_versions, ConflictVersions};
 pub use log::{git_first_commit_author, git_log, CommitInfo};
 pub use remote::{git_remote_list, Remote};
 pub use remote_host::{parse_remote_url, ParsedRemote, RemoteHost};
@@ -146,13 +146,16 @@ pub(crate) mod test_helpers {
     /// non-interactive identity, return the path. Caller keeps the
     /// `TempDir` alive.
     pub fn init_repo(path: &Path) {
-        let init = git().arg("init").arg(path).output().unwrap();
+        let init = git()
+            .args(["init", "-b", "main"])
+            .arg(path)
+            .output()
+            .unwrap();
         assert!(init.status.success(), "git init failed");
         for (k, v) in [
             ("user.email", "test@httui.local"),
             ("user.name", "Test"),
             ("commit.gpgsign", "false"),
-            ("init.defaultBranch", "main"),
         ] {
             let r = git()
                 .arg("-C")
@@ -223,8 +226,7 @@ mod tests {
     fn gitignored_returns_true_when_pattern_matches() {
         let dir = TempDir::new().unwrap();
         test_helpers::init_repo(dir.path());
-        std::fs::write(dir.path().join(".gitignore"), "node_modules/\n*.env\n")
-            .unwrap();
+        std::fs::write(dir.path().join(".gitignore"), "node_modules/\n*.env\n").unwrap();
         // Files don't even need to exist — `git check-ignore` works
         // off the patterns alone.
         assert!(is_path_gitignored(dir.path(), "node_modules/foo/.env"));

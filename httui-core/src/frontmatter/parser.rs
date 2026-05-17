@@ -114,8 +114,7 @@ pub fn assemble_with_body(raw_yaml: &str, body: &str) -> String {
 
 fn parse_typed(raw_yaml: &str) -> Frontmatter {
     let mut fm = Frontmatter::default();
-    let mut iter = raw_yaml.lines().peekable();
-    while let Some(line) = iter.next() {
+    for line in raw_yaml.lines() {
         let trimmed = line.trim_end_matches(['\r', '\n']);
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
@@ -201,8 +200,7 @@ mod tests {
 
     #[test]
     fn split_handles_crlf_fences() {
-        let s =
-            split_frontmatter("---\r\ntitle: foo\r\n---\r\nbody\r\n").unwrap();
+        let s = split_frontmatter("---\r\ntitle: foo\r\n---\r\nbody\r\n").unwrap();
         assert!(s.raw_yaml.contains("title: foo"));
         assert!(s.body.starts_with("body"));
     }
@@ -247,23 +245,23 @@ mod tests {
 
     #[test]
     fn parse_unquotes_double_and_single_quotes() {
-        let (fm, _) =
-            parse_frontmatter("---\ntitle: \"Hi\"\nowner: 'bob'\n---\n").unwrap();
+        let (fm, _) = parse_frontmatter("---\ntitle: \"Hi\"\nowner: 'bob'\n---\n").unwrap();
         assert_eq!(fm.title.as_deref(), Some("Hi"));
         assert_eq!(fm.owner.as_deref(), Some("bob"));
     }
 
     #[test]
     fn parse_falls_back_to_extra_for_unknown_keys() {
-        let (fm, _) =
-            parse_frontmatter("---\ntitle: foo\ncustom_field: hello\n---\n").unwrap();
-        assert_eq!(fm.extra.get("custom_field").map(String::as_str), Some("hello"));
+        let (fm, _) = parse_frontmatter("---\ntitle: foo\ncustom_field: hello\n---\n").unwrap();
+        assert_eq!(
+            fm.extra.get("custom_field").map(String::as_str),
+            Some("hello")
+        );
     }
 
     #[test]
     fn parse_skips_empty_and_comment_lines() {
-        let input =
-            "---\n# A comment\n\ntitle: foo\n# another comment\n---\nbody\n";
+        let input = "---\n# A comment\n\ntitle: foo\n# another comment\n---\nbody\n";
         let (fm, _) = parse_frontmatter(input).unwrap();
         assert_eq!(fm.title.as_deref(), Some("foo"));
     }
@@ -272,18 +270,26 @@ mod tests {
     fn parse_skips_indented_lines_at_top_level() {
         // Indented children of `abstract:` / `preflight:` round-trip
         // via the raw region but are NOT picked up as typed keys.
-        let input =
-            "---\ntitle: foo\nabstract: |\n  hello\n  world\n---\nbody\n";
+        let input = "---\ntitle: foo\nabstract: |\n  hello\n  world\n---\nbody\n";
         let (fm, _) = parse_frontmatter(input).unwrap();
         assert_eq!(fm.title.as_deref(), Some("foo"));
-        assert!(fm.extra.is_empty() || fm.extra.get("abstract").is_some());
+        assert!(fm.extra.is_empty() || fm.extra.contains_key("abstract"));
     }
 
     #[test]
     fn parse_status_recognises_each_variant() {
-        assert_eq!(FrontmatterStatus::parse("draft"), Some(FrontmatterStatus::Draft));
-        assert_eq!(FrontmatterStatus::parse("active"), Some(FrontmatterStatus::Active));
-        assert_eq!(FrontmatterStatus::parse("archived"), Some(FrontmatterStatus::Archived));
+        assert_eq!(
+            FrontmatterStatus::parse("draft"),
+            Some(FrontmatterStatus::Draft)
+        );
+        assert_eq!(
+            FrontmatterStatus::parse("active"),
+            Some(FrontmatterStatus::Active)
+        );
+        assert_eq!(
+            FrontmatterStatus::parse("archived"),
+            Some(FrontmatterStatus::Archived)
+        );
         assert_eq!(FrontmatterStatus::parse("nope"), None);
     }
 
@@ -295,8 +301,7 @@ mod tests {
 
     #[test]
     fn parse_flow_list_handles_quoted_items() {
-        let (fm, _) =
-            parse_frontmatter("---\ntags: [\"hello world\", debug]\n---\n").unwrap();
+        let (fm, _) = parse_frontmatter("---\ntags: [\"hello world\", debug]\n---\n").unwrap();
         assert_eq!(fm.tags, vec!["hello world", "debug"]);
     }
 

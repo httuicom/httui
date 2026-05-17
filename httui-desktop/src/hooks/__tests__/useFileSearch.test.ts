@@ -338,8 +338,9 @@ describe("useFileSearch", () => {
         `${VAULT}/runbooks/refund.md`,
       ]);
       // `name` is the leaf without `.md` for cleaner display.
-      expect(result.current.results.find((r) => r.path.endsWith("billing.md"))?.name)
-        .toBe("billing");
+      expect(
+        result.current.results.find((r) => r.path.endsWith("billing.md"))?.name,
+      ).toBe("billing");
     });
 
     it("`#missing` returns empty without hitting search_files", async () => {
@@ -370,9 +371,7 @@ describe("useFileSearch", () => {
     });
 
     it("`#a AND #b` intersects the two tag sets", async () => {
-      useTagIndexStore
-        .getState()
-        .setTagsForFile(`${VAULT}/x.md`, ["a", "b"]);
+      useTagIndexStore.getState().setTagsForFile(`${VAULT}/x.md`, ["a", "b"]);
       useTagIndexStore.getState().setTagsForFile(`${VAULT}/y.md`, ["a"]);
       useTagIndexStore.getState().setTagsForFile(`${VAULT}/z.md`, ["b"]);
       mockTauriCommand("search_files", () => []);
@@ -425,9 +424,7 @@ describe("useFileSearch", () => {
     });
 
     it("tag mode works without a vaultPath (store is vault-agnostic)", async () => {
-      useTagIndexStore
-        .getState()
-        .setTagsForFile("/elsewhere/note.md", ["api"]);
+      useTagIndexStore.getState().setTagsForFile("/elsewhere/note.md", ["api"]);
       mockTauriCommand("search_files", () => []);
 
       const { result } = renderHook(() =>

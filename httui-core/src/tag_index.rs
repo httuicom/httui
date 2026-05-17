@@ -147,9 +147,7 @@ mod tests {
             .map(|t| (*t).to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        format!(
-            "---\ntitle: \"Doc\"\ntags: [{tags_csv}]\n---\n# body\n",
-        )
+        format!("---\ntitle: \"Doc\"\ntags: [{tags_csv}]\n---\n# body\n",)
     }
 
     #[test]
@@ -192,11 +190,7 @@ mod tests {
     #[test]
     fn skips_md_with_frontmatter_but_no_tags() {
         let dir = tempdir().unwrap();
-        write(
-            dir.path(),
-            "no-tags.md",
-            "---\ntitle: \"x\"\n---\n# body\n",
-        );
+        write(dir.path(), "no-tags.md", "---\ntitle: \"x\"\n---\n# body\n");
         let r = scan_vault_tags(dir.path());
         assert!(r.is_empty());
     }

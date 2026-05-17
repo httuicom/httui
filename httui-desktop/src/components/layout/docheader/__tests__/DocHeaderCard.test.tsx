@@ -19,10 +19,7 @@ describe("DocHeaderCard", () => {
 
   it("falls back to firstHeading when frontmatter has no title", () => {
     renderWithProviders(
-      <DocHeaderCard
-        filePath="notes/db.md"
-        firstHeading="Database Runbook"
-      />,
+      <DocHeaderCard filePath="notes/db.md" firstHeading="Database Runbook" />,
     );
     expect(screen.getByTestId("docheader-title").textContent).toBe(
       "Database Runbook",
@@ -95,9 +92,7 @@ describe("DocHeaderCard", () => {
     );
     const leaf = screen.getByTestId("docheader-breadcrumb-segment-1");
     expect(leaf.querySelector("button")).toBeNull();
-    expect(
-      leaf.querySelector("[data-leaf='true']"),
-    ).toBeInTheDocument();
+    expect(leaf.querySelector("[data-leaf='true']")).toBeInTheDocument();
   });
 
   it("flags compact mode via data-compact", () => {
@@ -227,10 +222,7 @@ describe("DocHeaderCard", () => {
 
     it("hides the badge when frontmatter has no error", () => {
       renderWithProviders(
-        <DocHeaderCard
-          filePath="notes/db.md"
-          frontmatter={{ title: "x" }}
-        />,
+        <DocHeaderCard filePath="notes/db.md" frontmatter={{ title: "x" }} />,
       );
       expect(
         screen.queryByTestId("docheader-frontmatter-error"),

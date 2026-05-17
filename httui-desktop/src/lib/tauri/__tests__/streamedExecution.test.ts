@@ -239,9 +239,7 @@ describe("executeDbStreamed", () => {
   });
 
   it("maps an error chunk to an error outcome", async () => {
-    streamChunks("execute_db_streamed", [
-      { kind: "error", message: "boom" },
-    ]);
+    streamChunks("execute_db_streamed", [{ kind: "error", message: "boom" }]);
     const out = await executeDbStreamed({
       executionId: "e1",
       params: { connection_id: "c1", query: "x" },

@@ -25,11 +25,7 @@ function item(overrides: Partial<ListRowItem> = {}): ListRowItem {
 describe("ConnectionListRow", () => {
   it("renders the kind icon for postgres", () => {
     renderWithProviders(
-      <ConnectionListRow
-        item={item()}
-        selected={false}
-        onSelect={() => {}}
-      />,
+      <ConnectionListRow item={item()} selected={false} onSelect={() => {}} />,
     );
     const row = screen.getByTestId("connection-row-c1");
     expect(row.querySelector('[data-kind="postgres"]')).toBeTruthy();
@@ -63,11 +59,7 @@ describe("ConnectionListRow", () => {
 
   it("hides the PROD chip when isProd is false", () => {
     renderWithProviders(
-      <ConnectionListRow
-        item={item()}
-        selected={false}
-        onSelect={() => {}}
-      />,
+      <ConnectionListRow item={item()} selected={false} onSelect={() => {}} />,
     );
     expect(screen.queryByTestId("connection-row-c1-prod")).toBeNull();
   });
@@ -114,11 +106,7 @@ describe("ConnectionListRow", () => {
   it("clicking the row dispatches onSelect with the id", async () => {
     const onSelect = vi.fn();
     renderWithProviders(
-      <ConnectionListRow
-        item={item()}
-        selected={false}
-        onSelect={onSelect}
-      />,
+      <ConnectionListRow item={item()} selected={false} onSelect={onSelect} />,
     );
     await userEvent.setup().click(screen.getByTestId("connection-row-c1"));
     expect(onSelect).toHaveBeenCalledWith("c1");
@@ -135,9 +123,7 @@ describe("ConnectionListRow", () => {
         onEdit={onEdit}
       />,
     );
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("connection-row-c1-more"));
+    await userEvent.setup().click(screen.getByTestId("connection-row-c1-more"));
     // Trigger click should not select the row.
     expect(onSelect).not.toHaveBeenCalled();
   });
@@ -149,13 +135,98 @@ describe("ConnectionListRow", () => {
     expect(screen.queryByTestId("connection-row-c1-more")).toBeNull();
   });
 
-  it("marks selected via data-selected", () => {
+  it("selecting Edit from the actions menu invokes onEdit with the id", async () => {
+    const onEdit = vi.fn();
     renderWithProviders(
       <ConnectionListRow
         item={item()}
-        selected={true}
-        onSelect={() => {}}
+        selected={false}
+        onSelect={vi.fn()}
+        onEdit={onEdit}
       />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("connection-row-c1-more"));
+    await user.click(await screen.findByText("Edit"));
+    expect(onEdit).toHaveBeenCalledWith("c1");
+  });
+
+  it("selecting Test from the actions menu invokes onTest with the id", async () => {
+    const onTest = vi.fn();
+    renderWithProviders(
+      <ConnectionListRow
+        item={item()}
+        selected={false}
+        onSelect={vi.fn()}
+        onTest={onTest}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("connection-row-c1-more"));
+    await user.click(await screen.findByText("Test"));
+    expect(onTest).toHaveBeenCalledWith("c1");
+  });
+
+  it("selecting Duplicate from the actions menu invokes onDuplicate with the id", async () => {
+    const onDuplicate = vi.fn();
+    renderWithProviders(
+      <ConnectionListRow
+        item={item()}
+        selected={false}
+        onSelect={vi.fn()}
+        onDuplicate={onDuplicate}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("connection-row-c1-more"));
+    await user.click(await screen.findByText("Duplicate"));
+    expect(onDuplicate).toHaveBeenCalledWith("c1");
+  });
+
+  it("selecting Delete from the actions menu invokes onDelete with the id", async () => {
+    const onDelete = vi.fn();
+    renderWithProviders(
+      <ConnectionListRow
+        item={item()}
+        selected={false}
+        onSelect={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("connection-row-c1-more"));
+    await user.click(await screen.findByText("Delete"));
+    expect(onDelete).toHaveBeenCalledWith("c1");
+  });
+
+  it("renders all four actions together and each fires its own handler", async () => {
+    const onEdit = vi.fn();
+    const onTest = vi.fn();
+    const onDuplicate = vi.fn();
+    const onDelete = vi.fn();
+    renderWithProviders(
+      <ConnectionListRow
+        item={item({ id: "c9", status: "down", latencyMs: null })}
+        selected={false}
+        onSelect={vi.fn()}
+        onEdit={onEdit}
+        onTest={onTest}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("connection-row-c9-more"));
+    await user.click(await screen.findByText("Duplicate"));
+    expect(onDuplicate).toHaveBeenCalledWith("c9");
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(onTest).not.toHaveBeenCalled();
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("marks selected via data-selected", () => {
+    renderWithProviders(
+      <ConnectionListRow item={item()} selected={true} onSelect={() => {}} />,
     );
     expect(
       screen.getByTestId("connection-row-c1").getAttribute("data-selected"),

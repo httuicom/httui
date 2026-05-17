@@ -22,9 +22,7 @@ describe("SqliteFields", () => {
 
   it("dispatches onDbNameChange as the user types", async () => {
     const onChange = vi.fn();
-    renderWithProviders(
-      <SqliteFields dbName="" onDbNameChange={onChange} />,
-    );
+    renderWithProviders(<SqliteFields dbName="" onDbNameChange={onChange} />);
     const input = screen.getByPlaceholderText("/path/to/database.db");
     await userEvent.setup().type(input, "x");
     expect(onChange).toHaveBeenCalled();
@@ -33,9 +31,7 @@ describe("SqliteFields", () => {
   it("Browse button opens the OS dialog and writes the selected path through", async () => {
     vi.mocked(openDialog).mockResolvedValue("/picked/path.db");
     const onChange = vi.fn();
-    renderWithProviders(
-      <SqliteFields dbName="" onDbNameChange={onChange} />,
-    );
+    renderWithProviders(<SqliteFields dbName="" onDbNameChange={onChange} />);
     await userEvent.setup().click(screen.getByLabelText("Browse"));
     // Wait a microtask so the awaited dialog resolves.
     await new Promise((r) => setTimeout(r, 10));
@@ -45,9 +41,7 @@ describe("SqliteFields", () => {
   it("Browse cancellation is a no-op (no onChange call)", async () => {
     vi.mocked(openDialog).mockResolvedValue(null);
     const onChange = vi.fn();
-    renderWithProviders(
-      <SqliteFields dbName="" onDbNameChange={onChange} />,
-    );
+    renderWithProviders(<SqliteFields dbName="" onDbNameChange={onChange} />);
     await userEvent.setup().click(screen.getByLabelText("Browse"));
     await new Promise((r) => setTimeout(r, 10));
     expect(onChange).not.toHaveBeenCalled();

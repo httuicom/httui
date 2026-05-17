@@ -356,8 +356,7 @@ fn main() {
             // Per-vault store registry resolves ConnectionsStore +
             // EnvironmentsStore for the active vault (Epic 19 Story 02
             // Phase 1 — commit 037f470).
-            let store_registry =
-                httui_notes::commands::vault_stores::VaultStoreRegistry::new();
+            let store_registry = httui_notes::commands::vault_stores::VaultStoreRegistry::new();
 
             // Connection lookup wrapper threads the registry into the
             // pool manager so pool builds resolve connections from the
@@ -408,9 +407,9 @@ fn main() {
             app.manage(http_executor.clone());
 
             let mut executor_registry = httui_notes::executor::ExecutorRegistry::new();
-            executor_registry.register(Box::new(httui_notes::commands::blocks::SharedHttpExecutor(
-                http_executor,
-            )));
+            executor_registry.register(Box::new(
+                httui_notes::commands::blocks::SharedHttpExecutor(http_executor),
+            ));
             executor_registry.register(Box::new(httui_notes::commands::blocks::SharedDbExecutor(
                 db_executor,
             )));

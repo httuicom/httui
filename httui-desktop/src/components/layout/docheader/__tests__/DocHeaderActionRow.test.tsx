@@ -30,9 +30,7 @@ describe("DocHeaderActionRow", () => {
   });
 
   it("disables the Run-all button when busy", () => {
-    renderWithProviders(
-      <DocHeaderActionRow onRunAll={() => {}} runAllBusy />,
-    );
+    renderWithProviders(<DocHeaderActionRow onRunAll={() => {}} runAllBusy />);
     const btn = screen.getByTestId(
       "docheader-action-run-all",
     ) as HTMLButtonElement;
@@ -43,14 +41,14 @@ describe("DocHeaderActionRow", () => {
   it("renders the Share button and fires onShare on click", async () => {
     const onShare = vi.fn();
     renderWithProviders(<DocHeaderActionRow onShare={onShare} />);
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("docheader-action-share"));
+    await userEvent.setup().click(screen.getByTestId("docheader-action-share"));
     expect(onShare).toHaveBeenCalledTimes(1);
   });
 
   it("hides the overflow trigger when no overflow handler is provided", () => {
-    renderWithProviders(<DocHeaderActionRow onRunAll={() => {}} onShare={() => {}} />);
+    renderWithProviders(
+      <DocHeaderActionRow onRunAll={() => {}} onShare={() => {}} />,
+    );
     expect(
       screen.queryByTestId("docheader-action-overflow"),
     ).not.toBeInTheDocument();
@@ -73,9 +71,7 @@ describe("DocHeaderActionRow", () => {
       screen.getByTestId("docheader-action-overflow-menu"),
     ).toBeInTheDocument();
     expect(
-      screen
-        .getByTestId("docheader-action-overflow")
-        .getAttribute("data-open"),
+      screen.getByTestId("docheader-action-overflow").getAttribute("data-open"),
     ).toBe("true");
   });
 
@@ -111,9 +107,7 @@ describe("DocHeaderActionRow", () => {
       .setup()
       .click(screen.getByTestId("docheader-action-overflow"));
     expect(
-      screen
-        .getByTestId("docheader-action-delete")
-        .getAttribute("data-tone"),
+      screen.getByTestId("docheader-action-delete").getAttribute("data-tone"),
     ).toBe("error");
   });
 

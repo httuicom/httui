@@ -50,16 +50,10 @@ pub fn git_clone(url: &str, parent: Option<&Path>) -> Result<CloneOutcome, Strin
     };
 
     if !parent_dir.exists() {
-        return Err(format!(
-            "pasta pai '{}' não existe",
-            parent_dir.display()
-        ));
+        return Err(format!("pasta pai '{}' não existe", parent_dir.display()));
     }
     if !parent_dir.is_dir() {
-        return Err(format!(
-            "'{}' não é uma pasta",
-            parent_dir.display()
-        ));
+        return Err(format!("'{}' não é uma pasta", parent_dir.display()));
     }
 
     let dest = parent_dir.join(&name);
@@ -70,10 +64,7 @@ pub fn git_clone(url: &str, parent: Option<&Path>) -> Result<CloneOutcome, Strin
             .map(|mut it| it.next().is_none())
             .unwrap_or(false);
         if !is_empty {
-            return Err(format!(
-                "'{}' já existe e não está vazio",
-                dest.display()
-            ));
+            return Err(format!("'{}' já existe e não está vazio", dest.display()));
         }
     }
 
@@ -116,13 +107,8 @@ fn default_parent_dir() -> Result<PathBuf, String> {
 /// `/local/path/repo.git` → `repo`
 pub(crate) fn derive_repo_name(url: &str) -> String {
     let trimmed = url.trim().trim_end_matches('/');
-    let without_git = trimmed
-        .strip_suffix(".git")
-        .unwrap_or(trimmed);
-    let last = without_git
-        .rsplit(['/', ':'])
-        .next()
-        .unwrap_or("");
+    let without_git = trimmed.strip_suffix(".git").unwrap_or(trimmed);
+    let last = without_git.rsplit(['/', ':']).next().unwrap_or("");
     last.to_string()
 }
 
@@ -135,7 +121,10 @@ mod tests {
     fn make_bare_remote() -> TempDir {
         let dir = TempDir::new().unwrap();
         let mut cmd = Command::new("git");
-        cmd.arg("init").arg("--bare").arg(dir.path());
+        cmd.arg("init")
+            .arg("--bare")
+            .arg("--initial-branch=main")
+            .arg(dir.path());
         scrub_git_env(&mut cmd);
         let out = cmd.output().unwrap();
         assert!(out.status.success(), "init --bare failed");
@@ -147,10 +136,28 @@ mod tests {
 
         let work = TempDir::new().unwrap();
         for args in [
-            vec!["init", work.path().to_str().unwrap()],
-            vec!["-C", work.path().to_str().unwrap(), "config", "user.email", "t@t"],
-            vec!["-C", work.path().to_str().unwrap(), "config", "user.name", "t"],
-            vec!["-C", work.path().to_str().unwrap(), "config", "commit.gpgsign", "false"],
+            vec!["init", "-b", "main", work.path().to_str().unwrap()],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "config",
+                "user.email",
+                "t@t",
+            ],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "config",
+                "user.name",
+                "t",
+            ],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "config",
+                "commit.gpgsign",
+                "false",
+            ],
         ] {
             let mut c = Command::new("git");
             c.args(args);
@@ -161,8 +168,21 @@ mod tests {
         for args in [
             vec!["-C", work.path().to_str().unwrap(), "add", "-A"],
             vec!["-C", work.path().to_str().unwrap(), "commit", "-m", "init"],
-            vec!["-C", work.path().to_str().unwrap(), "remote", "add", "origin", bare.path().to_str().unwrap()],
-            vec!["-C", work.path().to_str().unwrap(), "push", "origin", "HEAD:main"],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "remote",
+                "add",
+                "origin",
+                bare.path().to_str().unwrap(),
+            ],
+            vec![
+                "-C",
+                work.path().to_str().unwrap(),
+                "push",
+                "origin",
+                "HEAD:main",
+            ],
         ] {
             let mut c = Command::new("git");
             c.args(args);
@@ -236,8 +256,7 @@ mod tests {
     fn parent_does_not_exist_returns_friendly_error() {
         let parent = TempDir::new().unwrap();
         let missing_parent = parent.path().join("missing");
-        let err =
-            git_clone("https://example.invalid/x.git", Some(&missing_parent)).unwrap_err();
+        let err = git_clone("https://example.invalid/x.git", Some(&missing_parent)).unwrap_err();
         assert!(err.contains("pasta pai"), "got: {err}");
     }
 
@@ -258,13 +277,12 @@ mod tests {
         let leaf = derive_repo_name(bare.path().to_str().unwrap());
         let expected_dest = parent.path().join(&leaf);
 
-        let outcome = git_clone(
-            bare.path().to_str().unwrap(),
-            Some(parent.path()),
-        )
-        .unwrap();
+        let outcome = git_clone(bare.path().to_str().unwrap(), Some(parent.path())).unwrap();
         assert_eq!(outcome.destination, expected_dest);
-        assert!(expected_dest.join(".git").is_dir(), ".git folder should exist");
+        assert!(
+            expected_dest.join(".git").is_dir(),
+            ".git folder should exist"
+        );
         assert!(
             expected_dest.join("README.md").is_file(),
             "seeded file should be present"
@@ -279,11 +297,7 @@ mod tests {
         let leaf_dir = parent.path().join(&leaf);
         std::fs::create_dir(&leaf_dir).unwrap();
 
-        let outcome = git_clone(
-            bare.path().to_str().unwrap(),
-            Some(parent.path()),
-        )
-        .unwrap();
+        let outcome = git_clone(bare.path().to_str().unwrap(), Some(parent.path())).unwrap();
         assert_eq!(outcome.destination, leaf_dir);
         assert!(leaf_dir.join(".git").is_dir());
     }

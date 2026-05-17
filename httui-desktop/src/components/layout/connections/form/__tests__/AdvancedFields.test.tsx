@@ -28,9 +28,7 @@ describe("AdvancedFields", () => {
 
   it("dispatches onToggle when the chevron row is clicked", async () => {
     const onToggle = vi.fn();
-    renderWithProviders(
-      <AdvancedFields {...defaults()} onToggle={onToggle} />,
-    );
+    renderWithProviders(<AdvancedFields {...defaults()} onToggle={onToggle} />);
     await userEvent.setup().click(screen.getByTestId("advanced-toggle"));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });

@@ -135,8 +135,8 @@ export function BranchMenu({
                 color="fg.subtle"
                 data-testid="branch-menu-placeholder"
               >
-                Trocar de branch chega na V10. Por agora veja a branch
-                ativa aqui — comandos vão pro Git panel.
+                Trocar de branch chega na V10. Por agora veja a branch ativa
+                aqui — comandos vão pro Git panel.
               </Box>
             )}
           </Menu.Content>

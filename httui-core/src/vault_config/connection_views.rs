@@ -228,7 +228,10 @@ mod tests {
     #[test]
     fn database_name_of_includes_sqlite_path() {
         assert_eq!(database_name_of(&pg("")).as_deref(), Some("d"));
-        assert_eq!(database_name_of(&sqlite()).as_deref(), Some("/tmp/x.sqlite"));
+        assert_eq!(
+            database_name_of(&sqlite()).as_deref(),
+            Some("/tmp/x.sqlite")
+        );
         assert_eq!(database_name_of(&shell()), None);
     }
 

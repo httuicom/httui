@@ -35,9 +35,7 @@ export function GitLogFilter({ state, onChange }: GitLogFilterProps) {
         <Input
           data-testid="git-log-filter-input"
           placeholder={
-            state.mode === "author"
-              ? "Filter by author…"
-              : "Filter by path…"
+            state.mode === "author" ? "Filter by author…" : "Filter by path…"
           }
           value={state.query}
           onChange={(e) => onChange({ ...state, query: e.target.value })}

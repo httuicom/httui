@@ -25,9 +25,7 @@ export function applyConnectionOverride(
 ): Record<string, unknown> {
   const connId = params.connection_id;
   if (typeof connId !== "string" || connId === "") return params;
-  const ov = useConnectionSessionOverrideStore
-    .getState()
-    .getOverride(connId);
+  const ov = useConnectionSessionOverrideStore.getState().getOverride(connId);
   if (!ov || (ov.host === undefined && ov.port === undefined)) return params;
   const next = { ...params };
   if (ov.host !== undefined) next.session_host_override = ov.host;

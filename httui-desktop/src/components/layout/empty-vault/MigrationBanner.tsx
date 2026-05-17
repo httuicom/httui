@@ -43,8 +43,8 @@ export function MigrationBanner({
     >
       <Box flex={1} fontSize="13px" lineHeight={1.4}>
         <Text fontWeight={600}>
-          MVP vault detected — run the v1 migration to unlock the
-          new file layout.
+          MVP vault detected — run the v1 migration to unlock the new file
+          layout.
         </Text>
         <Text fontSize="12px" color="fg.muted" mt={0.5}>
           See{" "}
@@ -58,8 +58,8 @@ export function MigrationBanner({
           >
             docs/MIGRATION.md
           </DocsLink>{" "}
-          for what changes (vault data is backed up before any
-          destructive write).
+          for what changes (vault data is backed up before any destructive
+          write).
         </Text>
       </Box>
       <Btn

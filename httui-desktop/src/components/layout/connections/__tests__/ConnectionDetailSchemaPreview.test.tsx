@@ -8,7 +8,9 @@ import {
 } from "@/components/layout/connections/ConnectionDetailSchemaPreview";
 import type { ConnectionSchema } from "@/stores/schemaCache";
 
-function schemaOf(...names: { schema?: string | null; name: string; cols?: number }[]): ConnectionSchema {
+function schemaOf(
+  ...names: { schema?: string | null; name: string; cols?: number }[]
+): ConnectionSchema {
   return {
     fetchedAt: 0,
     tables: names.map((t) => ({
@@ -110,9 +112,9 @@ describe("ConnectionDetailSchemaPreview — tables tree", () => {
         hotTables={[]}
       />,
     );
-    expect(
-      screen.getByTestId("schema-tables-count").textContent,
-    ).toContain("3");
+    expect(screen.getByTestId("schema-tables-count").textContent).toContain(
+      "3",
+    );
   });
 
   it("clicking the toggle expands columns", async () => {
@@ -124,9 +126,7 @@ describe("ConnectionDetailSchemaPreview — tables tree", () => {
         hotTables={[]}
       />,
     );
-    expect(
-      screen.queryByTestId("schema-table-cols-public.users"),
-    ).toBeNull();
+    expect(screen.queryByTestId("schema-table-cols-public.users")).toBeNull();
     await userEvent
       .setup()
       .click(screen.getByTestId("schema-table-toggle-public.users"));
@@ -144,18 +144,14 @@ describe("ConnectionDetailSchemaPreview — tables tree", () => {
         hotTables={[]}
       />,
     );
-    const toggle = screen.getByTestId(
-      "schema-table-toggle-public.users",
-    );
+    const toggle = screen.getByTestId("schema-table-toggle-public.users");
     const user = userEvent.setup();
     await user.click(toggle);
     expect(
       screen.getByTestId("schema-table-cols-public.users"),
     ).toBeInTheDocument();
     await user.click(toggle);
-    expect(
-      screen.queryByTestId("schema-table-cols-public.users"),
-    ).toBeNull();
+    expect(screen.queryByTestId("schema-table-cols-public.users")).toBeNull();
   });
 });
 
@@ -184,12 +180,12 @@ describe("ConnectionDetailSchemaPreview — hot tables", () => {
         ]}
       />,
     );
-    expect(
-      screen.getByTestId("schema-hot-row-users").textContent,
-    ).toContain("12");
-    expect(
-      screen.getByTestId("schema-hot-row-orders").textContent,
-    ).toContain("7");
+    expect(screen.getByTestId("schema-hot-row-users").textContent).toContain(
+      "12",
+    );
+    expect(screen.getByTestId("schema-hot-row-orders").textContent).toContain(
+      "7",
+    );
   });
 
   it(`caps the hot list at HOT_TABLES_LIMIT (${HOT_TABLES_LIMIT})`, () => {
@@ -207,9 +203,7 @@ describe("ConnectionDetailSchemaPreview — hot tables", () => {
     );
     // First HOT_TABLES_LIMIT visible, the rest hidden
     for (let i = 0; i < HOT_TABLES_LIMIT; i++) {
-      expect(
-        screen.getByTestId(`schema-hot-row-t${i}`),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId(`schema-hot-row-t${i}`)).toBeInTheDocument();
     }
     expect(
       screen.queryByTestId(`schema-hot-row-t${HOT_TABLES_LIMIT}`),
@@ -255,8 +249,8 @@ describe("ConnectionDetailSchemaPreview — refresh button", () => {
         onRefresh={() => {}}
       />,
     );
-    expect(
-      screen.getByTestId("schema-refresh").textContent,
-    ).toContain("Loading");
+    expect(screen.getByTestId("schema-refresh").textContent).toContain(
+      "Loading",
+    );
   });
 });

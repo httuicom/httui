@@ -43,9 +43,7 @@ describe("SharePopover", () => {
   });
 
   it("renders the URL of the only remote when there's exactly one", () => {
-    renderWithProviders(
-      <SharePopover remotes={[ORIGIN]} onCopy={() => {}} />,
-    );
+    renderWithProviders(<SharePopover remotes={[ORIGIN]} onCopy={() => {}} />);
     const url = screen.getByTestId("share-popover-url");
     expect(url.textContent).toBe(ORIGIN.url);
     // No remote picker shown for a single remote.
@@ -56,12 +54,8 @@ describe("SharePopover", () => {
 
   it("fires onCopy with the active URL on Copy click", async () => {
     const onCopy = vi.fn();
-    renderWithProviders(
-      <SharePopover remotes={[ORIGIN]} onCopy={onCopy} />,
-    );
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("share-popover-copy"));
+    renderWithProviders(<SharePopover remotes={[ORIGIN]} onCopy={onCopy} />);
+    await userEvent.setup().click(screen.getByTestId("share-popover-copy"));
     expect(onCopy).toHaveBeenCalledWith(ORIGIN.url);
   });
 
@@ -107,7 +101,9 @@ describe("SharePopover", () => {
       <SharePopover remotes={[ORIGIN, UPSTREAM]} onCopy={onCopy} />,
     );
     const user = userEvent.setup();
-    await user.click(screen.getByTestId(`share-popover-remote-${UPSTREAM.name}`));
+    await user.click(
+      screen.getByTestId(`share-popover-remote-${UPSTREAM.name}`),
+    );
     expect(screen.getByTestId("share-popover-url").textContent).toBe(
       UPSTREAM.url,
     );
@@ -120,9 +116,7 @@ describe("SharePopover", () => {
       <SharePopover remotes={[ORIGIN, UPSTREAM]} onCopy={() => {}} />,
     );
     expect(
-      screen
-        .getByTestId("share-popover")
-        .getAttribute("data-remote-count"),
+      screen.getByTestId("share-popover").getAttribute("data-remote-count"),
     ).toBe("2");
   });
 
@@ -158,9 +152,7 @@ describe("SharePopover", () => {
     });
 
     it("never shows Open when onOpen is absent", () => {
-      renderWithProviders(
-        <SharePopover remotes={[WEB]} onCopy={() => {}} />,
-      );
+      renderWithProviders(<SharePopover remotes={[WEB]} onCopy={() => {}} />);
       expect(
         screen.queryByTestId("share-popover-open"),
       ).not.toBeInTheDocument();

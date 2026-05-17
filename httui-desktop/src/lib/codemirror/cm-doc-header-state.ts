@@ -18,10 +18,7 @@ import {
   EditorSelection,
   type StateField,
 } from "@codemirror/state";
-import {
-  EditorView,
-  type DecorationSet,
-} from "@codemirror/view";
+import { EditorView, type DecorationSet } from "@codemirror/view";
 
 import { extractFrontmatter } from "@/lib/blocks/extract-frontmatter-tags";
 import type { DocHeaderFrontmatter } from "@/components/layout/docheader/docheader-derive";
@@ -171,7 +168,8 @@ function frontmatterEqual(
   const aTags = a.tags ?? [];
   const bTags = b.tags ?? [];
   if (aTags.length !== bTags.length) return false;
-  for (let i = 0; i < aTags.length; i++) if (aTags[i] !== bTags[i]) return false;
+  for (let i = 0; i < aTags.length; i++)
+    if (aTags[i] !== bTags[i]) return false;
   const aTasks = a.tasks ?? [];
   const bTasks = b.tasks ?? [];
   if (aTasks.length !== bTasks.length) return false;

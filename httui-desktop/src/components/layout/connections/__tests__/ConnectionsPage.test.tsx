@@ -35,15 +35,9 @@ describe("ConnectionsPage", () => {
   it("composes the kind sidebar, list panel, and detail panel", () => {
     renderWithProviders(<ConnectionsPage />);
     expect(screen.getByTestId("connections-page")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("connections-kind-sidebar"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("connections-list-panel"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("connections-detail-panel"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("connections-kind-sidebar")).toBeInTheDocument();
+    expect(screen.getByTestId("connections-list-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("connections-detail-panel")).toBeInTheDocument();
   });
 
   it("renders zero status when no props are passed", () => {
@@ -55,9 +49,7 @@ describe("ConnectionsPage", () => {
 
   it("renders the keychain hint card", () => {
     renderWithProviders(<ConnectionsPage />);
-    expect(
-      screen.getByTestId("connections-keychain-hint"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("connections-keychain-hint")).toBeInTheDocument();
   });
 
   it("clicking a kind row toggles selection (no crash)", async () => {
@@ -71,26 +63,20 @@ describe("ConnectionsPage", () => {
   it("forwards onCreateNew when supplied", async () => {
     const onCreateNew = vi.fn();
     renderWithProviders(<ConnectionsPage onCreateNew={onCreateNew} />);
-    await userEvent
-      .setup()
-      .click(screen.getByTestId("connections-create-new"));
+    await userEvent.setup().click(screen.getByTestId("connections-create-new"));
     expect(onCreateNew).toHaveBeenCalledTimes(1);
   });
 
   it("typing in the search box updates the input", async () => {
     renderWithProviders(<ConnectionsPage />);
-    const search = screen.getByTestId(
-      "connections-search",
-    ) as HTMLInputElement;
+    const search = screen.getByTestId("connections-search") as HTMLInputElement;
     await userEvent.setup().type(search, "prod");
     expect(search.value).toBe("prod");
   });
 
   it("renders the per-environment section when envs are supplied", () => {
     renderWithProviders(
-      <ConnectionsPage
-        envs={[{ name: "staging", status: "ok", count: 5 }]}
-      />,
+      <ConnectionsPage envs={[{ name: "staging", status: "ok", count: 5 }]} />,
     );
     expect(screen.getByTestId("env-row-staging")).toBeInTheDocument();
   });
@@ -105,9 +91,7 @@ describe("ConnectionsPage", () => {
         ]}
       />,
     );
-    expect(
-      screen.getByTestId("kind-row-postgres").textContent,
-    ).toContain("2");
+    expect(screen.getByTestId("kind-row-postgres").textContent).toContain("2");
     expect(screen.getByTestId("kind-row-mysql").textContent).toContain("1");
   });
 
@@ -163,14 +147,10 @@ describe("ConnectionsPage", () => {
 
   it("clicking a row updates the detail-panel placeholder name", async () => {
     renderWithProviders(
-      <ConnectionsPage
-        connections={[conn("a", "alpha-conn", "postgres")]}
-      />,
+      <ConnectionsPage connections={[conn("a", "alpha-conn", "postgres")]} />,
     );
     // Detail panel starts on empty state
-    expect(
-      screen.getByTestId("connections-detail-empty"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("connections-detail-empty")).toBeInTheDocument();
     await userEvent.setup().click(screen.getByTestId("connection-row-a"));
     // Slice 2 (Story 02): with a real Connection in the list,
     // selection routes into the loaded credentials panel.
@@ -201,10 +181,7 @@ describe("ConnectionsPage", () => {
     await user.click(screen.getByTestId("connection-row-c1"));
     await user.click(screen.getByTestId("credentials-edit"));
     await user.click(screen.getByTestId("credentials-save"));
-    expect(onSaveCredentials).toHaveBeenCalledWith(
-      "c1",
-      expect.any(Object),
-    );
+    expect(onSaveCredentials).toHaveBeenCalledWith("c1", expect.any(Object));
   });
 
   it("forwards onRotatePassword with the selected connection id", async () => {
@@ -218,10 +195,7 @@ describe("ConnectionsPage", () => {
     const user = userEvent.setup();
     await user.click(screen.getByTestId("connection-row-c1"));
     await user.click(screen.getByTestId("credentials-rotate"));
-    await user.type(
-      screen.getByTestId("credentials-rotate-input"),
-      "new-pw",
-    );
+    await user.type(screen.getByTestId("credentials-rotate-input"), "new-pw");
     await user.click(screen.getByTestId("credentials-rotate-save"));
     expect(onRotatePassword).toHaveBeenCalledWith("c1", "new-pw");
   });

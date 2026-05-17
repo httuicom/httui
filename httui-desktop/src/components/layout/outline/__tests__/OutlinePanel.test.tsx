@@ -65,10 +65,7 @@ describe("OutlinePanel", () => {
   });
 
   it("renders rows for the active file's headings", () => {
-    setActiveFile(
-      "a.md",
-      "# Top\n\nbody\n\n## Section\n\nmore\n\n### Sub\n",
-    );
+    setActiveFile("a.md", "# Top\n\nbody\n\n## Section\n\nmore\n\n### Sub\n");
     renderWithProviders(<OutlinePanel width={300} onClose={() => {}} />);
     // 3 headings → 3 rows.
     const rows = screen.getAllByTestId("outline-row");

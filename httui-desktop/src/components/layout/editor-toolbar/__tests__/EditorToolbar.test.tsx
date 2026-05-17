@@ -79,9 +79,9 @@ describe("EditorToolbar", () => {
 
   it("shows the full path on the title attribute (hover)", () => {
     renderWithProviders(<EditorToolbar {...baseProps} />);
-    expect(screen.getByTestId("editor-toolbar-path").getAttribute("title")).toBe(
-      "/v/runbooks/auth/login.md",
-    );
+    expect(
+      screen.getByTestId("editor-toolbar-path").getAttribute("title"),
+    ).toBe("/v/runbooks/auth/login.md");
   });
 
   it("renders 'edited Xm ago' for clean tab", () => {
@@ -136,6 +136,8 @@ describe("EditorToolbar", () => {
 
   it("toolbar exposes data-atom='editor-toolbar' for testing/styling hooks", () => {
     const { container } = renderWithProviders(<EditorToolbar {...baseProps} />);
-    expect(container.querySelector('[data-atom="editor-toolbar"]')).toBeTruthy();
+    expect(
+      container.querySelector('[data-atom="editor-toolbar"]'),
+    ).toBeTruthy();
   });
 });

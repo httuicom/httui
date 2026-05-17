@@ -84,8 +84,7 @@ export const useConnectionSessionOverrideStore =
             "connOverride/clear",
           ),
 
-        clearAll: () =>
-          set({ overrides: {} }, false, "connOverride/clearAll"),
+        clearAll: () => set({ overrides: {} }, false, "connOverride/clearAll"),
 
         getOverride: (connectionId) => get().overrides[connectionId],
       }),

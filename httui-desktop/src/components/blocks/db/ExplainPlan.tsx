@@ -31,12 +31,7 @@ export function ExplainPlan({
 }: ExplainPlanProps) {
   if (unsupported) {
     return (
-      <Box
-        data-testid="explain-plan"
-        data-state="unsupported"
-        px={3}
-        py={3}
-      >
+      <Box data-testid="explain-plan" data-state="unsupported" px={3} py={3}>
         <Text fontSize="11px" color="fg.subtle">
           EXPLAIN unavailable for{" "}
           {driverLabel ? <strong>{driverLabel}</strong> : "this driver"}.
@@ -198,11 +193,7 @@ function CostBar({ pct, warn }: { pct: number; warn: boolean }) {
       borderRadius="3px"
       overflow="hidden"
     >
-      <Box
-        h="100%"
-        w={`${clamped}%`}
-        bg={warn ? "error" : "brand.fg"}
-      />
+      <Box h="100%" w={`${clamped}%`} bg={warn ? "error" : "brand.fg"} />
     </Box>
   );
 }

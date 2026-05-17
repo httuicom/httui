@@ -216,20 +216,16 @@ auto_capture = false
     #[test]
     fn file_settings_is_default_recognises_default_value() {
         assert!(FileSettings::default().is_default());
-        assert!(
-            !FileSettings {
-                auto_capture: true,
-                docheader_compact: false,
-            }
-            .is_default()
-        );
-        assert!(
-            !FileSettings {
-                auto_capture: false,
-                docheader_compact: true,
-            }
-            .is_default()
-        );
+        assert!(!FileSettings {
+            auto_capture: true,
+            docheader_compact: false,
+        }
+        .is_default());
+        assert!(!FileSettings {
+            auto_capture: false,
+            docheader_compact: true,
+        }
+        .is_default());
     }
 
     #[test]

@@ -33,7 +33,12 @@ export function GitCommitDiffViewer({
 }: GitCommitDiffViewerProps) {
   if (diff === null) {
     return (
-      <Box data-testid="git-commit-diff-viewer" data-loading="true" px={3} py={4}>
+      <Box
+        data-testid="git-commit-diff-viewer"
+        data-loading="true"
+        px={3}
+        py={4}
+      >
         <Text fontSize="11px" color="fg.subtle">
           Loading diff…
         </Text>
@@ -87,8 +92,8 @@ export function GitCommitDiffViewer({
               color="warn"
               mt={2}
             >
-              … truncated at {maxLines} lines (full size{" "}
-              {allLines.length} lines).
+              … truncated at {maxLines} lines (full size {allLines.length}{" "}
+              lines).
             </Text>
           )}
         </Box>

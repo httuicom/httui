@@ -191,7 +191,7 @@ export function VariablesPageContainer({
 
   const selectedRow = useMemo(
     () =>
-      selectedKey ? rows.find((r) => r.key === selectedKey) ?? null : null,
+      selectedKey ? (rows.find((r) => r.key === selectedKey) ?? null) : null,
     [selectedKey, rows],
   );
 
@@ -226,13 +226,17 @@ export function VariablesPageContainer({
         ? `Move "${selectedRow.key}" to the keychain? Value(s) will be removed from envs/*.toml.`
         : `Remove "${selectedRow.key}" from the keychain? Value(s) will be written as plaintext to envs/*.toml.`;
       if (!window.confirm(message)) return;
-      for (const [envName, currentValue] of Object.entries(selectedRow.values)) {
+      for (const [envName, currentValue] of Object.entries(
+        selectedRow.values,
+      )) {
         if (currentValue === undefined) continue;
         const e = envByName.get(envName);
         if (!e) continue;
         let valueToWrite = currentValue;
         if (selectedRow.isSecret && !next) {
-          const resolved = await resolveEnvVariables(e.id).catch(() => ({}));
+          const resolved = await resolveEnvVariables(e.id).catch(
+            (): Record<string, string> => ({}),
+          );
           valueToWrite = resolved[selectedRow.key] ?? "";
         }
         await setVariable(e.id, selectedRow.key, valueToWrite, next);
@@ -305,9 +309,7 @@ export function VariablesPageContainer({
       rows={rows}
       selectedKey={selectedKey}
       onSelectKey={handleSelectKey}
-      onCreateNew={
-        activeEnvironment ? () => setCreating(true) : undefined
-      }
+      onCreateNew={activeEnvironment ? () => setCreating(true) : undefined}
       detailSlot={detailSlot}
       inlineFormSlot={inlineFormSlot}
     />

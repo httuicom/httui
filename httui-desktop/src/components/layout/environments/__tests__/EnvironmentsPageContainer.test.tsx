@@ -71,7 +71,8 @@ beforeEach(() => {
   mockTauriCommand("list_env_variables", (args) => {
     const a = args as { environmentId?: string };
     if (a.environmentId === "env-local") return [v({ id: "v1" })];
-    if (a.environmentId === "env-prod") return [v({ id: "v2" }), v({ id: "v3" })];
+    if (a.environmentId === "env-prod")
+      return [v({ id: "v2" }), v({ id: "v3" })];
     return [];
   });
 });
@@ -154,9 +155,7 @@ describe("EnvironmentsPageContainer", () => {
       setActiveCalled = args as { id: string };
       return undefined;
     });
-    const { default: userEvent } = await import(
-      "@testing-library/user-event"
-    );
+    const { default: userEvent } = await import("@testing-library/user-event");
     renderWithProviders(<EnvironmentsPageContainer />);
     const card = await screen.findByTestId("environment-card-prod.toml");
     const activateBtn = card.querySelector("button");
@@ -215,9 +214,7 @@ describe("EnvironmentsPageContainer", () => {
       await screen.findByTestId("delete-environment-confirm-input"),
       "prod",
     );
-    await user.click(
-      screen.getByTestId("delete-environment-confirm-submit"),
-    );
+    await user.click(screen.getByTestId("delete-environment-confirm-submit"));
 
     await waitFor(() => {
       expect(deleteCalled).not.toBeNull();

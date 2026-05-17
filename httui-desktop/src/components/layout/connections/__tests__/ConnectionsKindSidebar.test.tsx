@@ -75,9 +75,7 @@ describe("ConnectionsKindSidebar", () => {
   });
 
   it("shows 'No environments' when envs is empty", () => {
-    renderWithProviders(
-      <ConnectionsKindSidebar {...defaults()} envs={[]} />,
-    );
+    renderWithProviders(<ConnectionsKindSidebar {...defaults()} envs={[]} />);
     expect(screen.getByText("No environments")).toBeInTheDocument();
   });
 

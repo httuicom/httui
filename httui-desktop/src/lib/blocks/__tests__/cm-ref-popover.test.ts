@@ -106,7 +106,10 @@ describe("handleRefMousedown", () => {
   it("opens the popover for a valid chip and preventDefaults", () => {
     const span = chip("{{ api_base }}");
     const prevent = vi.fn();
-    const e = { target: span, preventDefault: prevent } as unknown as MouseEvent;
+    const e = {
+      target: span,
+      preventDefault: prevent,
+    } as unknown as MouseEvent;
     const view = fakeView();
     expect(handleRefMousedown(e, view as never)).toBe(true);
     expect(prevent).toHaveBeenCalled();

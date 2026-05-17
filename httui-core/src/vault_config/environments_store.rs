@@ -270,11 +270,7 @@ impl EnvironmentsStore {
     /// preserves `<name>.local.toml` overrides under the new key. If
     /// the renamed env was the active one, the active pointer is
     /// updated atomically.
-    pub async fn rename_env(
-        &self,
-        old_name: &str,
-        new_name: &str,
-    ) -> Result<(), String> {
+    pub async fn rename_env(&self, old_name: &str, new_name: &str) -> Result<(), String> {
         let new = new_name.trim();
         if new.is_empty() {
             return Err("environment name is required".to_string());
@@ -374,8 +370,7 @@ impl EnvironmentsStore {
             return Ok(Some(v.clone()));
         }
         if let Some(reference) = file.secrets.get(key) {
-            return resolve_value(reference)
-                .map_err(|e| format!("resolving secret '{key}': {e}"));
+            return resolve_value(reference).map_err(|e| format!("resolving secret '{key}': {e}"));
         }
         Ok(None)
     }
@@ -923,10 +918,7 @@ BASE_URL = "http://localhost"
             .await
             .unwrap();
 
-        let resolved = store
-            .resolve_var(&env_name, "ADMIN_TOKEN")
-            .await
-            .unwrap();
+        let resolved = store.resolve_var(&env_name, "ADMIN_TOKEN").await.unwrap();
         assert_eq!(resolved.as_deref(), Some("real-secret-value"));
 
         // Cleanup
@@ -980,9 +972,11 @@ BASE_URL = "http://localhost"
 
         // After delete, the var is gone AND the keychain entry is gone.
         assert!(store.list_vars(&env_name).await.unwrap().is_empty());
-        assert!(crate::db::keychain::get_secret(&env_var_key(&env_name, "TOKEN"))
-            .unwrap()
-            .is_none());
+        assert!(
+            crate::db::keychain::get_secret(&env_var_key(&env_name, "TOKEN"))
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -1007,9 +1001,11 @@ BASE_URL = "http://localhost"
 
         // Every keychain entry from the deleted env is gone.
         for key in ["TOKEN_A", "TOKEN_B"] {
-            assert!(crate::db::keychain::get_secret(&env_var_key(&env_name, key))
-                .unwrap()
-                .is_none());
+            assert!(
+                crate::db::keychain::get_secret(&env_var_key(&env_name, key))
+                    .unwrap()
+                    .is_none()
+            );
         }
     }
 

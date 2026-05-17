@@ -11,7 +11,11 @@ const EXECUTABLE_FENCES = ["http", "db", "db-"] as const;
 
 function isExecutableFence(token: string): boolean {
   for (const exe of EXECUTABLE_FENCES) {
-    if (token === exe || token.startsWith(`${exe}-`) || token === exe.replace("-", "")) {
+    if (
+      token === exe ||
+      token.startsWith(`${exe}-`) ||
+      token === exe.replace("-", "")
+    ) {
       return true;
     }
   }

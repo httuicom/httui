@@ -313,7 +313,7 @@ mod tests {
         use std::process::Command;
         let remote = TempDir::new().unwrap();
         Command::new("git")
-            .args(["init", "--bare"])
+            .args(["init", "--bare", "--initial-branch=main"])
             .arg(remote.path())
             .output()
             .unwrap();

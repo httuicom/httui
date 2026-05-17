@@ -119,9 +119,9 @@ describe("ConnectionQuickEdit", () => {
     );
     await user.type(screen.getByTestId("conn-quickedit-password"), "pw");
     await user.click(screen.getByTestId("conn-quickedit-rotate"));
-    expect(await screen.findByTestId("conn-quickedit-rotate-msg")).toHaveTextContent(
-      /updated/i,
-    );
+    expect(
+      await screen.findByTestId("conn-quickedit-rotate-msg"),
+    ).toHaveTextContent(/updated/i);
     expect(onChanged).toHaveBeenCalled();
   });
 });

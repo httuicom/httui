@@ -7,32 +7,32 @@ import { renderWithProviders, screen } from "@/test/render";
 describe("CommitChangelog", () => {
   it("renders header with title + tab kbd hint", () => {
     renderWithProviders(<CommitChangelog entries={[]} />);
-    expect(
-      screen.getByTestId("commit-changelog-title").textContent,
-    ).toBe("Auto-generated changelog");
-    expect(
-      screen.getByTestId("commit-changelog-tab-hint").textContent,
-    ).toBe("tab");
+    expect(screen.getByTestId("commit-changelog-title").textContent).toBe(
+      "Auto-generated changelog",
+    );
+    expect(screen.getByTestId("commit-changelog-tab-hint").textContent).toBe(
+      "tab",
+    );
   });
 
   it("shows empty hint when entries is [] and not loading or errored", () => {
     renderWithProviders(<CommitChangelog entries={[]} />);
-    expect(
-      screen.getByTestId("commit-changelog-empty").textContent,
-    ).toMatch(/no block-level changes/i);
-    expect(screen.getByTestId("commit-changelog").getAttribute("data-state")).toBe(
-      "empty",
+    expect(screen.getByTestId("commit-changelog-empty").textContent).toMatch(
+      /no block-level changes/i,
     );
+    expect(
+      screen.getByTestId("commit-changelog").getAttribute("data-state"),
+    ).toBe("empty");
   });
 
   it("shows loading hint when loading is true (preempts empty)", () => {
     renderWithProviders(<CommitChangelog entries={[]} loading />);
-    expect(
-      screen.getByTestId("commit-changelog-loading").textContent,
-    ).toMatch(/generating changelog/i);
-    expect(screen.getByTestId("commit-changelog").getAttribute("data-state")).toBe(
-      "loading",
+    expect(screen.getByTestId("commit-changelog-loading").textContent).toMatch(
+      /generating changelog/i,
     );
+    expect(
+      screen.getByTestId("commit-changelog").getAttribute("data-state"),
+    ).toBe("loading");
   });
 
   it("shows error message and replaces body when error is set (preempts loading)", () => {
@@ -43,15 +43,15 @@ describe("CommitChangelog", () => {
         error="Sidecar offline — try again"
       />,
     );
-    expect(
-      screen.getByTestId("commit-changelog-error").textContent,
-    ).toBe("Sidecar offline — try again");
+    expect(screen.getByTestId("commit-changelog-error").textContent).toBe(
+      "Sidecar offline — try again",
+    );
     expect(
       screen.queryByTestId("commit-changelog-loading"),
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId("commit-changelog").getAttribute("data-state")).toBe(
-      "error",
-    );
+    expect(
+      screen.getByTestId("commit-changelog").getAttribute("data-state"),
+    ).toBe("error");
   });
 
   it("renders entries with monospaced block id and description", () => {
@@ -70,9 +70,9 @@ describe("CommitChangelog", () => {
     expect(ids[1]!.textContent).toBe("b08:");
     expect(rows[0]!.getAttribute("data-block-id")).toBe("b06");
     expect(rows[0]!.tagName).toBe("LI"); // non-interactive when onAccept absent
-    expect(screen.getByTestId("commit-changelog").getAttribute("data-state")).toBe(
-      "ready",
-    );
+    expect(
+      screen.getByTestId("commit-changelog").getAttribute("data-state"),
+    ).toBe("ready");
   });
 
   it("rows become buttons when onAccept is supplied and fire with the entry", async () => {
@@ -89,9 +89,7 @@ describe("CommitChangelog", () => {
   });
 
   it("dismiss button only renders when onDismiss is set, and fires onDismiss", async () => {
-    const { rerender } = renderWithProviders(
-      <CommitChangelog entries={[]} />,
-    );
+    const { rerender } = renderWithProviders(<CommitChangelog entries={[]} />);
     expect(
       screen.queryByTestId("commit-changelog-dismiss"),
     ).not.toBeInTheDocument();

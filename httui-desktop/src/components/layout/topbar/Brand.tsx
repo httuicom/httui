@@ -29,14 +29,7 @@ export function Brand() {
           flexShrink: 0,
         }}
       />
-      <Box
-        aria-hidden
-        h="18px"
-        w="1px"
-        bg="border"
-        ml={2}
-        flexShrink={0}
-      />
+      <Box aria-hidden h="18px" w="1px" bg="border" ml={2} flexShrink={0} />
     </HStack>
   );
 }

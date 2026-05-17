@@ -54,7 +54,12 @@ export function findDocDbBlocks(content: string): DocDbBlock[] {
   const out: DocDbBlock[] = [];
   let offset = bodyStart;
   let lineNo = bodyLine;
-  let openFence: { tag: string; line: number; offset: number; meta: DbBlockMetadata | null } | null = null;
+  let openFence: {
+    tag: string;
+    line: number;
+    offset: number;
+    meta: DbBlockMetadata | null;
+  } | null = null;
 
   while (offset < content.length) {
     const eol = content.indexOf("\n", offset);

@@ -11,10 +11,7 @@
 // style). The DocHeader's editable fields call into these on commit so
 // the source of truth stays the `.md` file, not React state.
 
-import {
-  stringifyTaskItem,
-  type TaskItem,
-} from "./task-item";
+import { stringifyTaskItem, type TaskItem } from "./task-item";
 
 interface SplitDoc {
   before: string;
@@ -270,7 +267,8 @@ export function updateFrontmatterTags(
     if (!range) return content;
     const lineEnd = range.to + 1; // include the trailing \n
     const trimmedTo = Math.min(lineEnd, split.fmBody.length);
-    const next = split.fmBody.slice(0, range.from) + split.fmBody.slice(trimmedTo);
+    const next =
+      split.fmBody.slice(0, range.from) + split.fmBody.slice(trimmedTo);
     return split.before + next + split.after;
   }
 
@@ -285,9 +283,7 @@ export function updateFrontmatterTags(
   }
 
   const insertion =
-    split.fmBody.length === 0
-      ? `${newLine}\n`
-      : `${split.fmBody}${newLine}\n`;
+    split.fmBody.length === 0 ? `${newLine}\n` : `${split.fmBody}${newLine}\n`;
   return split.before + insertion + split.after;
 }
 
@@ -337,8 +333,6 @@ export function updateFrontmatterTasks(
   }
 
   const insertion =
-    split.fmBody.length === 0
-      ? `${newLine}\n`
-      : `${split.fmBody}${newLine}\n`;
+    split.fmBody.length === 0 ? `${newLine}\n` : `${split.fmBody}${newLine}\n`;
   return split.before + insertion + split.after;
 }
