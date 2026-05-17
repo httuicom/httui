@@ -192,12 +192,14 @@ mod tests {
 
     fn init_with_commit(dir: &TempDir) {
         let p = dir.path();
-        let _ = Command::new("git").arg("init").arg(p).output();
+        let _ = Command::new("git")
+            .args(["init", "-b", "main"])
+            .arg(p)
+            .output();
         for (k, v) in [
             ("user.email", "t@t"),
             ("user.name", "t"),
             ("commit.gpgsign", "false"),
-            ("init.defaultBranch", "main"),
         ] {
             let _ = Command::new("git")
                 .arg("-C")
@@ -410,12 +412,15 @@ mod tests {
         // Set up a local bare remote with one seeded commit.
         let bare = TempDir::new().unwrap();
         let mut init = Command::new("git");
-        init.arg("init").arg("--bare").arg(bare.path());
+        init.arg("init")
+            .arg("--bare")
+            .arg("--initial-branch=main")
+            .arg(bare.path());
         let _ = init.output();
 
         let work = TempDir::new().unwrap();
         for args in [
-            vec!["init", work.path().to_str().unwrap()],
+            vec!["init", "-b", "main", work.path().to_str().unwrap()],
             vec![
                 "-C",
                 work.path().to_str().unwrap(),
