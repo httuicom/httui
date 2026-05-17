@@ -21,6 +21,24 @@ launch checklist (Epic 38, Story 03).
 
 ### Added
 
+- **⌘E env switcher** — atalho abre um dropdown no seletor de
+  ambiente da status bar com atalhos numéricos (1–9) pra trocar de
+  env e uma ação rápida "Clone \<env\>". (V11 cenário 1)
+- **Quick-edit de conexão** — clicar numa conexão na sidebar abre
+  um popover com status, "Rotate password", override temporário de
+  host:port (só pra sessão, badge TEMPORARY na conexão), Test e
+  Duplicate. (V11 cenário 2)
+- **Popover do `{{var}}` no editor** — clicar num chip `{{var}}`
+  mostra o valor no ambiente ativo, um override de sessão e
+  "Used in N blocks", sem perder o cursor do editor ao fechar.
+  (V11 cenário 3)
+- **⌘⇧V nova variável** — popover estilo cmd+K com seletor de tipo
+  (Text/Number/Bool/Secret) e helpers de template
+  (`{{uuid()}}`, `{{now()}}`, `{{base64()}}`, `{{env()}}`,
+  `{{$prev.body.id}}`); salva no ambiente ativo. (V11 cenário 4)
+- **Referência posicional `{{$prev.path}}`** — encadeia bloco→bloco
+  usando a resposta do bloco anterior sem precisar nomear um
+  `alias=`. (V11 cenário 4)
 - **Git side panel (Source Control)** — coluna lateral colapsável
   estilo VS Code, aberta/fechada pelo botão git da top bar e
   persistente entre sessões: status do branch, lista de mudanças

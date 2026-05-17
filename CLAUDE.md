@@ -81,7 +81,7 @@ Full details in `docs/ARCHITECTURE.md` (some sections may be outdated — code i
 
 **SQL safety:** Block references in SQL (`{{alias.response.path}}`) are always converted to bind parameters (`$1`, `?`), never string-interpolated.
 
-**Block references:** `{{alias.response.path}}` — blocks can only reference blocks above them in the document (DAG by construction). Resolution priority: block reference > environment variable (if alias collides with env var, block wins). Environment variables use the same syntax without dots: `{{ENV_KEY}}` resolves from the active environment.
+**Block references:** `{{alias.response.path}}` — blocks can only reference blocks above them in the document (DAG by construction). Resolution priority: block reference > environment variable (if alias collides with env var, block wins). Environment variables use the same syntax without dots: `{{ENV_KEY}}` resolves from the active environment. `{{$prev.path}}` (V11) is a positional alias: the previous executed block, response as the implicit root (so `{{$prev.body.id}}` ≈ `<prev>.response.body.id`) — no explicit `alias=` needed. Resolves only (hover tooltips inherit it); `$prev` is not in the `{{` autocomplete (deferred v1.x).
 
 ## Key Conventions
 
@@ -114,6 +114,8 @@ State is centralized in Zustand stores. Test pattern: call `useStore.getState()`
 - `git.ts` (V10.1) — single source of truth for git: polled status/remotes/commits + commit draft + `lastSyncAt`. Refcounted 2s poll via `acquire`/`release`. `useGitStatus`/`useGitRemotes` are store-backed shims (signature preserved). Test reset: `resetGitStore()` (called in global `src/test/setup.ts`).
 - `schemaCache.ts` (210 L) — DB schema introspection cache, promise dedup for parallel calls on same connection.
 - `tauri-bridge.ts` (26 L) — initializes global Tauri event listeners on app start.
+- `envSwitcher.ts` / `newVariablePopover.ts` (V11) — tiny UI stores bridging the ⌘E / ⌘⇧V shortcuts (wired in AppShell) to their popovers (`EnvSwitcher` / `NewVariablePopover`). In-memory only.
+- `connectionSessionOverride.ts` (V11) — session-only `{host?,port?}` per connection id (mirrors `sessionOverride.ts`). Applied per DB run by `applyConnectionOverride` in `lib/tauri/streamedExecution.ts` → backend `PoolManager.get_pool_with_override` (override-keyed pool; base pool untouched). Never persisted.
 
 ### Hooks (`src/hooks/`)
 
@@ -123,7 +125,7 @@ Hooks orchestrate UI flows that wrap stores or plain React state. Many domain ho
 - `useFileOperations` — CRUD (create/rename/delete/move notes and folders) via Tauri IPC
 - `useSessionPersistence` — startup restore + save-on-change via single `restore_session` IPC call
 - `useFileSearch` / `useContentSearch` — search modal logic with manual debounce
-- `useKeyboardShortcuts` — global Cmd+B/P/S/W/Tab/\ shortcuts
+- `useKeyboardShortcuts` — global Cmd+B/P/S/W/Tab/\ shortcuts; also ⌘E (`openEnvSwitcher`) + ⌘⇧V (`openNewVariable`) wired in AppShell (V11)
 - `useSidebarResize` — drag-to-resize sidebar
 - `useEscapeClose` — generic escape-to-close hook
 - `useStickyScroll` — DOM scroll behavior
@@ -250,6 +252,7 @@ Test coverage is high (~95%) for everything in `src/lib/blocks/` — see `src/li
 - **File conflict banner** (`src/components/layout/ConflictBanner.tsx`): shown when an open file is modified externally. Options: Reload (re-read from disk) or Keep Mine (overwrite). Auto-save suppressed during conflict.
 - **Display mode animation** (`ExecutableBlockShell.tsx`): CSS transitions between input/split/output modes. Used by `StandaloneBlock` (diff viewer); HTTP/DB panels manage modes inline.
 - **Mermaid theme sync**: re-initializes with dark/default theme on colorMode change.
+- **Inline `{{ref}}` popover** (V11): `lib/blocks/cm-ref-popover.ts` (pure `handleRefMousedown` + emitter + `refClickExtension`, wired in `markdown-extensions.ts`) → `RefPopoverHost` mounts `RefPopover` via Chakra `Popover.Root` + virtual `getAnchorRect` (NOT Dialog; `autoFocus=false` + `onOpenChange→closeRefPopover` restores caret/CM6 focus). All V11 popovers (EnvSwitcher, ConnectionQuickEdit, RefPopover, NewVariablePopover) use Chakra `Popover.Root`/Portal — no `Dialog.Root`.
 
 ## Chat system
 
