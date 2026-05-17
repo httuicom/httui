@@ -166,6 +166,14 @@ mod tests {
         assert!(res.is_err(), "run with invalid db_path should error");
     }
 
+    #[test]
+    fn init_tracing_installs_stderr_subscriber() {
+        // Covers the tracing bootstrap (stderr writer, ANSI off).
+        // This is the only test in the binary that installs a global
+        // subscriber, so `.init()` won't hit the double-install panic.
+        init_tracing();
+    }
+
     #[tokio::test]
     async fn build_registry_constructs_http_and_db_executors() {
         // Pool isn't actually used by registry construction (the DbExecutor
