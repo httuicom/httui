@@ -2,10 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
-import {
-  emitTauriEvent,
-  clearTauriListeners,
-} from "@/test/mocks/tauri-event";
+import { emitTauriEvent, clearTauriListeners } from "@/test/mocks/tauri-event";
 
 vi.mock("@/lib/theme/apply", () => ({ applyTheme: vi.fn() }));
 
@@ -205,9 +202,7 @@ describe("ConnectionsPageContainer", () => {
   });
 
   it("rotating the password calls update_connection with the new password", async () => {
-    let updateArgs:
-      | { id?: string; input?: { password?: string } }
-      | undefined;
+    let updateArgs: { id?: string; input?: { password?: string } } | undefined;
     mockTauriCommand("update_connection", (args) => {
       updateArgs = args as { id?: string; input?: { password?: string } };
       return sampleList[0];
@@ -245,9 +240,7 @@ describe("ConnectionsPageContainer", () => {
   });
 
   it("footer Duplicate creates a -copy connection then reloads", async () => {
-    let createArgs:
-      | { input?: { name?: string; driver?: string } }
-      | undefined;
+    let createArgs: { input?: { name?: string; driver?: string } } | undefined;
     let listCalls = 0;
     mockTauriCommand("list_connections", () => {
       listCalls += 1;
@@ -304,7 +297,9 @@ describe("ConnectionsPageContainer", () => {
     });
     renderWithProviders(<ConnectionsPageContainer />);
     const user = userEvent.setup();
-    await user.click(await screen.findByTestId("connection-row-payments-db-more"));
+    await user.click(
+      await screen.findByTestId("connection-row-payments-db-more"),
+    );
     await user.click(await screen.findByText("Test"));
     await waitFor(() => {
       expect(tested).toEqual({ id: "payments-db" });
@@ -314,7 +309,9 @@ describe("ConnectionsPageContainer", () => {
   it("the ⋮ row Edit action opens the modal in edit mode and closes it", async () => {
     renderWithProviders(<ConnectionsPageContainer />);
     const user = userEvent.setup();
-    await user.click(await screen.findByTestId("connection-row-payments-db-more"));
+    await user.click(
+      await screen.findByTestId("connection-row-payments-db-more"),
+    );
     await user.click(await screen.findByText("Edit"));
     expect(await screen.findByTestId("new-connection-modal")).toBeTruthy();
     // Close it — exercises the onClose (setNewOpen(false)+setEditingId(null)).
@@ -363,10 +360,7 @@ describe("ConnectionsPageContainer", () => {
   });
 
   it("refreshing the schema preview delegates to the schema cache store", async () => {
-    const refreshSpy = vi.spyOn(
-      useSchemaCacheStore.getState(),
-      "refresh",
-    );
+    const refreshSpy = vi.spyOn(useSchemaCacheStore.getState(), "refresh");
     renderWithProviders(<ConnectionsPageContainer />);
     const user = userEvent.setup();
     await user.click(await screen.findByTestId("connection-row-payments-db"));
@@ -389,9 +383,7 @@ describe("ConnectionsPageContainer", () => {
     await user.click(await screen.findByTestId("footer-delete"));
     // selectedId === id → setSelectedId(null) → detail panel empties.
     await waitFor(() => {
-      expect(
-        screen.queryByTestId("connections-detail-loaded"),
-      ).toBeNull();
+      expect(screen.queryByTestId("connections-detail-loaded")).toBeNull();
     });
   });
 });
