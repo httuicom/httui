@@ -8,14 +8,40 @@ export function Footer() {
   const { colorMode, toggleColorMode } = useColorMode();
   const isDark = colorMode === "dark";
   const stats = useGithubStats();
-  const cols: { h: string; l: string[] }[] = [
-    { h: "Product", l: ["Workbench", "TUI", "VS Code"] },
-    { h: "Resources", l: ["Docs", "Examples", "Changelog", "Status"] },
+  const repo = stats.repoUrl;
+  const blob = `${repo}/blob/main`;
+  const cols: { h: string; l: { t: string; href: string }[] }[] = [
+    {
+      h: "Product",
+      l: [
+        { t: "Download", href: "#install" },
+        { t: "Changelog", href: `${blob}/CHANGELOG.md` },
+      ],
+    },
+    {
+      h: "Docs",
+      l: [
+        { t: "Getting started", href: `${blob}/docs/getting-started.md` },
+        { t: "Concepts", href: `${blob}/docs/concepts.md` },
+        { t: "Blocks", href: `${blob}/docs/blocks.md` },
+        { t: "Chat & MCP", href: `${blob}/docs/chat-mcp.md` },
+      ],
+    },
     {
       h: "Community",
-      l: ["GitHub", "Discord", "Contributing", "Code of Conduct"],
+      l: [
+        { t: "GitHub", href: repo },
+        { t: "Contributing", href: `${blob}/CONTRIBUTING.md` },
+        { t: "Code of Conduct", href: `${blob}/CODE_OF_CONDUCT.md` },
+      ],
     },
-    { h: "Legal", l: ["MIT License", "Privacy", "Security"] },
+    {
+      h: "Legal",
+      l: [
+        { t: "MIT License", href: `${blob}/LICENSE` },
+        { t: "Security", href: `${blob}/SECURITY.md` },
+      ],
+    },
   ];
   return (
     <Box
@@ -36,9 +62,6 @@ export function Footer() {
             The markdown editor for debugging APIs and databases. Open source ·
             MIT · {stats.version}.
           </Text>
-          <Text mt={4} fontSize="11px" fontFamily="mono" color="fg.subtle">
-            SHA-256 · a3f2…7c81
-          </Text>
         </Box>
         {cols.map((col) => (
           <Box key={col.h}>
@@ -53,8 +76,17 @@ export function Footer() {
             </Text>
             <VStack align="stretch" gap={1.5} fontSize="13px" color="fg.muted">
               {col.l.map((x) => (
-                <Text key={x} cursor="pointer" _hover={{ color: "fg" }}>
-                  {x}
+                <Text
+                  key={x.t}
+                  as="a"
+                  href={x.href}
+                  {...(x.href.startsWith("#")
+                    ? {}
+                    : { target: "_blank", rel: "noreferrer" })}
+                  cursor="pointer"
+                  _hover={{ color: "fg" }}
+                >
+                  {x.t}
                 </Text>
               ))}
             </VStack>

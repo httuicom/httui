@@ -32,9 +32,22 @@ export function Nav() {
           gap={1}
           display={{ base: "none", md: "flex" }}
         >
-          {["Product", "Docs", "GitHub", "Changelog"].map((l) => (
+          {[
+            { t: "Install", href: "#install" },
+            {
+              t: "Docs",
+              href: `${stats.repoUrl}/blob/main/docs/getting-started.md`,
+            },
+            { t: "Changelog", href: `${stats.repoUrl}/blob/main/CHANGELOG.md` },
+            { t: "GitHub", href: stats.repoUrl },
+          ].map((l) => (
             <Text
-              key={l}
+              key={l.t}
+              as="a"
+              href={l.href}
+              {...(l.href.startsWith("#")
+                ? {}
+                : { target: "_blank", rel: "noreferrer" })}
               px={3}
               py={1.5}
               fontSize="13px"
@@ -44,7 +57,7 @@ export function Nav() {
               cursor="pointer"
               _hover={{ color: "fg" }}
             >
-              {l}
+              {l.t}
             </Text>
           ))}
         </HStack>

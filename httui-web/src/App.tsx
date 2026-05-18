@@ -30,13 +30,13 @@ function Bold({ children }: { children: React.ReactNode }) {
 
 const blocksPoints = [
   <>
-    <Bold>Chained captures</Bold> — extract <InlineCode>$.id</InlineCode> from a
-    response and reuse it as <InlineCode>{"{{order_id}}"}</InlineCode> later.
+    <Bold>Chained captures</Bold> — reuse a value from one response as{" "}
+    <InlineCode>{"{{login.body.token}}"}</InlineCode> in the next block.
   </>,
   <>
-    <Bold>Inline assertions</Bold> —{" "}
-    <InlineCode>expect: time {"<"} 500ms</InlineCode> fails the runbook on
-    regression.
+    <Bold>Assertions</Bold> — an <InlineCode># expect:</InlineCode> section
+    with lines like <InlineCode>time {"<"} 500ms</InlineCode> fails the
+    runbook on regression.
   </>,
   <>
     <Bold>Variables &amp; secrets</Bold> referenced by key. The value never
@@ -46,15 +46,16 @@ const blocksPoints = [
 
 const schemaPoints = [
   <>
-    <Bold>Multi-database</Bold> in a single runbook — query Postgres, then the
-    warehouse, without switching windows.
+    <Bold>Multi-database</Bold> in a single runbook — query PostgreSQL, then
+    MySQL, without switching windows.
   </>,
   <>
-    <Bold>Read-only environments</Bold> — staging in one click, prod with
-    double-confirm and a red badge.
+    <Bold>Mutation guard</Bold> — destructive SQL (UPDATE / DELETE) warns
+    before it runs.
   </>,
   <>
-    <Bold>Plan visualizer</Bold> highlights costly seq scans and unused indexes.
+    <Bold>EXPLAIN ANALYZE</Bold> in tree form, with slow sequential scans
+    highlighted.
   </>,
 ];
 
@@ -67,8 +68,8 @@ const gitPoints = [
     in two clicks.
   </>,
   <>
-    <Bold>Share links</Bold> with expiry and password — hand a runbook to
-    support without granting repo access.
+    <Bold>Share the repo URL</Bold> — HTTPS, SSH, or web — for any runbook in
+    one click.
   </>,
 ];
 
@@ -82,7 +83,7 @@ export default function App() {
       <FeatureRow
         kicker="One file · many blocks"
         title="Markdown that runs."
-        body="Each block is executable: HTTP, SQL, Mongo, gRPC, WebSocket, shell. Captures from one block become variables for the next, chaining the entire flow inside a single .md."
+        body="Each block is executable: HTTP requests and SQL queries (PostgreSQL, MySQL, SQLite). Captures from one block become variables for the next, chaining the entire flow inside a single .md."
         points={blocksPoints}
         preview={<BlocksPreview />}
       />
@@ -91,7 +92,7 @@ export default function App() {
         reverse
         kicker="Database-native"
         title="Schema explorer next to the editor."
-        body="Connect PostgreSQL, MySQL, Mongo, BigQuery. Browse tables with foreign keys, indexes, row counts. EXPLAIN ANALYZE in tree form shows where your query spends time."
+        body="Connect PostgreSQL, MySQL, and SQLite. Browse tables with foreign keys, indexes, and row counts. EXPLAIN ANALYZE in tree form shows where your query spends time."
         points={schemaPoints}
         preview={<SchemaPreview />}
       />

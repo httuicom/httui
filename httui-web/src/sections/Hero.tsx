@@ -1,5 +1,5 @@
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
-import { LuArrowRight, LuPlay } from "react-icons/lu";
+import { LuArrowRight } from "react-icons/lu";
 import { useGithubStats } from "../hooks/useGithubStats";
 import { Pill } from "../components/atoms";
 import { Nav } from "./Nav";
@@ -43,11 +43,13 @@ export function Hero() {
         >
           <Box w="6px" h="6px" rounded="full" bg="ok" flexShrink={0} />
           <Text display={{ base: "none", sm: "inline" }}>
-            v0.8 · open beta —
+            {stats.version} · open source —
           </Text>
-          <Text display={{ base: "inline", sm: "none" }}>v0.8 —</Text>
+          <Text display={{ base: "inline", sm: "none" }}>
+            {stats.version} —
+          </Text>
           <Text fontFamily="mono" color="fg.muted">
-            20k blocks last week
+            local-first · no telemetry
           </Text>
         </HStack>
 
@@ -82,9 +84,9 @@ export function Hero() {
           lineHeight="1.55"
           color="fg"
         >
-          httui is a markdown editor with executable blocks — HTTP, SQL, Mongo,
-          WebSocket, gRPC. Each runbook is documentation and a troubleshooting
-          tool, versioned in git, shareable with your team.
+          httui is a markdown editor with executable blocks — HTTP requests
+          and SQL (PostgreSQL, MySQL, SQLite). Each runbook is documentation
+          and a troubleshooting tool, versioned in git.
         </Text>
 
         <HStack
@@ -96,9 +98,6 @@ export function Hero() {
         >
           <Pill variant="solid" href={stats.repoUrl}>
             Get started <LuArrowRight size={11} />
-          </Pill>
-          <Pill variant="ghost">
-            <LuPlay size={10} /> Watch 90s demo
           </Pill>
         </HStack>
       </Flex>
