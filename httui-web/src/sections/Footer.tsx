@@ -2,10 +2,12 @@ import { Box, Flex, HStack, SimpleGrid, Text, VStack } from "@chakra-ui/react";
 import { LuMoon, LuSun } from "react-icons/lu";
 import { useColorMode } from "@/components/ui/color-mode";
 import { Logo } from "../components/atoms";
+import { useGithubStats } from "../hooks/useGithubStats";
 
 export function Footer() {
   const { colorMode, toggleColorMode } = useColorMode();
   const isDark = colorMode === "dark";
+  const stats = useGithubStats();
   const cols: { h: string; l: string[] }[] = [
     { h: "Product", l: ["Workbench", "TUI", "VS Code"] },
     { h: "Resources", l: ["Docs", "Examples", "Changelog", "Status"] },
@@ -32,7 +34,7 @@ export function Footer() {
           <Logo variant="logo" size={28} />
           <Text mt={3} fontSize="13px" lineHeight="1.55" maxW="280px">
             The markdown editor for debugging APIs and databases. Open source ·
-            MIT · v0.8.2.
+            MIT · {stats.version}.
           </Text>
           <Text mt={4} fontSize="11px" fontFamily="mono" color="fg.subtle">
             SHA-256 · a3f2…7c81
