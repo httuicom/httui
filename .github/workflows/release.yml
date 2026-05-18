@@ -107,10 +107,17 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          echo "Setting version to $VERSION"
-          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" httui-desktop/src-tauri/tauri.conf.json && rm httui-desktop/src-tauri/tauri.conf.json.bak
-          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" httui-desktop/package.json && rm httui-desktop/package.json.bak
-          sed -i.bak "s/^version = \".*\"/version = \"$VERSION\"/" httui-desktop/src-tauri/Cargo.toml && rm httui-desktop/src-tauri/Cargo.toml.bak
+          # The WiX/MSI target rejects non-numeric pre-release
+          # identifiers ("rc.1") in ProductVersion. Strip the
+          # pre-release suffix for the bundled binary version so all
+          # targets build; the GitHub release/tag keep the full
+          # ${{ github.ref_name }} and `validate` reads the raw ref,
+          # so prerelease detection is unaffected.
+          BUNDLE_VERSION="${VERSION%%-*}"
+          echo "Tag version: $VERSION — bundle version: $BUNDLE_VERSION"
+          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$BUNDLE_VERSION\"/" httui-desktop/src-tauri/tauri.conf.json && rm httui-desktop/src-tauri/tauri.conf.json.bak
+          sed -i.bak "s/\"version\": \".*\"/\"version\": \"$BUNDLE_VERSION\"/" httui-desktop/package.json && rm httui-desktop/package.json.bak
+          sed -i.bak "s/^version = \".*\"/version = \"$BUNDLE_VERSION\"/" httui-desktop/src-tauri/Cargo.toml && rm httui-desktop/src-tauri/Cargo.toml.bak
 
       - name: Extract release notes from CHANGELOG.md
         id: notes
