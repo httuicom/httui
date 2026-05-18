@@ -1,4 +1,4 @@
-// V10.1 cenário 3 — Sync button + per-step progress + the no-
+// Sync button + per-step progress + the no-
 // upstream confirm. Pure presentational over `useGitSync` so the
 // orchestration stays testable on its own. Never a Dialog (CM6
 // focus). Icons only, no emoji glyphs.

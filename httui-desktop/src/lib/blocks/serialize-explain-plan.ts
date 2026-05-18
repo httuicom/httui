@@ -1,4 +1,4 @@
-// Epic 53 Story 05 — explain plan ↔ run-history serialization.
+// explain plan ↔ run-history serialization.
 //
 // `DbResponse.plan` (httui-core) hands the frontend a JSON value
 // when `explain=true`: an object/array on Postgres (parsed JSON)
@@ -32,7 +32,7 @@ export function serializeExplainPlan(plan: unknown): string | undefined {
   }
   // Object / array / number / boolean — JSON.stringify so the column
   // round-trips. The consumer parses on read (frontend display layer
-  // — see Story 04 mount).
+  // mount).
   try {
     return JSON.stringify(plan);
   } catch {

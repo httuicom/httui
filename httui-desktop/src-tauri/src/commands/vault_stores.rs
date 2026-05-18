@@ -98,7 +98,7 @@ impl VaultStoreRegistry {
 /// `ConnectionLookup` adapter that resolves the active vault on each
 /// call via `VaultStoreRegistry`. Production-only: feeds the
 /// `PoolManager` so pool builds use the file-backed connection
-/// records (Epic 19 Story 02 Phase 3).
+/// records.
 pub struct VaultRegistryLookup {
     pool: SqlitePool,
     registry: Arc<VaultStoreRegistry>,

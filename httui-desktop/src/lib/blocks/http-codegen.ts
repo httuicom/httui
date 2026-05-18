@@ -1,5 +1,5 @@
 /**
- * Code generators for the HTTP block "Send as" menu (Story 24.7).
+ * Code generators for the HTTP block "Send as" menu.
  *
  * Pure functions — each takes an `HttpMessageParsed` whose references
  * have already been resolved by the panel and returns a snippet string

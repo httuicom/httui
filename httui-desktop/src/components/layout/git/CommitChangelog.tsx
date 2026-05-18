@@ -1,13 +1,13 @@
-// Epic 55 Story 03 — AI-generated commit changelog panel.
+// AI-generated commit changelog panel.
 //
-// Pure presentational. The consumer (Epic 48 commit dialog) owns the
-// AI prompt + streaming pipeline, the `[ai] commit_changelog` user
+// Pure presentational. The consumer (commit dialog) owns the AI
+// prompt + streaming pipeline, the `[ai] commit_changelog` user
 // preference, the dismiss/regenerate toggle, and the `tab`-to-insert
 // keyboard wiring (the panel marks each row as a button so a focused
 // row already accepts Enter/Space; the consumer can map Tab to
 // `.click()` if it owns the dialog focus chain).
 //
-// Visual spec from `flow.jsx FlowSave` + Epic 55 Story 03:
+// Visual spec from `flow.jsx FlowSave` +
 // - `bg.2` background, 6px radius, 14px padding
 // - Header: 🤖 (accent) + "Auto-generated changelog" weight 600 +
 //   flex spacer + `tab` kbd badge + dismiss × button

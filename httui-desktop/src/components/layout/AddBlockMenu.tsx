@@ -1,4 +1,4 @@
-// Floating "+ Add block" menu — Epic 39 Story 04.
+// Floating "+ Add block" menu.
 //
 // 7 options spanning the executable + non-executable block surface:
 // Markdown / HTTP / SQL / MongoDB / WebSocket / GraphQL / Shell.

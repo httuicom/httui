@@ -1,4 +1,4 @@
-// Block run-history menu — Epic 47 Story 04.
+// Block run-history menu.
 //
 // Presentational. Lists the last N runs of a single block (already
 // fetched by the consumer via `listBlockHistory`) with per-row

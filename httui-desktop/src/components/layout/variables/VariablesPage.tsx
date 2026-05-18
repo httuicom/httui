@@ -1,4 +1,4 @@
-// Canvas §6 Variables — page composition (Epic 43 Story 01).
+// Canvas §6 Variables — page composition.
 //
 // Three-column layout 200/1fr/380. Owns scope selection + search
 // state locally. Slice 2 lights up the rows path: pass `rows` and the

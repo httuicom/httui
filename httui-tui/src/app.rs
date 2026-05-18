@@ -1,5 +1,5 @@
 // size:exclude file — TUI app entrypoint, frozen scope per
-// `feedback_notes_app_focus`. Sweep owner: Epic 31 (TUI parity).
+// `feedback_notes_app_focus`. Sweep owner: (TUI parity).
 // coverage:exclude file — same rationale (frozen scope; coverage
 // gate not actionable until TUI parity wakes up). Audit-023.
 
@@ -401,7 +401,7 @@ pub struct App {
     pub connection_picker: Option<ConnectionPickerState>,
     /// In-memory introspection cache, fed by background tasks
     /// spawned from `ensure_schema_loaded`. Keyed by `connection_id`.
-    /// The SQL completion engine (Story 04.4b) reads from here
+    /// The SQL completion engine (b) reads from here
     /// synchronously and falls back to "loading…" when the entry is
     /// absent. See `crate::schema` for the cache + dedup model.
     pub schema_cache: crate::schema::SchemaCache,
@@ -860,7 +860,7 @@ mod tab_tests {
 impl App {
     pub fn new(config: Config, resolved: ResolvedVault, app_pool: SqlitePool) -> Self {
         // Lookup pulls connection records from the vault's
-        // `connections.toml` (Epic 19 Story 02 Phase 3 cutover);
+        // `connections.toml`;
         // legacy SQLite-only lookup is no longer used.
         let conn_lookup = httui_core::vault_config::ConnectionsStore::new(resolved.vault.clone());
         let pool_manager = Arc::new(PoolManager::new_standalone(conn_lookup, app_pool));

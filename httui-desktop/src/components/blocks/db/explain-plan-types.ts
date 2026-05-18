@@ -1,4 +1,4 @@
-// Epic 53 Story 03 — frontend type mirror of `httui-core::explain::PlanNode`.
+// frontend type mirror of `httui-core::explain::PlanNode`.
 //
 // The Rust side is canonical (parser lives there). This file is the
 // TS shape the React renderer consumes — keeps backend canonical

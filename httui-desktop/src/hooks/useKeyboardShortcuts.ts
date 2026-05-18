@@ -11,13 +11,13 @@ interface KeyboardShortcutActions {
   forceSave: () => void;
   toggleChat: () => void;
   toggleSchemaPanel: () => void;
-  /** Optional — wired in AppShell post-Epic 27 mount. */
+  /** Optional — wired in AppShell post- mount. */
   toggleOutlinePanel?: () => void;
-  /** Optional — wired in AppShell post-Epic 29 mount. */
+  /** Optional — wired in AppShell post- mount. */
   toggleHistoryPanel?: () => void;
-  /** Optional — ⌘E env switcher dropdown (V11 cenário 1). */
+  /** Optional — ⌘E env switcher dropdown. */
   openEnvSwitcher?: () => void;
-  /** Optional — ⌘⇧V new-variable popover (V11 cenário 4). */
+  /** Optional — ⌘⇧V new-variable popover. */
   openNewVariable?: () => void;
 }
 

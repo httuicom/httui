@@ -1,4 +1,4 @@
-// Canvas §6 Variables — TEMPORARY chip (Epic 43 Story 03).
+// Canvas §6 Variables — TEMPORARY chip.
 //
 // Tiny accent-bg chip with serif italic label, marking a variable
 // value that is currently being overridden in the session. When

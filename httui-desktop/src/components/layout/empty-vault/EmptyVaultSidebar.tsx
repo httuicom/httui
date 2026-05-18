@@ -1,4 +1,4 @@
-// Empty-vault sidebar — Epic 41 Story 02 (canvas §3).
+// Empty-vault sidebar — (canvas §3).
 //
 // 260px sidebar shown on the welcome screen alongside the main
 // EmptyVaultScreen content. Five sections:

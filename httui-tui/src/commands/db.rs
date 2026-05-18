@@ -765,7 +765,7 @@ pub fn build_db_executor_params(
 /// Compact one-liner for the status bar: `5 rows · 12ms` /
 /// `mutation: 3 affected · 8ms` / `error: …`. Multi-statement
 /// queries get a `(+N more)` suffix so users know the renderer is
-/// only surfacing `results[0]` for now (Story 05.1 ships tabs).
+/// only surfacing `results[0]` for now (ships tabs).
 pub fn summarize_db_response(resp: &httui_core::executor::db::types::DbResponse) -> String {
     use httui_core::executor::db::types::DbResult;
     let elapsed = resp.stats.elapsed_ms;
@@ -1541,7 +1541,7 @@ pub(crate) fn load_more_db_block(app: &mut App, segment_idx: usize) -> Result<()
     Ok(())
 }
 
-// ─── Export picker (Story 05.3) ────────────────────────────────────
+// ─── Export picker ─────────────────────────────────────────────────
 
 /// `gx` on a DB or HTTP block — open the export-format picker.
 /// Block-type aware:
@@ -1933,7 +1933,7 @@ pub fn record_db_history_async(
     });
 }
 
-// ─── Settings modal (Story 11 slice 2/3) ────────────────────────────
+// ─── Settings modal (/3) ────────────────────────────────────────────
 
 /// `gs` on a DB or HTTP block — open the settings modal prefilled
 /// with the current values. Block-type aware:
@@ -2821,7 +2821,7 @@ mod tests {
         assert_eq!(binds, vec![serde_json::json!(42)]);
     }
 
-    // ───────────── Executor params builder (Story 04.5 timeout) ─────────────
+    // ───────────── Executor params builder (timeout) ────────────────────────
 
     #[test]
     fn executor_params_includes_timeout_when_set() {
@@ -2852,7 +2852,7 @@ mod tests {
         assert_eq!(params["fetch_size"], 50);
     }
 
-    // ───────────── Alias edit (Story 11 — slice 1) ─────────────
+    // ───────────── Alias edit ──────────────────────────────────
 
     #[test]
     fn alias_unique_passes_when_no_collision() {

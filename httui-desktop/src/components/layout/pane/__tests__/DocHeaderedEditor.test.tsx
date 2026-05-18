@@ -4,7 +4,7 @@ import { DocHeaderedEditor } from "@/components/layout/pane/DocHeaderedEditor";
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
 import { renderWithProviders, screen } from "@/test/render";
 
-// V2 / cenário 4.5 — the DocHeader is mounted INSIDE the MarkdownEditor
+// the DocHeader is mounted INSIDE the MarkdownEditor
 // via a CM6 block widget + React portal. The portal owns the editable
 // callbacks (title / abstract / tags / checklist) and the live
 // frontmatter parse — those flows are tested at the
@@ -299,7 +299,7 @@ describe("DocHeaderedEditor", () => {
     expect(calls).toBe(initialCalls);
   });
 
-  describe("Run-all preflight gate (V6 cenário 10)", () => {
+  describe("Run-all preflight gate", () => {
     it("ignores Cmd+R without shift", async () => {
       mockTauriCommand("evaluate_preflight_cmd", () => [
         {

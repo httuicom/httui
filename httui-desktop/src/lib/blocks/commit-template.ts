@@ -1,5 +1,4 @@
-// V10.1 cenário 2 + 8 — derive the pre-filled commit message from
-// the changed-files list.
+// derive the pre-filled commit message from the changed-files list.
 //
 // Default (no template configured): a sensible conditional —
 //   0 changes → ""               (nothing to commit)

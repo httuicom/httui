@@ -1,4 +1,4 @@
-// Keyboard pill atom — `docs-llm/v1/design-canvas-microdetails.md` §0.
+// Keyboard pill atom (design canvas §0).
 //
 // 18×18 min, mono 10px weight 500, `--bg-2` bg, 1px line border with
 // raised 2px bottom border, 4px radius. Sized for inline use next to

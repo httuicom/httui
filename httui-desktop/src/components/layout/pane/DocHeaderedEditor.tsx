@@ -1,5 +1,5 @@
-// V2 / cenário 4.5 — DocHeader inline, mounted as a CM6 block widget at
-// the top of the document (no separate React layer). The inlineHeader
+// DocHeader inline, mounted as a CM6 block widget at the top of the
+// document (no separate React layer). The inlineHeader
 // prop carries the data the standalone shell used to read; the
 // MarkdownEditor's CM6 extension creates a portal slot that this
 // component fills via the same DocHeaderShell render path.
@@ -159,17 +159,17 @@ export function DocHeaderedEditor({
     };
   }, [filePath]);
 
-  // V6 / cenário 10 — Run-all gate. The actual block execution flow
-  // (Epic 39) hooks in via `onRunAll`; for now we log + the audit
+  // Run-all gate. The actual block execution flow
+  // hooks in via `onRunAll`; for now we log + the audit
   // note carries the override status forward when the future Run-all
   // report lands. The dialog open/close state lives in the hook.
   const { trigger: triggerRunAll, dialog: runAllDialog } =
     useRunAllPreflightGate({
       items: preflightItems,
       onRunAll: (decision) => {
-        // Placeholder for the Run-all execution. The cenário 10 spec
+        // Placeholder for the Run-all execution. The spec
         // gates on the dialog appearing; the actual block run is
-        // tracked by Epic 39. Surface decision metadata so a future
+        // tracked. Surface decision metadata so a future
         // listener (custom event / store) can pick it up.
         // eslint-disable-next-line no-console
         console.info(
@@ -221,8 +221,8 @@ export function DocHeaderedEditor({
       preflightItems,
       preflightRechecking,
       onPreflightRecheck: preflightRecheck,
-      // V6 / cenário 10 — `onRunAll` intentionally not threaded into
-      // the Action Row. Per `feedback_no_run_all_topbar`, the user
+      // `onRunAll` intentionally not threaded into the Action Row.
+      // Per `feedback_no_run_all_topbar`, the user
       // dropped the ▶ Run all button from the workspace chrome (TopBar
       // + DocHeader); the gate triggers only via ⌘⇧R keyboard shortcut.
       // The Action Row hides Run-all entirely when the prop is absent.

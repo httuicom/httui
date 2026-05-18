@@ -1,4 +1,4 @@
-//! Vault-wide frontmatter tag index (Epic 52 Story 04).
+//! Vault-wide frontmatter tag index.
 //!
 //! Walks `.md` files in the vault, parses YAML frontmatter, and
 //! extracts the `tags:` flow-list. Returns one `TagEntry` per file

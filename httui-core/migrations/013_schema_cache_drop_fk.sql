@@ -1,4 +1,4 @@
--- V4 fix: connections moved to .httui/connections.toml (Epic 12)
+-- fix: connections moved to.httui/connections.toml
 -- but the schema_cache.connection_id FK still points at the legacy
 -- SQLite `connections` table. Inserts fail with code 787 the moment
 -- a file-backed connection (e.g. SQLite added via the new

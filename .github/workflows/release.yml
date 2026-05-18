@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   # ── Gate ────────────────────────────────────────────────────────
-  # V12 cenário 8: release notes are CURATED in CHANGELOG.md, not
+  # release notes are CURATED in CHANGELOG.md, not
   # auto-derived. This job fails the whole release if the tag has no
   # corresponding `## [VERSION]` section (or, for a pre-release tag,
   # no section for its base version). Nothing builds without notes.
@@ -30,7 +30,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-          # Pre-release detection (V12 cenário 9). Accept both the
+          # Pre-release detection. Accept both the
           # semver-canonical `-rc.N` and the bare `-rcN` form so the
           # tag conventions in docs/RELEASE.md stay flexible.
           if [[ "$VERSION" =~ -(rc|beta|alpha)\.?[0-9]+$ ]]; then
@@ -69,11 +69,11 @@ jobs:
           - platform: macos-latest
             args: --target x86_64-apple-darwin --bundles app,dmg
             target: x86_64-apple-darwin
-          # Linux: deb + rpm + AppImage (V12 cenário 4).
+          # Linux: deb + rpm + AppImage.
           - platform: ubuntu-22.04
             args: --bundles appimage,deb,rpm
             target: ""
-          # Windows: MSI + NSIS .exe (V12 cenário 3). Code-signing
+          # Windows: MSI + NSIS .exe. Code-signing
           # cert is out of scope for v1 (decision 2026-05-17) — the
           # installers ship unsigned and SmartScreen warns on first
           # run, which is acceptable for a developer build.
@@ -183,7 +183,7 @@ jobs:
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
           args: ${{ matrix.args }}
 
-  # ── Homebrew cask (V12 cenário 5) ───────────────────────────────
+  # ── Homebrew cask ───────────────────────────────
   # Bumps the cask in the tap repo (httuicom/homebrew-httui) so
   # `brew tap httuicom/httui && brew install --cask httui` works.
   # Stable releases only. Gated on HOMEBREW_TAP_TOKEN (a PAT with
@@ -250,7 +250,7 @@ jobs:
         if: ${{ env.TAP_TOKEN == '' }}
         run: echo "HOMEBREW_TAP_TOKEN not set — skipping Homebrew bump."
 
-  # ── winget manifest (V12 cenário 6) ─────────────────────────────
+  # ── winget manifest ─────────────────────────────
   # Opens a PR against microsoft/winget-pkgs with the new MSI.
   # Stable releases only. Gated on WINGET_TOKEN (a classic PAT that
   # can fork winget-pkgs). CI-bound: needs the token and a merged

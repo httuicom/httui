@@ -352,7 +352,7 @@ mod tests {
         assert_eq!(result.data["body"]["ok"], true);
     }
 
-    // ─────── Epic 16 L166: deep dependency chain DoS ───────
+    // ─────── L166: deep dependency chain DoS ───────────────
 
     #[tokio::test]
     async fn deep_dependency_chain_rejects_above_max_depth() {

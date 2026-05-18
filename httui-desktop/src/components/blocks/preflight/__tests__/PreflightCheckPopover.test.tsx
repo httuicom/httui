@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { PreflightCheckPopover } from "@/components/blocks/preflight/PreflightCheckPopover";
 import { renderWithProviders, screen } from "@/test/render";
 
-describe("PreflightCheckPopover (V6 cenário 9 builder)", () => {
+describe("PreflightCheckPopover (builder)", () => {
   describe("add mode (no initialKind)", () => {
     it("opens at the kind picker stage", () => {
       renderWithProviders(

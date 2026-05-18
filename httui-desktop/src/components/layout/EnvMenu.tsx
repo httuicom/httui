@@ -5,7 +5,7 @@
 // Pure presentational over the environment store: parent wires
 // `environments`, `activeEnvironment`, `onSwitch`.
 //
-// V11 cenário 1: optionally controlled (`open` / `onOpenChange`) so
+// optionally controlled (`open` / `onOpenChange`) so
 // ⌘E can open it; first 9 envs get numeric shortcuts (1-9); a
 // "Clone <active>" quick action sits at the foot of the list.
 

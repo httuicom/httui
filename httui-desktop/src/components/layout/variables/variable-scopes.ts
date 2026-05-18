@@ -1,4 +1,4 @@
-// Canvas §6 Variables — scope metadata (Epic 43 Story 01).
+// Canvas §6 Variables — scope metadata.
 //
 // Five scopes per canvas: All, Workspace, Captured (from runs),
 // Secrets (keychain-backed), Personal (per-user). The sidebar lists

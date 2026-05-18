@@ -1,4 +1,4 @@
-// Canvas §6 Variables — 200px scopes sidebar (Epic 43 Story 01).
+// Canvas §6 Variables — 200px scopes sidebar.
 //
 // Three sections: SCOPES list, HELPERS list, hint card pinned at the
 // bottom. Pure presentational; `selectedScope` + `onSelectScope` and

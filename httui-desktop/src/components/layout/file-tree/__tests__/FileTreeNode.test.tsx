@@ -263,7 +263,7 @@ describe("FileTreeNode", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  describe("archived hide (V6 cenário 8)", () => {
+  describe("archived hide", () => {
     it("hides archived notes when showArchived is false", async () => {
       const { useTagIndexStore } = await import("@/stores/tagIndex");
       const { useArchiveFilterStore } = await import("@/stores/archiveFilter");

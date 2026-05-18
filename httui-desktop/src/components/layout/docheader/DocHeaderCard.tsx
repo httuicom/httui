@@ -1,12 +1,12 @@
-// Epic 50 Story 01 + 02 — DocHeader card scaffold.
+// DocHeader card scaffold.
 //
 // Pure presentational. Renders above the CM6 editor for `.md` tabs.
-// Story 03 (meta strip) + Story 04 (abstract paragraph) + Story 05
-// (action row) extend the card; Story 06 (compact mode) flips a
-// data attribute. The frontmatter parser is Epic 52 — this card
+// (meta strip) + (abstract paragraph) +
+// (action row) extend the card; (compact mode) flips a data
+// attribute. The frontmatter parser is this card
 // accepts already-parsed `frontmatter` and `firstHeading` props.
 //
-// V2 / cenário 4.5 / M2 — when `onTitleSave` is provided the H1
+// / M2 — when `onTitleSave` is provided the H1
 // becomes an editable input (Notion-mode), debounced 300ms before
 // firing the callback. Static H1 path is preserved for callers that
 // don't pass `onTitleSave` (kept the diff viewer + tests working).
@@ -35,14 +35,14 @@ export interface DocHeaderCardProps {
   relativeFilePath?: string | null;
   frontmatter?: DocHeaderFrontmatter | null;
   firstHeading?: string | null;
-  /** Story 06 — compact mode hides everything below the meta strip.
-   *  Story 03 ships the meta strip; until then `compact === true`
+  /** compact mode hides everything below the meta strip.
+   * ships the meta strip; until then `compact === true`
    *  hides nothing visible. */
   compact?: boolean;
   /** Click handler for breadcrumb segments. The leaf is rendered as
    *  inactive even when `onBreadcrumbSelect` is provided. */
   onBreadcrumbSelect?: (path: string) => void;
-  /** Click handler for the H1 — Story 06 uses it to toggle compact
+  /** Click handler for the H1 — uses it to toggle compact
    *  mode. Ignored when `onTitleSave` is provided (the editable input
    *  takes over the click target). */
   onTitleClick?: () => void;

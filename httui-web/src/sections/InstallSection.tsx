@@ -173,9 +173,9 @@ export function InstallSection() {
         <Text as="span" color="accent.emphasized" fontWeight="600">
           GitHub releases
         </Text>
-        . The macOS build is an unsigned developer build — the install
-        script and the Homebrew cask clear the Gatekeeper quarantine for
-        you, and in-app auto-update keeps it current.
+        . The macOS build is an unsigned developer build — the install script
+        and the Homebrew cask clear the Gatekeeper quarantine for you, and
+        in-app auto-update keeps it current.
       </Text>
     </Box>
   );

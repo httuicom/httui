@@ -1,5 +1,5 @@
 //! Tauri commands wrapping `httui_core::captures_cache`. Powers
-//! Epic 46 Story 03 — when auto-capture is ON, the consumer
+//! when auto-capture is ON, the consumer
 //! filters secrets out of `useCaptureStore`'s payload and calls
 //! `write_captures_cache_cmd`; on app start `read_captures_cache_cmd`
 //! restores last-run values; `delete_captures_cache_cmd` runs when

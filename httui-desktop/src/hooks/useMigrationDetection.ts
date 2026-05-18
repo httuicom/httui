@@ -3,7 +3,7 @@
 // (`detect_vault_migration` Tauri command) with the user-pref
 // dismissal flag from `useSettingsStore`.
 //
-// Carry-over from Epic 41 Story 07. Slice 1 shipped the dismissal
+// Carry-over Slice 1 shipped the dismissal
 // pref schema; this hook is slice 2's consumer surface. Slice 3
 // (AppShell mount) reads `shouldShowBanner` and renders
 // `<MigrationBanner>` accordingly.

@@ -1,4 +1,4 @@
-//! Content-search modal renderer (Story 06 Epic 20). Centered
+//! Content-search modal renderer. Centered
 //! overlay with a `?` prompt at the top and a result list below;
 //! each row shows the file path and the FTS5-generated snippet
 //! with `<mark>…</mark>` tags rewritten as a colored span. Cursor

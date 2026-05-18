@@ -1,6 +1,6 @@
 //! Thin wrapper around the system `git` CLI for the in-app git
-//! panel (Epic 20). Functions all accept a `vault_path: &Path` and
-//! shell out to `git -C <vault>`. No `git2-rs` dependency — keeps
+//! panel. Functions all accept a `vault_path: &Path` and shell out
+//! to `git -C <vault>`. No `git2-rs` dependency — keeps
 //! the build slim and the surface easy to swap to libgit2 later if
 //! we need richer diff data.
 //!
@@ -45,7 +45,7 @@ use std::process::{Command, Output};
 /// True when `git check-ignore --quiet -- <path>` reports the path
 /// is ignored (exit 0). Returns `false` for every other outcome:
 /// path not ignored (exit 1), path outside a git repo (exit 128),
-/// `git` not installed, IO failure, etc. Powers Epic 54 Story 04
+/// `git` not installed, IO failure, etc. Powers
 /// task 2 — the auto-discovery scanner uses this to skip e.g.
 /// `node_modules/<sub>/.env` without baking the noisy-dir list
 /// any deeper.
@@ -86,7 +86,7 @@ pub(crate) fn run_git<P: AsRef<Path>>(vault: P, args: &[&str]) -> Result<String,
 
 /// Return the vault's current branch name, or `None` for a detached
 /// HEAD / a path that isn't a git repo. Used by the preflight
-/// evaluator (V6 cenário 9) to decide whether a `branch: <name>`
+/// evaluator to decide whether a `branch: <name>`
 /// check passes. Cheap wrapper around `git rev-parse --abbrev-ref
 /// HEAD` — much lighter than `git_status` for callers that only
 /// need the branch name.

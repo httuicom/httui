@@ -1,5 +1,5 @@
 /**
- * Client-side update-channel gate (V12 cenário 9).
+ * Client-side update-channel gate.
  *
  * The tauri-updater endpoint points at the GitHub `releases/latest`
  * feed, which already excludes pre-releases server-side. This gate is

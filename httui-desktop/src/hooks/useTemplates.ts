@@ -1,4 +1,4 @@
-// Epic 41 Story 04 — templates picker data source.
+// templates picker data source.
 //
 // Fetches built-in + vault-local templates once per vault change.
 // Templates barely change in a single session (vault-local edits

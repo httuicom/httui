@@ -1,6 +1,6 @@
 //! Detect which forge a `git remote` URL points at.
 //!
-//! Used by Epic 49 stories 02 + 03 to compose forge-specific URLs
+//! Used by the stories 02 + 03 to compose forge-specific URLs
 //! (`<origin>/blob/<sha>/<path>` for GitHub, `<origin>/-/blob/...`
 //! for GitLab) and the compare/PR URL. Pure parsing; no network.
 //!
@@ -82,7 +82,7 @@ pub fn parse_remote_url(url: &str) -> Option<ParsedRemote> {
     let owner = segments[0].to_string();
     // For nested GitLab groups (`group/subgroup/repo`), the repo is
     // the last segment and the owner is the first; the middle
-    // segments belong to the URL but Story 04's consumer only needs
+    // segments belong to the URL but the consumer only needs
     // owner/repo for the compose helpers.
     let repo = segments[segments.len() - 1].to_string();
     if owner.is_empty() || repo.is_empty() {

@@ -1,5 +1,5 @@
-// Epic 51 Story 03 — pill row UI for the DocHeader pre-flight
-// checklist. V6 cenário 9 added the inline builder (add / edit /
+// pill row UI for the DocHeader pre-flight
+// checklist. added the inline builder (add / edit /
 // remove) so users can configure checks visually instead of editing
 // the YAML by hand.
 //
@@ -38,7 +38,7 @@ export interface PreflightPillItem {
    *  consumer composes this per-kind — "Add this connection",
    *  "Set env var X", etc. */
   suggestion?: string;
-  /** V6 cenário 9 — when present, click on the pill opens the
+  /** when present, click on the pill opens the
    *  edit popover pre-bound to this kind/value. Without these, the
    *  pill stays as a static read-only chip. */
   kind?: PreflightCheck["kind"];
@@ -52,13 +52,13 @@ export interface PreflightPillsProps {
   rechecking?: boolean;
   onSelectFailure?: (item: PreflightPillItem) => void;
   onRecheck?: () => void;
-  /** V6 cenário 9 — when wired, surfaces the `+ Add check` button
+  /** when wired, surfaces the `+ Add check` button
    *  at the end of the row. `undefined` keeps the read-only legacy
    *  rendering. */
   onAddCheck?: (check: PreflightCheck) => void;
-  /** V6 cenário 9 — replace the check at index `idx` with `next`. */
+  /** replace the check at index `idx` with `next`. */
   onEditCheck?: (idx: number, next: PreflightCheck) => void;
-  /** V6 cenário 9 — drop the check at index `idx`. */
+  /** drop the check at index `idx`. */
   onRemoveCheck?: (idx: number) => void;
 }
 
@@ -209,7 +209,7 @@ function Pill({
   item: PreflightPillItem;
   forceRunning: boolean;
   onSelectFailure?: (item: PreflightPillItem) => void;
-  /** V6 cenário 9 — when wired, click opens the edit popover. Takes
+  /** when wired, click opens the edit popover. Takes
    *  precedence over `onSelectFailure`; the suggestion text remains
    *  in the title attribute as a hover hint. */
   onEdit?: (target: HTMLElement) => void;

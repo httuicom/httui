@@ -1,4 +1,4 @@
-// Environment manager drawer (V5 cenário 10 — refactor).
+// Environment manager drawer (refactor).
 //
 // Quick-edit drawer kept as a UX shortcut alongside the dedicated
 // Environments tab. Sidebar lists envs (click to switch focus),

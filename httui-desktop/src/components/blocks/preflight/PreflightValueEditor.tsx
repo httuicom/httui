@@ -1,6 +1,6 @@
 // coverage:exclude file
-// V6 / cenário 9 polish — single-line CodeMirror editor used as the
-// value input inside the pre-flight check popover. Mirrors the inline
+// polish — single-line CodeMirror editor used as the value input
+// inside the pre-flight check popover. Mirrors the inline
 // forms in HTTP/DB blocks: the user gets the same autocomplete UX
 // they're used to (CM6 native dropdown + Tab/Enter accept) instead of
 // a custom <Input + suggestions list>.

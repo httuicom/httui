@@ -1,7 +1,7 @@
-// Run-all assertion aggregator — Epic 45 Story 05.
+// Run-all assertion aggregator.
 //
 // Pure helper: takes a per-block list of `{ blockAlias, total, result }`
-// and returns the summary `<RunAllReport>` renders. Story 05 spec:
+// and returns the summary `<RunAllReport>` renders. spec:
 // "7 blocks, 23 assertions, 22 passed, 1 failed".
 
 import type { AssertionResult } from "./assertions";

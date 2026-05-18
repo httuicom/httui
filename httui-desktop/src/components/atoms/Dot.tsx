@@ -1,5 +1,5 @@
 // Status indicator atom — 6×6 circle, `STATE_COLORS` palette plus an
-// `idle` variant. `docs-llm/v1/design-canvas-microdetails.md` §0.
+// `idle` variant (design canvas §0).
 
 import { Box, type BoxProps } from "@chakra-ui/react";
 

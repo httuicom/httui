@@ -6,8 +6,8 @@
 //! `{ code, message, details? }` and the frontend can switch on the
 //! code for retry / display logic.
 //!
-//! Story 06 of Epic 20a defined this surface; the migration of
-//! existing call sites is incremental and lands across follow-up
+//! defined this surface; the migration of existing call sites
+//! is incremental and lands across follow-up
 //! commits. New code should reach for `VaultConfigError` /
 //! `ConnectionsError` directly; legacy callers continue with
 //! `Result<_, String>` until rewired.

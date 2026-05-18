@@ -1,4 +1,4 @@
-// Epic 48 Story 03 — pure log-filter helpers.
+// pure log-filter helpers.
 //
 // Author filter is in-memory: the consumer keeps the full
 // `CommitInfo[]` and we just filter the array. Path filter goes

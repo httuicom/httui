@@ -1,4 +1,4 @@
-// V6 / cenário 9 — TS bridge to `preflight_commands::evaluate_preflight_cmd`.
+// TS bridge to `preflight_commands::evaluate_preflight_cmd`.
 //
 // Mirrors the Rust `EvaluatedPreflightItem` shape verbatim so the
 // React layer can render `PreflightPills` directly off the response.

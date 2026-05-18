@@ -1,9 +1,9 @@
-// coverage:exclude file — DB pool/exec/lookup or vault-store registry. Coverage requires live DB integration tests; owned by Epic 32 (critical-path tests). Audit-027.
+// coverage:exclude file — DB pool/exec/lookup or vault-store registry. Coverage requires live DB integration tests; owned by the critical-path test harness.
 
 //! Postgres execute helpers used by the `DatabasePool::execute_*`
 //! dispatchers.
 //!
-//! Extracted from `db::connections` (Epic 20a Story 01 — sixth split).
+//! Extracted from `db::connections`.
 //! Owns Postgres SELECT pagination, mutation, value binding, and row →
 //! JSON conversion. `?` → `$N` normalization happens here so callers
 //! can write driver-agnostic SQL with `?` and the dispatcher picks

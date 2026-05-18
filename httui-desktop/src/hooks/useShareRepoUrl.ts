@@ -1,10 +1,10 @@
-// V10 cenário 7 — derive the HTTPS / SSH / Web URLs of the repo's
+// derive the HTTPS / SSH / Web URLs of the repo's
 // first remote and expose copy + open actions. Shared by the git
 // panel toolbar and the status-bar ShareMenu so the "both" mount
 // stays DRY.
 //
 // The forge is detected from the remote host via the existing
-// `parseRemoteUrl` port (Epic 49). When no remote is configured —
+// `parseRemoteUrl` port. When no remote is configured
 // or its URL doesn't parse — `options` is empty and the popover
 // renders its "configure a remote" empty state.
 

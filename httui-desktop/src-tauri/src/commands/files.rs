@@ -3,13 +3,13 @@
 // in `crate::fs::*` (covered there). Same shape as
 // `commands/connections.rs` and `commands/environments.rs`
 // (audit-016). Justified in `audit-018-files-commands-coverage-exclude.md`.
-// Retires when Story 05 ships its integration harness, mirroring the
+// Retires when the integration harness lands, mirroring the
 // retirement schedule for the other two opt-outs.
 
 //! Vault file Tauri commands — list / read / write / create / rename /
 //! delete notes and folders.
 //!
-//! Extracted from `main.rs` in Epic 20a Story 05. The substantive
+//! Extracted from `main.rs` The substantive
 //! logic lives in `crate::fs`; these wrappers just thread Tauri
 //! state (the file-watcher ignore list, the SQLite pool for cascading
 //! per-block cache cleanup) into the call.
@@ -114,7 +114,7 @@ pub fn create_folder(vault_path: String, folder_path: String) -> Result<(), Stri
 /// ::mtime_or_none` helper so the same source of truth backs both
 /// vault-config cache invalidation and the editor toolbar timestamp.
 ///
-/// Carry-over from Epic 39 Story 03 — feeds the `useFileMtime` hook
+/// Carry-over from feeds the `useFileMtime` hook
 /// that drives "edited Xm ago" in the toolbar. Polled on focus / save
 /// rather than continuously.
 #[tauri::command]

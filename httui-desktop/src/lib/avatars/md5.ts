@@ -1,4 +1,4 @@
-// V2 / cenário 4.5 — minimal RFC-1321 MD5 implementation in TypeScript.
+// minimal RFC-1321 MD5 implementation in TypeScript.
 //
 // Used by `gravatar.ts` to hash author emails — Gravatar URLs require
 // the MD5 of the lower-cased trimmed email. Inlined so we don't pull

@@ -1,10 +1,10 @@
-// Quick-open query parser (Epic 52 Story 05).
+// Quick-open query parser.
 //
 // `Cmd+P` lets the user type either:
 //   - a fuzzy file-name query: `apt purr` → fuzzy match against the
 //     vault's `.md` set (existing `search_files` Tauri cmd path)
 //   - a tag query: `#payments` → exact tag match against
-//     `useTagIndexStore.getFilesByTag(tag)` (Epic 52 Story 04 store)
+// `useTagIndexStore.getFilesByTag(tag)` (store)
 //   - boolean tag combo (stretch): `#payments OR #debug` →
 //     union of both sets; `#payments AND #debug` → intersection
 //

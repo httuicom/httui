@@ -21,29 +21,29 @@ pub mod chat;
 // Cancel-aware DB execution plumbing (stage 3 of db block redesign)
 pub mod executions;
 
-// Git panel (Epic 20).
+// Git panel.
 pub mod git_commands;
 
-// Vault-wide tag index (Epic 52 Story 04).
+// Vault-wide tag index.
 pub mod tag_commands;
 
-// Pre-flight evaluator for the DocHeader pill row (V6 cenário 9).
+// Pre-flight evaluator for the DocHeader pill row.
 pub mod preflight_commands;
 
-// Run-body filesystem cache (Epic 47 Story 01).
+// Run-body filesystem cache.
 pub mod run_body_commands;
 
-// Captures persistence (Epic 46 Story 03).
+// Captures persistence.
 pub mod captures_commands;
 
-// Template registry (Epic 41 Story 04).
+// Template registry.
 pub mod templates_commands;
 
 // File-backed config (epic 09 foundation; cutover in epic 19).
 pub mod vault_config_commands;
 
-// Per-domain Tauri command split (Epic 20a Story 05 lands the full
-// split; this `commands/` tree starts with the cutover helpers
+// Per-domain Tauri command split (lands the full split; this
+// `commands/` tree starts with the helpers
 // introduced in audit-015).
 pub mod commands;
 

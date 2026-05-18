@@ -94,11 +94,11 @@ Both gates honor file-level opt-outs on line 1:
 - `// coverage:exclude file` — skip the coverage check
 - `// size:exclude file` — skip the size check
 
-Use sparingly. Each opt-out must be documented under the corresponding
-section of `docs-llm/v1/tech-debt.md`. Exclusions are reviewed during
-the sweep epics (20a, 30a) and reduced over time. Truly atomic files
-(generated tables, long but cohesive parser state machines, Tauri
-command shells with no logic) are the bar.
+Use sparingly. Justify each opt-out in the PR description, and prefer
+splitting the file or mocking heavy deps over taking one. Exclusions
+should be reduced over time. Truly atomic files (generated tables,
+long but cohesive parser state machines, Tauri command shells with no
+logic) are the bar.
 
 ## Code style
 

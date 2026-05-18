@@ -1,4 +1,4 @@
-//! Vault grep for variable references — Epic 43 Story 04.
+//! Vault grep for variable references.
 //!
 //! Scans every `*.md` under the vault for occurrences of a specific
 //! variable key in the canonical reference forms `{{KEY}}` and

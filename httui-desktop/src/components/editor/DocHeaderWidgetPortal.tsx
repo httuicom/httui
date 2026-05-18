@@ -1,4 +1,4 @@
-// V2 / cenário 4.5 — React mount for the DocHeader CM6 block widget.
+// React mount for the DocHeader CM6 block widget.
 //
 // Mirrors `HttpWidgetPortals.tsx`: subscribes to the registry maintained
 // by `cm-doc-header.tsx` and `createPortal`s a `<DocHeaderShell>` into

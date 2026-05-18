@@ -1,4 +1,4 @@
-// Epic 48 Story 01 — pure derivations for the Git panel UI.
+// pure derivations for the Git panel UI.
 //
 // Kept framework-free so the same helpers feed `GitStatusHeader`,
 // `GitFileList`, and `GitLogList` plus their tests. Consumers (the
@@ -63,8 +63,8 @@ export interface ChangeCounts {
 }
 
 /** Tally the working-tree changes by kind for the pane-tab metrics
- *  strip (V10.1 cenário 6). Renamed/copied/other fold into
- *  `modified` — the strip wants a dense at-a-glance count, not the
+ * strip. Renamed/copied/other fold into `modified` — the
+ * strip wants a dense at-a-glance count, not the
  *  full porcelain taxonomy. */
 export function summarizeChangeCounts(
   changed: ReadonlyArray<GitFileChange>,

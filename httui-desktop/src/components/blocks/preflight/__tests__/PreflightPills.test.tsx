@@ -155,7 +155,7 @@ describe("PreflightPills", () => {
     );
   });
 
-  describe("builder (V6 cenário 9)", () => {
+  describe("builder", () => {
     it("renders + Add check button when onAddCheck is wired", () => {
       renderWithProviders(<PreflightPills items={[]} onAddCheck={() => {}} />);
       expect(screen.getByTestId("preflight-pills-add")).toBeInTheDocument();

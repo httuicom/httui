@@ -1,4 +1,4 @@
-// V6 / cenário 9 — popover for adding / editing a single pre-flight
+// popover for adding / editing a single pre-flight
 // check inline in the DocHeader pill row.
 //
 // Two stages:
@@ -72,7 +72,7 @@ export interface PreflightCheckPopoverProps {
   onRemove?: () => void;
   /** Esc / outside-click / explicit close. */
   onClose: () => void;
-  /** V6 cenário 9 polish — autocomplete provider per kind. Returns
+  /** polish — autocomplete provider per kind. Returns
    *  candidate values; popover filters by substring match on the
    *  current input. Tests inject deterministic providers; the inline
    *  builder uses `defaultSuggestionProvider`. */

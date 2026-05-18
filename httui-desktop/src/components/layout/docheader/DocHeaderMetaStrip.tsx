@@ -1,4 +1,4 @@
-// Epic 50 Story 03 — meta strip below the H1.
+// meta strip below the H1.
 //
 // Compact horizontal row of chips. Pure presentational; consumer
 // fetches the data via Tauri (git author + git status + run history)
@@ -30,7 +30,7 @@ export interface DocHeaderMetaStripProps {
   dirty?: boolean;
   branch?: BranchSummaryData | null;
   lastRun?: LastRunSummary | null;
-  /** `frontmatter.owner` from the Story 01 parser. Hidden when
+  /** `frontmatter.owner` from the parser. Hidden when
    *  null / undefined / empty so consumer mounts unconditionally. */
   owner?: string | null;
   /** Number of executable fenced blocks in the body. Hidden when

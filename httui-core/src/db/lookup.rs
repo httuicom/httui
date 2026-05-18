@@ -3,12 +3,11 @@
 //! `vault_config::ConnectionsStore` (file-backed), tests use a mock,
 //! and the legacy `SqlitePool`-backed lookup remains available as
 //! an adapter for the SQLite test fixtures that have not yet
-//! migrated to file-backed (Epic 20a Story 01 cleanup).
+//! migrated to file-backed (cleanup).
 //!
 //! Closes the DIP item from `tech-debt.md` —
 //! `PoolManager::new(app_pool: SqlitePool, ...)` no longer hardwires
-//! SQLite as the source of connection records (Epic 19 Story 02
-//! Phase 3; audit-015).
+//! SQLite as the source of connection records.
 
 use std::sync::Arc;
 

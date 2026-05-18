@@ -1,6 +1,6 @@
-// Epic 51 Story 04 — pure run-all gate over preflight `CheckResult[]`.
+// pure run-all gate over preflight `CheckResult[]`.
 //
-// The actual Run-all flow (Epic 39) calls `evaluatePreflightGate`
+// The actual Run-all flow calls `evaluatePreflightGate`
 // at the start, gets back a structured decision, and either:
 //   - proceeds (block === false) — passes the `auditNote` (when
 //     present) into the run-all report

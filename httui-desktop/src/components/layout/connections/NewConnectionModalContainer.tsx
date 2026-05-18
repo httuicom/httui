@@ -1,4 +1,4 @@
-// V4 cenário 3 — wires <NewConnectionModal /> form state.
+// wires <NewConnectionModal /> form state.
 //
 // Lifts kind + active tab + Postgres form value + SSL value, dispatches
 // the right child per tab, and submits createConnection on Save.

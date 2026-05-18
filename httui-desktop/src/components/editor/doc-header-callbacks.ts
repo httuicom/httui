@@ -1,4 +1,4 @@
-// V6 / cenário 3 — pure builder for the editable + navigation
+// pure builder for the editable + navigation
 // callbacks that `DocHeaderWidgetPortal` passes through to
 // `DocHeaderShell`. Extracted from the portal so the per-action
 // branches (no-view bail, dup-tag skip, missing-tag skip) get unit
@@ -35,12 +35,12 @@ export interface DocHeaderCallbacks {
   onRemoveTag: (tag: string) => void;
   onChecklistSave: (items: TaskItem[]) => void;
   onTitleNavigateToBody: () => void;
-  /** V6 cenário 9 — append a typed pre-flight check to the
+  /** append a typed pre-flight check to the
    *  `preflight:` block-list. */
   onAddPreflightCheck: (check: PreflightCheck) => void;
-  /** V6 cenário 9 — replace the check at index `idx`. */
+  /** replace the check at index `idx`. */
   onEditPreflightCheck: (idx: number, next: PreflightCheck) => void;
-  /** V6 cenário 9 — drop the check at index `idx`. */
+  /** drop the check at index `idx`. */
   onRemovePreflightCheck: (idx: number) => void;
 }
 
@@ -121,14 +121,14 @@ export function buildDocHeaderCallbacks(
     deps.flushSave();
   };
 
-  // V6 / cenário 3 — clicking the static H1 returns the cursor to the
-  // first body line. Same path used by Enter / ArrowDown / Escape on
-  // the editable input (V2 cenário 4.5 / M3).
+  // clicking the static H1 returns the cursor to the first body line.
+  // Same path used by Enter / ArrowDown / Escape on
+  // the editable input (/ M3).
   const onTitleNavigateToBody = () => {
     deps.returnFocusToBody(instanceId);
   };
 
-  // V6 / cenário 9 — typed pre-flight checks. The block-list lives
+  // typed pre-flight checks. The block-list lives
   // under the `preflight:` YAML key (TaskItem moved to `tasks:` in
   // the rename commit). Each callback round-trips through the doc
   // text: read current checks → mutate → write back.

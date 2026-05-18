@@ -1,6 +1,6 @@
 // V10 follow-up — git merge-conflict awareness in the markdown editor.
 //
-// Surfaced by manual testing of cenário 6: opening a conflicted `.md`
+// Surfaced by manual testing of opening a conflicted `.md`
 // rendered the `<<<<<<< / ======= / >>>>>>>` markers as plain
 // markdown, so the user couldn't tell the file was in conflict (and
 // auto-save could regrave it). This extension decorates each conflict

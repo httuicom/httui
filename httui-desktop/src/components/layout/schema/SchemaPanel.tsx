@@ -2,8 +2,8 @@
 // loops, double-click clipboard fallback, expand/collapse, filter
 // narrowing) was untested historically; this slice only adds the
 // most-recent-connection auto-pick (8 targeted tests cover the new
-// path). See `docs-llm/jaum-audit/040-schema-panel-coverage-exclude.md`.
-// Epic 30a Story 03 (DbFencedPanel split sweep) owns the retirement
+// path). md`.
+// (DbFencedPanel split sweep) owns the retirement
 // of this opt-out alongside the panel refactor.
 
 /**
@@ -68,7 +68,7 @@ export function SchemaPanel({ width, onClose }: SchemaPanelProps) {
 
   // Active runbook connection hint: if the focused doc has any
   // ```db-* blocks, prefer their most-recent `connection=` for the
-  // panel default — Epic 28 Story 02 task 1.
+  // panel default.
   const activeFilePath = usePaneStore(selectActiveTabPath);
   const activeContent = usePaneStore((s) =>
     activeFilePath ? (s.editorContents.get(activeFilePath) ?? "") : "",

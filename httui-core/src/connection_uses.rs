@@ -1,5 +1,4 @@
-//! Vault-wide grep for "which runbook uses connection X" (V4
-//! cenário 7).
+//! Vault-wide grep for "which runbook uses connection X" (V4.
 //!
 //! Walks `.md` files in the vault, scans for db-block fenced-code
 //! info strings, and records every fence whose `connection=<name>`
@@ -11,7 +10,7 @@
 //! On-demand only — no cache, no indexing. The frontend hook is
 //! debounced and the typical vault is well under 10k files; if a
 //! larger vault hits a measurable gap, we add a cache + invalidation
-//! by file watcher (Epic 11). Same skip-dirs convention as
+//! by file watcher. Same skip-dirs convention as
 //! `tag_index` so build artifacts don't pollute the scan.
 
 use std::fs;

@@ -1,6 +1,6 @@
-// Block captures session store — Epic 46 Story 02.
+// Block captures session store.
 //
-// In-memory only by default. Story 03 ships a separate persistence
+// In-memory only by default. ships a separate persistence
 // path (`.captures.json`) for auto-capture mode; this store keeps the
 // session-scoped values so subsequent blocks can resolve
 // `{{<alias>.captures.<key>}}` against the previous run's output.

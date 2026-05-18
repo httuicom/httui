@@ -1,4 +1,4 @@
-// MVP-upgrade migration banner — Epic 41 Story 07.
+// MVP-upgrade migration banner.
 //
 // Shown when AppShell detects an MVP `notes.db` without the v1
 // file layout. Pure presentational: takes `onMigrate` + `onDismiss`

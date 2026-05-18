@@ -1,5 +1,5 @@
 //! Tauri commands wrapping `httui_core::templates`. Powers the
-//! Epic 41 Story 04 Templates card — the picker calls
+//! Templates card — the picker calls
 //! `list_templates_cmd` to surface the union of built-in + vault-
 //! local templates and uses the returned `body` field directly when
 //! the user picks one.

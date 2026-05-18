@@ -9,7 +9,7 @@
 //!
 //! Returns `Ok(None)` when the vault has no markdown files yet — the
 //! caller renders an empty-state screen and lets the user create one
-//! when Epic 20 lands.
+//! when lands.
 
 use std::path::{Path, PathBuf};
 

@@ -1,5 +1,5 @@
 //! `git add <path>` / `git reset HEAD <path>` / `git commit` —
-//! stage / unstage / commit operations for Epic 48 Story 02.
+//! stage / unstage / commit operations.
 
 use std::path::Path;
 

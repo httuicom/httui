@@ -1,10 +1,10 @@
-// Right-sidebar History tab list (Epic 29 Story 01).
+// Right-sidebar History tab list.
 //
 // Pure presentational. Consumer fetches `block_run_history` rows
 // via existing `list_block_history` Tauri cmd, optionally filters
 // by current-runbook, and feeds the array. Click → fires
-// `onSelect(entry)` (Story 02 task 1: navigate to block + open
-// past run); right-click context menu carries (Story 02 task 2).
+// `onSelect(entry)` (: navigate to block + open past run);
+// right-click context menu carries.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 
@@ -140,7 +140,7 @@ export function outcomeTone(entry: HistoryEntry): HistoryOutcomeTone {
   return "muted";
 }
 
-/** Whether the row has a captured EXPLAIN plan (Epic 53 Story 05).
+/** Whether the row has a captured EXPLAIN plan.
  *  Treats empty-string + whitespace-only `plan` as absent so the
  *  truncated-fallback "all-whitespace" edge case doesn't surface a
  *  meaningless chip. Pure — exported so consumers can render the

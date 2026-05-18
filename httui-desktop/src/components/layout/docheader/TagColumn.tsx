@@ -1,8 +1,8 @@
-// Epic 52 Story 03 — Tag column for the DocHeader card.
+// Tag column for the DocHeader card.
 //
 // Pure presentational. Consumer feeds the file's current tags +
-// the vault-wide tag union (Story 04 carries — supplied via
-// store) and wires the add/remove/select callbacks.
+// the vault-wide tag union (carries — supplied via store)
+// and wires the add/remove/select callbacks.
 //
 // Each tag renders as a chip with an inline × remove button. The
 // "+ Add tag" toggle reveals an Input with autocomplete suggestions
@@ -16,7 +16,7 @@ import { Btn, Input } from "@/components/atoms";
 export interface TagColumnProps {
   tags: ReadonlyArray<string>;
   /** Union of tags across the vault — feeds the autocomplete. The
-   *  consumer (page mount) reads this from the Story 04 tag-index
+   * consumer (page mount) reads this from the tag-index
    *  store; until that store ships, the consumer can pass an
    *  empty array and autocomplete simply doesn't surface. */
   availableTags?: ReadonlyArray<string>;

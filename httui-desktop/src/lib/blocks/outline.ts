@@ -1,4 +1,4 @@
-// Outline extractor (Epic 27 Story 01).
+// Outline extractor.
 //
 // Pulls H1/H2/H3 markdown headings out of a runbook so the
 // right-sidebar Outline tab can render a click-to-scroll table of
@@ -31,7 +31,7 @@ export interface OutlineEntry {
 }
 
 export interface ExtractOutlineOptions {
-  /** Cap on heading levels emitted. Default `3` per Epic 27 spec
+  /** Cap on heading levels emitted. Default `3` per spec
    *  ("H1/H2/H3"). Pass `6` to surface every level. */
   maxLevel?: number;
 }

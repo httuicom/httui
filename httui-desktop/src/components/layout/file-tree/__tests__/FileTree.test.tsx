@@ -88,7 +88,7 @@ describe("FileTree", () => {
     expect(screen.getByText("note")).toBeInTheDocument();
   });
 
-  describe("ArchiveFilterToggle (V6 cenário 8)", () => {
+  describe("ArchiveFilterToggle", () => {
     it("hides the toggle when no archived files exist", () => {
       renderTree({ entries: [note] });
       expect(

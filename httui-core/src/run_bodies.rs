@@ -1,9 +1,9 @@
-//! Block run-body cache (Epic 47 Story 01).
+//! Block run-body cache.
 //!
 //! Per-run response bodies live on disk at
 //! `<vault>/.httui/runs/<file_relpath>/<alias>/<run_id>.<ext>` —
-//! gitignored by default (`.httui/` is part of Epic 17's auto-block).
-//! `block_run_history` (SQLite, Story 24.6) stores metadata; this
+//! gitignored by default (`.httui/` is part of the auto-block).
+//! `block_run_history` (SQLite) stores metadata; this
 //! module owns the body bytes that were too large to live there.
 //!
 //! Contract:
@@ -179,7 +179,7 @@ pub fn trim_run_bodies(
 
 /// Move every cached run body for `(file_path, old_alias)` to
 /// `(file_path, new_alias)`. Powers the "alias rename" carry from
-/// Epic 47 Story 05: when the user renames a block's `alias=` info-
+/// when the user renames a block's `alias=` info-
 /// string token, the on-disk run history follows so older diffs
 /// stay reachable from the new alias.
 ///

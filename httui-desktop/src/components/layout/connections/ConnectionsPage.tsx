@@ -1,4 +1,4 @@
-// Canvas §5 — Connections refined page (Epic 42 Story 01).
+// Canvas §5 — Connections refined page.
 //
 // 3-column grid: 220px kind sidebar / 1fr list / 420px detail.
 // Slice 2 (this file): consumes a `connections: Connection[]` +
@@ -53,17 +53,17 @@ export interface ConnectionsPageProps {
   onTestRow?: (id: string) => void;
   onDuplicateRow?: (id: string) => void;
   onDeleteRow?: (id: string) => void;
-  /** Save handler for the credentials Edit/Save flow (Story 02). */
+  /** Save handler for the credentials Edit/Save flow. */
   onSaveCredentials?: (
     id: string,
     input: UpdateConnectionInput,
   ) => Promise<void> | void;
-  /** Rotate-password handler (Story 02). */
+  /** Rotate-password handler. */
   onRotatePassword?: (id: string, newPassword: string) => Promise<void> | void;
   /** When provided, the detail panel "Edit" delegates to this
    * (opens the modal in edit mode) instead of inline edit. */
   onRequestEditCredentials?: (id: string) => void;
-  /** Story 03 — schema state for the selected connection. */
+  /** schema state for the selected connection. */
   schemaByConnection?: Record<
     string,
     {
@@ -77,7 +77,7 @@ export interface ConnectionsPageProps {
   /** Click "Refresh" in the schema preview — consumer should call
    * `useSchemaCacheStore.refresh(id)`. */
   onRefreshSchema?: (id: string) => void;
-  /** Story 04 — runbook usages keyed by connection id. Consumer
+  /** runbook usages keyed by connection id. Consumer
    * fills via a vault-grep Tauri command driven by
    * `connection-usages.ts`. */
   usagesByConnection?: Record<string, RunbookUsage[]>;
@@ -86,7 +86,7 @@ export interface ConnectionsPageProps {
   /** Click on a usage row → consumer opens the file at the line
    * (typically `useEditorSession.handleFileSelect` + cursor scroll). */
   onOpenUsage?: (filePath: string, line: number) => void;
-  /** Story 05 — footer actions, dispatched with the selected
+  /** footer actions, dispatched with the selected
    * connection's id. */
   onTestConnection?: (id: string) => Promise<number>;
   onDuplicateConnection?: (id: string) => Promise<void> | void;
@@ -94,7 +94,7 @@ export interface ConnectionsPageProps {
   /** Controlled selection (V4). When provided, the page becomes a
    * controlled component and emits changes via `onSelectId`.
    * Omit both to keep the legacy uncontrolled behaviour (used by
-   * the Story 02-05 test suite). */
+   * the 05 test suite). */
   selectedId?: string | null;
   onSelectId?: (id: string | null) => void;
 }

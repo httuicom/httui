@@ -1,4 +1,4 @@
-// Epic 48 Story 04 — branch picker UI.
+// branch picker UI.
 //
 // Pure presentational. Consumer fetches `BranchInfo[]` via the
 // existing `git_branch_list_cmd` (already shipped in 5a6e217's

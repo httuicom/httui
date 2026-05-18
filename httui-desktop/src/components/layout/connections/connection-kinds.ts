@@ -1,4 +1,4 @@
-// Canvas §5 connection-kind metadata — Epic 42 Story 01.
+// Canvas §5 connection-kind metadata.
 //
 // Single source of truth for the 9 supported kinds: name, lucide
 // icon component, accent hue. Consumed by `<ConnectionKindIcon>`,

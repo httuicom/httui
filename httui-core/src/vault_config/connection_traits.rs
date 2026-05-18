@@ -13,7 +13,7 @@
 //! Existing `match` arms across the codebase don't need touching —
 //! they all collapse to `connection.as_dyn().method()` calls.
 //!
-//! Extracted in Epic 20a Story 03 (OCP fix per `tech-debt.md`).
+//! Extracted (OCP fix per `tech-debt.md`).
 
 use super::connections::{
     BigqueryConfig, CommonFields, Connection, GraphqlConfig, GrpcConfig, HttpConfig, MongoConfig,

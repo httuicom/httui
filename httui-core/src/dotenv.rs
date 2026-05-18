@@ -1,9 +1,8 @@
-//! `.env` auto-discovery: parse + classify + scan (Epic 54 Story 01).
+//! `.env` auto-discovery: parse + classify + scan.
 //!
 //! Pure-string parsing + classification + a vault-root scanner that
 //! looks for `.env`-style files at the root and one level deep. The
-//! Tauri command, banner UI, and import flow ship in Stories 02-04 of
-//! Epic 54.
+//! Tauri command, banner UI, and import flow ship in Stories 02-04 of.
 
 use once_cell::sync::Lazy;
 use regex::Regex;

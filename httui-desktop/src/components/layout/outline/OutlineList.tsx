@@ -1,4 +1,4 @@
-// Right-sidebar Outline tab list (Epic 27 Story 02).
+// Right-sidebar Outline tab list.
 //
 // Pure presentational. Consumer feeds it the array from
 // `lib/blocks/outline::extractOutline` plus an optional
@@ -6,7 +6,7 @@
 // currently sits) so the matching entry highlights.
 //
 // Indent scales with `level - 1`: H1 flush left, H2 indented one
-// step, H3 two steps. Numbering matches Epic 39 Story 05 conventions
+// step, H3 two steps. Numbering matches conventions
 // (positional 1., 2., …) when `numbered` is true. Click → fires
 // `onSelect(entry)`; consumer wires that to a CM6 dispatch.
 

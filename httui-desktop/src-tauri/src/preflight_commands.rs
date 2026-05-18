@@ -1,4 +1,4 @@
-//! Tauri command wrapping `httui_core::preflight`. Powers V6 cenário 9
+//! Tauri command wrapping `httui_core::preflight`. Powers
 //! — the inline DocHeader's pill row reads from this command on file
 //! open and after each save.
 //!
@@ -12,7 +12,7 @@
 //! - `file_exists` / `command` — resolved against FS + PATH inside
 //!   `evaluate_preflight_with_io`.
 //!
-//! `keychain` was retired from the typed set in V6 cenário 9. Legacy
+//! `keychain` was retired from the typed set. Legacy
 //! YAML that still uses it falls through to `PreflightItem::Unknown`
 //! and renders as a skip pill — non-breaking.
 

@@ -1,11 +1,11 @@
-// Epic 48 Story 01 — middle section: working-tree file list grouped
+// middle section: working-tree file list grouped
 // into Staged / Unstaged / Untracked.
 //
-// Pure presentational. Story 01 ships:
+// Pure presentational. ships:
 //   - layout (groups, headers, per-row checkbox + status icon + path)
 //   - data attributes / callbacks for staging + per-row click
 //
-// Story 02 wires `onToggleStage(file)` to `stage_path`/`unstage_path`
+// wires `onToggleStage(file)` to `stage_path`/`unstage_path`
 // Tauri commands and `onSelect(file)` to the diff side-panel — Story
 // 01 is purely the UI surface.
 

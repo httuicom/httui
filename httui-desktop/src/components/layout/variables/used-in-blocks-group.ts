@@ -1,4 +1,4 @@
-// Group var-use entries by file path (Epic 43 Story 04).
+// Group var-use entries by file path.
 //
 // Pure helper: takes the flat sorted list returned by `grepVarUses`
 // and rolls it up into `[{ filePath, hits: [{ line, snippet }] }]`,

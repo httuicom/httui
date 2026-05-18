@@ -263,7 +263,7 @@ fn snapshot_block_meta(
 
 /// `<C-S-c>` on an HTTP block — resolve `{{refs}}` and copy a cURL
 /// command to the clipboard. Same flow as the gx export picker's
-/// HTTP path but without the picker — Story 24.7's "express" route.
+/// HTTP path but without the picker — the "express" route.
 /// Surfaces failures (no HTTP block / empty URL / clipboard down /
 /// ref resolution failed) as status messages.
 pub fn copy_as_curl(app: &mut crate::app::App) {

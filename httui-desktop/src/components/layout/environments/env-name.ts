@@ -1,4 +1,4 @@
-// Canvas §6 Environments — env-name validation (Epic 44 Story 02).
+// Canvas §6 Environments — env-name validation.
 //
 // Pure validator for the create/clone inline forms. Env names become
 // filenames (`envs/<name>.toml` or `envs/<name>.local.toml`), so the

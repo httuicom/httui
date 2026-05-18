@@ -1,8 +1,8 @@
 //! SQL-aware scanner shared by multi-statement detection, placeholder
 //! normalization, and bind count.
 //!
-//! Extracted from `db::connections` (Epic 20a Story 01 — third
-//! split). The scanner tracks whether the cursor is inside a single-
+//! Extracted from `db::connections`. The scanner tracks
+//! whether the cursor is inside a single-
 //! quoted string, a `--` line comment, or a `/* ... */` block comment
 //! so semicolon-/`?`-aware passes can ignore characters that look
 //! like statement boundaries or placeholders but aren't.

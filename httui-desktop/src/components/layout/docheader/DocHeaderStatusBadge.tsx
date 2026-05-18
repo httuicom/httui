@@ -1,8 +1,8 @@
-// Epic 52 Story 06 — frontmatter `status:` badge.
+// frontmatter `status:` badge.
 //
 // Small pill rendered near the H1 (consumer's choice of mount point).
 // Pure presentational; consumer reads `frontmatter.status` from the
-// Story 01 parser and passes it in. Hides itself when `status` is
+// parser and passes it in. Hides itself when `status` is
 // undefined / null so consumers can mount unconditionally above
 // the title without conditional wrappers.
 //
@@ -17,7 +17,7 @@ import { Box } from "@chakra-ui/react";
 export type DocHeaderStatusValue = "draft" | "active" | "archived";
 
 export interface DocHeaderStatusBadgeProps {
-  /** `frontmatter.status` from the Story 01 parser. Hidden when
+  /** `frontmatter.status` from the parser. Hidden when
    *  null / undefined / empty so consumer mounts unconditionally. */
   status?: string | null;
   /** Optional click handler; turns the badge into a `<button>`

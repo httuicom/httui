@@ -1,4 +1,4 @@
-// Canvas §5 — "Nova conexão" modal shell (Epic 42 Story 06 — Phase 1).
+// Canvas §5 — "Nova conexão" modal shell.
 //
 // Outer 880×~660 modal centered on a dimmed page bg. Two-column
 // grid: 220px sidebar pick-kind + 1fr form area. Form area drives 4
@@ -7,7 +7,7 @@
 // shell to grow. Phase 1 ships the layout + dispatch surface only.
 //
 // Tab strip uses the design-system `Tabbar` atom — its active state
-// renders a 1px top accent line (canvas §0). The Story 06 prose says
+// renders a 1px top accent line (canvas §0). The prose says
 // "2px accent underline"; we follow the atom to keep the design
 // system the single source of truth (audit-034).
 //

@@ -205,7 +205,7 @@ describe("DocHeaderCard", () => {
     });
   });
 
-  describe("frontmatter error badge (V6 cenário 6)", () => {
+  describe("frontmatter error badge", () => {
     it("shows the error badge when frontmatter.error is set", () => {
       renderWithProviders(
         <DocHeaderCard

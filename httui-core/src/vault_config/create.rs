@@ -1,4 +1,4 @@
-//! `create_new_vault` — V1 vertical 1, cenário 3.
+//! `create_new_vault`.
 //!
 //! Composes the "Create vault" empty-state flow:
 //!

@@ -1,4 +1,4 @@
-// Button atom — `docs-llm/v1/design-canvas-microdetails.md` §0.
+// Button atom (design canvas §0).
 //
 // 24px tall, 0 10px padding, 4px radius. Two variants: `primary`
 // (accent bg + accent-fg, weight 600) and `ghost` (transparent bg,

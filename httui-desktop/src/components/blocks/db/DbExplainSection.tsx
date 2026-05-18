@@ -1,10 +1,10 @@
-// Epic 53 Story 04 — DbFencedPanel EXPLAIN section.
+// DbFencedPanel EXPLAIN section.
 //
 // Presentational composition of the canvas-spec header row +
 // `<ExplainPlan>` tree. The consumer (DbFencedPanel) chooses when
 // to mount; this component owns only the visual contract.
 //
-// Hide-entirely contract (Story 04 task 3): when `plan === undefined`
+// Hide-entirely contract when `plan === undefined`
 // AND `unsupported` is not set, the section returns `null` so a block
 // that hasn't run with `explain=true` shows nothing. `plan === null`
 // is the loading state (request in flight); `plan: PlanNode` is the

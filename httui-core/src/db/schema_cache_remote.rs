@@ -3,9 +3,8 @@
 // pure SchemaEntry mapping (`build_pg_entry`, `build_mysql_entry`,
 // `first_string_or_bytes_lossy`) and the SQL constants stay in
 // `schema_cache.rs` and are unit-tested there. Exercising these
-// async helpers needs a live Postgres / MySQL pool — owned by
-// Epic 32 (critical-path tests, DB integration harness). See
-// `docs-llm/jaum-audit/028-schema-cache-remote-split.md`.
+// async helpers needs a live Postgres / MySQL pool — owned by the
+// critical-path / DB integration test harness.
 
 use sqlx::Row;
 

@@ -1,4 +1,4 @@
-// Canvas §5 — Detail panel credentials section (Epic 42 Story 02).
+// Canvas §5 — Detail panel credentials section.
 //
 // Read-only summary by default (host / port / user / database / `••••••••`).
 // "Edit" toggles inputs + reveals Save/Cancel.

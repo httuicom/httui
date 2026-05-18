@@ -1,4 +1,4 @@
-// Epic 51 Story 03 — TS shape mirror of `httui-core::preflight::CheckResult`.
+// TS shape mirror of `httui-core::preflight::CheckResult`.
 //
 // Rust serde tags `CheckResult` on `outcome` (snake_case). The
 // frontend just types the shape so the React renderer compiles
@@ -21,7 +21,7 @@ export function pillKindFromResult(result: CheckResult): PillKind {
 }
 
 /** Glyph used by the pill renderer: ✓ (pass), ✗ (fail), – (skip),
- *  ◌ (running). Matches the Story 03 spec. */
+ * ◌ (running). Matches the spec. */
 export function pillGlyph(kind: PillKind): string {
   switch (kind) {
     case "pass":

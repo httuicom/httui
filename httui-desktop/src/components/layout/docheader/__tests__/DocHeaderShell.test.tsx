@@ -83,7 +83,7 @@ describe("DocHeaderShell", () => {
     expect(onToggleCompact).toHaveBeenCalledTimes(1);
   });
 
-  it("title click prefers onTitleNavigateToBody over onToggleCompact (V6 cenário 3)", async () => {
+  it("title click prefers onTitleNavigateToBody over onToggleCompact", async () => {
     const onToggleCompact = vi.fn();
     const onTitleNavigateToBody = vi.fn();
     renderWithProviders(
@@ -98,7 +98,7 @@ describe("DocHeaderShell", () => {
     expect(onToggleCompact).not.toHaveBeenCalled();
   });
 
-  it("onTitleNavigateToBody alone wires the title click (V6 cenário 3)", async () => {
+  it("onTitleNavigateToBody alone wires the title click", async () => {
     const onTitleNavigateToBody = vi.fn();
     renderWithProviders(
       <DocHeaderShell

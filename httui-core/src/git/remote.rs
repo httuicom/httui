@@ -1,6 +1,6 @@
 //! `git remote -v` — list configured remotes.
 //!
-//! Used by Epic 49's `<SharePopover>` to populate the remotes list.
+//! Used by the `<SharePopover>` to populate the remotes list.
 //! Each remote has multiple lines (one per fetch / push direction);
 //! we deduplicate by name + URL so the popover sees one entry per
 //! `(name, url)` pair.

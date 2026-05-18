@@ -36,12 +36,12 @@ pub struct EnvMeta {
     #[serde(default)]
     pub color: Option<String>,
 
-    /// Canvas §6 Story 03 — true marks the env as a throw-away (the
+    /// Canvas §6 true marks the env as a throw-away (the
     /// UI surfaces a `temporary` chip; user cleanup remains manual).
     #[serde(default)]
     pub temporary: bool,
 
-    /// Canvas §6 Story 03 — allowlist of connection IDs this env
+    /// Canvas §6 allowlist of connection IDs this env
     /// may target. Empty list (default) means "all connections in
     /// the vault are visible while this env is active".
     #[serde(default)]
@@ -139,7 +139,7 @@ connections_used = ["pg-staging", "redis-cache"]
 
     #[test]
     fn pre_existing_envs_load_without_the_new_meta_fields() {
-        // Lazy-migration: an env file written before Story 03 has no
+        // Lazy-migration: an env file written before has no
         // `temporary` or `connections_used` keys. It must still parse
         // and return defaults.
         let raw = r#"

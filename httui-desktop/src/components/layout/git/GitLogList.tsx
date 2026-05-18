@@ -1,8 +1,8 @@
-// Epic 48 Story 01 — bottom section: recent commit log.
+// bottom section: recent commit log.
 //
 // Pure presentational. The consumer fetches via `gitLog(vault, N)` and
-// passes the array. Story 03 wires the click handler to a side-panel
-// diff viewer; Story 01 is just the visual surface + per-row action.
+// passes the array. wires the click handler to a side-panel
+// diff viewer; is just the visual surface + per-row action.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 

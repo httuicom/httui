@@ -3,7 +3,7 @@
 // This slice ships the header (H1 + status text), action buttons
 // ("▶ Test all" + "+ Nova"), the search box, and the
 // no-connection-selected empty state. Compact list rows + row
-// selection wire up in the next slice (Story 01 follow-up).
+// selection wire up in the next slice (follow-up).
 //
 // Pure presentational; counts come from the consumer.
 

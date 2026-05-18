@@ -25,7 +25,7 @@ const DEFAULTS: AppSettings = {
 
 /** Color mode contract (canvas §0): system | light | dark. Distinct
  * from the legacy `theme` ThemeConfig (accent / radius / density /
- * shadow customisation pending Epic 19 sweep). Wires to Chakra's
+ * shadow customisation pending a future sweep). Wires to Chakra's
  * `next-themes` provider via `<ColorModeSync />`. */
 export type ColorMode = "system" | "light" | "dark";
 
@@ -51,7 +51,7 @@ interface SettingsState {
   // MVP-to-v1 migration banner
   mvpMigrationDismissed: boolean;
 
-  /** Opt-in to pre-release auto-updates. V12 cenário 9. */
+  /** Opt-in to pre-release auto-updates. */
   autoUpdateIncludePrereleases: boolean;
 
   // Actions
@@ -235,7 +235,7 @@ export const useSettingsStore = create<SettingsState>()(
         const ui = file.ui;
 
         // Theme is persisted as JSON of the full ThemeConfig. The
-        // legacy migration (Story 03) writes a bare mode string —
+        // legacy migration writes a bare mode string
         // since ThemeConfig has no `mode` field anymore (the v1
         // theme is structural: accentColor, density, shadow, …),
         // bare-string values fall through to DEFAULT_THEME and get

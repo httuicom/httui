@@ -1,9 +1,9 @@
-// Epic 48 Story 02 (partial — frontend) — commit form.
+// (partial — frontend) — commit form.
 //
 // Pure presentational. Textarea for the commit message + "Commit"
 // button + "Amend last" checkbox. The consumer wires `onCommit` to
 // the future `git_commit` Tauri command (shipped alongside the rest
-// of Story 02 in a backend-focused slice).
+// in a backend-focused slice).
 //
 // Validation is local: empty message blocks; oversized subject warns
 // but does not block. Validation errors render under the textarea

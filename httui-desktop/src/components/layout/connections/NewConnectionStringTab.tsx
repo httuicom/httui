@@ -1,5 +1,4 @@
-// Canvas §5 — "Connection string" tab for the Nova Conexão modal
-// (Epic 42 Story 06 — Phase 3).
+// Canvas §5 — "Connection string" tab for the Nova Conexão modal.
 //
 // User pastes a `postgres://…` / `mysql://…` URL; clicking "Preencher
 // formulário" dispatches `onApply({ kind, value, ssl })` so the

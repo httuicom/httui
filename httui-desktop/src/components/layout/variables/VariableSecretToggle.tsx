@@ -1,4 +1,4 @@
-// Canvas §6 Variables — is_secret toggle (Epic 43 Story 02 slice 3).
+// Canvas §6 Variables — is_secret toggle.
 //
 // Controlled switch for the variable's `is_secret` flag. Demotion
 // (secret → public) goes through `confirmDemote` first — the parent

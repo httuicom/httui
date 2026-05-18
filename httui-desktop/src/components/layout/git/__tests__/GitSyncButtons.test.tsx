@@ -85,7 +85,7 @@ describe("GitSyncButtons", () => {
     ).toBe("true");
   });
 
-  it("disables fetch + pull + push together when no remote (cenário 8)", () => {
+  it("disables fetch + pull + push together when no remote", () => {
     renderWithProviders(
       <GitSyncButtons
         hasRemote={false}

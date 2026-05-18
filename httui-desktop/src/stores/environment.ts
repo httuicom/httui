@@ -127,8 +127,8 @@ export const useEnvironmentStore = create<EnvironmentState>()(
             resolved[v.key] = v.value;
           }
         }
-        // V5 cenário 3 — apply session overrides for the active env on
-        // top of the resolved values so block runs see the TEMPORARY
+        // apply session overrides for the active env on top of the
+        // resolved values so block runs see the TEMPORARY
         // value the user set, not the vault-stored one.
         const overrides =
           useSessionOverrideStore.getState().overrides[

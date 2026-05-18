@@ -9,7 +9,7 @@
 //!
 //! Mirror of the desktop logic in `src/lib/tauri/commands.ts:79-108`.
 //! Living in the core lets desktop, TUI and MCP converge on the same
-//! semantics (Epic 22).
+//! semantics.
 
 use sqlx::sqlite::SqlitePool;
 

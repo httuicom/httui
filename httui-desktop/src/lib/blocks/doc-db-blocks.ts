@@ -1,10 +1,10 @@
-// Document-level DB block scanner (Epic 28 Story 01 + 02).
+// Document-level DB block scanner.
 //
 // Walks runbook content for ```db-<dialect> fences and surfaces a
 // flat list. The right-sidebar Schema tab uses these to gate
-// visibility (Story 01 task 2 — "tab visible only when active
-// runbook has DB blocks") and to auto-pick the most-recently-used
-// connection (Story 02 task 1).
+// visibility ("tab visible only when active runbook has DB
+// blocks") and to auto-pick the most-recently-used
+// connection.
 //
 // Pure string-in / array-out so the future CM6 hook adapts
 // state.doc into the same input + the test surface stays plain JS.
@@ -98,13 +98,13 @@ export function findDocDbBlocks(content: string): DocDbBlock[] {
 }
 
 /** Quick presence check — true when at least one `db-*` block exists.
- *  Used by Epic 28 Story 01 task 2 to gate the Schema sidebar tab. */
+ * Used by the to gate the Schema sidebar tab. */
 export function hasDbBlocks(content: string): boolean {
   return findDocDbBlocks(content).length > 0;
 }
 
 /** The connection id of the LAST `db-*` block in the document. Used
- *  by Epic 28 Story 02 task 1 to auto-pick the active connection.
+ * to auto-pick the active connection.
  *  Returns null when no db block has a `connection` token. */
 export function mostRecentDbConnection(content: string): string | null {
   const blocks = findDocDbBlocks(content);

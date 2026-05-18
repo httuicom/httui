@@ -116,7 +116,7 @@ sudo rpm -i  httui-0.4.0-1.x86_64.rpm     # Fedora/RHEL
 chmod +x httui_0.4.0_amd64.AppImage && ./httui_0.4.0_amd64.AppImage
 ```
 
-## 8. Homebrew (cenário 5)
+## 8. Homebrew
 
 Prerequisite: the tap repo **`httuicom/homebrew-httui`** must exist
 and `HOMEBREW_TAP_TOKEN` must be set. On each stable release the
@@ -129,7 +129,7 @@ brew install --cask httui
 brew upgrade --cask httui
 ```
 
-## 9. winget (cenário 6)
+## 9. winget
 
 The `winget` job submits a PR to `microsoft/winget-pkgs` via
 `winget-releaser` (needs `WINGET_TOKEN`). The **first** manifest is

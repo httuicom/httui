@@ -1,7 +1,7 @@
 // Reads + writes the per-file `docheader_compact` flag persisted in
 // `.httui/workspace.toml` via `get_file_settings` /
-// `set_file_docheader_compact` Tauri commands. Powers Epic 50 Story
-// 06 — `<DocHeaderCard>` click-on-title flips compact mode and the
+// `set_file_docheader_compact` Tauri commands. The
+// `<DocHeaderCard>` click-on-title flips compact mode and the
 // preference survives vault reopen.
 //
 // Mirrors `useFileAutoCapture` (commit 78f7a81 / earlier): idle when

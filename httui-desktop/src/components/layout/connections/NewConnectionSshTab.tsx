@@ -1,5 +1,4 @@
-// Canvas §5 — "SSH tunnel" tab for the Nova Conexão modal
-// (Epic 42 Story 06 — Phase 3).
+// Canvas §5 — "SSH tunnel" tab for the Nova Conexão modal.
 //
 // SSH tunnelling itself is v1.x scope per `out-of-scope.md`. For v1
 // the tab just shows a "Coming soon" surface that explains the

@@ -1,4 +1,4 @@
-// Canvas §6 Environments — delete confirmation (Epic 44 Story 04).
+// Canvas §6 Environments — delete confirmation.
 //
 // Inline destructive-action banner. The user must type the env name
 // into the confirm input before the Delete button enables — the

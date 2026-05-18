@@ -1,4 +1,4 @@
-// V10.1 cenário 4 — compact recent-commit history for the side
+// compact recent-commit history for the side
 // panel. Last N commits (short sha + subject + relative time, via
 // the carry GitLogList). Clicking a row fetches its diff and shows
 // it inline (the roteiro allows "pane-tab OU inline"; inline keeps

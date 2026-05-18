@@ -1,4 +1,4 @@
-// Epic 46 Story 03 — read-on-open captures hydration.
+// read-on-open captures hydration.
 //
 // On mount (or path change), reads `.httui/captures/<file>.json`
 // via `readCapturesCache` and pipes the JSON through

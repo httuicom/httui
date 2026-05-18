@@ -1,4 +1,4 @@
-// Epic 48 Story 01 — top section of the Git panel: branch label,
+// top section of the Git panel: branch label,
 // upstream, ahead/behind chips, dirty count.
 //
 // Pure presentational. Consumer fetches `GitStatus` via

@@ -132,7 +132,7 @@ describe("GitPanel", () => {
     expect(screen.getByTestId("git-log-list-empty")).toBeInTheDocument();
   });
 
-  describe("commit form + diff (cenário 2)", () => {
+  describe("commit form + diff", () => {
     const commitProps = {
       stagedCount: 2,
       commitMessage: "",
@@ -195,7 +195,7 @@ describe("GitPanel", () => {
     });
   });
 
-  describe("log filter + diff on Log tab (cenário 3)", () => {
+  describe("log filter + diff on Log tab", () => {
     it("renders the log filter on the Log tab when wired", () => {
       renderWithProviders(
         <GitPanel
@@ -233,7 +233,7 @@ describe("GitPanel", () => {
     });
   });
 
-  describe("sync toolbar + upstream prompt (cenário 5)", () => {
+  describe("sync toolbar + upstream prompt", () => {
     it("renders the sync buttons when handlers are wired", () => {
       renderWithProviders(
         <GitPanel
@@ -290,7 +290,7 @@ describe("GitPanel", () => {
     });
   });
 
-  describe("conflict resolution (cenário 6)", () => {
+  describe("conflict resolution", () => {
     it("renders the conflict banner on the Status tab", () => {
       renderWithProviders(
         <GitPanel
@@ -337,7 +337,7 @@ describe("GitPanel", () => {
     });
   });
 
-  describe("toolbar share slot (cenário 7)", () => {
+  describe("toolbar share slot", () => {
     it("renders toolbarExtra in the panel toolbar", () => {
       renderWithProviders(
         <GitPanel

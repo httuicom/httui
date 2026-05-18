@@ -28,7 +28,7 @@ export interface BranchMenuProps {
   modified?: number;
   /** Deleted files in the worktree (`-D`). */
   deleted?: number;
-  // --- Branch switcher (V10 cenário 4) ---
+  // --- Branch switcher -------------------
   /** Branch list for the dropdown picker. When `onSelectBranch` is
    * absent the menu falls back to the read-only placeholder. */
   branches?: ReadonlyArray<BranchInfo>;

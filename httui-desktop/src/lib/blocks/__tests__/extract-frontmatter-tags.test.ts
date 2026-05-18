@@ -225,7 +225,7 @@ describe("extractFrontmatter", () => {
   });
 });
 
-describe("extractFrontmatter — error path (V6 cenário 6)", () => {
+describe("extractFrontmatter — error path", () => {
   it("doc without a fence has no error", () => {
     expect(extractFrontmatter("# heading\n").error).toBeUndefined();
     expect(extractFrontmatter("").error).toBeUndefined();
@@ -285,7 +285,7 @@ describe("extractFrontmatter — error path (V6 cenário 6)", () => {
   });
 });
 
-describe("extractFrontmatter — status (V6 cenário 8)", () => {
+describe("extractFrontmatter — status", () => {
   it("returns undefined when status: is absent", () => {
     expect(extractFrontmatter("---\ntitle: x\n---\n").status).toBeUndefined();
   });

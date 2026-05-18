@@ -122,7 +122,7 @@ export function EmptyVaultScreen() {
     setFlow({ busy: false, error: null });
   }, [switchVault]);
 
-  // Paste-URL flow (Epic 41 Story 06): when the user pastes a clean
+  // Paste-URL flow when the user pastes a clean
   // http(s) URL while on the empty-vault screen, scaffold a vault and
   // seed it with `runbooks/untitled.md` containing a runnable HTTP
   // GET block for that URL. Non-URL pastes fall through to the OS

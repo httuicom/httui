@@ -53,8 +53,8 @@ export default tseslint.config(
       // tech-debt.md) generate ~90 hits today. Flipping to `error`
       // would either block every PR touching those files or force a
       // wave of `// eslint-disable-next-line` graffiti. Warnings keep
-      // the signal during code review without gating CI; Epic 30a is
-      // where they get retired.
+      // the signal during code review without gating CI; a later
+      // refactor is where they get retired.
       //
       // Thresholds chosen pragmatically:
       // - complexity 15: clippy uses cognitive_complexity = 50 in

@@ -1,5 +1,5 @@
-// V6 / cenário 8 — UI-only toggle: should the file tree show notes with
-// `status: archived` in their frontmatter?
+// UI-only toggle: should the file tree show notes with `status:
+// archived` in their frontmatter?
 //
 // Persisted lazily in localStorage so the user's preference survives
 // reloads. The store is intentionally tiny — just one boolean — but

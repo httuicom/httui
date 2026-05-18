@@ -1,4 +1,4 @@
-// Block-status captures footer — Epic 46 Story 04.
+// Block-status captures footer.
 //
 // Compact `↗ N captured` summary that expands to a list of `key =
 // value` rows. Secret-named values mask in the panel until the user

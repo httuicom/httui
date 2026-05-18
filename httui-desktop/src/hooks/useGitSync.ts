@@ -1,4 +1,4 @@
-// V10.1 cenário 3 — one-click Sync.
+// one-click Sync.
 //
 // Orchestrates stage-all → commit → pull --ff-only → push as a
 // single button. Per-step state drives the progress feedback. Any

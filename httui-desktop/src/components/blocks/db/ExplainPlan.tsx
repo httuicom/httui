@@ -1,6 +1,6 @@
-// Epic 53 Story 03 — recursive `PlanNode` tree renderer.
+// recursive `PlanNode` tree renderer.
 //
-// Pure presentational. Consumer (DbFencedPanel — Story 04) fetches
+// Pure presentational. Consumer (DbFencedPanel) fetches
 // the parsed plan via Tauri and passes the root node. Each child
 // row is indented + connected with vertical / horizontal stub
 // lines; a click on a node toggles its subtree. The cost bar runs

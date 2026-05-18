@@ -1,12 +1,11 @@
-// Right-side run history panel — Epic 29 mount.
+// Right-side run history panel — mount.
 //
 // Sibling toggle to `<OutlinePanel>` / `<SchemaPanel>`. Reads the
 // active runbook from the pane store, fetches the latest 50 runs
 // from `block_run_history` (via the new
 // `list_block_history_for_file` Tauri cmd), and renders
 // `<HistoryList>`. Click a row → fires onSelect; the consumer's
-// future "open past run" flow plugs in there (deferred — Story 02
-// task 1 carry).
+// future "open past run" flow plugs in there (deferred — carry).
 //
 // Re-fetches when the active file changes. Exposes a manual Refresh
 // button so users can re-poll after running a block in another pane.

@@ -1,11 +1,11 @@
-// Epic 49 Stories 02 + 03 — share URL composers.
+// share URL composers.
 //
-// `composeBlobUrl` — Story 02: `<origin>/blob/<sha>/<path>` (GitHub
+// `composeBlobUrl` — `<origin>/blob/<sha>/<path>` (GitHub
 // shape) or `<origin>/-/blob/<sha>/<path>` (GitLab shape). Optional
 // `#L<line>` anchor.
-// `composeTreeUrl` — Story 02 fallback: `<origin>/tree/<sha>` when no
+// `composeTreeUrl` — fallback: `<origin>/tree/<sha>` when no
 // active file is open.
-// `composeCompareUrl` — Story 03: `<origin>/compare/<base>...<current>`.
+// `composeCompareUrl` — `<origin>/compare/<base>..<current>`.
 //
 // All composers return either a string URL or a structured
 // `UnsupportedResult` that the consumer can show as a "Manual: open

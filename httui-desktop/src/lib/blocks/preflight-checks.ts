@@ -1,4 +1,4 @@
-// V6 / cenário 9 — TS reader + writer for the block-list `preflight:`
+// TS reader + writer for the block-list `preflight:`
 // section in YAML frontmatter. Mirrors `httui_core::preflight::parser`
 // (Rust) so the editor can mutate pre-flight checks visually without
 // going through the Tauri evaluator.

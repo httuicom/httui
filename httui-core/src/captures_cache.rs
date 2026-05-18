@@ -1,9 +1,9 @@
-//! Persistent captures cache (Epic 46 Story 03).
+//! Persistent captures cache.
 //!
 //! When auto-capture is ON for a file, the last-run capture map
 //! survives restarts via a JSON file at
 //! `<vault>/.httui/captures/<file_relpath>.json` (gitignored via
-//! Epic 17's `.httui/` auto-block).
+//! the `.httui/` auto-block).
 //!
 //! Secrets are NEVER persisted: the consumer must filter
 //! `isSecret`-flagged entries out of the JSON BEFORE calling

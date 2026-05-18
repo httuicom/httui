@@ -25,7 +25,7 @@ pub struct HistoryEntry {
     /// `EXPLAIN`-flavoured JSON plan when the SQL block carried
     /// `explain=true`. Capped via `crate::explain::cap_explain_body`
     /// (200 KB). `None` for regular runs and any non-SQL block.
-    /// Epic 53 Story 01 (migration 012).
+    /// (migration 012).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan: Option<String>,
 }

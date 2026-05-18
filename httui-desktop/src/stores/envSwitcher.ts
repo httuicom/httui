@@ -1,4 +1,4 @@
-// Tiny UI store for the ⌘E env switcher (V11 cenário 1).
+// Tiny UI store for the ⌘E env switcher.
 //
 // The dropdown lives in the StatusBar (`EnvSwitcher`) but the ⌘E
 // shortcut is wired in AppShell — they're far apart in the tree, so

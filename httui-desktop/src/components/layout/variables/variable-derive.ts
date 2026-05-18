@@ -1,4 +1,4 @@
-// Canvas §6 Variables — derivation helpers (Epic 43 Story 01 slice 2).
+// Canvas §6 Variables — derivation helpers.
 //
 // Pure functions: scope filter + search match + name sort, plus a
 // composed `deriveVariableRows` and a `countVariableScopes` mirror that

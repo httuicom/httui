@@ -1,4 +1,4 @@
-// Canvas §5 — "Nova conexão" modal sidebar pick-kind (Epic 42 Story 06).
+// Canvas §5 — "Nova conexão" modal sidebar pick-kind.
 //
 // 220px column on the left of the modal. Header "Nova conexão" serif
 // 16 + sub "Escolha o tipo". Lists all 9 kinds from `connection-kinds.ts`

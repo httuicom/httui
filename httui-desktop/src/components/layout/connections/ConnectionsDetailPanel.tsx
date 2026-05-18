@@ -1,8 +1,8 @@
 // Canvas §5 — right column of the Connections refined page (420px).
 //
 // Slice 1: empty/placeholder states.
-// Slice 2 (Story 01 wiring): selection cascade renders connection name.
-// Slice 3 (Story 02): credentials section when a real `Connection` is
+// Slice 2 (wiring): selection cascade renders connection name.
+// Slice 3 credentials section when a real `Connection` is
 // passed in; placeholder when only the name is known (e.g. test
 // fixtures or pre-load stubs).
 
@@ -31,16 +31,16 @@ export interface ConnectionsDetailPanelProps {
    * placeholder path), the panel falls back to the name-only
    * placeholder. */
   selectedConnection?: Connection | null;
-  /** Save handler for the credentials Edit/Save flow (Story 02). */
+  /** Save handler for the credentials Edit/Save flow. */
   onSaveCredentials?: (input: UpdateConnectionInput) => Promise<void> | void;
   /** Rotate-password handler. The consumer should write to the
    * keychain and update the `{{keychain:…}}` ref in
-   * `connections.toml` (Story 02). */
+   * `connections.toml`. */
   onRotatePassword?: (newPassword: string) => Promise<void> | void;
   /** When provided, the Edit button delegates to the modal instead
    * of entering inline edit. */
   onRequestEdit?: () => void;
-  /** Story 03 — pre-fetched schema (consumer drives via
+  /** pre-fetched schema (consumer drives via
    * `useSchemaCacheStore.ensureLoaded`). */
   schema?: ConnectionSchema | null;
   schemaLoading?: boolean;
@@ -50,12 +50,12 @@ export interface ConnectionsDetailPanelProps {
   hotTables?: HotTableEntry[];
   /** Click → consumer triggers `useSchemaCacheStore.refresh`. */
   onRefreshSchema?: () => void;
-  /** Story 04 — runbook usages for the selected connection. */
+  /** runbook usages for the selected connection. */
   usages?: RunbookUsage[];
   usagesLoading?: boolean;
   /** Click on a usage row → consumer opens the file at the line. */
   onOpenUsage?: (filePath: string, line: number) => void;
-  /** Story 05 — footer actions. Test resolves to elapsed ms,
+  /** footer actions. Test resolves to elapsed ms,
    * Duplicate clones with " (copy)" suffix, Delete removes the
    * connection + keychain entry after a two-step confirm. */
   onTestConnection?: () => Promise<number>;
@@ -146,7 +146,7 @@ export function ConnectionsDetailPanel({
           </Text>
           <Text fontSize="11px" color="fg.subtle">
             Detail sections (credentials / schema / used in runbooks) land in
-            the Story 02-04 slices.
+            later slices.
           </Text>
         </Stack>
       )}

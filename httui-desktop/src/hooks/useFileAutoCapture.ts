@@ -1,7 +1,7 @@
 // Reads + writes the per-file `auto_capture` flag persisted in
 // `.httui/workspace.toml` via the `get_file_settings` /
-// `set_file_auto_capture` Tauri commands. Carry-over from Epic 39
-// Story 03 — backs the editor toolbar's auto-capture toggle.
+// `set_file_auto_capture` Tauri commands. Carry-over
+// backs the editor toolbar's auto-capture toggle.
 //
 // Idle when either path is null. Optimistic update on toggle: the
 // frontend reflects the new value immediately while the Tauri call

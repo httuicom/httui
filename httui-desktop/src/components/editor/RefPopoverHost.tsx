@@ -1,4 +1,4 @@
-// Mounts the inline `{{ref}}` popover over CM6 (V11 cenário 3 + 6).
+// Mounts the inline `{{ref}}` popover over CM6.
 //
 // Uses Chakra's Popover (Ark) with a virtual anchor — same pattern as
 // EnvironmentsPage / the EnvSwitcher clone popover. Chakra owns

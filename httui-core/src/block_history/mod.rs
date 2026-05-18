@@ -1,4 +1,4 @@
-//! Block run history — Story 24.6.
+//! Block run history.
 //!
 //! Stores metadata about HTTP block runs (method, URL canonical, status,
 //! sizes, elapsed, timestamp) in SQLite. Body of request/response is NEVER
@@ -143,7 +143,7 @@ pub async fn list_history(
 }
 
 /// Return the most recent N entries for a single file across all
-/// aliases. Used by Epic 29 sidebar History tab to show every run
+/// aliases. Used by the sidebar History tab to show every run
 /// inside the active runbook without an N+1 IPC fan-out from the
 /// frontend. Output is most-recent-first; cap is the per-(file,
 /// alias) retention multiplied by a small constant so a busy doc

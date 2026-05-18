@@ -19,7 +19,7 @@
 //! aren't represented here. `DbDriver::from_str` returns an `Err`
 //! for them.
 //!
-//! Added in Epic 20a Story 07 (`tech-debt.md` code-smell #1).
+//! Added to address `tech-debt.md` code-smell #1.
 
 use std::fmt;
 use std::str::FromStr;

@@ -1,4 +1,4 @@
-// Session-scoped variable overrides (Epic 43 Story 03).
+// Session-scoped variable overrides.
 //
 // In-memory only. Overrides are TEMPORARY: they win over the
 // vault-stored value during the session and disappear when the app

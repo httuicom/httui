@@ -1,4 +1,4 @@
-// Epic 46 Story 03 — auto-capture toggle ↔ persistence wiring.
+// auto-capture toggle ↔ persistence wiring.
 //
 // Composes `useFileAutoCapture` (the per-file flag stored in
 // `.httui/workspace.toml`) with the captures-cache file I/O at

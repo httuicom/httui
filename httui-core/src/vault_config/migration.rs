@@ -78,7 +78,7 @@ pub struct MigrationOptions {
     pub backup: bool,
     /// Path of the per-machine `user.toml`. Currently only used to
     /// satisfy `EnvironmentsStore::new`; the prefs migration that
-    /// would actually touch this file is deferred to Epic 19.
+    /// would actually touch this file is deferred to.
     pub user_config_path: PathBuf,
 }
 
@@ -162,7 +162,7 @@ pub async fn run_migration(
 /// Migrate the seven UI prefs keys from `app_config` into the
 /// per-machine `user.toml [ui]` section. See audit-005 for the
 /// scope decision and the original audit
-/// `docs-llm/v1/audit-app-config-keys.md` for the per-key
+/// for the per-key
 /// classification.
 async fn migrate_prefs(
     pool: &SqlitePool,
@@ -235,7 +235,7 @@ async fn get_pref(pool: &SqlitePool, key: &str) -> Result<Option<String>, String
 /// `{ mode, accent, ... }` per `stores/settings.ts`. We only
 /// migrate `mode` into the `theme` string; accent/etc. are
 /// per-machine UI niceties that the new `[ui]` section doesn't
-/// have room for yet — Epic 27+ will expand the schema if needed.
+/// have room for yet — + will expand the schema if needed.
 /// Returns `true` when at least the `mode` field was extracted.
 fn apply_theme_json(raw: &str, out: &mut UiPrefs) -> bool {
     let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) else {
@@ -359,7 +359,7 @@ mod tests {
     use crate::db::init_db;
     use tempfile::TempDir;
 
-    // --- Detection tests (Epic 41 Story 07 carry slice 2) ----------------
+    // --- Detection tests -------------------------------------------------
 
     #[test]
     fn detect_returns_neither_for_empty_vault() {

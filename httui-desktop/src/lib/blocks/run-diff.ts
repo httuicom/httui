@@ -1,4 +1,4 @@
-// Run diff — Epic 47 Story 02.
+// Run diff.
 //
 // Pure side-by-side comparison between two runs of the same HTTP/DB
 // block. Three diff layers: status (scalar), headers (key-level

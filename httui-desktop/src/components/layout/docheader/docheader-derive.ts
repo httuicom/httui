@@ -1,6 +1,6 @@
-// Epic 50 Story 01 + 02 — pure derivations for the DocHeader card.
+// pure derivations for the DocHeader card.
 //
-// The actual frontmatter parser is Epic 52's job; this module accepts
+// The actual frontmatter parser is the job; this module accepts
 // already-parsed `Frontmatter` plus the source pieces (firstHeading,
 // filePath) and answers questions the card UI asks: what's the title?
 // what does the breadcrumb look like? does the abstract need
@@ -12,14 +12,14 @@ export interface DocHeaderFrontmatter {
   title?: string;
   abstract?: string;
   tags?: ReadonlyArray<string>;
-  /** V2 / cenário 4.5 / M6 — checklist task items (free-form todos).
+  /** / M6 — checklist task items (free-form todos).
    *  The DocHeader Checklist subcomponent reads this to render its
-   *  rows. Renamed from `preflight` in V6 cenário 9 — the legacy
+   * rows. Renamed from `preflight` — the legacy
    *  `preflight:` YAML key is now reserved for typed pre-flight checks
    *  (block-list of connection / env_var / branch / keychain /
    *  file_exists / command kinds). */
   tasks?: ReadonlyArray<TaskItem>;
-  /** V6 / cenário 6 — user-visible parse error from the slice-1 YAML
+  /** user-visible parse error from the slice-1 YAML
    *  parser. The DocHeader card surfaces a "frontmatter invalid" badge
    *  when this is set so the user has a visible signal that their YAML
    *  didn't apply (unterminated block, block-list shape, etc.). */
@@ -27,8 +27,8 @@ export interface DocHeaderFrontmatter {
 }
 
 /**
- * Title resolution priority per Story 02 task #3:
- *   1. Frontmatter `title:` (when non-empty after trimming)
+ * Title resolution priority per 1. Frontmatter
+ * `title:` (when non-empty after trimming)
  *   2. The file's first `#` heading
  *   3. The filename without its extension
  */

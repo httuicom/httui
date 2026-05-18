@@ -1,4 +1,4 @@
-// Canvas §6 Variables — detail panel (Epic 43 Story 01 slice 1).
+// Canvas §6 Variables — detail panel.
 //
 // Slice 1 ships the empty-state container only. Slices 2/3/4 layer
 // the header / value-per-env / override / used-in-blocks sections

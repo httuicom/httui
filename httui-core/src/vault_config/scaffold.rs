@@ -1,4 +1,4 @@
-//! Vault scaffolding + validation (Epic 17 foundation).
+//! Vault scaffolding + validation (foundation).
 //!
 //! Two pure operations live here:
 //!
@@ -12,7 +12,7 @@
 //!   the local-overrides block (ADR 0004).
 //!
 //! Frontend wiring (welcome screen, git clone progress, modal
-//! forms) lives in upcoming UI work — Epic 17 Stories 01 + 03.
+//! forms) lives in upcoming UI work.
 
 use std::path::Path;
 

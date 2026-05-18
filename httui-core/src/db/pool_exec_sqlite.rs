@@ -1,7 +1,7 @@
 //! SQLite-specific execute helpers used by the `DatabasePool::execute_*`
 //! dispatchers.
 //!
-//! Extracted from `db::connections` (Epic 20a Story 01 — fifth split).
+//! Extracted from `db::connections`.
 //! Owns SQLite SELECT pagination, mutation, value binding, and row →
 //! JSON conversion.
 

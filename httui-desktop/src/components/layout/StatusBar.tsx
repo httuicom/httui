@@ -1,4 +1,4 @@
-// Workbench status bar — canvas §4 Story 02.
+// Workbench status bar — canvas §4.
 //
 // Mounted at the bottom of `<AppShell>`. Composes inside the
 // `<StatusBarShell>` atom (22px, mono 11px, `bg.1`, top border).
@@ -117,7 +117,7 @@ export function StatusBar({
         </>
       )}
 
-      {/* Pending secrets badge — V1 vertical 1, cenário 4. Hidden when
+      {/* Pending secrets badge. Hidden when
        * count is 0 or modal is currently visible (would just stack the
        * same surface on top of itself). Click reopens the modal. */}
       {pendingSecretsCount > 0 && !pendingModalOpen && (

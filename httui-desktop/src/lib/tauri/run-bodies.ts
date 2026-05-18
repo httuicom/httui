@@ -1,4 +1,4 @@
-// Tauri wrappers for the run-body filesystem cache — Epic 47 Story 01.
+// Tauri wrappers for the run-body filesystem cache.
 //
 // Powers the streamed-execution path's post-run persistence and the
 // run-diff viewer's history reads. Bytes flow through `Vec<u8>` /
@@ -77,7 +77,7 @@ export function trimRunBodies(
 /** Move every cached run body for `(filePath, oldAlias)` to
  *  `(filePath, newAlias)`. Resolves to `false` when the source dir
  *  is missing (no runs to move); rejects when the destination dir
- *  already has cached runs. Powers Epic 47 Story 05's alias-rename
+ * already has cached runs. Powers the alias-rename
  *  flow that fires when the user edits a block's `alias=` info-
  *  string token. */
 export function renameAliasRuns(

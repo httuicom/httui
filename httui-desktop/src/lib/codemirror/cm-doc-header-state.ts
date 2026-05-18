@@ -1,4 +1,4 @@
-// V2 / cenário 4.5 — DocHeader portal registry + per-entry state.
+// DocHeader portal registry + per-entry state.
 //
 // Extracted from `cm-doc-header.tsx` so the CM6 widget / extension
 // factory file stays focused on CM6 plumbing (StateField, decorations,

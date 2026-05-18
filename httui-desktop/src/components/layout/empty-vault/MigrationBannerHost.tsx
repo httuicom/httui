@@ -2,8 +2,7 @@
 // with the `migrate_vault_to_v1` Tauri dispatch and surfaces success
 // / error inline. Mounted in AppShell when a vault is active. The
 // pure presentational <MigrationBanner> stays unaware of the wiring.
-//
-// Epic 41 Story 07 carry slices 3+4.
+//.
 
 import { useCallback, useState } from "react";
 import { Box, Text } from "@chakra-ui/react";

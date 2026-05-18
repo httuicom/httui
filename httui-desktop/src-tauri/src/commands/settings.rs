@@ -5,7 +5,7 @@
 
 //! App-config Tauri commands — get / set on the `app_config` SQLite
 //! table. The full settings split (per-machine `user.toml` vs
-//! workspace `workspace.toml`) is Epic 19's job; these commands stay
+//! workspace `workspace.toml`) is the job; these commands stay
 //! pointed at the legacy SQLite-backed `app_config` for v1 boot
 //! compatibility.
 

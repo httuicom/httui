@@ -1,5 +1,5 @@
-// Migration-related Tauri wrappers. Epic 41 Story 07 carry — the
-// MVP-to-v1 migration banner detection probe.
+// Migration-related Tauri wrappers. carry — the MVP-to-v1
+// migration banner detection probe.
 //
 // These wrappers stay pure `invoke()` shells. Coverage comes from
 // the consumer hook (`useMigrationDetection`) which mocks the

@@ -1,4 +1,4 @@
-// Canvas §6 Variables — detail panel composer (Epic 43 Story 02).
+// Canvas §6 Variables — detail panel composer.
 //
 // Four sections inside the 380px detail slot: header (key + scope +
 // secret chip), VALUE PER ENV list (one row per env, with Show/Hide

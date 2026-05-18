@@ -1,4 +1,4 @@
-// V10.1 cenário 3 (polish) — make raw git stderr readable.
+// (polish) — make raw git stderr readable.
 //
 // `git push` failures arrive as a single run-on string full of
 // `remote:` prefixes (GitHub branch-protection / rule-violation

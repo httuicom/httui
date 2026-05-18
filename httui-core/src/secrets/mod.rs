@@ -2,7 +2,7 @@
 //! upcoming alternatives (Touch ID, Stronghold, 1Password CLI, pass).
 //!
 //! The MVP path lives in [`crate::db::keychain`] and uses the OS
-//! keychain via the `keyring` crate. Epic 13 introduces this module
+//! keychain via the `keyring` crate. introduces this module
 //! as the boundary against which Epics 14–16 add new backends. For
 //! v1 every backend is local — there is no remote secret backend
 //! shipped with the desktop app.
@@ -11,8 +11,8 @@
 //!
 //! The old shape — free `store_secret`, `get_secret`, `delete_secret`
 //! in `db::keychain` — couples every caller to "the OS keychain is
-//! the answer". Once we add Touch ID (Epic 14), Windows Hello
-//! (Epic 15) and 1Password (Epic 16), the resolver needs to dispatch
+//! the answer". Once we add Touch ID, Windows Hello
+//! and 1Password, the resolver needs to dispatch
 //! by reference type (`{{keychain:...}}` vs `{{1password:...}}` vs
 //! `{{pass:...}}`). The trait gives us a single object the resolver
 //! can hold without import-tangling each backend's module.
@@ -34,7 +34,7 @@ pub mod parser;
 
 /// Errors a backend can return. Kept as a plain `String` for now —
 /// matches the existing `db::keychain` error type and keeps the
-/// boundary low-friction. Will tighten in Epic 13's prompt-fix
+/// boundary low-friction. Will tighten in the prompt-fix
 /// follow-up commit if we need to distinguish "user denied" from
 /// "system error".
 pub type SecretError = String;

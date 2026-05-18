@@ -1,4 +1,4 @@
-// Tabbar shell atom — `docs-llm/v1/design-canvas-microdetails.md` §0.
+// Tabbar shell atom (design canvas §0).
 // 32px tall container; the active tab has a 1px **top** accent line
 // (canvas: top, NOT bottom). The atom owns the strip + tab visuals;
 // consumers wire id/onSelect/active state.

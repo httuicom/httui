@@ -175,7 +175,12 @@ describe("EnvMenu — V11 controlled / numeric / clone", () => {
   });
 
   it("renders a Clone footer that fires onRequestClone", async () => {
-    const user = userEvent.setup();
+    // Ark/Zag sets pointer-events:none on the menu item during the
+    // open transition; under CI load it can still be set when the
+    // click runs (flaky). The item is genuinely interactive once
+    // settled, so disable userEvent's transient pointer-events guard
+    // at setup (`pointerEventsCheck` is a setup option, not a click arg).
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
     const onRequestClone = vi.fn();
     renderWithProviders(
       <EnvMenu
@@ -189,11 +194,7 @@ describe("EnvMenu — V11 controlled / numeric / clone", () => {
     );
     const clone = screen.getByTestId("env-menu-clone");
     expect(clone.textContent).toContain("Clone local");
-    // Ark/Zag sets pointer-events:none on the menu item during the
-    // open transition; under CI load it can still be set when this
-    // click runs (flaky). The element is genuinely interactive once
-    // settled, so skip userEvent's transient pointer-events guard.
-    await user.click(clone, { pointerEventsCheck: 0 });
+    await user.click(clone);
     expect(onRequestClone).toHaveBeenCalledOnce();
   });
 

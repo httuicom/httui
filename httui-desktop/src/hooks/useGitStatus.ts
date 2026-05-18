@@ -1,6 +1,6 @@
 // V10.1 — store-backed shim. The polling + state moved into
 // `useGitStore` so the pane-tab and the GitSidePanel share one
-// source (cenário 7). The public shape is unchanged so V10
+// source. The public shape is unchanged so
 // consumers (StatusBar, DocHeaderedEditor, GitPanelContainer)
 // keep working untouched.
 

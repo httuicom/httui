@@ -1,10 +1,10 @@
-// V10.1 cenário 5 — shared stage/unstage action.
+// shared stage/unstage action.
 //
 // Identical between the GitSidePanel file list and the V10 pane-tab,
 // so it lives here once (single source — the vertical's Cleanup
 // directive). Both consumers refresh the shared `useGitStore`
 // status afterwards, so staging in one surface reflects in the
-// other (cenário 7 parity).
+// other (parity).
 
 import { useCallback } from "react";
 

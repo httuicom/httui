@@ -1,10 +1,10 @@
-// coverage:exclude file — DB pool/exec/lookup or vault-store registry. Coverage requires live DB integration tests; owned by Epic 32 (critical-path tests). Audit-027.
+// coverage:exclude file — DB pool/exec/lookup or vault-store registry. Coverage requires live DB integration tests; owned by the critical-path test harness.
 
 //! MySQL execute helpers used by the `DatabasePool::execute_*`
 //! dispatchers.
 //!
-//! Extracted from `db::connections` (Epic 20a Story 01 — seventh
-//! split). Owns MySQL SELECT pagination, mutation, value binding,
+//! Extracted from `db::connections`. Owns MySQL SELECT
+//! pagination, mutation, value binding,
 //! and the type-aware row → JSON conversion (sqlx-mysql rejects
 //! `i64` for UNSIGNED columns and rejects `String` for `JSON`,
 //! so we dispatch by `column.type_info().name()`).

@@ -1,4 +1,4 @@
-// Canvas §6 Environments — pure metadata helpers (Epic 44 Story 01).
+// Canvas §6 Environments — pure metadata helpers.
 //
 // Personal envs live in `.local.toml` files (gitignored); the
 // underlying name is the same as the public env. Temporary envs

@@ -212,9 +212,9 @@ describe("useKeyboardShortcuts", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  // V11 cenário 7 — the new popover chords (⌘E / ⌘⇧V) must not
+  // the new popover chords (⌘E / ⌘⇧V) must not
   // collide with common tmux / terminal external chords.
-  describe("V11 cenário 7 — no tmux/terminal chord conflict", () => {
+  describe("no tmux/terminal chord conflict", () => {
     it("tmux prefix chords (Ctrl+B, Ctrl+A) never open the V11 popovers", () => {
       const actions = {
         ...createActions(),

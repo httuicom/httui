@@ -77,8 +77,8 @@ export function gitCheckout(vaultPath: string, branch: string): Promise<void> {
 }
 
 /** First-commit author of `path` (follows renames). Resolves to
- *  `null` when the path doesn't appear in history. Powers Epic 50
- *  Story 03's `<DocHeaderMetaStrip>` Author chip. */
+ * `null` when the path doesn't appear in history. Powers
+ * the `<DocHeaderMetaStrip>` Author chip. */
 export function gitFirstCommitAuthor(
   vaultPath: string,
   path: string,
@@ -116,7 +116,7 @@ export interface ConflictVersions {
 }
 
 /** The three merge stages of a conflicted path (`git show :1|:2|:3`).
- *  Powers the V10 cenário 6 3-way resolver. */
+ * Powers the 3-way resolver. */
 export function gitConflictVersions(
   vaultPath: string,
   path: string,

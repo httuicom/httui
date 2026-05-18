@@ -1,4 +1,4 @@
-// Epic 55 Story 01 slice 2 — fenced-block walker.
+// fenced-block walker.
 //
 // Given the content of a `.md` file (the after-side, since hunks
 // reference new line numbers there), find every executable fenced
@@ -92,8 +92,8 @@ function parseAliasFromInfoString(rest: string): string | null {
  * Pair a 1-indexed line number to the block that contains it. Lines
  * outside any block (between blocks or in the document body) return
  * `null`. The opening + closing fence lines themselves count as part
- * of the block — Story 01 slice 3 uses this to detect whether an
- * info-string change touched the fence line.
+ * of the blockuses this to detect whether an info-string change
+ * touched the fence line.
  */
 export function findBlockForLine(
   blocks: ReadonlyArray<FencedBlock>,

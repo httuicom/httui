@@ -1,4 +1,4 @@
-// Canvas §6 Environments — clone-from-env inline form (Epic 44 Story 02).
+// Canvas §6 Environments — clone-from-env inline form.
 //
 // Name input + 4 checkboxes (`Copy variables` default ON, `Copy
 // connections-used pointers`, `Mark temporary`, `Mark personal` →

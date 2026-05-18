@@ -56,8 +56,8 @@ export function ConnectionsPageContainer({
     void reload();
   }, [reload]);
 
-  // V4 cenário 8 — react to external `connections.toml` edits via the
-  // file watcher (Epic 11). Backend emits `config-changed` with
+  // react to external `connections.toml` edits via the file watcher.
+  // Backend emits `config-changed` with
   // `category: "connections"` whenever the file (or its `.local`
   // sibling) changes; we just trigger a reload — store handles
   // dedup against in-flight UI mutations.

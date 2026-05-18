@@ -295,7 +295,7 @@ describe("useFileSearch", () => {
     expect(result.current.results).toEqual([]);
   });
 
-  describe("tag mode (V6 cenário 4)", () => {
+  describe("tag mode", () => {
     it("`#payments` lists files with the payments tag from the store", async () => {
       // Bootstrap two tagged files in the store; search_files is mocked
       // but should NOT be called for tag queries.

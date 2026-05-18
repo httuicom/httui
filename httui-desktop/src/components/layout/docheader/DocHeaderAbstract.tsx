@@ -1,4 +1,4 @@
-// Epic 50 Story 04 — abstract paragraph for the DocHeader card.
+// abstract paragraph for the DocHeader card.
 //
 // Pure presentational. Consumes `deriveAbstractDisplay` (shipped in
 // 0efa952 as part of `docheader-derive.ts`) and the `frontmatter`
@@ -9,8 +9,8 @@
 // to ~3 lines via CSS line-clamp with a soft fade-out gradient at
 // the bottom; a "more" / "less" button toggles the clamp.
 //
-// V2 / cenário 4.5 / M4 — when `onAbstractSave` is provided the
-// abstract becomes an editable Notion-mode textarea. Newlines collapse
+// / M4 — when `onAbstractSave` is provided the abstract becomes
+// an editable Notion-mode textarea. Newlines collapse
 // to a single space on commit (slice-1 schema is single-line scalar).
 
 import { useEffect, useRef, useState } from "react";

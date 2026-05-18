@@ -1,4 +1,4 @@
-// Canvas §6 Variables — used-in-blocks list (Epic 43 Story 04).
+// Canvas §6 Variables — used-in-blocks list.
 //
 // Presentational. Takes the raw flat `entries` (or `loading` /
 // `error`) and groups by file. Click a hit fires `onJump(filePath,

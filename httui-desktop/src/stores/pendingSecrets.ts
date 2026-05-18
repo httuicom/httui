@@ -1,4 +1,4 @@
-// V1 vertical 1, cenário 4 — first-run secrets modal store.
+// first-run secrets modal store.
 //
 // Holds the list of `MissingRef`s scanned right after a vault is
 // opened. The AppShell mounts a single modal driven by this store;

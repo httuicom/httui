@@ -1,7 +1,7 @@
 // coverage:exclude file — pure invoke() wrappers + IPC types.
 //
-// Tauri wrappers for `httui_core::templates`. Powers Epic 41 Story
-// 04 — the empty-state Templates card calls `listTemplates(vault)`
+// Tauri wrappers for `httui_core::templates`. The
+// empty-state Templates card calls `listTemplates(vault)`
 // to render the picker; the chosen template's `body` is copied
 // verbatim into a fresh runbook.
 

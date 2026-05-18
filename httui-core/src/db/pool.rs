@@ -1,8 +1,8 @@
 //! `DatabasePool` enum + per-driver pool construction (Postgres /
 //! MySQL / SQLite).
 //!
-//! Extracted from `db::connections` (Epic 20a Story 01 — fourth
-//! split). Owns the lifecycle pieces — enum definition, ping
+//! Extracted from `db::connections`. Owns the lifecycle pieces
+//! — enum definition, ping
 //! (`test`), `create_pool` factory, driver-specific
 //! `build_*_connect_options` helpers, path/name validation, pool
 //! config validation, and connection-error sanitization.
