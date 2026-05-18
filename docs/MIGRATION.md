@@ -1,9 +1,11 @@
-# Migration guide — MVP → v1
+# Migration guide — legacy SQLite layout → file-backed layout
 
 This guide is for users who installed an early **MVP build** of httui
-(when configuration lived entirely inside `notes.db`) and want to
-upgrade to **v1**, where connections, environments and per-machine
-prefs live in plain TOML files inside the vault.
+(when configuration lived entirely inside `notes.db`) and want to move
+to the current **file-backed layout**, where connections, environments
+and per-machine prefs live in plain TOML files inside the vault.
+("MVP" and "v1" below are the internal names of those two storage
+layouts, not public version numbers.)
 
 > **Status note (April 2026).** The v1 storage layer is in place and
 > the migration tooling described below is shippable. The React panels
@@ -34,7 +36,7 @@ The full target layout is documented in
    the migration needs an exclusive read of `notes.db`.
 2. **Commit the vault.** The migration writes new files into the vault
    root; a clean working tree makes the diff trivial to review.
-3. **Update httui.** Install the v1 build over your MVP install. Your
+3. **Update httui.** Install the current build over your old install. Your
    data is untouched until you trigger the migration.
 
 ## Run the migration
@@ -93,7 +95,7 @@ first run.
 
 ## After migrating
 
-Until Epic 19's frontend cutover ships, the running app keeps reading
+Until the frontend cutover ships, the running app keeps reading
 from the legacy SQLite tables:
 
 - The TOML files are valid and the migration is the source of truth
@@ -109,7 +111,7 @@ from the legacy SQLite tables:
 
 The seven UI-pref keys (`theme`, `auto_save_ms`, `editor_font_size`,
 `default_fetch_size`, `history_retention`, `vim_enabled`,
-`sidebar_open`) are already safe to drop from `app_config` — Epic 19's
+`sidebar_open`) are already safe to drop from `app_config` — the
 schema bump did this for new installs; on upgraded vaults the keys
 linger harmlessly.
 
@@ -127,8 +129,8 @@ in the OS keychain. The migration does **not** re-encrypt or re-prompt:
   migration, you'll see those values appear inline in the TOML —
   re-enter them through the app to push them back into the keychain.
 
-For first-run secret setup on a freshly cloned vault, see Epic 18
-(`first_run_missing_secrets` Tauri command). The flow:
+First-run secret setup on a freshly cloned vault is handled by the
+`first_run_missing_secrets` Tauri command. The flow:
 
 1. Open vault → app scans `connections.toml` + `envs/*.toml` for
    `{{keychain:…}}` markers without a corresponding keychain entry on
@@ -164,10 +166,10 @@ keychain entry sticks.
 build reads from `notes.db` exclusively; nothing else needs to be
 undone.
 
-## Sharing — no share modal in v1
+## Sharing — no share modal
 
 Earlier mockups showed a "Share" modal with snapshot links, live
-links, expirations and generated passwords. v1 ships **none of
+links, expirations and generated passwords. httui ships **none of
 that**. Sharing a vault is sharing the git repo — clone it,
 permission it through your hosting provider (GitHub, GitLab, …), and
 each collaborator's secrets stay on their machine via the keychain

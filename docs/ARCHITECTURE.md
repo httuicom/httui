@@ -1,9 +1,9 @@
 # httui-notes — Architecture
 
-> Reflects the v1 file-backed, git-native architecture. The
-> foundation work for v1 is in place across the storage and secrets
-> layers; the React panels that consume the new file-backed stores
-> are still being cut over from the legacy SQLite path.
+> Reflects the file-backed, git-native architecture. The foundation
+> work is in place across the storage and secrets layers; the React
+> panels that consume the new file-backed stores are still being cut
+> over from the legacy SQLite path.
 
 ## TL;DR
 
@@ -136,7 +136,7 @@ root. The dispatcher routes events:
   frontend, ConflictBanner if dirty)
 - watched config TOML (per `watch_paths::classify`) → emit
   `config-changed` event with `{ category, path, env? }`. Stores
-  invalidate caches by mtime; the frontend cutover (Epic 19) will
+  invalidate caches by mtime; the pending frontend cutover will
   add a `Store::invalidate_cache()` call on event receipt.
 
 Debounce: 500 ms for `.md`, 250 ms for TOML (ADR 0003).
@@ -181,15 +181,15 @@ Architecture decisions live under [`docs/adr/`](./adr/):
 Future decisions go through the same template (Status / Context /
 Decision / Consequences / References).
 
-## What's NOT here (out of scope for v1)
+## What's NOT here (out of scope for now)
 
 The deliberately excluded surface:
 
 - No web app — desktop + TUI only.
 - No CLI runner — `httui run runbook.md --env=staging` is a v2 idea.
 - No Docker self-host — vault is a git repo; that's the sync server.
-- No formal block-execution lifecycle redesign — MVP "run / cancel"
-  is sufficient for v1.
+- No formal block-execution lifecycle redesign — the current
+  "run / cancel" is sufficient for now.
 
 ## Where to start as a contributor
 

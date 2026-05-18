@@ -88,7 +88,7 @@ in a `{{backend:address}}` reference:
 | Backend | Example | Meaning |
 |---|---|---|
 | `keychain` | `{{keychain:conn:pg:password}}` | OS keychain entry |
-| `1password` | `{{1password:op://Personal/db/password}}` | 1Password CLI lookup (Epic 16, planned) |
+| `1password` | `{{1password:op://Personal/db/password}}` | 1Password CLI lookup (planned) |
 | `pass` | `{{pass:databases/staging}}` | passwordstore.org / GPG agent (planned) |
 | `env` | `{{env:DB_URL}}` | OS env var (escape hatch) |
 
@@ -219,8 +219,8 @@ Hosts auto-detected from the remote URL: GitHub, GitLab.com,
 self-hosted GitLab (any `gitlab.*` host), Bitbucket, Gitea. The first
 three get the right URL shape (`/blob/`, `/-/blob/`, `/compare/`);
 Bitbucket and Gitea fall back to "open the remote in your browser"
-plus a copy-URL button — adding shape parsers for them is a v1.x
-follow-up, not a v1 blocker.
+plus a copy-URL button — adding shape parsers for them is a later
+follow-up, not a blocker.
 
 If the vault doesn't have an `origin` remote, the popover reports
 "No remote configured" and links into Workspace settings to add one.
@@ -235,7 +235,7 @@ The git workflow does the heavy lifting:
 - **One dev, two machines**: code/runbooks sync via git. Secrets
   are re-entered per machine — intentional, secrets never leave
   the box. Power users point at 1Password / pass to skip this
-  prompt (Epic 16, planned).
+  prompt (planned).
 
 ## What's a file vs SQLite
 

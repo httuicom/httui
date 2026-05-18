@@ -1,6 +1,6 @@
 # Performance baselines
 
-The numbers below are the user-felt latencies that v1 commits to.
+The numbers below are the user-felt latencies httui commits to.
 Regressions against any target should fail CI before they reach
 `main`. The harness that enforces this is the open follow-up of
 this document; the targets themselves are the contract.
@@ -91,7 +91,7 @@ in the run-history table but not in `block_results`. A cache-size cap
 
 ## Open follow-ups
 
-- **Bench harness** — Epic 33 Story 02 is partial done. The targets
+- **Bench harness** — not yet implemented. The targets
   above are committed; the criterion-based harness that enforces
   them in CI lands when the project picks a benchmarking crate.
   Two natural shapes:
@@ -101,10 +101,10 @@ in the run-history table but not in `block_results`. A cache-size cap
     flagged `#[ignore]` → no new dep, but lacks criterion's
     statistical analysis.
   Either ship; both reproduce the numbers above.
-- **CI integration** — Epic 33 Story 03. Run the bench on each PR;
+- **CI integration** — run the bench on each PR;
   alert on >20% regression vs main. Owns the GH Actions side once
   the harness exists.
-- **Real-hardware measurements** — Epic 33 Story 01. The targets
-  above are based on the v1 design; verifying them on the actual
+- **Real-hardware measurements** — the targets
+  above are based on the current design; verifying them on the actual
   M1 / Linux / Windows targets is hardware-bound work for the
   user. The numbers should be re-confirmed pre-launch.
