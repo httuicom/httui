@@ -222,17 +222,13 @@ jobs:
           mkdir -p "$tmp/tap/Casks"
           cat > "$tmp/tap/Casks/httui.rb" <<RUBY
           cask "httui" do
+            arch arm: "aarch64", intel: "x64"
+
             version "${VERSION}"
+            sha256 arm:   "${ARM_SHA}",
+                   intel: "${X64_SHA}"
 
-            on_arm do
-              sha256 "${ARM_SHA}"
-              url "${BASE}/${ARM_DMG}"
-            end
-            on_intel do
-              sha256 "${X64_SHA}"
-              url "${BASE}/${X64_DMG}"
-            end
-
+            url "${BASE}/httui_#{version}_#{arch}.dmg"
             name "httui notes"
             desc "Desktop markdown editor with executable HTTP/DB blocks"
             homepage "https://github.com/${REPO}"
