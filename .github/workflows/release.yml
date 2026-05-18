@@ -230,6 +230,8 @@ jobs:
             desc "Desktop markdown editor with executable HTTP/DB blocks"
             homepage "https://github.com/${REPO}"
 
+            auto_updates true
+
             app "httui.app"
           end
           RUBY

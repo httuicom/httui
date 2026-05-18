@@ -36,7 +36,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZEQkZGMEM4NjU1QUE5RUYKUldUdnFWcGx5UEMvL2JSdUY0QTlFQ3h1MkdCc1pUWnFDUVNuQzVsVnpTQ2hkN2hGSXN5ci9lcUkK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERGRkJGNEFDREI1Qjk5RUYKUldUdm1WdmJyUFQ3MzhjYmJRUUdJUUd4MXZZZ1ZZU2F5L0dDQ1NXOXVJKzFSRDhvVEJEbkViS20K",
       "endpoints": [
         "https://github.com/httuicom/httui/releases/latest/download/latest.json"
       ]
