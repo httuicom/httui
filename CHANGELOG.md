@@ -336,8 +336,7 @@ Settings → General.
   0aa2868, 9124ad4)
 - **E2E block type** — superseded by the HTTP block + run-history.
 - **Web-app and Docker-self-host roadmap items** — explicitly out of
-  scope for v1 (`docs-llm/v1/out-of-scope.md`); marketing landing
-  copy trimmed to match.
+  scope; marketing landing copy trimmed to match.
 
 ### Fixed
 

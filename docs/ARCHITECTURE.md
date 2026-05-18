@@ -3,8 +3,7 @@
 > Reflects the v1 file-backed, git-native architecture. The
 > foundation work for v1 is in place across the storage and secrets
 > layers; the React panels that consume the new file-backed stores
-> are still being cut over from the legacy SQLite path. See the
-> per-epic backlog under `docs-llm/v1/backlog/` for status.
+> are still being cut over from the legacy SQLite path.
 
 ## TL;DR
 
@@ -184,8 +183,7 @@ Decision / Consequences / References).
 
 ## What's NOT here (out of scope for v1)
 
-See [`docs-llm/v1/out-of-scope.md`](../docs-llm/v1/out-of-scope.md)
-for the deliberately excluded surface. Headlines:
+The deliberately excluded surface:
 
 - No web app — desktop + TUI only.
 - No CLI runner — `httui run runbook.md --env=staging` is a v2 idea.

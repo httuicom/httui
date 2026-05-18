@@ -8,8 +8,7 @@ prefs live in plain TOML files inside the vault.
 > **Status note (April 2026).** The v1 storage layer is in place and
 > the migration tooling described below is shippable. The React panels
 > still read from the legacy SQLite tables until the frontend cutover
-> lands (see Epic 19 / `docs-llm/v1/backlog/19-settings-split.md`).
-> Until that cutover is published, the safe upgrade path is
+> lands. Until that cutover is published, the safe upgrade path is
 > **inspect-only**: migrate, review the generated TOML, but expect
 > the running app to keep using SQLite as the source of truth.
 
@@ -184,7 +183,3 @@ for the full picture.
 - ADR 0001 — TOML schemas: `docs/adr/0001-toml-schemas.md`
 - ADR 0002 — secret references: `docs/adr/0002-secret-references.md`
 - ADR 0004 — local override mechanism: `docs/adr/0004-local-overrides.md`
-- Epic 12 (foundation): `docs-llm/v1/backlog/12-vault-migration-script.md`
-- Epic 19 (cutover): `docs-llm/v1/backlog/19-settings-split.md`
-- audit-005 — scope reduction (cutover moved to Epic 19):
-  `docs-llm/jaum-audit/005-epic-12-scope-reduction.md`
