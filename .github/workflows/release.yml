@@ -157,16 +157,20 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
           # macOS Developer ID codesign + notarization (V12 cenário 2).
-          # SCAFFOLD ONLY for v1: these secrets are unset, so
-          # tauri-action skips signing and ships an unsigned dev build
-          # (Gatekeeper bypass documented in docs/RELEASE.md). Set the
-          # secrets and the same workflow notarizes with no edits.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # OFF by default: the Apple env is only populated when the repo
+          # variable MACOS_SIGNING == 'true'. Otherwise it resolves to ''
+          # and tauri-action falls back to ad-hoc signing (unsigned dev
+          # build — Gatekeeper bypass + Homebrew cask cover it, see
+          # docs/RELEASE.md). This makes a lingering/broken org-level
+          # APPLE_CERTIFICATE secret unable to reach the build. To enable
+          # real signing: set the six secrets AND set repo variable
+          # MACOS_SIGNING=true, then re-tag — no further workflow edits.
+          APPLE_CERTIFICATE: ${{ vars.MACOS_SIGNING == 'true' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ vars.MACOS_SIGNING == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ vars.MACOS_SIGNING == 'true' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ vars.MACOS_SIGNING == 'true' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ vars.MACOS_SIGNING == 'true' && secrets.APPLE_TEAM_ID || '' }}
         with:
           projectPath: httui-desktop
           tagName: ${{ github.ref_name }}

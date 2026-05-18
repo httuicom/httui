@@ -17,7 +17,7 @@ triggered by pushing a `v*` tag.
 | Secret | Purpose | Unset behaviour |
 |---|---|---|
 | `TAURI_SIGNING_PRIVATE_KEY` | minisign key signing the updater artifacts (`latest.json` + `.sig`). Public key is pinned in `tauri.conf.json` → `plugins.updater.pubkey`. | No updater artifacts; in-app auto-update is inert. Installers still ship. |
-| `APPLE_CERTIFICATE` | Base64 of the Developer ID `.p12`. | macOS build is **unsigned** (see §5). |
+| `APPLE_CERTIFICATE` | Base64 of the Developer ID `.p12`. Only used when repo var `MACOS_SIGNING=true`. | macOS build is **unsigned**, ad-hoc signed (see §5). |
 | `APPLE_CERTIFICATE_PASSWORD` | `.p12` password. | — |
 | `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Name (TEAMID)`. | — |
 | `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | Notarization (app-specific password). | No notarization. |
@@ -81,10 +81,18 @@ these in the release notes / website):
   xattr -dr com.apple.quarantine /Applications/httui.app
   ```
 
+macOS signing is gated by the repo **variable** `MACOS_SIGNING`. While
+it is unset (or anything other than `true`) the workflow forces the
+`APPLE_*` env to empty regardless of what secrets exist — so a
+lingering/broken **org-level** `APPLE_CERTIFICATE` cannot reach the
+build and break it. The build ad-hoc signs and ships unsigned.
+
 When an Apple Developer ID is acquired ($99/yr): add the six
-`APPLE_*` secrets. `Entitlements.plist` (hardened runtime) is already
-referenced from `tauri.conf.json`. Re-tag — the same workflow signs
-and notarizes; Gatekeeper then accepts the build with no user steps.
+`APPLE_*` secrets **and** set the repo variable `MACOS_SIGNING=true`
+(`gh variable set MACOS_SIGNING --repo httuicom/httui --body true`).
+`Entitlements.plist` (hardened runtime) is already referenced from
+`tauri.conf.json`. Re-tag — the same workflow signs and notarizes;
+Gatekeeper then accepts the build with no user steps.
 
 ## 6. Windows
 
