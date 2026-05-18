@@ -39,7 +39,7 @@ make wipe-config                   # Apaga config persistente do app (notes.db, 
                                    # Mantém keychain. Útil pra voltar ao empty state entre testes manuais.
 ```
 
-## Empty-state + first-run flow (V1 vertical 1)
+## Empty-state + first-run flow
 
 Mounted in `AppShell` when `vaultPath === null`:
 
@@ -151,7 +151,7 @@ Only one survives:
 - `src/components/layout/ConflictBanner.tsx` — banner for externally modified files
 - `src/components/layout/git/` — Git, two complementary surfaces over the shared `useGitStore` (V10.1):
   - **Side panel** (`GitSidePanel`, V10.1): right collapsible column (Box, NOT Dialog — preserves CM6 focus), mounted in `AppShell` like ChatPanel; open state persisted (`useSettingsStore.gitSidePanelOpen`). The TopBar `LuGitBranch` button toggles it. Composes `GitStatusHeader` + `GitFileList` + `GitCommitForm` + `GitSyncBar` + `GitSidePanelHistory` + a "Details" button → pane-tab. Sub-components extracted for SRP: `GitSyncBar`, `GitSidePanelHistory`, `GitMetricsStrip`, `GitCommitTemplateField`.
-  - **Pane-tab** (V10): `GitPanelContainer` (data/dispatch) → `GitPanel` (Status/Log; `GitMetricsStrip` band on top — V10.1 cenário 6) composing carry sub-components (GitStatusHeader/GitFileList/GitCommitForm/GitLogList/GitLogFilter/GitCommitDiffViewer/GitBranchPicker/GitSyncButtons/GitConflictBanner/GitConflictResolver). Still a `SingletonTabKind = "git"` pane-tab; opened from the side panel's Details/View-all (not the TopBar button anymore).
+  - **Pane-tab**: `GitPanelContainer` (data/dispatch) → `GitPanel` (Status/Log; `GitMetricsStrip` band on top) composing carry sub-components (GitStatusHeader/GitFileList/GitCommitForm/GitLogList/GitLogFilter/GitCommitDiffViewer/GitBranchPicker/GitSyncButtons/GitConflictBanner/GitConflictResolver). Still a `SingletonTabKind = "git"` pane-tab; opened from the side panel's Details/View-all (not the TopBar button anymore).
   - **Shared hooks** (single source — both surfaces): `useGitCommit`, `useGitStage`, `useGitSync` (stage-all → commit → pull `--ff-only` → push). Commit-message prefill: `lib/blocks/commit-template.ts` (default + `{{notes}}/{{count}}/{{date}}`). Push-error formatting: `lib/blocks/git-error.ts`.
   - `ShareMenu` (status bar + panel toolbar) wraps `share/SharePopover` via `useShareRepoUrl`. Branch switcher lives in `BranchMenu` (status bar). Conflict regions in the markdown editor are decorated by `src/lib/codemirror/cm-merge-conflict.tsx`. Backend: `httui-core/src/git/` (`conflict.rs` = `git show :1|:2|:3`; `git_push` has `set_upstream`; `git_pull` has `ff_only`).
 - `src/components/layout/TopBar.tsx` — vault selector, environment switcher
@@ -206,9 +206,9 @@ Info-string tokens: `alias`, `timeout`, `display`, `mode` (`raw|form`). Canonica
 - **V1 timing:** `total_ms` (full execution) + `ttfb_ms` (split between `req.send()` returning headers and the first body chunk). `dns_ms`/`connect_ms`/`tls_ms` stay `None` and `connection_reused` stays `false` — the full breakdown requires swapping reqwest for isahc/libcurl, deferred to V2 (see `docs/http-timing-isahc-future.md` for criteria + skeleton).
 - **Body viewer:** `HttpBodyCM6Viewer` is a CodeMirror 6 read-only `EditorView` with `oneDarkHighlightStyle` and language picked from Content-Type (`json`/`xml`/`html`/`svg`, with the legacy heuristic as fallback). The `lowlight` package itself stays in `package.json` — still used by `ChatMarkdown`.
 
-**Run history (Story 24.6):** `block_run_history` SQLite table (migration `009`) stores **metadata only** (method, URL canonical, status, sizes, elapsed, outcome, timestamp) — never request/response bodies. Trim: 10 rows per (file_path, alias). Drawer shows last N. Tauri commands: `list_block_history`, `insert_block_history`, `purge_block_history`.
+**Run history:** `block_run_history` SQLite table (migration `009`) stores **metadata only** (method, URL canonical, status, sizes, elapsed, outcome, timestamp) — never request/response bodies. Trim: 10 rows per (file_path, alias). Drawer shows last N. Tauri commands: `list_block_history`, `insert_block_history`, `purge_block_history`.
 
-**Code generation (Story 24.7):** `src/lib/blocks/http-codegen.ts` exports `toCurl`, `toFetch`, `toPython`, `toHTTPie`, `toHttpFile`. Snippets are pre-computed in panel state (resolved refs included) so the clipboard write happens synchronously inside the user-gesture window — avoid the gotcha where `await` between click and `clipboard.writeText` silently denies. Status-bar `⤓` menu offers all 5; `Mod-Shift-c` shortcuts directly to cURL.
+**Code generation:** `src/lib/blocks/http-codegen.ts` exports `toCurl`, `toFetch`, `toPython`, `toHTTPie`, `toHttpFile`. Snippets are pre-computed in panel state (resolved refs included) so the clipboard write happens synchronously inside the user-gesture window — avoid the gotcha where `await` between click and `clipboard.writeText` silently denies. Status-bar `⤓` menu offers all 5; `Mod-Shift-c` shortcuts directly to cURL.
 
 **Slash commands:** `/HTTP Request`, `/HTTP GET`, `/HTTP POST`, `/HTTP PUT`, `/HTTP DELETE` insert templates in the HTTP-message format with cursor on the request line.
 
@@ -307,18 +307,15 @@ PermissionBanner (`src/components/chat/PermissionBanner.tsx`): scope selector (O
 - `docs/SPEC.md` — Full product specification (features, data models, Tauri commands, UI details). Some references to TipTap/E2E may be stale.
 - `docs/ARCHITECTURE.md` — Plugin architecture description (aspirational in places — see Architecture section above).
 - `docs/chat-design.md` — Chat system technical design (1000 lines): protocol spec, session lifecycle, streaming, permissions, MCP integration.
-- `docs/backlog/` — Epics with stories and tasks. `README.md` has dependency graph and implementation order.
 
 ## Compact Instructions
 
 When auto-compacting this conversation, **preserve at all costs**:
 
-- Active epic and story (look at the most recent commit message + `docs-llm/v1/backlog/README.md` for ground truth)
-- Quality gate state — whether the last `make quality-check` passed, the threshold (80% / 600 lines), and any active `// size:exclude file` / `// coverage:exclude file` opt-outs
-- Recent decisions logged in `docs-llm/jaum-audit/` (autonomous-mode audit trail) — keep the gist; details can be re-read
-- The Definition-of-Done rules (`docs-llm/v1/definition-of-done.md`) — non-negotiable
-- The `docs-llm/v1/out-of-scope.md` list — never touch these
-- For autonomous mode (`/auto-start`): the loop discipline — decide-and-audit, never ask, never push to remote, never bypass gates by editing scripts
+- The current task/goal and any in-progress work not yet committed
+- Quality gate state — whether the last `make quality-check` passed and the active threshold (80% coverage / 600 lines per touched file)
+- Decisions made this session and their rationale (keep the gist; details can be re-read from the commits)
+- Any non-negotiable constraints the user has stated
 
 You can drop:
 - Verbose tool output (cargo build/test stdout, file listings)
@@ -326,4 +323,4 @@ You can drop:
 - Old plan-mode discussions that already resulted in committed code
 - Step-by-step user prompts/agreements once the action is reflected in commits
 
-When in doubt, re-read the active epic file from `docs-llm/v1/backlog/` rather than relying on summarized memory of it.
+When in doubt, prefer re-reading the current code and commits over relying on summarized memory.
