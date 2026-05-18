@@ -41,6 +41,34 @@ Everything serializes to standard `.md` files. Read them in vim, diff them in gi
 
 **Result caching** — Results cached by content hash. Rerun only what changed.
 
+## Installation
+
+Pick whichever you prefer — both end up at the same build.
+
+**Install script** (macOS & Linux) — one line, no Homebrew:
+
+```sh
+curl -fsSL https://httui.com/install.sh | sh
+```
+
+**Homebrew** (macOS & Linux):
+
+```sh
+brew tap httuicom/httui
+brew install --cask httui
+```
+
+**Manual** — download a `.dmg` (macOS), `.msi`/`.exe` (Windows), or
+`.deb`/`.rpm`/`.AppImage` (Linux) from
+[Releases](https://github.com/httuicom/httui/releases).
+
+> The macOS build is an unsigned developer build. The install script
+> and the Homebrew cask both clear the Gatekeeper quarantine for you.
+> A manually downloaded `.dmg` needs a one-time
+> `xattr -dr com.apple.quarantine /Applications/httui.app`
+> (or right-click → Open). In-app auto-update keeps it current after
+> the first install.
+
 ## 5-minute tour
 
 1. Download the latest release from [Releases](https://github.com/httuicom/httui/releases) and open a folder of markdown files.
