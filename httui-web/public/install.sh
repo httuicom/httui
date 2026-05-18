@@ -11,7 +11,6 @@
 set -eu
 
 REPO="httuicom/httui"
-API="https://api.github.com/repos/${REPO}/releases/latest"
 
 say() { printf '%s\n' "$*"; }
 err() { printf 'install: %s\n' "$*" >&2; exit 1; }
@@ -21,10 +20,20 @@ command -v curl >/dev/null 2>&1 || err "curl is required"
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 
-# releases/latest excludes pre-releases, so this is always a stable tag.
-TAG="$(curl -fsSL "$API" | grep '"tag_name"' | head -1 \
-  | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')"
-[ -n "${TAG:-}" ] || err "could not resolve the latest release"
+# Resolve the latest stable tag via the github.com redirect (NOT
+# api.github.com — that has a 60/hr unauthenticated rate limit and is
+# often blocked by VPNs/proxies). github.com/<repo>/releases/latest
+# 302-redirects to .../releases/tag/vX.Y.Z; releases/latest excludes
+# pre-releases. Override with HTTUI_VERSION=x.y.z to skip resolution.
+if [ -n "${HTTUI_VERSION:-}" ]; then
+  TAG="v${HTTUI_VERSION#v}"
+else
+  TAG="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+    "https://github.com/${REPO}/releases/latest" 2>/dev/null)"
+  TAG="${TAG##*/}"
+fi
+[ -n "${TAG:-}" ] && [ "$TAG" != "latest" ] \
+  || err "could not resolve the latest release (set HTTUI_VERSION=x.y.z to override)"
 VER="${TAG#v}"
 
 tmp="$(mktemp -d)"
@@ -58,8 +67,10 @@ case "$OS" in
     rm -rf "$dest/httui.app"
     cp -R "$app" "$dest/"
     hdiutil detach "$mnt" >/dev/null 2>&1 || true
-    # Ad-hoc-signed build: clear quarantine so Gatekeeper doesn't block it.
-    xattr -dr com.apple.quarantine "$dest/httui.app" 2>/dev/null || true
+    # Ad-hoc-signed build: clear quarantine so Gatekeeper doesn't
+    # block it. macOS `xattr` has no portable recursive flag (`-r` is
+    # rejected on some versions), so recurse with find instead.
+    find "$dest/httui.app" -exec xattr -d com.apple.quarantine {} + >/dev/null 2>&1 || true
     say ""
     say "Installed httui ${VER} → $dest/httui.app"
     say "Launch:  open \"$dest/httui.app\""
