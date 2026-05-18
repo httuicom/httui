@@ -1,6 +1,7 @@
 import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
 
 import {
+  FONT_MARKDOWN_BODY,
   FONT_MONO,
   FONT_SANS,
   FONT_SERIF,
@@ -31,6 +32,7 @@ const config = defineConfig({
       fonts: {
         body: { value: FONT_SANS },
         heading: { value: FONT_SERIF },
+        markdown: { value: FONT_MARKDOWN_BODY },
         mono: { value: FONT_MONO },
         serif: { value: FONT_SERIF },
       },

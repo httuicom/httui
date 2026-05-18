@@ -17,7 +17,10 @@ export const editorTheme = EditorView.theme(
       backgroundColor: "var(--chakra-colors-bg)",
     },
     "&.cm-editor > .cm-scroller > .cm-content": {
-      fontFamily: "var(--chakra-fonts-body)",
+      // Markdown prose font (FONT_MARKDOWN_BODY → Latin Modern Roman).
+      // Fence lines (HTTP/DB/code) override this with --chakra-fonts-mono;
+      // numbered headings use --chakra-fonts-serif.
+      fontFamily: "var(--chakra-fonts-markdown)",
       padding: "24px 32px",
       caretColor: "var(--chakra-colors-fg)",
       color: "var(--chakra-colors-fg)",
