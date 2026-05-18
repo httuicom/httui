@@ -10,26 +10,44 @@ and come back.
 ## Install
 
 httui is a desktop app (Tauri) plus a terminal binary (TUI).
-Pre-built installers ship per release; you can also build from
-source.
+Pre-built installers ship on every release; you can also build
+from source.
 
-### From a release (recommended once v1.0 ships)
+### Install script (macOS & Linux)
+
+```bash
+curl -fsSL https://httui.com/install.sh | sh
+```
+
+Resolves the latest release and installs the macOS `.app` (clearing
+the Gatekeeper quarantine) or the Linux AppImage.
+
+### Homebrew (macOS & Linux)
+
+```bash
+brew tap httuicom/httui
+brew install --cask httui
+```
+
+### From a release
+
+Download a bundle from the
+[GitHub Releases page](https://github.com/httuicom/httui/releases):
 
 | Platform | Bundle |
 |---|---|
-| macOS (Apple Silicon) | DMG — `httui-aarch64-apple-darwin.dmg` |
-| macOS (Intel) | DMG — `httui-x86_64-apple-darwin.dmg` |
-| Linux | AppImage + `.deb` |
-| Windows | MSI |
+| macOS (Apple Silicon) | `httui_<version>_aarch64.dmg` |
+| macOS (Intel) | `httui_<version>_x64.dmg` |
+| Linux | `.AppImage`, `.deb`, `.rpm` |
+| Windows | `.msi`, `.exe` (NSIS) |
 
-Download from the [GitHub Releases page](https://github.com/httuicom/httui/releases),
-double-click to install. The DMG and MSI ship code-signed once
-Epic 34 (developer cert work) lands; until then macOS may show
-a Gatekeeper prompt and Windows SmartScreen may warn on first
-install — both are safe to dismiss.
-
-Homebrew (`brew install httui`) and winget submissions are
-upcoming with v1.0; track progress in Epic 35 Story 04.
+macOS and Windows builds are **unsigned** (no Apple Developer ID /
+Authenticode). The install script and the Homebrew cask clear the
+Gatekeeper quarantine for you; a manually downloaded `.dmg` needs a
+one-time `xattr -dr com.apple.quarantine /Applications/httui.app`
+(or right-click → Open). On Windows, SmartScreen warns on first
+run — **More info → Run anyway**. In-app auto-update keeps it
+current after the first install.
 
 ### From source
 
@@ -63,7 +81,7 @@ When httui boots without an active vault it shows three options:
   treats it as a vault and activates it.
 - **Clone** — paste a git remote URL. httui clones it locally
   and opens. (Git operations route through the same `httui-core`
-  git module the in-app panel uses — Epic 48 owns the panel UI.)
+  git module the in-app panel uses.)
 - **Create** — pick an empty folder. httui scaffolds the
   directory layout: `runbooks/`, `connections.toml`,
   `envs/local.toml`, `.httui/workspace.toml`, and a `.gitignore`

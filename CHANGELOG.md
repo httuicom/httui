@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Post-1.0 work lands here.
+Post-0.4.0 work lands here.
 
 ## [0.4.0] - 2026-05-18
 
-First public release. httui notes is a git-native, local-first desktop
+First public release. httui is a git-native, local-first desktop
 markdown editor with executable HTTP and DB blocks inline in documents
 and an embedded Claude chat assistant. Vaults are plain `.md` files
 plus a `.httui/` sidecar — no proprietary store, no account.
@@ -22,9 +22,9 @@ create), the workbench shell + design system, refined Connections /
 Variables / Environments master-detail surfaces, the document
 DocHeader (frontmatter + tags), the Git side panel + share-via-repo,
 the quick popovers (⌘E / connection chip / `{{var}}` / ⌘⇧V / clone
-env), and the signed/cross-platform release pipeline.
+env), and the unsigned, cross-platform release pipeline.
 
-Distribution: macOS `.dmg` (unsigned developer build for v1 — see
+Distribution: macOS `.dmg` (unsigned developer build — see
 `docs/RELEASE.md` for the Gatekeeper bypass), Windows `.msi` / `.exe`,
 Linux `.deb` / `.rpm` / AppImage, a Homebrew cask, and a winget
 manifest. In-app auto-update is served from GitHub Releases on the
