@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Post-1.0 work lands here.
 
-## [1.0.0] - 2026-05-17
+## [0.4.0] - 2026-05-18
 
 First public release. httui notes is a git-native, local-first desktop
 markdown editor with executable HTTP and DB blocks inline in documents
@@ -381,5 +381,5 @@ Settings → General.
   blocked on real hardware testing. Until then, the keychain prompt
   in dev/unsigned builds is documented but accepted (see audit-008).
 
-[Unreleased]: https://github.com/httuicom/httui/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/httuicom/httui/releases/tag/v1.0.0
+[Unreleased]: https://github.com/httuicom/httui/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/httuicom/httui/releases/tag/v0.4.0
