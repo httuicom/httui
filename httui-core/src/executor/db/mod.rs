@@ -21,7 +21,7 @@ struct DbParams {
     #[serde(default = "default_fetch_size")]
     fetch_size: u32,
     timeout_ms: Option<u64>,
-    /// `explain=true` info-string token (Epic 53 Story 01). When set,
+    /// `explain=true` info-string token. When set,
     /// the user's SQL is prefixed with the driver's `EXPLAIN ANALYZE …
     /// FORMAT JSON` form via `crate::explain::prefix_explain_sql`, the
     /// query runs once, and the JSON plan is extracted from the result
@@ -30,13 +30,13 @@ struct DbParams {
     /// surface `ExplainError::Unsupported` verbatim to the consumer.
     #[serde(default)]
     explain: bool,
-    /// Session-scoped host override (V11 cenário 2). In-memory on the
-    /// frontend; passed per run. When set (with/without
+    /// Session-scoped host override. In-memory on the frontend;
+    /// passed per run. When set (with/without
     /// `session_port_override`) the run uses an override-keyed pool —
     /// the persisted connection record is never touched.
     #[serde(default)]
     session_host_override: Option<String>,
-    /// Session-scoped port override (V11 cenário 2).
+    /// Session-scoped port override.
     #[serde(default)]
     session_port_override: Option<i64>,
 }
@@ -97,7 +97,7 @@ impl DbExecutor {
                 .unwrap_or(30_000)
         };
 
-        // EXPLAIN swap (Epic 53 Story 01). When `explain=true`, replace
+        // EXPLAIN swap. When `explain=true`, replace
         // the user's SQL with the driver-prefixed form so the executor
         // returns the plan instead of the regular result set. Reject
         // multi-statement up-front — `EXPLAIN ANALYZE` over a script
@@ -231,7 +231,7 @@ impl DbExecutor {
 
         let results = results?;
 
-        // EXPLAIN extraction (Epic 53 Story 01). The helper short-
+        // EXPLAIN extraction. The helper short-
         // circuits when `explain=false`; when true, it pulls the JSON
         // plan from the single-row result the driver returned and
         // applies the 200 KB cap. Calling unconditionally keeps the
@@ -932,7 +932,7 @@ mod tests {
         assert_eq!(resp.results.len(), 1);
     }
 
-    // ───── V11 cenário 2: session host:port override ─────
+    // ───── session host:port override ────────────────────
 
     #[tokio::test]
     async fn test_session_override_runs_against_override_keyed_pool() {
@@ -961,12 +961,12 @@ mod tests {
         }
     }
 
-    // ───── Epic 53 Story 01: explain wiring ─────
+    // ───── explain wiring ───────────────────────
 
     #[tokio::test]
     async fn test_explain_on_sqlite_returns_unsupported_error() {
-        // SQLite is explicitly unsupported per Epic 53 spec — the
-        // prefix builder errors out and the executor surfaces the
+        // SQLite is explicitly unsupported per spec — the prefix
+        // builder errors out and the executor surfaces the
         // driver name to the consumer.
         let (manager, conn_id) = setup_test_env().await;
         let executor = DbExecutor::new(manager);

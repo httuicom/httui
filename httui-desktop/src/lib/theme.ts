@@ -20,8 +20,7 @@ import {
 //   _light → ":root &, .light &"
 // We rely on those defaults — overriding `conditions` previously
 // caused dotted scale tokens (`bg.1`, `accent.soft`, `sel`) to fail
-// in `<button>` backgrounds, `Menu.Content`, and `_hover`. See
-// docs-llm/v2/known-issues.md#7 for the audit.
+// in `<button>` backgrounds, `Menu.Content`, and `_hover`.
 const pair = (dark: string, light: string) => ({
   value: { _dark: dark, _light: light },
 });

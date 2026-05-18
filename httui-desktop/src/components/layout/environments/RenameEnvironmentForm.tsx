@@ -1,4 +1,4 @@
-// Canvas §6 Environments — rename inline form (Epic 44 Story 04).
+// Canvas §6 Environments — rename inline form.
 //
 // Pre-filled with the source name. Reuses `validateEnvName` so the
 // rejection set is identical to create/clone. Important: the source

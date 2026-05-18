@@ -2114,7 +2114,7 @@ fn build_messages_lines(b: &BlockNode) -> Vec<Line<'static>> {
 }
 
 /// Plan tab — renders `cached_result["plan"]` populated by `<C-x>`
-/// (EXPLAIN, Story 05.2). When the plan looks like a postgres
+/// (EXPLAIN). When the plan looks like a postgres
 /// EXPLAIN response (`results[0].rows` of `{"QUERY PLAN": "..."}`),
 /// unwrap each row to a single tree-formatted line so `->` arrows
 /// and indentation read naturally; fall back to pretty-printed JSON

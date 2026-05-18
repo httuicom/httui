@@ -1,6 +1,6 @@
 //! Pool lifecycle, TTL eviction, status emission.
 //!
-//! Extracted from `db::connections` (Epic 20a Story 01 — first split).
+//! Extracted from `db::connections`.
 //! `connections.rs` was 2894 L mixing 7 concerns; this file owns the
 //! pool-management one. Holds an `Arc<dyn ConnectionLookup>` (file-
 //! backed in production via `vault_config::ConnectionsStore`,
@@ -24,7 +24,7 @@ pub trait StatusEmitter: Send + Sync {
     fn emit_connection_status(&self, connection_id: &str, name: &str, status: &str);
 }
 
-/// Session-scoped host:port override for a connection (V11 cenário 2).
+/// Session-scoped host:port override for a connection.
 ///
 /// In-memory on the frontend (`connectionSessionOverride` store), passed
 /// per DB execution through `DbParams`. Never persisted — the vault
@@ -64,7 +64,7 @@ pub struct PoolManager {
     /// (`SqliteLookup`). See `db/lookup.rs`.
     lookup: Arc<dyn ConnectionLookup>,
     /// Retained only for `cleanup_query_log` (the `query_log` SQLite
-    /// table; future Epic 20a Story owns the move-out and the field
+    /// table; future Story owns the move-out and the field
     /// disappears with it).
     app_pool: SqlitePool,
     pools: RwLock<HashMap<String, PoolEntry>>,
@@ -116,7 +116,7 @@ impl PoolManager {
     /// supplied the pool is created against the overridden host/port and
     /// cached under a composite key — the base `connection_id` pool is
     /// never mutated, so non-overridden runs (and a later cleared
-    /// override) keep using it untouched. (V11 cenário 2.)
+    /// override) keep using it untouched.
     pub async fn get_pool_with_override(
         &self,
         connection_id: &str,
@@ -519,7 +519,7 @@ mod tests {
         assert_eq!(count, 5, "old rows should be deleted, recent ones kept");
     }
 
-    // ───── V11 cenário 2: host:port session override ─────
+    // ───── host:port session override ────────────────────
 
     #[test]
     fn host_port_override_is_empty_only_when_both_none() {

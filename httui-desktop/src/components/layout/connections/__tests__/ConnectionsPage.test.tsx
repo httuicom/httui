@@ -152,7 +152,7 @@ describe("ConnectionsPage", () => {
     // Detail panel starts on empty state
     expect(screen.getByTestId("connections-detail-empty")).toBeInTheDocument();
     await userEvent.setup().click(screen.getByTestId("connection-row-a"));
-    // Slice 2 (Story 02): with a real Connection in the list,
+    // Slice 2 with a real Connection in the list,
     // selection routes into the loaded credentials panel.
     expect(
       screen.getByTestId("connections-detail-loaded").textContent,

@@ -1,7 +1,7 @@
-// ⌘⇧V quick "new variable" popover (V11 cenário 4).
+// ⌘⇧V quick "new variable" popover.
 //
 // cmd+K-style centered Portal+Box (NOT Dialog — keeps CM6
-// focusable, cenário 6). Type selector (Text/Number/Bool/Secret) +
+// focusable). Type selector (Text/Number/Bool/Secret) +
 // template-helper inserts ({{uuid()}}/{{now()}}/{{base64()}}/
 // {{env()}}/{{$prev…}}). Save → useEnvironmentStore.setVariable on
 // the active env (Secret ⇒ is_secret). Esc / outside-click cancels.
@@ -31,8 +31,8 @@ export function NewVariablePopover() {
   const close = useNewVariablePopoverStore((s) => s.closeForm);
   if (!open) return null;
   // Return focus to the last-focused editor so typing keeps flowing
-  // into CM6 after the popover closes (V11 cenário 6 — no Dialog
-  // trap; this mirrors closeRefPopover's view.focus()).
+  // into CM6 after the popover closes (no Dialog trap; this
+  // mirrors closeRefPopover's view.focus).
   const handleClose = () => {
     close();
     getActiveEditor()?.focus();

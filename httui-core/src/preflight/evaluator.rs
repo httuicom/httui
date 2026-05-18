@@ -1,4 +1,4 @@
-//! Pre-flight evaluator (Epic 51 Story 02).
+//! Pre-flight evaluator.
 //!
 //! Pure logic — `EvaluationContext` carries the in-memory snapshots
 //! the consumer collected (active env vars, branch, connection
@@ -7,7 +7,7 @@
 //! `FileExists` and `Command` checks need filesystem / process
 //! access; the pure evaluator returns `Skip { reason: "needs FS/proc
 //! evaluation" }` for those — a thin consumer-side wrapper layers
-//! the syscalls on top once Story 03's UI mount lands. Keeping them
+//! the syscalls on top once the UI mount lands. Keeping them
 //! out of the pure layer keeps the evaluator deterministic and
 //! easy to test.
 //!

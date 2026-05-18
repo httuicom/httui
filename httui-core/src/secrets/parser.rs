@@ -11,10 +11,10 @@
 //! ([`crate::db::keychain::resolve_secret_ref`] and
 //! [`crate::vault_config::validate::is_secret_ref`]) stay as thin
 //! wrappers so existing callers don't break — they delegate here in a
-//! follow-up commit (Epic 19 cutover or earlier opportunistic work).
+//! follow-up commit (or earlier opportunistic work).
 
 /// Backends recognised by the parser. New backends are added when their
-/// epic lands (Epic 16 introduces `1password`, etc.).
+/// epic lands (introduces `1password`, etc.).
 const KNOWN_BACKENDS: &[&str] = &["keychain", "1password", "pass", "env"];
 
 /// Returns `true` when `s` is a structurally valid `{{backend:address}}`

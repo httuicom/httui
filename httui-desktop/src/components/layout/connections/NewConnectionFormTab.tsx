@@ -1,5 +1,4 @@
-// Canvas §5 — "Formulário" tab for the "Nova conexão" modal
-// (Epic 42 Story 06 — Phase 2).
+// Canvas §5 — "Formulário" tab for the "Nova conexão" modal.
 //
 // Renders the Postgres-shape field grid: Nome (full row); Host
 // (2fr) + Porta (90px); Database + Usuário; Senha (password) with

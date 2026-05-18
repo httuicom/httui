@@ -1,4 +1,4 @@
-// Canvas §6 Environments — page composition (Epic 44 Story 01).
+// Canvas §6 Environments — page composition.
 //
 // Header (serif H1 + "+ New environment" button) + grid of cards.
 // Pure presentational; the consumer plugs the env list, the active
@@ -19,7 +19,7 @@ export interface EnvironmentsPageProps {
   onClone?: (filename: string) => void;
   onRename?: (filename: string) => void;
   onDelete?: (filename: string) => void;
-  /** Slot for the inline "+ New environment" form (Story 02). */
+  /** Slot for the inline "+ New environment" form. */
   inlineFormSlot?: ReactNode;
   /** Form rendered as a floating popover anchored to the card whose
    * filename matches `anchoredFilename`. Outside-click + Esc fire

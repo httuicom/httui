@@ -1,4 +1,4 @@
-//! Template registry — Epic 41 Story 04 carry.
+//! Template registry — carry.
 //!
 //! The empty-state Templates card needs a list of available
 //! templates to render its `+ N templates →` count and to seed the

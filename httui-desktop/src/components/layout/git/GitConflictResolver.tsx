@@ -1,4 +1,4 @@
-// V10 cenário 6 — 3-way merge resolver.
+// 3-way merge resolver.
 //
 // Reuses @codemirror/merge (same lib the chat DiffViewer mounts).
 // The left pane is OURS and is editable — the user shapes it into

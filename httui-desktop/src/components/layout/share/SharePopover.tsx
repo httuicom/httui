@@ -1,4 +1,4 @@
-// Epic 49 Story 01 — Share popover.
+// Share popover.
 //
 // Pure presentational. Consumer (git panel header) fetches the
 // configured remotes via `git remote -v` (Tauri command — already
@@ -40,7 +40,7 @@ export interface SharePopoverProps {
    *  Open. Consumer routes to the Tauri shell opener. */
   onOpen?: (url: string) => void;
   /** Fires when the user clicks the "Configure remote" hint in the
-   *  empty state — consumer routes to Epic 19 workspace settings. */
+   * empty state — consumer routes to workspace settings. */
   onOpenWorkspaceSettings?: () => void;
 }
 

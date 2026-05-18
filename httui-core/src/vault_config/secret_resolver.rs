@@ -7,7 +7,7 @@
 //! owns that bridge so neither store repeats the parsing or keychain
 //! plumbing inline.
 //!
-//! Extracted in Epic 20a Story 02 from `connections_store.rs` (where
+//! Extracted from `connections_store.rs` (where
 //! it lived as `ensure_password_ref` / `parse_keychain_ref` /
 //! `resolve_password_ref` / `format_password_ref`). The same module is
 //! reused by `environments_store.rs` for env-var secrets.

@@ -3,7 +3,7 @@
 // Expandable card: collapsed state shows the icon/title/body and a
 // CTA pill; expanded state shows a parent-folder picker + name input
 // + Create submit. Consumer wires `onCreate(parent, name)` to the
-// Tauri `create_vault` command (V1 cenário 3).
+// Tauri `create_vault` command.
 
 import { useState, useCallback } from "react";
 import { Box, HStack, Stack, Text, chakra } from "@chakra-ui/react";

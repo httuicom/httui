@@ -41,8 +41,8 @@ pub struct WorkspaceDefaults {
 
 /// Per-field origin marker returned alongside [`WorkspaceDefaults`] by
 /// [`super::workspace_store::WorkspaceStore::defaults_with_sources`].
-/// Powers the "overridden locally" badge in the Settings UI (V3
-/// cenário 3): a `Local` source means the value lives in
+/// Powers the "overridden locally" badge in the Settings UI: a
+/// `Local` source means the value lives in
 /// `workspace.local.toml`, not the committed base file.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

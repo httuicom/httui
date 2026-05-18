@@ -1,4 +1,4 @@
-// Run-all assertion summary — Epic 45 Story 05.
+// Run-all assertion summary.
 //
 // Presentational. Consumes the pure `aggregateAssertionResults`
 // output. Mounted at the bottom of the run-all stream when the runs

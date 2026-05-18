@@ -4,12 +4,11 @@
 // logic (file-backed CRUD, mtime cache, atomic write, secret
 // resolution) lives in `httui_core::vault_config::environments_store`
 // at >80% coverage. Same rationale as `vault_config_commands.rs`
-// (audit-002). Re-evaluated by Epic 20a Story 05 when the per-domain
+// Re-evaluated when the per-domain
 // command split adds an integration harness with a fake Tauri runtime.
 // Opt-out justified in audit-016.
 
-//! Environment Tauri commands — file-backed cutover (Epic 19 Story 02
-//! Phase 2; audit-015).
+//! Environment Tauri commands — file-backed cutover.
 //!
 //! Wire-compat with the legacy `db::environments` shape so the React
 //! frontend doesn't need changes:
@@ -36,7 +35,7 @@ use httui_core::vault_config::environments_store::SetVarInput;
 use super::vault_stores::VaultStoreRegistry;
 
 /// Wire-compat: matches the legacy `db::environments::Environment` shape,
-/// plus canvas §6 metadata (Story 03) — `description`, `temporary`,
+/// plus canvas §6 metadata `description`, `temporary`,
 /// `connections_used`. Older frontend code that destructures only the
 /// legacy fields keeps working; the Environments page reads the new
 /// fields directly.

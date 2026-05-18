@@ -4,14 +4,14 @@ use sqlx::Row;
 use uuid::Uuid;
 
 // Pool lifecycle + status emission moved to `db::pool_manager`
-// (Epic 20a Story 01 first split). Re-exported here so the existing
+// Re-exported here so the existing
 // `use httui_core::db::connections::{PoolManager, StatusEmitter}`
 // callers keep compiling without a sweeping import rewrite.
 pub use super::pool_manager::{HostPortOverride, PoolManager, StatusEmitter};
 
 // `DatabasePool` enum + lifecycle helpers (`create_pool`, builders,
-// validators, sanitizer) moved to `db::pool` (Epic 20a Story 01 —
-// fourth split). Re-exported here so existing imports compile.
+// validators, sanitizer) moved to `db::pool`. Re-exported here so
+// existing imports compile.
 #[cfg(test)]
 use super::pool::validate_bind_values;
 use super::pool::validate_sqlite_path;
@@ -126,7 +126,7 @@ pub struct UpdateConnection {
 }
 
 // Query error sanitization + location extraction moved to
-// `db::query_error` (Epic 20a Story 01 — second split). Re-exports
+// `db::query_error`. Re-exports
 // keep existing imports compiling.
 pub(crate) use super::query_error::sanitize_query_error;
 pub use super::query_error::{
@@ -386,14 +386,14 @@ fn validate_connection_fields(
 }
 
 // Query execution dispatcher + DTOs + bind validation moved to
-// `db::pool` (Epic 20a Story 01 — eighth split). Re-exports keep
+// `db::pool`. Re-exports keep
 // `httui_core::db::connections::{QueryResult, ColumnInfo, JsonRow}`
 // working for downstream consumers (executor/db, blocks/db_export).
 pub use super::pool::{ColumnInfo, JsonRow, QueryResult};
 pub(crate) use super::pool_exec_sqlite::sqlite_row_to_json;
 
 // SQL scanner + statement splitter + placeholder helpers moved to
-// `db::sql_scanner` (Epic 20a Story 01 — third split). Re-exports
+// `db::sql_scanner`. Re-exports
 // keep existing imports compiling.
 pub(crate) use super::sql_scanner::contains_multiple_statements;
 pub use super::sql_scanner::{count_placeholders, normalize_placeholders_to_pg, split_statements};
@@ -571,7 +571,7 @@ mod tests {
     // build_pg_connect_options / validate_sqlite_path /
     // validate_mysql_database_name / normalize_placeholders tests
     // moved alongside the implementations (`db::pool` and
-    // `db::sql_scanner`) — Epic 20a Story 01.
+    // `db::sql_scanner`).
 
     #[tokio::test]
     async fn test_execute_select_sqlite() {
@@ -687,16 +687,14 @@ mod tests {
         assert_eq!(result.rows[0][1], serde_json::json!("charlie"));
     }
 
-    // Pool config validation tests moved to `db::pool::tests`
-    // (Epic 20a Story 01 — fourth extraction).
+    // Pool config validation tests moved to `db::pool::tests`.
 
     // SQL-scanner / split_statements / contains_multiple_statements
     // tests moved to `db::sql_scanner::tests` along with the
-    // implementations (Epic 20a Story 01 — third extraction).
+    // implementations.
 
     // QueryErrorLocation / position_to_line_col / mysql_line_from_message
-    // tests moved to `db::query_error::tests` along with the functions
-    // (Epic 20a Story 01 — second extraction).
+    // tests moved to `db::query_error::tests` along with the functions.
 
     #[tokio::test]
     async fn test_explain_analyze_delete_rejected() {
@@ -909,8 +907,8 @@ mod tests {
     // Tests run on a single tokio thread per case, so blocking is fine.
     #[allow(clippy::await_holding_lock)]
     async fn create_connection_fails_secure_when_keychain_unavailable() {
-        // Epic 16, Story 02 invariant: if `store_secret` fails, the
-        // connection row must NOT be inserted with a plaintext password.
+        // invariant: if `store_secret` fails, the connection row
+        // must NOT be inserted with a plaintext password.
         // We force the keychain to error and verify both the Err return
         // AND that no row leaked into the database.
         use crate::db::keychain::{force_keychain_failure, KEYCHAIN_TEST_LOCK};
@@ -991,7 +989,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_connection_followed_by_invalidate_yields_fresh_pool() {
-        // Epic 16, Story 05 invariant (L102): the Tauri command sequence
+        // invariant (L102): the Tauri command sequence
         // (update_connection → conn_manager.invalidate) must guarantee
         // that the next `get_pool` call returns a pool built from the
         // updated row, not a stale cached one.

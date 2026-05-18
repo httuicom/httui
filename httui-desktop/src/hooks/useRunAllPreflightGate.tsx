@@ -1,16 +1,16 @@
-// V6 / cenário 10 — Run-all gate handler.
+// Run-all gate handler.
 //
-// Wires the pure `evaluatePreflightGate` (Epic 51 Story 04) to a
-// React state machine + confirmation dialog. Consumers call `trigger`
+// Wires the pure `evaluatePreflightGate` to a React state
+// machine + confirmation dialog. Consumers call `trigger`
 // (typically from a keyboard shortcut or the action-row Run-all
 // button); the hook then either runs immediately (no failures) or
 // opens a Portal-based confirmation dialog. The dialog's `Run anyway`
 // button replays with `overrideShift: true`.
 //
 // Pure execution intentionally stays out: the `onRunAll(decision)`
-// callback is the seam where the future Run-all flow (Epic 39) hooks
-// in. For V6 the callback can no-op or log — the cenário scope is the
-// gate, not the actual block execution.
+// callback is the seam where the future Run-all flow hooks
+// in. For the callback can no-op or log — the scope is the gate, not
+// the actual block execution.
 
 import { useCallback, useState } from "react";
 import { Box, Button, Flex, HStack, Portal, Text } from "@chakra-ui/react";

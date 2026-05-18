@@ -1,4 +1,4 @@
--- Epic 53 Story 01 — `EXPLAIN ANALYZE` plan blob attached to a run.
+-- `EXPLAIN ANALYZE` plan blob attached to a run.
 --
 -- When the SQL block carried `explain=true` in its info-string, the
 -- executor ran `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) <sql>` (or

@@ -1,4 +1,4 @@
-// Block assertions — Epic 45 Stories 01+02.
+// Block assertions.
 //
 // Pure parser + evaluator for the canvas §10 inline-test syntax. The
 // `# expect:` marker section lives inside the fenced HTTP/DB block
@@ -297,7 +297,7 @@ export function evaluateAllAssertions(
   return { pass: failures.length === 0, failures };
 }
 
-// --- Adapters from concrete response shapes (Story 03 — runtime wiring) ---
+// --- Adapters from concrete response shapes (runtime wiring) --------------
 
 /** Build an `AssertionContext` from the HTTP response shape emitted by
  * `executeHttpStreamed`. `time_ms` prefers `timing.total_ms` over

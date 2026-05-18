@@ -1,6 +1,6 @@
-// Block captures — Epic 46 Stories 01+02 (parser + evaluator).
+// Block captures — (parser + evaluator).
 //
-// Mirrors the assertions fence-section shape (Epic 45) — `# capture:`
+// Mirrors the assertions fence-section shape `# capture:`
 // marker section after the body, with `<key> = <expr>` lines that
 // extract values from the response. Reuses `resolveLhs` from
 // assertions.ts so both features share the same JSONPath subset.
@@ -105,7 +105,7 @@ export function captureValuesFromBody(
   return evaluateCaptures(parseAllCaptures(blockBody), ctx);
 }
 
-/** Privacy guard (Story 05 preview — used by the store on insert). */
+/** Privacy guard (preview — used by the store on insert). */
 const SECRET_NAME_REGEX = /(password|token|secret|key|auth\w*)/i;
 
 /** True when `name` looks like a secret by convention. */

@@ -1,4 +1,4 @@
-// Canvas §5 — Connection-string parser (Epic 42 Story 06 — Phase 3).
+// Canvas §5 — Connection-string parser.
 //
 // Pure helper for the "Connection string" tab in the Nova Conexão
 // modal. Accepts a URL the user pasted (postgres / postgresql / mysql

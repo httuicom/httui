@@ -1,4 +1,4 @@
-// Editor per-tab toolbar — Epic 39 Story 03.
+// Editor per-tab toolbar.
 //
 // 28px strip mounted above the CM6 editor (between any conflict
 // banner and the editor itself). Shows:
@@ -10,8 +10,8 @@
 //
 // Pure presentational: takes everything as props. The persistence
 // hook (`useFileAutoCapture`) and mtime poll wire later in PaneNode
-// alongside the Epic 30a Story 01 BlockRegistry refactor that
-// retires the MarkdownEditor.tsx coverage:exclude.
+// alongside the BlockRegistry refactor that retires the
+// MarkdownEditor.tsx coverage:exclude.
 
 import { Box, HStack, Text, chakra } from "@chakra-ui/react";
 import { LuZap } from "react-icons/lu";

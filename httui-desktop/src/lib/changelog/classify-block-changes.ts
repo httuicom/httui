@@ -1,4 +1,4 @@
-// Epic 55 Story 01 slice 3 — per-block change classifier.
+// per-block change classifier.
 //
 // Combines `parseUnifiedDiff` (slice 1) + `findFencedBlocks`
 // (slice 2) to classify every block-level change in a touched

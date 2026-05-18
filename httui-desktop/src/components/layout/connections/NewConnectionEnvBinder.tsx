@@ -1,4 +1,4 @@
-// Canvas §5 — "Vincular ao ambiente" pills (Epic 42 Story 06 — Phase 2).
+// Canvas §5 — "Vincular ao ambiente" pills.
 //
 // Horizontal strip of env pills. Each entry is selectable; the active
 // state gets accent-soft bg + accent border (canvas spec). A read-only

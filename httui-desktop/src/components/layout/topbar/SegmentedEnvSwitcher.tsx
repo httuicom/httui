@@ -5,7 +5,7 @@
 // 4px radius, right-border between cells. Active cell `--bg-3` bg
 // with weight 600. `prod*` envs render with a `dot-err` prefix.
 // Clicking a non-active cell calls `switchEnvironment`. The popover
-// dropdown (⌘E shortcut) is Epic 22 — different surface, anchors
+// dropdown (⌘E shortcut) is different surface, anchors
 // to this control.
 
 import { Box, HStack, chakra } from "@chakra-ui/react";

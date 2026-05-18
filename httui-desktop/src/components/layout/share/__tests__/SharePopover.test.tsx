@@ -120,7 +120,7 @@ describe("SharePopover", () => {
     ).toBe("2");
   });
 
-  describe("open action (V10 cenário 7)", () => {
+  describe("open action", () => {
     const HTTPS = {
       name: "HTTPS",
       url: "https://github.com/a/b.git",

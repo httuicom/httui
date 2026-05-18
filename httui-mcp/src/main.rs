@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
 }
 
 /// Server bootstrap split out of `main` so the wiring is callable from
-/// integration harnesses (Epic 32). Builds the shared executor
+/// integration harnesses. Builds the shared executor
 /// registry, hands it to the MCP server, and blocks on the rmcp
 /// stdio service.
 async fn run(vault: &str, db_path: PathBuf) -> Result<()> {

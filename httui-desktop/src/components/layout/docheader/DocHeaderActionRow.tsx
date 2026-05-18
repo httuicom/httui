@@ -1,13 +1,13 @@
-// Epic 50 Story 05 — action buttons row at the top-right of the
-// DocHeader card. ▶ Run all (mirrors the top-bar button but
-// scoped to this file), ↗ Share (opens the Epic 49 popover),
+// action buttons row at the top-right of the DocHeader card. ▶
+// Run all (mirrors the top-bar button but
+// scoped to this file), ↗ Share (opens the popover),
 // … overflow (Duplicate / Archive / Delete).
 //
 // Pure presentational. The consumer wires `onRunAll`, `onShare`,
 // and the per-action overflow callbacks; we don't open any
 // popover ourselves to keep this row test-friendly and to avoid
 // pulling Chakra Menu primitives into the card surface (the popovers
-// are owned by the consumer's panel — Epic 49 + the file ops menu).
+// are owned by the consumer's panel — + the file ops menu).
 
 import { useState } from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";

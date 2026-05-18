@@ -1,4 +1,4 @@
-// V10 cenário 7 — Share repo URL dropdown. Reusable trigger +
+// Share repo URL dropdown. Reusable trigger +
 // popover mounted in BOTH the status bar and the git panel toolbar
 // (the "both" decision). All logic lives in `useShareRepoUrl`; this
 // is just the Menu.Root chrome around <SharePopover/>.

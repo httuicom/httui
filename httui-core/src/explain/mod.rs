@@ -1,5 +1,5 @@
 //! Unified `PlanNode` tree for `EXPLAIN ANALYZE` output across
-//! drivers. Story 02 of Epic 53 ships the Postgres parser first
+//! drivers. ships the Postgres parser first
 //! (most complete; canvas mock targets it). MySQL and MongoDB
 //! parsers carry to follow-up slices.
 //!

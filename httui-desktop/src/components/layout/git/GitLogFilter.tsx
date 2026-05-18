@@ -1,4 +1,4 @@
-// Epic 48 Story 03 — log filter control.
+// log filter control.
 //
 // Single input + author/path mode toggle. Pure presentational —
 // `LogFilterState` lives in the consumer, which decides whether to

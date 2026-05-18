@@ -1,5 +1,4 @@
-// Canvas §5 — Inline test result banner for the "Nova conexão" modal
-// (Epic 42 Story 06 — Phase 2).
+// Canvas §5 — Inline test result banner for the "Nova conexão" modal.
 //
 // 4 visual states: hidden (idle), running (subtle dot + "Testando…"),
 // ok (color-mix --ok 8% bg, --ok 30% border, dot-ok + "Conexão OK"

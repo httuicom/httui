@@ -52,7 +52,7 @@ describe("buildDocHeaderCallbacks", () => {
       expect(deps.dispatchDocReplace).not.toHaveBeenCalled();
     });
 
-    it("onTitleNavigateToBody still routes to returnFocusToBody (V6 cenário 3)", () => {
+    it("onTitleNavigateToBody still routes to returnFocusToBody", () => {
       const deps = makeDeps();
       const cb = buildDocHeaderCallbacks(undefined, "i1", deps);
       cb.onTitleNavigateToBody();
@@ -211,14 +211,14 @@ describe("buildDocHeaderCallbacks", () => {
     });
   });
 
-  it("onTitleNavigateToBody passes the bound instanceId (V6 cenário 3)", () => {
+  it("onTitleNavigateToBody passes the bound instanceId", () => {
     const deps = makeDeps();
     const cb = buildDocHeaderCallbacks(makeEntry(), "instance-42", deps);
     cb.onTitleNavigateToBody();
     expect(deps.returnFocusToBody).toHaveBeenCalledWith("instance-42");
   });
 
-  describe("preflight checks (V6 cenário 9)", () => {
+  describe("preflight checks", () => {
     it("onAddPreflightCheck appends to the block-list", () => {
       const deps = makeDeps();
       const view = makeFakeView(

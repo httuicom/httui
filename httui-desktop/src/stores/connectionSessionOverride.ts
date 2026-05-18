@@ -1,4 +1,4 @@
-// Session-scoped connection host:port overrides (V11 cenário 2).
+// Session-scoped connection host:port overrides.
 //
 // In-memory only. An override is TEMPORARY: it wins over the
 // vault-stored host/port for the session and disappears when the app

@@ -1,9 +1,9 @@
 //! Scan a vault for `{{keychain:...}}` references whose values are
-//! missing from the local keychain (Epic 18 / Story 01).
+//! missing from the local keychain.
 //!
 //! On a freshly cloned vault every `{{keychain:...}}` ref points at
 //! a key that doesn't yet exist on this machine. The first-run flow
-//! (Story 02) batch-prompts the user once instead of forcing a
+//! batch-prompts the user once instead of forcing a
 //! prompt-per-execution. This module walks `connections.toml` and
 //! `envs/*.toml`, collects every reference, and asks the
 //! [`SecretBackend`] which ones are missing.

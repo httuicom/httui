@@ -1,12 +1,12 @@
-// Epic 50 consumer-mount shell — composes the 4 DocHeader card
+// consumer-mount shell — composes the 4 DocHeader card
 // components shipped this loop into a single render surface.
 //
 // Pure presentational. The actual page consumer (PaneContainer /
 // MarkdownEditor wrapping for `.md` tabs) collects the data via
 // Tauri / stores and passes it through. This shell handles the
-// compact-mode gating logic (only H1 + meta strip visible per
-// Story 06) and the `onToggleCompact` flow that consumers wire to
-// the workspace.toml persistence.
+// compact-mode gating logic (only H1 + meta strip visible in
+// compact mode) and the `onToggleCompact` flow that consumers wire
+// to the workspace.toml persistence.
 
 import { Box, Flex } from "@chakra-ui/react";
 
@@ -40,11 +40,11 @@ export interface DocHeaderShellProps {
    *  Driven by the consumer (reads from workspace.toml). */
   compact?: boolean;
   /** Click-on-title toggle. Consumer flips compact + persists. Used by
-   *  static consumers (diff viewer, snapshots) only — V6 cenário 3
+   * static consumers (diff viewer, snapshots) only
    *  prefers `onTitleNavigateToBody` for the inline editor since
    *  toggling compact is a no-op in editable mode. */
   onToggleCompact?: () => void;
-  /** V6 / cenário 3 — click on the (static) H1 navigates to the first
+  /** click on the (static) H1 navigates to the first
    *  body line and focuses the cursor there. Wired by the inline editor
    *  consumer (`DocHeaderWidgetPortal`) to `returnFocusToBody`. Takes
    *  precedence over `onToggleCompact` when both are provided. */
@@ -65,7 +65,7 @@ export interface DocHeaderShellProps {
   /** Checklist save callback. Receives the full new list on every
    *  edit (toggle / text change / add / remove). The list is persisted
    *  to the `tasks:` YAML key (renamed from `preflight:` in V6
-   *  cenário 9). */
+   * */
   onChecklistSave?: (items: TaskItem[]) => void;
 
   // ── Meta strip inputs ──────────────────────────────────────────
@@ -93,7 +93,7 @@ export interface DocHeaderShellProps {
   preflightRechecking?: boolean;
   onPreflightFailureSelect?: (item: PreflightPillItem) => void;
   onPreflightRecheck?: () => void;
-  /** V6 cenário 9 — builder callbacks. When wired, the pill row
+  /** builder callbacks. When wired, the pill row
    *  surfaces a `+ Add check` button and click-to-edit on existing
    *  pills. The consumer mutates the frontmatter via the
    *  `updateFrontmatterPreflightChecks` writer. */
@@ -148,7 +148,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
     onRemovePreflightCheck,
   } = props;
 
-  // V2 / cenário 4.5: in editable mode (any save callback provided),
+  // in editable mode (any save callback provided),
   // compact is forcibly disabled — the legacy "click H1 to toggle"
   // affordance went away when the title became an editable input, so
   // a stale `docheader_compact: true` in workspace.toml would otherwise

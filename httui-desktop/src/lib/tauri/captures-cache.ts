@@ -1,4 +1,4 @@
-// Tauri wrappers for the captures cache — Epic 46 Story 03.
+// Tauri wrappers for the captures cache.
 //
 // When auto-capture is ON for a file, the consumer (Capture store
 // + footer UI) filters secret-flagged entries out, JSON-stringifies

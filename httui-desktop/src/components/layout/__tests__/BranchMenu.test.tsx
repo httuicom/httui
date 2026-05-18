@@ -71,7 +71,7 @@ describe("BranchMenu", () => {
     );
   });
 
-  describe("switcher mode (V10 cenário 4)", () => {
+  describe("switcher mode", () => {
     it("renders the branch picker instead of the placeholder", async () => {
       const user = userEvent.setup();
       renderWithProviders(

@@ -1,7 +1,7 @@
-// Epic 48 Story 02 — pure validators for the commit form.
+// pure validators for the commit form.
 //
 // Frontend-only. The actual `git_commit` Tauri command lives on the
-// consumer site once Story 02 backend lands; the form validator
+// consumer site once backend lands; the form validator
 // guards the user from sending obviously bad messages (empty, only
 // whitespace, leading whitespace on the subject, subject too long).
 

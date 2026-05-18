@@ -1,6 +1,6 @@
 // V10 — Git panel shell with Status / Log / Audit tabs.
 //
-// Composes the Epic 48 carry sub-components (GitStatusHeader,
+// Composes the carry sub-components (GitStatusHeader,
 // GitFileList, GitCommitForm, GitCommitDiffViewer, GitLogList,
 // GitAuditHeader) into a tabbed surface. Purely presentational and
 // controlled: the consumer (`GitPanelContainer`) owns data fetching,
@@ -57,7 +57,7 @@ export interface GitPanelProps {
   onToggleStage?: (file: GitFileChange) => void;
   onSelectFile?: (file: GitFileChange) => void;
   onSelectCommit?: (commit: CommitInfo) => void;
-  // --- Commit form (cenário 2) ---
+  // --- Commit form ---------------
   stagedCount?: number;
   commitMessage?: string;
   commitAmend?: boolean;
@@ -65,16 +65,16 @@ export interface GitPanelProps {
   onCommitMessageChange?: (next: string) => void;
   onCommitAmendChange?: (next: boolean) => void;
   onCommit?: (input: { message: string; amend: boolean }) => void;
-  // --- Diff inspector (cenário 2 preview / cenário 3 commit) ---
+  // --- Diff inspector (preview / commit) -----------------------
   /** `undefined` hides the inspector; `null` shows "loading"; a
    *  string renders the unified diff. */
   diff?: string | null;
   diffShortSha?: string | null;
   diffSubject?: string | null;
-  // --- Log filter (cenário 3) ---
+  // --- Log filter ---------------
   logFilter?: LogFilterState;
   onLogFilterChange?: (next: LogFilterState) => void;
-  // --- Sync toolbar (cenário 5) ---
+  // --- Sync toolbar ---------------
   syncInFlight?: SyncOp | null;
   hasRemote?: boolean;
   onFetch?: () => void;
@@ -82,11 +82,11 @@ export interface GitPanelProps {
   onPush?: () => void;
   onConfigureRemote?: () => void;
   /** When set, the no-upstream confirm banner is shown for this
-   *  branch (V10 cenário 5.2). */
+   * branch. */
   upstreamPrompt?: { branch: string; remote: string } | null;
   onConfirmSetUpstream?: () => void;
   onCancelSetUpstream?: () => void;
-  // --- Conflict resolution (cenário 6) ---
+  // --- Conflict resolution ---------------
   conflicts?: ReadonlyArray<string>;
   conflictBusy?: boolean;
   onOpenConflict?: (path: string) => void;
@@ -96,9 +96,9 @@ export interface GitPanelProps {
   resolver?: { path: string; versions: ConflictVersions } | null;
   onResolveMerged?: (path: string, merged: string) => void;
   onCancelResolver?: () => void;
-  /** Right-aligned toolbar slot (V10 cenário 7 mounts ShareMenu). */
+  /** Right-aligned toolbar slot (mounts ShareMenu). */
   toolbarExtra?: React.ReactNode;
-  // --- Metrics strip (V10.1 cenário 6) ---
+  // --- Metrics strip ---------------------
   remotes?: ReadonlyArray<Remote>;
   /** Epoch ms of the last successful sync, or null. */
   lastSyncAt?: number | null;

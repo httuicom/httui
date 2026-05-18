@@ -4,7 +4,7 @@
 // callers. Returns the mtime in epoch milliseconds (or `null` while
 // unavailable / before the first poll completes).
 //
-// Carry-over from Epic 39 Story 03 — feeds the editor toolbar's
+// Carry-over from feeds the editor toolbar's
 // "edited Xm ago" label without standing up a continuous timer the
 // way the git-status poll does. The toolbar's relative-time renderer
 // re-formats independently as the wall clock advances.

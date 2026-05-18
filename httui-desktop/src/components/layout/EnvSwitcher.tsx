@@ -1,4 +1,4 @@
-// Smart wrapper around <EnvMenu /> (V11 cenário 1). Owns:
+// Smart wrapper around <EnvMenu />. Owns:
 // - env store wiring (list / active / switch / duplicate)
 // - the ⌘E open flag (useEnvSwitcherStore — opened from AppShell)
 // - the "Clone <active>" footer action → reuses the V5 carry

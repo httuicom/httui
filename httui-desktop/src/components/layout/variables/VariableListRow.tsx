@@ -1,4 +1,4 @@
-// Canvas §6 Variables — single row (Epic 43 Story 01 slice 2).
+// Canvas §6 Variables — single row.
 //
 // Grid mirrors the table headers (1.4fr × 4 + 60px). Col 0 = key with
 // scope chip + secret lock, cols 1-3 = first-3-env values (em-dash on

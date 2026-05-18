@@ -13,7 +13,7 @@ import { invoke } from "@tauri-apps/api/core";
 /** Last modification timestamp for a vault note in epoch milliseconds.
  * `null` if the file is absent or its mtime can't be read. Backed by
  * `httui_core::vault_config::merge::mtime_or_none`. Carry-over from
- * Epic 39 Story 03 — feeds the editor toolbar "edited Xm ago". */
+ * feeds the editor toolbar "edited Xm ago". */
 export function getFileMtime(
   vaultPath: string,
   filePath: string,
@@ -23,7 +23,7 @@ export function getFileMtime(
 
 /** Per-file workspace settings persisted under
  * `[files."<file_path>"]` in `.httui/workspace.toml`. Carry-over from
- * Epic 39 Story 03 — backs the editor toolbar's auto-capture toggle.
+ * backs the editor toolbar's auto-capture toggle.
  *
  * `docheader_compact` is optional on the wire because the Rust
  * struct `#[serde(skip_serializing_if = ...)]`s default-valued
@@ -61,7 +61,7 @@ export function setFileAutoCapture(
 }
 
 /** Set the DocHeader compact-mode flag for `file_path`. Same prune
- * semantics as `setFileAutoCapture`. Powers Epic 50 Story 06. */
+ * semantics as `setFileAutoCapture`. Powers. */
 export function setFileDocheaderCompact(
   vaultPath: string,
   filePath: string,

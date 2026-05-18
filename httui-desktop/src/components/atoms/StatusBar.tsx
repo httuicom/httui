@@ -1,5 +1,5 @@
-// Status-bar shell atom — `docs-llm/v1/design-canvas-microdetails.md`
-// §0. 22px tall, 11px mono, gap 14, `bg.1` bg, top border `line`.
+// Status-bar shell atom (design canvas §0).
+// 22px tall, 11px mono, gap 14, `bg.1` bg, top border `line`.
 //
 // Pure container. Consumers (workbench `<StatusBarShell>`,
 // chat-status, etc.) compose `<Dot>`, `<Kbd>`, text, etc. as

@@ -1,4 +1,4 @@
-//! `EXPLAIN`-prefix builder for SQL drivers (Epic 53 Story 01).
+//! `EXPLAIN`-prefix builder for SQL drivers.
 //!
 //! When a SQL block runs with `explain=true` in its info-string, the
 //! consumer (DB executor) swaps the user's SQL for an `EXPLAIN`-prefixed
@@ -11,13 +11,13 @@
 //! the executor.
 //!
 //! SQLite / BigQuery / Snowflake are explicitly unsupported per
-//! Epic 53 spec ("best-effort or NOT supported with clear message").
+//! spec ("best-effort or NOT supported with clear message").
 //! MongoDB is excluded too — it doesn't take SQL; the Mongo executor
 //! handles `db.collection.explain("executionStats")` separately.
 
 use std::fmt;
 
-/// Body cap for stored EXPLAIN payloads. Per Epic 53 spec: "Body cap
+/// Body cap for stored EXPLAIN payloads. Per spec: "Body cap
 /// 200 KB; truncate marker if exceeded".
 pub const EXPLAIN_BODY_CAP: usize = 200_000;
 

@@ -1,5 +1,5 @@
-// V2 / cenário 4.5 / M6 — editable pre-flight checklist for the
-// DocHeader. Displayed below the tag column when the doc has any
+// / M6 — editable pre-flight checklist for the DocHeader.
+// Displayed below the tag column when the doc has any
 // items, or when the consumer is in editable mode (`onChecklistSave`
 // provided).
 //

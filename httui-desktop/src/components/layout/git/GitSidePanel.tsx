@@ -4,19 +4,19 @@
 // trap would steal keyboard input from CM6). Mirrors the
 // OutlinePanel/SchemaPanel chrome. Reads the shared `useGitStore`
 // via the `useGitStatus` shim so it stays in lockstep with the
-// detailed pane-tab (cenário 7). "Details" opens the full V10
-// pane-tab for deep-dive (cenário 4 "ver tudo").
+// detailed pane-tab. "Details" opens the full
+// pane-tab for deep-dive ("ver tudo").
 //
 // Open/close + persistence is owned by `useSettingsStore`
 // (`gitSidePanelOpen`, user.toml `[ui].git_side_panel_open`) so the
-// panel survives an app restart (cenário 1 "estado persiste").
+// panel survives an app restart ("estado persiste").
 //
 // Cenário 2 — the commit box comes pre-filled from the commit
 // template (`useSettingsStore.gitCommitTemplate`, default = built-in
 // conditional). Editing wins; clearing falls back to the template.
 //
 // The file list, Sync button and compact history land in this same
-// shell across cenários 3–6.
+// shell across.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, HStack, IconButton, Text } from "@chakra-ui/react";
@@ -72,7 +72,7 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
     [changedPaths, template],
   );
 
-  // Populate the compact history when the panel opens (cenário 4) —
+  // Populate the compact history when the panel opens
   // the status poll doesn't reload the log; commit/sync do.
   useEffect(() => {
     void reloadLog();
@@ -96,7 +96,7 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
 
   const handleMessageChange = useCallback(
     (next: string) => {
-      // Clearing the field falls back to the template (cenário 2).
+      // Clearing the field falls back to the template.
       if (next === "") {
         resetCommitMessage();
       } else {

@@ -1,4 +1,4 @@
-// Right-side outline panel — Epic 27 mount.
+// Right-side outline panel — mount.
 //
 // Sibling toggle to `<SchemaPanel>`. Reads the active editor's
 // content from the pane store, derives an outline via

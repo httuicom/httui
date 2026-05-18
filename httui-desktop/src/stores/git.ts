@@ -3,8 +3,8 @@
 // V10 polled git status/remotes from per-component hooks and kept
 // the commit-message draft + log list in GitPanelContainer's local
 // state. V10.1 adds a second consumer (the GitSidePanel) that must
-// stay in lockstep with the pane-tab (cenário 7). This store owns
-// the *polled data* (status, remotes, commits) and the commit
+// stay in lockstep with the pane-tab. This store owns the *polled
+// data* (status, remotes, commits) and the commit
 // draft; the pure action hooks (branch actions, conflict resolve,
 // share URL) and every presentational sub-component are carry from
 // V10 and stay untouched.
@@ -38,10 +38,10 @@ interface GitState {
   commits: CommitInfo[];
   commitMessage: string;
   /** True once the user typed into the commit field — template
-   *  prefill (cenário 2) must not clobber a hand-edited draft. */
+   * prefill must not clobber a hand-edited draft. */
   commitMessageDirty: boolean;
   /** Epoch ms of the last successful fetch/pull/push, or null.
-   *  Drives the pane-tab "last sync" metric (cenário 6). Session-
+   * Drives the pane-tab "last sync" metric. Session-
    *  only — a freshness hint, not worth persisting. */
   lastSyncAt: number | null;
 
@@ -58,9 +58,9 @@ interface GitState {
   setCommitMessage: (msg: string) => void;
   resetCommitMessage: () => void;
   /** Prefill from the commit template — sets the text but keeps the
-   *  draft non-dirty so a later user edit still wins (cenário 2). */
+   * draft non-dirty so a later user edit still wins. */
   setCommitMessageFromTemplate: (msg: string) => void;
-  /** Stamp a successful sync op (cenário 6 "last sync" metric). */
+  /** Stamp a successful sync op ("last sync" metric). */
   markSynced: () => void;
 }
 

@@ -123,7 +123,7 @@ describe("GitPanelContainer", () => {
     );
   });
 
-  describe("stage + commit (cenário 2)", () => {
+  describe("stage + commit", () => {
     it("stages an unstaged file via stage_path_cmd", async () => {
       let staged = 0;
       mockTauriCommand("git_status_cmd", () => dirtyStatus);
@@ -272,7 +272,7 @@ describe("GitPanelContainer", () => {
     });
   });
 
-  describe("log filter + commit diff (cenário 3)", () => {
+  describe("log filter + commit diff", () => {
     it("shows the commit diff on the Log tab when a commit is clicked", async () => {
       let diffArg: unknown = null;
       mockTauriCommand("git_diff_cmd", (args) => {
@@ -368,7 +368,7 @@ describe("GitPanelContainer", () => {
     });
   });
 
-  describe("sync: fetch / pull / push (cenário 5)", () => {
+  describe("sync: fetch / pull / push", () => {
     const noUpstream: GitStatus = {
       branch: "feat/new",
       upstream: null,
@@ -466,7 +466,7 @@ describe("GitPanelContainer", () => {
     });
   });
 
-  describe("conflict resolution (cenário 6)", () => {
+  describe("conflict resolution", () => {
     const conflicted: GitStatus = {
       branch: "main",
       upstream: "origin/main",
@@ -556,7 +556,7 @@ describe("GitPanelContainer", () => {
     });
   });
 
-  describe("vault without a remote (cenário 8)", () => {
+  describe("vault without a remote", () => {
     it("disables fetch/pull/push and the share popover is empty", async () => {
       mockTauriCommand("git_remote_list_cmd", () => []);
       const user = userEvent.setup();
@@ -584,7 +584,7 @@ describe("GitPanelContainer", () => {
     });
   });
 
-  describe("remote re-poll (cenário 5 follow-up)", () => {
+  describe("remote re-poll", () => {
     it("detects a remote added out-of-app without a reload", async () => {
       let remotes: { name: string; url: string }[] = [];
       mockTauriCommand("git_remote_list_cmd", () => remotes);
@@ -615,7 +615,7 @@ describe("GitPanelContainer", () => {
     });
   });
 
-  describe("no Audit tab in v1 (cenário 9)", () => {
+  describe("no Audit tab in v1", () => {
     it("exposes only Status + Log tabs", async () => {
       renderWithProviders(<GitPanelContainer />);
       await waitFor(() => {

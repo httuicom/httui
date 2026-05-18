@@ -93,7 +93,7 @@ describe("GitSidePanel", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  describe("commit message prefill (cenário 2 + 8)", () => {
+  describe("commit message prefill", () => {
     it("prefills with the single changed note", async () => {
       mockTauriCommand("git_status_cmd", () =>
         statusWith(["notes/rollout.md"]),
@@ -136,7 +136,7 @@ describe("GitSidePanel", () => {
     });
   });
 
-  describe("changed files (cenário 5)", () => {
+  describe("changed files", () => {
     it("lists changed files with their status glyph", async () => {
       mockTauriCommand("git_status_cmd", () => statusWith(["notes/a.md"]));
       renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
@@ -144,13 +144,13 @@ describe("GitSidePanel", () => {
       expect(row).toHaveAttribute("data-status", "modified");
     });
 
-    it("mounts the Sync bar (cenário 3)", async () => {
+    it("mounts the Sync bar", async () => {
       mockTauriCommand("git_status_cmd", () => statusWith(["foo.md"]));
       renderWithProviders(<GitSidePanel width={340} onClose={() => {}} />);
       expect(await screen.findByTestId("git-sync-button")).toBeInTheDocument();
     });
 
-    it("mounts the compact history from the shared log (cenário 4)", async () => {
+    it("mounts the compact history from the shared log", async () => {
       mockTauriCommand("git_status_cmd", () => statusWith(["foo.md"]));
       mockTauriCommand("git_log_cmd", () => [
         {

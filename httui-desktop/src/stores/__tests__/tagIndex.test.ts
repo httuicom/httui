@@ -115,7 +115,7 @@ describe("tagIndex store", () => {
     ]);
   });
 
-  // Story 04 task 1 — loadFromVault (vault-open bootstrap)
+  // loadFromVault (vault-open bootstrap)
 
   it("loadFromVault populates the index from scan_vault_tags_cmd", async () => {
     mockTauriCommand("scan_vault_tags_cmd", () => [
@@ -218,7 +218,7 @@ describe("tagIndex store", () => {
     ).rejects.toThrow("vault not found");
   });
 
-  // Story 04 task 2 — refreshTagsForFile (per-save shortcut)
+  // refreshTagsForFile (per-save shortcut)
 
   it("refreshTagsForFile parses content and indexes the tags", () => {
     const content = "---\ntags: [payments, debug]\n---\nbody\n";
@@ -263,7 +263,7 @@ describe("tagIndex store", () => {
     expect(useTagIndexStore.getState().byFile["a.md"]).toEqual([]);
   });
 
-  describe("archived files (V6 cenário 8)", () => {
+  describe("archived files", () => {
     it("starts with no archived files", () => {
       expect(useTagIndexStore.getState().archivedFiles).toEqual({});
       expect(useTagIndexStore.getState().isArchived("a.md")).toBe(false);

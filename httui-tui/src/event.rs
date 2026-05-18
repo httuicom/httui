@@ -12,7 +12,7 @@ use crate::error::TuiResult;
 /// All events the main loop reacts to.
 ///
 /// Future variants for streaming block execution and file watcher events
-/// land here without changing the dispatcher shape — Epic 21 / 22.
+/// land here without changing the dispatcher shape — / 22.
 #[derive(Debug)]
 #[allow(dead_code)] // Resize / Quit are wired but not yet consumed by the scaffold.
 pub enum AppEvent {

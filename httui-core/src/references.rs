@@ -312,7 +312,7 @@ mod tests {
         assert_eq!(resolved["url"], "{{UNKNOWN}}/api");
     }
 
-    // ─────── Epic 16 L166: prototype pollution defense ───────
+    // ─────── L166: prototype pollution defense ───────────────
 
     #[test]
     fn navigate_json_blocks_prototype_pollution_keys() {

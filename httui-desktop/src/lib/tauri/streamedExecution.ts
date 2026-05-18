@@ -15,7 +15,7 @@ import { useConnectionSessionOverrideStore } from "@/stores/connectionSessionOve
 
 /**
  * Merge any session-scoped host:port override for this run's connection
- * into the DB params (V11 cenário 2). Read via `getState()` — this is
+ * into the DB params. Read via `getState` — this is
  * the single seam every DB execution funnels through, so the override
  * applies session-wide without touching the `DbFencedPanel` monolith.
  * No override → params returned unchanged.

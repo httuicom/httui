@@ -1,10 +1,10 @@
 // Click-to-open registry for the inline `{{ref}}` quick popover
-// (V11 cenário 3). The CM6 extension detects a click on a
+// The CM6 extension detects a click on a
 // `.cm-reference-highlight` chip and publishes the ref + its screen
 // rect to a module-level emitter; `RefPopoverHost` subscribes via
 // `useSyncExternalStore` and mounts a Portal+Box popover (NOT a
 // Dialog — keeps CM6 focusable). Closing restores the caret + focus
-// so typing continues in the editor (cenário 6).
+// so typing continues in the editor.
 
 import { EditorView } from "@codemirror/view";
 import { EditorSelection, type Extension } from "@codemirror/state";

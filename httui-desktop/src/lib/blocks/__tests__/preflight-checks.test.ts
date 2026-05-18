@@ -40,7 +40,7 @@ describe("extractPreflightChecks", () => {
   });
 
   it("drops retired keychain entries as unknown kinds", () => {
-    // V6 cenário 9: keychain was removed from the typed set. Legacy
+    // keychain was removed from the typed set. Legacy
     // YAML that still declares it falls through the parser's
     // forward-compat path — same as any unrecognized key — so the
     // resulting list omits it without crashing on legacy notes.

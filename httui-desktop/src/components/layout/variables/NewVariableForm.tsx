@@ -1,4 +1,4 @@
-// Canvas §6 Variables — new-variable inline form (Epic 43 Story 05).
+// Canvas §6 Variables — new-variable inline form.
 //
 // Single table-style row inserted above the variable list, inspired
 // by the legacy environments drawer footer: [KEY input] [VALUE input]

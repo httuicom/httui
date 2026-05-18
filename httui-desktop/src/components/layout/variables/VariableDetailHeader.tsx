@@ -1,4 +1,4 @@
-// Canvas §6 Variables — detail panel header (Epic 43 Story 02 slice 1).
+// Canvas §6 Variables — detail panel header.
 //
 // Renders the selected variable's identity strip at the top of the
 // 380px detail panel: scope icon + serif key + scope label, with a

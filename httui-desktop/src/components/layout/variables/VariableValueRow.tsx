@@ -1,4 +1,4 @@
-// Canvas §6 Variables — detail panel value row (Epic 43 Story 03).
+// Canvas §6 Variables — detail panel value row.
 //
 // One row per env. Two top-level modes: VIEW (display + Show/Hide for
 // secrets + Edit) and EDIT (input + Save/Cancel). Edit is gated to

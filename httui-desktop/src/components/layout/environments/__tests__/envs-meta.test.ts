@@ -53,8 +53,8 @@ describe("envNameFromFilename", () => {
 
 describe("sortEnvironments", () => {
   it("sorts alphabetically (case-insensitive) regardless of isActive", () => {
-    // V5 cenário 6: cards stay anchored so the FLIP swap of the
-    // ACTIVE pill across positions actually reads as motion.
+    // cards stay anchored so the FLIP swap of the ACTIVE pill
+    // across positions actually reads as motion.
     const out = sortEnvironments([
       env({ name: "zeta", filename: "zeta.toml" }),
       env({ name: "Alpha", filename: "alpha.toml" }),

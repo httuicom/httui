@@ -129,7 +129,7 @@ pub async fn save_block_result(
     .map_err(|e| e.to_string())
 }
 
-// --- Block run history (Story 24.6) -------------------------------------
+// --- Block run history --------------------------------------------------
 
 /// Return the trim-capped run history (metadata only — no bodies)
 /// for `(file_path, block_alias)`.
@@ -145,7 +145,7 @@ pub async fn list_block_history(
 }
 
 /// Return the most recent N run-history rows for a file across all
-/// aliases. Powers the Epic 29 sidebar History tab. Pass `limit <= 0`
+/// aliases. Powers the sidebar History tab. Pass `limit <= 0`
 /// to fall back to the 50-entry default.
 #[tauri::command]
 pub async fn list_block_history_for_file(
@@ -159,7 +159,7 @@ pub async fn list_block_history_for_file(
 }
 
 /// Aggregate the most recent run-all session for a file. Powers
-/// Epic 50 Story 03's `<DocHeaderMetaStrip>` Last-run chip — pulls
+/// the `<DocHeaderMetaStrip>` Last-run chip — pulls
 /// the latest 50 rows + applies `summarize_last_run`'s 5s session
 /// window heuristic so the consumer just renders `formatLastRun`.
 #[tauri::command]

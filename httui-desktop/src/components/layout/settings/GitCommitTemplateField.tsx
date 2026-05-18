@@ -1,4 +1,4 @@
-// V10.1 cenário 8 — the configurable commit-message template field.
+// the configurable commit-message template field.
 //
 // Extracted from GeneralSection so that section stays within the
 // max-lines-per-function budget (SRP — this owns its own store

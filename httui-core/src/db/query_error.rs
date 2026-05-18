@@ -1,7 +1,6 @@
 //! Query error sanitization + driver-specific location extraction.
 //!
-//! Extracted from `db::connections` (Epic 20a Story 01 — second
-//! split). Owns:
+//! Extracted from `db::connections`. Owns:
 //!
 //! - `QueryErrorInfo` + `QueryErrorLocation` data types
 //! - `sanitize_query_error` / `sanitize_query_error_rich` — strip

@@ -5,7 +5,7 @@
 //! no vault is registered, we prompt the user on stdin before the alt
 //! screen takes over. From then on the binary always opens whatever
 //! `active_vault` points at; switching/adding/removing happens from
-//! inside the TUI (Epic 19/20 ex commands).
+//! inside the TUI (/20 ex commands).
 
 use sqlx::sqlite::SqlitePool;
 use std::io::{BufRead, Write};

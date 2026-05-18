@@ -34,9 +34,9 @@ const blocksPoints = [
     <InlineCode>{"{{login.body.token}}"}</InlineCode> in the next block.
   </>,
   <>
-    <Bold>Assertions</Bold> — an <InlineCode># expect:</InlineCode> section
-    with lines like <InlineCode>time {"<"} 500ms</InlineCode> fails the
-    runbook on regression.
+    <Bold>Assertions</Bold> — an <InlineCode># expect:</InlineCode> section with
+    lines like <InlineCode>time {"<"} 500ms</InlineCode> fails the runbook on
+    regression.
   </>,
   <>
     <Bold>Variables &amp; secrets</Bold> referenced by key. The value never
@@ -50,8 +50,8 @@ const schemaPoints = [
     MySQL, without switching windows.
   </>,
   <>
-    <Bold>Mutation guard</Bold> — destructive SQL (UPDATE / DELETE) warns
-    before it runs.
+    <Bold>Mutation guard</Bold> — destructive SQL (UPDATE / DELETE) warns before
+    it runs.
   </>,
   <>
     <Bold>EXPLAIN ANALYZE</Bold> in tree form, with slow sequential scans

@@ -47,7 +47,7 @@ pub fn git_log(
 /// Return the commit that first added `path` to the repo, following
 /// renames. `None` when the path doesn't appear in any commit (a new
 /// untracked file or a path the caller invented). Powers the
-/// DocHeader meta strip's "author initials" chip (Epic 50 Story 03).
+/// DocHeader meta strip's "author initials" chip.
 ///
 /// Implementation detail: `git log --follow --diff-filter=A -- <path>`
 /// returns every commit that *added* the path — usually one entry,

@@ -62,31 +62,30 @@ pub struct UiPrefs {
     #[serde(default = "default_sidebar_open")]
     pub sidebar_open: bool,
     /// Git side-panel (VS-Code-style SCM column) open/closed.
-    /// V10.1 cenário 1 — persists across launches. Default closed.
+    /// persists across launches. Default closed.
     #[serde(default)]
     pub git_side_panel_open: bool,
     /// Commit-message template for the git side panel. V10.1
-    /// cenário 8. Empty = use the built-in conditional default
+    /// Empty = use the built-in conditional default
     /// ("Update <stem>" / "Update N notes"). Placeholders:
     /// `{{notes}}`, `{{count}}`, `{{date}}`.
     #[serde(default)]
     pub git_commit_template: String,
     /// Color mode: `"system" | "light" | "dark"`. Frontend wires it
     /// to Chakra/next-themes via `<ColorModeSync>`. Separate from
-    /// `theme` (legacy customisation JSON pending Epic 19 sweep).
+    /// `theme` (legacy customisation JSON pending a future sweep).
     #[serde(default = "default_color_mode")]
     pub color_mode: String,
     /// True when the user has dismissed the MVP-to-v1 migration
     /// banner. Surfaced in the Empty state when a legacy `notes.db`
     /// is detected without a `.httui/` v1 layout. Once dismissed,
-    /// the banner stays hidden across launches (Epic 41 Story 07
-    /// carry).
+    /// the banner stays hidden across launches (carry).
     #[serde(default)]
     pub mvp_migration_dismissed: bool,
     /// True when quick-open should hide files whose frontmatter
     /// `status:` is `archived`. Default `false` (archived files
-    /// still surface). Epic 52 Story 06 task 3 — the toggle the
-    /// settings UI flips. The actual filter applies inside the
+    /// still surface). the toggle the settings UI flips. The
+    /// actual filter applies inside the
     /// quick-open ranker; this flag only persists the user's
     /// choice.
     #[serde(default)]
@@ -100,7 +99,7 @@ pub struct UiPrefs {
     pub shortcut_profile: String,
     /// Opt-in to receive pre-release auto-updates (`-rc`, `-beta`,
     /// `-alpha` tags). Default `false`: the updater only offers
-    /// stable releases. V12 cenário 9 — the Settings toggle flips
+    /// stable releases. the Settings toggle flips
     /// this; `useAutoUpdate` reads it to gate the update prompt.
     #[serde(default)]
     pub auto_update_include_prereleases: bool,

@@ -1,4 +1,4 @@
-// Run diff side-by-side panel — Epic 47 Story 03.
+// Run diff side-by-side panel.
 //
 // Pure presentational consumer of `RunDiff` from
 // `lib/blocks/run-diff.ts`. Four tabs: Body / Headers / Status /

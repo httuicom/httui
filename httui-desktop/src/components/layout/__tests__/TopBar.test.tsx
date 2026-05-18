@@ -91,7 +91,7 @@ describe("TopBar", () => {
       expect(screen.queryByLabelText("Switch branch")).toBeNull();
     });
 
-    it("does not render a Run-all button (dropped 2026-05-01 / V2 cenário 1)", () => {
+    it("does not render a Run-all button (dropped 2026-05-01)", () => {
       renderWithWorkspace(<TopBar {...baseProps} />);
       expect(
         screen.queryByLabelText("Run all blocks in document"),

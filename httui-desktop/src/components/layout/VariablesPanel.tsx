@@ -1,4 +1,4 @@
-// Sidebar variables panel — V2 cenário 2.
+// Sidebar variables panel.
 //
 // Lists variables of the active environment. Secret-flagged values
 // surface a key icon and render `••••` instead of the raw value;

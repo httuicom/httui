@@ -1,4 +1,4 @@
-// Numbered-section-heading decoration — Epic 39 Story 05.
+// Numbered-section-heading decoration.
 //
 // Renders a leading "1.", "2.", ... before each top-level `#` /
 // `##` heading line. Numbering is positional across the whole

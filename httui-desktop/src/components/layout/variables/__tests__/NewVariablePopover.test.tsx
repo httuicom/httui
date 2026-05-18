@@ -141,7 +141,7 @@ describe("NewVariablePopover", () => {
     );
   });
 
-  it("returns focus to the active editor on close (cenário 6)", async () => {
+  it("returns focus to the active editor on close", async () => {
     const user = userEvent.setup();
     const view = { focus: vi.fn() };
     registerActiveEditor(view as never);

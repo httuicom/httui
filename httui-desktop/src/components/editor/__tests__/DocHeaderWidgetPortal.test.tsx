@@ -87,7 +87,7 @@ describe("DocHeaderWidgetPortal", () => {
     expect(screen.getByTestId("docheader-shell")).toBeInTheDocument();
   });
 
-  it("clicking the H1 triggers returnFocusToBody for the instance (V6 cenário 3)", async () => {
+  it("clicking the H1 triggers returnFocusToBody for the instance", async () => {
     const view = makeFakeView("# body");
     primeEntry({
       id: "p2",

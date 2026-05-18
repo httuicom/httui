@@ -1,4 +1,4 @@
-// Smart wrapper around <EnvironmentsPage /> (V5 cenário 6). Owns:
+// Smart wrapper around <EnvironmentsPage />. Owns:
 // - env list load + per-env varCount adapter into EnvironmentSummary
 // - file watcher refresh on `config-changed` (category "environment")
 // - activate-env wiring (delegates to useEnvironmentStore)
@@ -250,7 +250,7 @@ export function EnvironmentsPageContainer({
     [summaries],
   );
 
-  // V5 cenário 7 — backend `duplicate_environment` only accepts
+  // backend `duplicate_environment` only accepts
   // (source_id, new_name) and copies plain vars by default. The form's
   // `copyConnectionsUsed` / `markTemporary` / `markPersonal`
   // checkboxes stay UI-only until the backend grows the parameters.

@@ -267,7 +267,7 @@ describe("EmptyVaultScreen", () => {
     expect(useWorkspaceStore.getState().vaultPath).toBeNull();
   });
 
-  it("Pasting a URL scaffolds + writes the seed runbook (Story 06 carry)", async () => {
+  it("Pasting a URL scaffolds + writes the seed runbook", async () => {
     vi.mocked(openDialog).mockResolvedValue("/tmp/paste-vault");
     type WriteArgs = { vaultPath: string; filePath: string; content: string };
     const scaffoldedRef: { current: string | null } = { current: null };
@@ -312,7 +312,7 @@ describe("EmptyVaultScreen", () => {
     );
   });
 
-  it("V1 cenário 5 audit — consecutive errors across all three cards never crash the app", async () => {
+  it("consecutive errors across all three cards never crash the app", async () => {
     const user = userEvent.setup();
     const openVaultSpy = vi.fn(async () => {
       throw new Error("vault not a git repo");

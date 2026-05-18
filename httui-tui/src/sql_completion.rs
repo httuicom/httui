@@ -1,7 +1,7 @@
 //! SQL completion engine for the TUI.
 //!
-//! Story 04.4a — the popup infra + the keyword/builtin sources that
-//! work without any schema knowledge. Story 04.4b adds the schema
+//! a — the popup infra + the keyword/builtin sources that work
+//! without any schema knowledge. b adds the schema
 //! source (tables/columns) on top, and 04.7 adds the `{{refs}}`
 //! source. All three plug into the same `CompletionItem` shape and
 //! popup widget.
@@ -29,8 +29,8 @@ pub struct CompletionItem {
     pub label: String,
     /// Category — drives the dim suffix in the popup.
     pub kind: CompletionKind,
-    /// Optional secondary string. Story 04.4b sets this to the
-    /// column type (e.g. `text`, `int4`); 04.7 to `cached`/`no-result`.
+    /// Optional secondary string. b sets this to the column
+    /// type (e.g. `text`, `int4`); 04.7 to `cached`/`no-result`.
     pub detail: Option<String>,
 }
 
@@ -40,7 +40,7 @@ pub enum CompletionKind {
     Function,
     Table,
     Column,
-    /// Reserved for Story 04.7 — `{{ref}}` autocomplete.
+    /// Reserved for `{{ref}}` autocomplete.
     #[allow(dead_code)]
     Reference,
 }
@@ -1302,7 +1302,7 @@ mod tests {
         assert!(labels.contains(&"SELECT"));
     }
 
-    // ───────────── detect_ref_context (Story 04.7) ─────────────
+    // ───────────── detect_ref_context ──────────────────────────
     //
     // Switching to ref mode is gated on "cursor sits inside an open
     // `{{...}}`". The detector runs before SQL completion so a user
@@ -1363,7 +1363,7 @@ mod tests {
         );
     }
 
-    // ───────────── complete_refs (Story 04.7) ─────────────
+    // ───────────── complete_refs ──────────────────────────
 
     fn make_ref_doc(md: &str) -> crate::buffer::Document {
         crate::buffer::Document::from_markdown(md).expect("parse")
@@ -1645,7 +1645,7 @@ mod tests {
         assert_eq!(Dialect::from_block(&mk("http")), Dialect::Generic);
     }
 
-    // ───────────── explain_wrap (Story 05.2) ─────────────
+    // ───────────── explain_wrap ──────────────────────────
 
     #[test]
     fn explain_wrap_postgres_uses_bare_explain() {

@@ -41,7 +41,7 @@ export interface WorkspaceDefaults {
 /** `[ui]` section of `~/.config/httui/user.toml`.
  *
  * Theme is serialized as JSON when the user has a richer ThemeConfig
- * than just a mode string; the migration (Story 03) writes a bare
+ * than just a mode string; the migration writes a bare
  * mode string, so reads must accept both shapes.
  */
 export interface UserUiPrefs {
@@ -163,7 +163,7 @@ export function scaffoldVault(vaultPath: string): Promise<ScaffoldReport> {
   return invoke("scaffold_vault", { vaultPath });
 }
 
-// --- Vault operations (V1 vertical 1, cenários 2/3/4) ---
+// --- Vault operations -----------------------------------
 //
 // `cloneVault`, `createVault`, `saveSecret` + their IPC types live
 // in `./vault-ops.ts` (extracted when commands.ts crossed 600L).
@@ -342,11 +342,11 @@ export interface Environment {
   name: string;
   is_active: boolean;
   created_at: string;
-  /** `[meta].description` (Story 03). Empty/undefined when not set. */
+  /** `[meta].description`. Empty/undefined when not set. */
   description?: string | null;
-  /** `[meta].temporary` (Story 03). Default false. */
+  /** `[meta].temporary`. Default false. */
   temporary?: boolean;
-  /** `[meta].connections_used` allowlist (Story 03). Empty = all. */
+  /** `[meta].connections_used` allowlist. Empty = all. */
   connections_used?: string[];
 }
 
@@ -483,10 +483,10 @@ export function saveBlockResult(
   });
 }
 
-// --- Block run history (Story 24.6) ---
+// --- Block run history ----------------
 //
 // Wrappers + types live in `./block-history.ts` (extracted when
-// commands.ts crossed the 600-line size gate — Epic 30a Story 07).
+// commands.ts crossed the 600-line size gate).
 // Kept as re-exports here so existing consumer imports
 // (`@/lib/tauri/commands`) keep compiling.
 

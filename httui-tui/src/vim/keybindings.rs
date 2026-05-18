@@ -98,7 +98,7 @@ pub const EXPLAIN_BLOCK: KeyChord = KeyChord::new(KeyModifiers::CONTROL, KeyCode
 // `|` isn't const in the version we depend on; the `matches_*`
 // helper below recognises both the SHIFT-folded encoding (terminals
 // that send `CONTROL|SHIFT + 'C'`) and the bare `CONTROL + 'C'`
-// fallback. Spec'd by Story 24.7 as `Mod-Shift-c`.
+// fallback. Spec'd as `Mod-Shift-c`.
 
 // `ga` (alias edit) lives in the `pending_g` chord branch in
 // `vim/parser.rs::parse_normal`, not as a standalone `KeyChord` —

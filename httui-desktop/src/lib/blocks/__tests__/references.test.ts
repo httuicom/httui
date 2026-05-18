@@ -273,7 +273,7 @@ describe("resolveAllReferences", () => {
     expect(errors[0].message).toContain("no result yet");
   });
 
-  // ─────── Epic 16 L166: alias/env shadow warning (T37) ───────
+  // ─────── L166: alias/env shadow warning (T37) ───────────────
 
   it("emits warning when block alias shadows env var with same name", () => {
     // Block "login" + env var "login": block ref resolves correctly, but

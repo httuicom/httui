@@ -1,5 +1,4 @@
-// Canvas §5 — Detail panel "used in runbooks" section
-// (Epic 42 Story 04).
+// Canvas §5 — Detail panel "used in runbooks" section.
 //
 // Shows a click-to-open list of file:line entries where the
 // selected connection's `db-<id>` fenced block appears. Pure

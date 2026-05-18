@@ -103,7 +103,7 @@ describe("HistoryList", () => {
     expect(row.textContent).not.toMatch(/ms/);
   });
 
-  // Story 05 task 2 — EXPLAIN plan chip
+  // EXPLAIN plan chip
 
   it("shows the plan chip when entry.plan is set", () => {
     renderWithProviders(

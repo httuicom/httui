@@ -158,7 +158,7 @@ cat <<EOF
 
 If the file is truly atomic (a long but cohesive parser state machine,
 a generated table), add '// size:exclude file' on line 1 and document
-the exception under "Closed items" in docs-llm/v1/tech-debt.md so the
+the exception under "Closed items" in the PR description so the
 sweep epics (20a/30a) can re-evaluate.
 EOF
 

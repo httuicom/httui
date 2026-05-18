@@ -209,7 +209,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // Story 24.6: block run history (CREATE IF NOT EXISTS — idempotent)
+    // block run history (CREATE IF NOT EXISTS — idempotent)
     for statement in MIGRATION_009_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -233,7 +233,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // Epic 53 Story 01: block_run_history.plan (ALTER may fail
+    // block_run_history.plan (ALTER may fail
     // when the column already exists — same idempotent pattern
     // as 002 / 006 / 007 / 008).
     for statement in MIGRATION_012_SQL.split(';') {
@@ -244,7 +244,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     }
 
     // V4 fix: schema_cache.connection_id FK still pointed at the
-    // legacy SQLite `connections` table (now empty after Epic 12).
+    // legacy SQLite `connections` table (now empty after).
     // Migration recreates the table without the FK. Not idempotent
     // at the SQL layer (DROP + RENAME), so guard at the Rust layer
     // by inspecting pragma_foreign_key_list — only re-run while the

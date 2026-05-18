@@ -121,7 +121,7 @@ describe("useCaptureStore", () => {
     );
   });
 
-  // Story 03 — persistence (loadFromCacheJson / dumpForCacheJson)
+  // persistence (loadFromCacheJson / dumpForCacheJson)
 
   it("loadFromCacheJson hydrates the file from a valid JSON map", () => {
     const json = JSON.stringify({

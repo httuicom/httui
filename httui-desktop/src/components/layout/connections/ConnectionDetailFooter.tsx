@@ -1,9 +1,9 @@
-// Canvas §5 — Detail panel footer actions (Epic 42 Story 05).
+// Canvas §5 — Detail panel footer actions.
 //
 // Three buttons: Test (with inline latency result), Duplicate
 // (clones the connection with " (copy)" suffix), Delete (two-step
-// confirm). The Rotate flow from Story 02 stays inside the
-// credentials section — Story 05's "Rotate" task is handled there
+// confirm). The Rotate flow stays inside the credentials
+// section — the "Rotate" task is handled there
 // (audit-032 documents the consolidation).
 //
 // Pure presentational: takes async callbacks. Test result + delete

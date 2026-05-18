@@ -1,4 +1,4 @@
-// Epic 48 Story 03 — "audit substitution" header.
+// "audit substitution" header.
 //
 // The canvas's §9 "Audit log" feature is replaced by the git log
 // view; per the epic spec, the panel header should make this
@@ -8,8 +8,8 @@ import { Box, Text } from "@chakra-ui/react";
 
 export interface GitAuditHeaderProps {
   /** Optional click handler — wires e.g. "open in external git
-   *  client" or "copy to clipboard". Story 03 ships the visual; the
-   *  consumer can attach an action later. */
+   * client" or "copy to clipboard". This component ships the visual;
+   *  the consumer can attach an action later. */
   onLearnMore?: () => void;
 }
 

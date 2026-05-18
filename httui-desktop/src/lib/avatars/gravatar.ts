@@ -1,4 +1,4 @@
-// V2 / cenário 4.5 — Gravatar URL helper for the DocHeader author chip.
+// Gravatar URL helper for the DocHeader author chip.
 //
 // Gravatar requires the MD5 of the lower-cased trimmed email. Returns
 // `null` for empty / undefined input so consumers can `if (!url)

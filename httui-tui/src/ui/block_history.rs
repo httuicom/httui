@@ -1,5 +1,5 @@
 //! Read-only popup that lists the most-recent HTTP runs for the
-//! focused block (Story 24.6 / `gh` chord). One row per
+//! focused block (/ `gh` chord). One row per
 //! `block_run_history` entry showing `<status> · <elapsed> · ran X
 //! ago`. j/k navigates; Esc/Ctrl-C closes. No selection action — V1
 //! is view-only.

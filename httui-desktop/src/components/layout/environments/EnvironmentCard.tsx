@@ -1,4 +1,4 @@
-// Canvas §6 Environments — single env card (Epic 44 Story 01).
+// Canvas §6 Environments — single env card.
 //
 // Renders the summary + chips + active pill. Click anywhere on the
 // card body fires `onActivate(filename)`. The ⋮ menu in the top-right

@@ -1,4 +1,4 @@
-// Tiny UI store for the ⌘⇧V new-variable popover (V11 cenário 4).
+// Tiny UI store for the ⌘⇧V new-variable popover.
 //
 // The shortcut is wired in AppShell; the popover is mounted there
 // too. Shared open flag (in-memory only, never persisted) so the

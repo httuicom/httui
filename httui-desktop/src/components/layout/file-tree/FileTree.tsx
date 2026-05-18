@@ -74,7 +74,7 @@ export function FileTree() {
   );
 }
 
-/** V6 / cenário 8 — small toggle that flips `useArchiveFilterStore.
+/** small toggle that flips `useArchiveFilterStore.
  *  showArchived`. Hidden entirely when the vault has no archived
  *  files yet so the chrome stays clean. */
 function ArchiveFilterToggle() {

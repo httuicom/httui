@@ -1,5 +1,4 @@
-//! `git fetch` / `git pull` / `git push` — sync ops for Epic 48
-//! Story 05.
+//! `git fetch` / `git pull` / `git push` — sync ops.
 //!
 //! All three shell out to `git` and surface its output (stdout +
 //! stderr) verbatim so the consumer's toast can show exactly what
@@ -48,8 +47,8 @@ pub fn git_fetch(vault: &Path, remote: Option<&str>) -> Result<String, String> {
 /// `git pull [--ff-only] [<remote> <branch>]`. Both remote/branch
 /// are optional — passing None falls back to git's default upstream
 /// resolution. `ff_only` adds `--ff-only` so the 1-click Sync
-/// (V10.1 cenário 3) never creates a surprise merge commit — a
-/// non-fast-forward pull stops the flow and the user resolves it in
+/// never creates a surprise merge commit — a non-fast-forward
+/// pull stops the flow and the user resolves it in
 /// the detailed pane-tab.
 pub fn git_pull(
     vault: &Path,
@@ -126,7 +125,7 @@ mod tests {
     fn pull_ff_only_builds_without_panicking() {
         // No remote configured, so the pull errors — but the
         // `--ff-only` arg branch must build cleanly (guards the
-        // V10.1 cenário 3 Sync path).
+        // Sync path).
         let dir = TempDir::new().unwrap();
         init_repo(dir.path());
         std::fs::write(dir.path().join("a"), "x").unwrap();

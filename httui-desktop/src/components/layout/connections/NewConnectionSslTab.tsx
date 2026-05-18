@@ -1,5 +1,4 @@
-// Canvas §5 — "SSL" tab for the Nova Conexão modal
-// (Epic 42 Story 06 — Phase 3).
+// Canvas §5 — "SSL" tab for the Nova Conexão modal.
 //
 // Renders the SSL configuration fields: sslmode select + root cert
 // path + client cert + client key paths. Pure presentational; the

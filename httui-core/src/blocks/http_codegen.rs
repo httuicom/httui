@@ -1,4 +1,4 @@
-//! Code generators for the HTTP block "Send as" menu (Story 24.7).
+//! Code generators for the HTTP block "Send as" menu.
 //!
 //! Pure functions — each takes a block's resolved params and returns a
 //! snippet string the user can paste into a terminal / editor / IDE.

@@ -1,4 +1,4 @@
-// Canvas §6 Variables — name validation (Epic 43 Story 05).
+// Canvas §6 Variables — name validation.
 //
 // Pure validator for the new-variable inline form. Rejects empty,
 // whitespace-only, name with internal whitespace, name containing `.`

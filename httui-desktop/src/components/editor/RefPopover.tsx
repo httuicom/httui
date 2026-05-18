@@ -1,4 +1,4 @@
-// Body of the inline `{{ref}}` quick popover (V11 cenário 3).
+// Body of the inline `{{ref}}` quick popover.
 //
 // Visual contract: design-canvas §4.3 PopoverVarQuick — 10px radius,
 // layered shadow, uppercase section labels, the key echoed in the

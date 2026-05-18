@@ -1,4 +1,4 @@
-//! IO-aware pre-flight evaluator (Epic 51 Story 02 carry-over).
+//! IO-aware pre-flight evaluator.
 //!
 //! The pure evaluator returns `Skip { reason: "needs FS/proc evaluation" }`
 //! for `FileExists` and `Command` because those need filesystem and

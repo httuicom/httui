@@ -1,4 +1,4 @@
-// Epic 50 + Epic 52 — TS frontmatter parser.
+// TS frontmatter parser.
 //
 // Used by:
 // - Per-save hook driving `useTagIndexStore.setTagsForFile`
@@ -30,18 +30,18 @@ export interface FrontmatterShape {
   title?: string;
   abstract?: string;
   tags: string[];
-  /** V2 / cenário 4.5 / M6 — checklist task items (free-form todos).
+  /** / M6 — checklist task items (free-form todos).
    *  Stored under the `tasks:` key as a flow-list of `"[ ] text"` /
-   *  `"[x] text"` strings. The V6 cenário 9 split moved this off the
-   *  legacy `preflight:` key so the V6 typed pre-flight checks
+   * `"[x] text"` strings. The split moved this off the legacy
+   * `preflight:` key so the typed pre-flight checks
    *  (block-list of kinds) can own that key without colliding. */
   tasks: TaskItem[];
-  /** V6 / cenário 8 — `status:` value (`draft` | `active` | `archived`,
+  /** `status:` value (`draft` | `active` | `archived`,
    *  free-form forward-compat). The `archived` value hides the note
    *  from the default file tree view; the consumer toggle reveals it
    *  again. Mirrors `httui_core::frontmatter::FrontmatterStatus`. */
   status?: string;
-  /** V6 / cenário 6 — user-visible parse error. Set when the
+  /** user-visible parse error. Set when the
    *  frontmatter region is unterminated (no closing `---`) or when a
    *  typed list key (`tags:` / `tasks:`) carries a non-flow value
    *  the slice-1 schema can't read (block-list shape, bare scalar).
@@ -136,7 +136,7 @@ export function extractFrontmatter(content: string): FrontmatterShape {
   return out;
 }
 
-/** V6 / cenário 8 — convenience wrapper used by `useTagIndexStore` to
+/** convenience wrapper used by `useTagIndexStore` to
  *  drive the file-tree archived filter on save. Equivalent to
  *  `extractFrontmatter(content).status === "archived"`. */
 export function extractFrontmatterArchived(content: string): boolean {

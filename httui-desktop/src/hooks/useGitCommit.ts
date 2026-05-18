@@ -1,4 +1,4 @@
-// V10.1 cenário 2 — shared commit action.
+// shared commit action.
 //
 // The git call + post-commit refresh + draft reset is the same for
 // the GitSidePanel and the V10 pane-tab, so it lives here once

@@ -1,4 +1,4 @@
-// Session override resolution for the Variables panel (Epic 43 Story 03).
+// Session override resolution for the Variables panel.
 //
 // Pure resolver that picks the override value (when present) over the
 // vault-stored row value. Returns the source so the UI can decorate

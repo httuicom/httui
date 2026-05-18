@@ -61,7 +61,7 @@ export function FileTreeNode({
       : null;
   const isActive = !entry.is_dir && entry.path === activeFile;
 
-  // V6 / cenário 8 — files with `status: archived` in their frontmatter
+  // files with `status: archived` in their frontmatter
   // are hidden from the default tree; the Sidebar toggle reveals them
   // again with an inline badge so they're identifiable at a glance.
   const isArchived = useTagIndexStore(

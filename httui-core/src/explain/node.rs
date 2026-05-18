@@ -1,6 +1,5 @@
 //! Driver-agnostic plan-node shape.
 //!
-//! Spec: `docs-llm/v1/backlog/53-sql-explain-analyze.md` Story 02.
 //! The fields are tuned for the canvas Workbench mock — `op`
 //! (e.g. "Limit"), `target` ("(rows=50)" / "r.created_at DESC"),
 //! `cost` ("0.42..18.7"), `rows`, `pct` (share of total cost

@@ -1,8 +1,8 @@
 // coverage:exclude file — Tauri command orchestrator + state wiring +
-// setup hooks. No extractable logic remains after Epic 20a Story 05;
+// setup hooks. No extractable logic remains after;
 // the substantive code lives in `httui-core` and per-domain
 // `commands/*.rs` modules, each tested independently. The
-// size:exclude opt-out came off in commit XXX (Story 05 closeout) —
+// size:exclude opt-out came off in commit XXX
 // main.rs is now 547 prod lines, under the 600 gate.
 //
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
@@ -44,13 +44,12 @@ impl StatusEmitter for TauriStatusEmitter {
 
 // Block-related commands (execute_block, result cache, history,
 // settings, examples, hash computation) and the SharedDbExecutor /
-// SharedHttpExecutor registry wrappers moved to `commands::blocks`
-// (Epic 20a Story 05).
+// SharedHttpExecutor registry wrappers moved to `commands::blocks`.
 
-// Schema commands moved to `commands::schema` (Epic 20a Story 05).
-// Config commands moved to `commands::settings` (Epic 20a Story 05).
+// Schema commands moved to `commands::schema`.
+// Config commands moved to `commands::settings`.
 
-// Vault file commands moved to `commands::files` (Epic 20a Story 05).
+// Vault file commands moved to `commands::files`.
 
 /// Re-read a file from disk and emit `file-reloaded` so the editor
 /// replaces its in-memory copy. Used after MCP writes to defeat the
@@ -104,7 +103,7 @@ fn search_files(
 
 /// Vault grep for `{{KEY}}` and `{{KEY.…}}` references. Powers the
 /// "Used in blocks" detail-panel section in the Variables page
-/// (Epic 43 Story 04). Pure file scan — no FTS5 dependency.
+/// Pure file scan — no FTS5 dependency.
 #[tauri::command]
 fn grep_var_uses(
     vault_path: String,
@@ -155,8 +154,7 @@ fn stop_watching(
 }
 
 // Connection + environment commands moved to `commands::connections`
-// and `commands::environments` (Epic 19 Story 02 Phase 2 + 3 —
-// file-backed cutover; audit-015). Wire-compat is preserved
+// and `commands::environments` (file-backed;). Wire-compat is preserved
 // (Connection.id == name; Environment.id == name;
 // EnvVariable.id == "<env>::<key>").
 
@@ -354,8 +352,7 @@ fn main() {
             app.manage(pool.clone());
 
             // Per-vault store registry resolves ConnectionsStore +
-            // EnvironmentsStore for the active vault (Epic 19 Story 02
-            // Phase 1 — commit 037f470).
+            // EnvironmentsStore for the active vault (commit 037f470).
             let store_registry = httui_notes::commands::vault_stores::VaultStoreRegistry::new();
 
             // Connection lookup wrapper threads the registry into the
@@ -429,8 +426,8 @@ fn main() {
             app.manage(Arc::new(Mutex::new(Vec::<String>::new()))); // ignore_paths
             app.manage(Mutex::new(None::<httui_notes::fs::watcher::VaultWatcher>));
 
-            // Per-vault file-backed store registry (Epic 19 cutover —
-            // audit-015). Resolves ConnectionsStore + EnvironmentsStore
+            // Per-vault file-backed store registry Resolves
+            // ConnectionsStore + EnvironmentsStore
             // for the active vault on demand, caches per vault path.
             app.manage(store_registry);
 
@@ -458,7 +455,7 @@ fn main() {
             httui_notes::commands::blocks::compute_block_hash,
             httui_notes::commands::settings::get_config,
             httui_notes::commands::settings::set_config,
-            // Epic 09 foundation — file-backed workspace + user config.
+            // foundation — file-backed workspace + user config.
             // Frontend cutover lands in epic 19 (settings split).
             httui_notes::vault_config_commands::get_workspace_config,
             httui_notes::vault_config_commands::get_workspace_config_with_sources,
@@ -468,22 +465,22 @@ fn main() {
             httui_notes::vault_config_commands::set_file_docheader_compact,
             httui_notes::vault_config_commands::get_user_config,
             httui_notes::vault_config_commands::set_user_config,
-            // Epic 10 — local override gitignore scaffolding.
+            // local override gitignore scaffolding.
             httui_notes::vault_config_commands::ensure_vault_gitignore,
-            // Epic 12 — vault migration script.
+            // vault migration script.
             httui_notes::vault_config_commands::migrate_vault_to_v1,
-            // Epic 41 Story 07 — empty-state migration banner detection.
+            // empty-state migration banner detection.
             httui_notes::vault_config_commands::detect_vault_migration,
-            // Epic 17 — vault scaffold + validate.
+            // vault scaffold + validate.
             httui_notes::vault_config_commands::check_is_vault,
             httui_notes::vault_config_commands::scaffold_vault,
-            // Epic 18 — first-run missing-secrets scan.
+            // first-run missing-secrets scan.
             httui_notes::vault_config_commands::list_missing_secrets,
-            // V1 vertical 1, cenário 3 — create vault (mkdir + git init + scaffold).
+            // create vault (mkdir + git init + scaffold).
             httui_notes::vault_config_commands::create_vault_cmd,
-            // V1 vertical 1, cenário 4 — first-run secrets modal save.
+            // first-run secrets modal save.
             httui_notes::vault_config_commands::save_secret_cmd,
-            // Epic 20 — git panel.
+            // git panel.
             httui_notes::git_commands::git_status_cmd,
             httui_notes::git_commands::git_log_cmd,
             httui_notes::git_commands::git_diff_cmd,
@@ -500,21 +497,21 @@ fn main() {
             httui_notes::git_commands::git_pull_cmd,
             httui_notes::git_commands::git_push_cmd,
             httui_notes::git_commands::git_conflict_versions_cmd,
-            // V1 vertical 1, cenário 2 — clone vault.
+            // clone vault.
             httui_notes::git_commands::clone_vault_cmd,
-            // Epic 52 Story 04 — vault-wide tag index.
+            // vault-wide tag index.
             httui_notes::tag_commands::scan_vault_tags_cmd,
-            // V6 cenário 9 — pre-flight evaluator (DocHeader pill row).
+            // pre-flight evaluator (DocHeader pill row).
             httui_notes::preflight_commands::evaluate_preflight_cmd,
-            // Epic 47 Story 01 — run-body filesystem cache.
+            // run-body filesystem cache.
             httui_notes::run_body_commands::write_run_body_cmd,
             httui_notes::run_body_commands::read_run_body_cmd,
             httui_notes::run_body_commands::list_run_bodies_cmd,
             httui_notes::run_body_commands::trim_run_bodies_cmd,
             httui_notes::run_body_commands::rename_alias_runs_cmd,
-            // Epic 41 Story 04 — template registry.
+            // template registry.
             httui_notes::templates_commands::list_templates_cmd,
-            // Epic 46 Story 03 — captures persistence.
+            // captures persistence.
             httui_notes::captures_commands::read_captures_cache_cmd,
             httui_notes::captures_commands::write_captures_cache_cmd,
             httui_notes::captures_commands::delete_captures_cache_cmd,

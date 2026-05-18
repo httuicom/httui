@@ -1,6 +1,6 @@
-// Epic 55 Story 01 — pure unified-diff parser.
+// pure unified-diff parser.
 //
-// Story 01 of the AI commit-changelog feature classifies block-level
+// of the AI commit-changelog feature classifies block-level
 // changes from `git diff --cached`. The pipeline is:
 //   1. parse the unified diff text into structured hunks  ← THIS FILE
 //   2. for each file, identify which fenced block each hunk falls
@@ -24,7 +24,7 @@ export interface DiffHunk {
   /** 1-indexed line numbers IN THE OLD FILE that were removed. */
   removedLines: number[];
   /** Raw hunk text (header + body) for downstream block-detection
-   *  context — Story 01 follow-up walks each hunk against the
+   * context — follow-up walks each hunk against the
    *  after-side markdown to find the block. */
   raw: string;
 }
@@ -143,7 +143,7 @@ function parseHunkHeader(line: string): HunkHeader | null {
 }
 
 /** Convenience: pick out the `*.md` files inside `runbooks/` that the
- *  changelog should consider. Story 01 spec says only those count. */
+ * changelog should consider. spec says only those count. */
 export function selectRunbookMd(files: ReadonlyArray<DiffFile>): DiffFile[] {
   return files.filter((f) => {
     const path = f.isDeleted ? f.oldPath : f.path;

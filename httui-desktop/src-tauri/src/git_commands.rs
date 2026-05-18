@@ -41,14 +41,14 @@ pub async fn git_branch_list_cmd(vault_path: String) -> Result<Vec<BranchInfo>, 
 }
 
 /// Configured remotes (`git remote -v` deduped to one entry per
-/// `(name, url)`). Powers Epic 49's `<SharePopover>`.
+/// `(name, url)`). Powers the `<SharePopover>`.
 #[tauri::command]
 pub async fn git_remote_list_cmd(vault_path: String) -> Result<Vec<Remote>, String> {
     git_remote_list(&PathBuf::from(vault_path))
 }
 
 /// First-commit author of `path` (follows renames). `None` when the
-/// path doesn't appear in history. Powers Epic 50 Story 03's
+/// path doesn't appear in history. Powers the
 /// `<DocHeaderMetaStrip>` Author chip.
 #[tauri::command]
 pub async fn git_first_commit_author_cmd(
@@ -59,8 +59,8 @@ pub async fn git_first_commit_author_cmd(
 }
 
 /// `git checkout <branch>` — switch to an existing branch. Powers
-/// Epic 48 Story 04's `<GitBranchPicker>` selection flow. The
-/// consumer handles the dirty-state stash precheck before calling.
+/// the `<GitBranchPicker>` selection flow. The consumer
+/// handles the dirty-state stash precheck before calling.
 #[tauri::command]
 pub async fn git_checkout_cmd(vault_path: String, branch: String) -> Result<(), String> {
     git_checkout(&PathBuf::from(vault_path), &branch)
@@ -74,8 +74,8 @@ pub async fn git_checkout_b_cmd(vault_path: String, new_branch: String) -> Resul
 }
 
 /// `git checkout --ours|--theirs -- <path>` — replace a conflicted
-/// working-tree file with one side of the merge. Powers Epic 48
-/// Story 06's `<GitConflictBanner>` Accept-yours / Accept-theirs
+/// working-tree file with one side of the merge. Powers
+/// the `<GitConflictBanner>` Accept-yours / Accept-theirs
 /// row actions. Caller is expected to follow up with
 /// `stage_path_cmd` to mark the conflict resolved.
 #[tauri::command]
@@ -88,7 +88,7 @@ pub async fn git_checkout_conflict_path_cmd(
 }
 
 /// `git show :1|:2|:3:<path>` — the three merge stages of a
-/// conflicted file. Powers the V10 cenário 6 3-way resolver.
+/// conflicted file. Powers the 3-way resolver.
 #[tauri::command]
 pub async fn git_conflict_versions_cmd(
     vault_path: String,
@@ -98,7 +98,7 @@ pub async fn git_conflict_versions_cmd(
 }
 
 /// `git add <path>` — stages a single vault-relative file. Powers
-/// the `<GitFileList>` per-row staging checkbox (Epic 48 Story 02).
+/// the `<GitFileList>` per-row staging checkbox.
 #[tauri::command]
 pub async fn stage_path_cmd(vault_path: String, path: String) -> Result<(), String> {
     stage_path(&PathBuf::from(vault_path), &path)
@@ -123,7 +123,7 @@ pub async fn git_commit_cmd(
     git_commit(&PathBuf::from(vault_path), &message, amend)
 }
 
-/// `git fetch [<remote>]`. Powers Story 05's `<GitSyncButtons>`
+/// `git fetch [<remote>]`. Powers the `<GitSyncButtons>`
 /// fetch action. Returns the combined stdout+stderr for the toast.
 #[tauri::command]
 pub async fn git_fetch_cmd(vault_path: String, remote: Option<String>) -> Result<String, String> {
@@ -131,7 +131,7 @@ pub async fn git_fetch_cmd(vault_path: String, remote: Option<String>) -> Result
 }
 
 /// `git pull [--ff-only] [<remote> <branch>]`. `ff_only` is the
-/// V10.1 cenário 3 Sync path (never auto-merge on pull).
+/// Sync path (never auto-merge on pull).
 #[tauri::command]
 pub async fn git_pull_cmd(
     vault_path: String,
@@ -164,7 +164,7 @@ pub async fn git_push_cmd(
     )
 }
 
-/// `git clone <url> <parent>/<repo-name>` — V1 vertical 1, cenário 2.
+/// `git clone <url> <parent>/<repo-name>`.
 ///
 /// Auth (HTTPS PAT, SSH keys) is delegated to the user's git
 /// credential helper / ssh-agent. The `parent` arg is the *container*

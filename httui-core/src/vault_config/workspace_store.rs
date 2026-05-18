@@ -129,7 +129,7 @@ impl WorkspaceStore {
 
     /// Same as [`defaults`](Self::defaults) but also reports which
     /// fields originate from `workspace.local.toml`. Powers the
-    /// "overridden locally" badges in the Settings UI (V3 cenário 3).
+    /// "overridden locally" badges in the Settings UI.
     ///
     /// A field is `Source::Local` iff the `[defaults]` table in the
     /// `.local.toml` sibling has that key, regardless of whether the
@@ -203,8 +203,8 @@ impl WorkspaceStore {
 
     /// Set the `docheader_compact` flag for `file_path`. Same prune
     /// semantics as `set_file_auto_capture` — defaulted entries are
-    /// removed so workspace.toml stays minimal. Powers Epic 50
-    /// Story 06's compact-mode persistence.
+    /// removed so workspace.toml stays minimal. Powers
+    /// the compact-mode persistence.
     pub async fn set_file_docheader_compact(
         &self,
         file_path: &str,

@@ -79,7 +79,7 @@ export function testConnection(id: string): Promise<void> {
 }
 
 /** Vault-grep for db-block fences using `connection=<name>`. Powers
- * the "Used in runbooks" panel of ConnectionsPage (V4 cenário 7). */
+ * the "Used in runbooks" panel of ConnectionsPage. */
 export interface ConnectionUse {
   /** Vault-relative path with posix separators. */
   file: string;

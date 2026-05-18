@@ -1,4 +1,4 @@
-// V10.1 cenário 7 — the side panel and the V10 pane-tab must never
+// the side panel and the pane-tab must never
 // diverge: they read/write the same useGitStore. This renders BOTH
 // at once over one in-memory git backend and proves a stage / commit
 // done in the side panel surfaces in the pane-tab.
@@ -70,7 +70,7 @@ afterEach(() => {
   useWorkspaceStore.setState({ vaultPath: null });
 });
 
-describe("git side panel ↔ pane-tab consistency (cenário 7)", () => {
+describe("git side panel ↔ pane-tab consistency", () => {
   it("a stage in the side panel surfaces as staged in the pane-tab", async () => {
     wireBackend({ staged: false, committed: null });
     const user = userEvent.setup();

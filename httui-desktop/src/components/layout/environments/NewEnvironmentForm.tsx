@@ -1,4 +1,4 @@
-// Canvas §6 Environments — "+ New environment" inline form (Epic 44 Story 02).
+// Canvas §6 Environments — "+ New environment" inline form.
 //
 // Name only — creates an empty `envs/<name>.toml`. The consumer
 // wires the actual file write. `Mark personal` belongs to the clone

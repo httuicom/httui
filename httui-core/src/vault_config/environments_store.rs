@@ -35,10 +35,10 @@ pub struct EnvironmentPublic {
     pub color: Option<String>,
     pub var_count: usize,
     pub secret_count: usize,
-    /// Canvas §6 Story 03 — `[meta].temporary`. Drives the
+    /// Canvas §6 `[meta].temporary`. Drives the
     /// `temporary` chip in the Environments page.
     pub temporary: bool,
-    /// Canvas §6 Story 03 — `[meta].connections_used` allowlist.
+    /// Canvas §6 `[meta].connections_used` allowlist.
     /// Empty list means "all connections".
     pub connections_used: Vec<String>,
 }

@@ -96,7 +96,7 @@ test-front:
 	npm run test --workspace httui-desktop -- --project unit
 
 # Coverage gate — touched-files rule (≥80% per file changed).
-# See docs-llm/v1/definition-of-done.md.
+# See CONTRIBUTING.md.
 coverage-check:
 	./scripts/coverage-check.sh
 
@@ -110,7 +110,7 @@ coverage-fe:
 	cd httui-desktop && npm run test -- --project unit --coverage
 
 # File-size gate — touched files must stay under MAX_LINES (default 600).
-# SOLID nudge for SRP. See docs-llm/v1/definition-of-done.md.
+# SOLID nudge for SRP. See CONTRIBUTING.md.
 size-check:
 	./scripts/size-check.sh
 

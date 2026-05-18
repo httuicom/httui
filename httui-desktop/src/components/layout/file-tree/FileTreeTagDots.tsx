@@ -1,5 +1,5 @@
-// V6 / cenário 5 — colored tag dots rendered on the right side of
-// `.md` rows in the file tree. Reads from `useTagIndexStore.byFile`
+// colored tag dots rendered on the right side of `.md` rows in
+// the file tree. Reads from `useTagIndexStore.byFile`
 // (kept in sync per-save by `useEditorSession.refreshTagsForFile` and
 // at vault open by `useTagIndexStore.loadFromVault`).
 //

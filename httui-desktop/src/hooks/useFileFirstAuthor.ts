@@ -1,5 +1,5 @@
 // Fetches the first-commit author of `filePath` once per
-// (vaultPath, filePath) change. Powers the Epic 50 Story 03
+// (vaultPath, filePath) change. Powers the
 // `<DocHeaderMetaStrip>` Author chip — the chip itself is already
 // shipped, this is the data source.
 //

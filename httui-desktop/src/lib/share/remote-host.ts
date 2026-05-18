@@ -1,4 +1,4 @@
-// Epic 49 Stories 02 + 03 — frontend port of `httui-core::git::remote_host`.
+// frontend port of `httui-core::git::remote_host`.
 //
 // Mirrors the Rust parser shape so the popover can compose URLs
 // without an IPC roundtrip on every keystroke / menu open. Rust is

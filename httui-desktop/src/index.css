@@ -38,7 +38,7 @@ body,
 }
 
 /*
- * Scrollbar atom — `docs-llm/v1/design-canvas-microdetails.md` §0.
+ * Scrollbar atom (design canvas §0).
  * 10px wide thumb in `--bg-3`, 2px transparent border for an inset
  * effect against the scroll surface. Track stays transparent so the
  * Fuji bg / paper bg shows through. Firefox honours the

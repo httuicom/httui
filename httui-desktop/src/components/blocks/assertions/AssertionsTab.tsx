@@ -1,4 +1,4 @@
-// Block-result Tests tab — Epic 45 Story 04.
+// Block-result Tests tab.
 //
 // Presentational. Lists each assertion with ✓ / ✗ icon + the original
 // raw expression + actual vs expected when failed. Pure consumer of

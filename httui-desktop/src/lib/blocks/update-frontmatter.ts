@@ -1,5 +1,5 @@
-// V2 / cenário 4.5 — mutators that rewrite YAML frontmatter inside a
-// markdown document. Pure string-in / string-out: each function takes
+// mutators that rewrite YAML frontmatter inside a markdown document.
+// Pure string-in / string-out: each function takes
 // the full document content and the new field value, and returns the
 // modified document. Mirrors the Rust slice-1 schema (single-line scalar
 // `title:` / `abstract:`, flow-style `tags: [a, b]`,
@@ -293,7 +293,7 @@ export function updateFrontmatterTags(
  * the line when present, no-ops when absent. Items are serialised via
  * `stringifyTaskItem` (`[ ] foo` / `[x] bar`) and wrapped in a
  * flow-list — staying within the slice-1 schema. The legacy
- * `preflight:` flow-list (V2 M6) was renamed to `tasks:` in V6 cenário
+ * `preflight:` flow-list (M6) was renamed to `tasks:`
  * 9 so the V6 typed pre-flight checks (block-list of kinds) own the
  * `preflight:` key without colliding.
  */

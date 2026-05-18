@@ -1,6 +1,6 @@
 //! Vault configuration files (TOML).
 //!
-//! Implements the schemas defined in ADR 0001 (`docs-llm/v1/adr/`):
+//! Implements the schemas defined in ADR 0001:
 //!
 //! - `connections.toml` — connection definitions
 //! - `envs/{name}.toml` — per-environment vars and secrets

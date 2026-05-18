@@ -84,9 +84,9 @@ export function Hero() {
           lineHeight="1.55"
           color="fg"
         >
-          httui is a markdown editor with executable blocks — HTTP requests
-          and SQL (PostgreSQL, MySQL, SQLite). Each runbook is documentation
-          and a troubleshooting tool, versioned in git.
+          httui is a markdown editor with executable blocks — HTTP requests and
+          SQL (PostgreSQL, MySQL, SQLite). Each runbook is documentation and a
+          troubleshooting tool, versioned in git.
         </Text>
 
         <HStack

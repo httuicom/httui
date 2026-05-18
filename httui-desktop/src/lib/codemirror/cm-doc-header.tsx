@@ -1,4 +1,4 @@
-// V2 / cenário 4.5 — DocHeader inline as a CM6 block widget.
+// DocHeader inline as a CM6 block widget.
 //
 // Mounts the React `DocHeaderShell` at the very top of the document via
 // `Decoration.widget` (block, side: -1) at offset 0. When the doc has a

@@ -1,4 +1,4 @@
-// Pure scanner for "used in runbooks" detection (Epic 42 Story 04).
+// Pure scanner for "used in runbooks" detection.
 //
 // Walks markdown text and returns the line numbers where a fenced
 // code block opens with the `db-<connection_id>` info-string. The

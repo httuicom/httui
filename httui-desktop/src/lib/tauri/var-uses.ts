@@ -1,4 +1,4 @@
-// Tauri wrapper for `grep_var_uses` — Epic 43 Story 04.
+// Tauri wrapper for `grep_var_uses`.
 //
 // Pure `invoke()` shell. Coverage comes from the
 // `<UsedInBlocksList>` consumer tests (which mock the command name).

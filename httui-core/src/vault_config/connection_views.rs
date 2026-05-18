@@ -3,11 +3,11 @@
 //! `db::connections::Connection` struct that the pool manager still
 //! consumes.
 //!
-//! Extracted from `connections_store.rs` (Epic 20a Story 02). The
-//! pure variant accessors (`driver_string_for`, `host_of`, …) live
+//! Extracted from `connections_store.rs`. The pure variant
+//! accessors (`driver_string_for`, `host_of`, …) live
 //! here too — they're shared between the public view and the legacy
-//! adapter, and they're the OCP target Story 03 replaces with
-//! `trait DbConnection`. Keeping them in one module makes the trait
+//! adapter, and they're the OCP target replaces with `trait
+//! DbConnection`. Keeping them in one module makes the trait
 //! migration a one-file refactor.
 
 use serde::Serialize;
@@ -122,7 +122,7 @@ pub(super) fn to_public(name: &str, c: &Connection) -> ConnectionPublic {
 /// usable for an actual DB connection.
 ///
 /// This adapter dies when the legacy `db::connections::Connection`
-/// shape is removed (post Epic 19 frontend cutover).
+/// shape is removed (post frontend).
 pub(super) fn to_legacy(name: &str, c: &Connection) -> Result<LegacyConnection, String> {
     let view = c.as_dyn();
     let password = match view.password() {

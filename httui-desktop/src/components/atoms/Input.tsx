@@ -1,4 +1,4 @@
-// Input atom — `docs-llm/v1/design-canvas-microdetails.md` §0.
+// Input atom (design canvas §0).
 //
 // 24px tall, mono font, focus outline `--accent`. Wraps Chakra
 // `<Input>` with the canvas spec sizes and tags itself with

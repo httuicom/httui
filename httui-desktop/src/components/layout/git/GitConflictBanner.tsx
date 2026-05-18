@@ -1,4 +1,4 @@
-// Epic 48 Story 06 — conflict banner + per-file resolution row.
+// conflict banner + per-file resolution row.
 //
 // Pure presentational. Consumer derives `conflicts: string[]` (a
 // list of vault-relative paths) from `git_status`'s `changed[]`

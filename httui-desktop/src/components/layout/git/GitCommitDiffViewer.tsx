@@ -1,4 +1,4 @@
-// Epic 48 Story 03 — commit diff inspector.
+// commit diff inspector.
 //
 // Pure presentational. Receives the unified-diff text already fetched
 // by `gitDiff(vault, commitSha)` and renders it line-by-line in a
@@ -9,7 +9,7 @@
 //   - everything else → fg
 //
 // A CM6-based viewer with proper diff syntax highlighting can land
-// later (consumer-side mount, Epic 30a sweep). For Story 03 we keep
+// later (consumer-side mount, sweep). For we keep
 // it simple — no editor instance to mount, no language pack to load.
 
 import { Box, Text } from "@chakra-ui/react";

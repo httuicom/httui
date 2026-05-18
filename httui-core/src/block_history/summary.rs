@@ -1,4 +1,4 @@
-//! Per-file last-run summary — Epic 50 Story 03 backend slice.
+//! Per-file last-run summary — backend slice.
 //!
 //! Powers the `<DocHeaderMetaStrip>` "Last run 14:32 · 12 blocks ·
 //! 1 failed" chip. Pure aggregation over `HistoryEntry[]` returned

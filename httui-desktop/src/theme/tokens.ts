@@ -1,5 +1,5 @@
 // Fuji design tokens — canvas-derived single source of truth.
-// Mirrors `docs-llm/v1/design-canvas-microdetails.md` §0. Edits here
+// Mirrors the design canvas §0. Edits here
 // must keep the canvas in sync.
 //
 // Consumed by `lib/theme.ts` (Chakra system) and any component that
@@ -193,11 +193,11 @@ export const RADII = {
   full: "9999px",
 } as const;
 
-// --- Fuji watercolor backgrounds (Epic 40 Story 03) --------------------
+// --- Fuji watercolor backgrounds ---------------------------------------
 // CSS-gradient fallback per the spec's "if Tauri webview can't render
 // large PNGs efficiently, fall back to a CSS gradient that approximates
 // the Fuji palette" — no PNG assets required. Mount on empty states
-// only (Epic 41), never behind dense data tables.
+// only, never behind dense data tables.
 
 export const FUJI_BG_DARK = `
   radial-gradient(ellipse at 22% 18%, oklch(0.32 0.03 230 / 0.55) 0%, transparent 55%),

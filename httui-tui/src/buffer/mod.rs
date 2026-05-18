@@ -6,7 +6,7 @@
 //! through `httui_core::blocks`.
 //!
 //! Mutation APIs (insert / delete / undo) arrive in later rounds of
-//! Epic 18; the current surface covers load, inspect, serialize.
+//! the current surface covers load, inspect, serialize.
 
 // Some helpers (`is_e2e`, `BlockId::find_*`, …) are kept available but
 // not yet consumed; epic 19/21 will pick them up.

@@ -1,4 +1,4 @@
-// Canvas §6 Variables — list panel (Epic 43 Story 01 slice 1).
+// Canvas §6 Variables — list panel.
 //
 // Header (serif H1 + subtitle + buttons + search row + env pill),
 // table headers `1.4fr 1.4fr 1.4fr 1.4fr 60px`, empty body when no
@@ -25,7 +25,7 @@ export interface VariablesListPanelProps {
   onCreateNew?: () => void;
   /** Slot — slice 2 plugs `<VariableListRow>` rows here. */
   rowsSlot?: ReactNode;
-  /** Slot — Story 05 plugs `<NewVariableForm>` above the table headers when the consumer is in create mode. */
+  /** Slot — plugs `<NewVariableForm>` above the table headers when the consumer is in create mode. */
   inlineFormSlot?: ReactNode;
 }
 

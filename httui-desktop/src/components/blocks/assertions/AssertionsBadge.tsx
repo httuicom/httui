@@ -1,4 +1,4 @@
-// Block-status assertions badge — Epic 45 Story 04.
+// Block-status assertions badge.
 //
 // Compact `N/M` chip mounted next to the run badge in the panel
 // status bar. Color shifts on failure. Renders nothing when there

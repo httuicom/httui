@@ -1,5 +1,4 @@
-// Pure helpers for the empty-state ⌘V paste-URL flow (Epic 41 Story
-// 06). Two responsibilities:
+// Pure helpers for the empty-state ⌘V paste-URL flow. Two responsibilities:
 //
 // - `extractUrl(text)`: detect when a pasted clipboard payload should
 //   trigger the scaffold-with-block path. Strict so accidental text

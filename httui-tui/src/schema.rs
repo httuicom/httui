@@ -28,7 +28,7 @@ use httui_core::db::schema_cache::SchemaEntry;
 /// One database schema, grouped by `(schema, table)` and ready to
 /// hand to the SQL completion engine.
 ///
-/// The `name`/`data_type` fields read as dead code today; Story 04.4b
+/// The `name`/`data_type` fields read as dead code today; b
 /// (SQL completion source) is the consumer that lights them up.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]

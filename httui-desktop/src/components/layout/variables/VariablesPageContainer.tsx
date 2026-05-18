@@ -55,9 +55,9 @@ export function mergeCrossEnvVariables(
       } else {
         byKey.set(v.key, {
           key: v.key,
-          // V5 cenário 1: scope inference is `workspace` for every
+          // scope inference is `workspace` for every
           // env-defined var. Personal/captured discrimination ships
-          // alongside the per-env meta backend (later cenário).
+          // alongside the per-env meta backend (later).
           scope: "workspace",
           isSecret: Boolean(v.is_secret),
           values: { [env.name]: v.value },
@@ -94,7 +94,7 @@ export function VariablesPageContainer({
     void refreshEnvs();
   }, [refreshEnvs]);
 
-  // External `envs/*.toml` edits via the file watcher (Epic 11).
+  // External `envs/*.toml` edits via the file watcher.
   useEffect(() => {
     let cancelled = false;
     let unlisten: (() => void) | null = null;
@@ -214,7 +214,7 @@ export function VariablesPageContainer({
     [envByName, selectedRow, setVariable],
   );
 
-  // V5 cenário 4 — flip the is_secret flag for every env that defines
+  // flip the is_secret flag for every env that defines
   // this key. Prompts in both directions: promotion moves the
   // cleartext into the keychain, demotion writes it back to the TOML.
   // For demotion we resolve via `resolveEnvVariables` because

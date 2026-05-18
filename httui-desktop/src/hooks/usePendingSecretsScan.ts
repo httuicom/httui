@@ -1,4 +1,4 @@
-// V1 vertical 1, cenário 4 — first-run secrets scan trigger.
+// first-run secrets scan trigger.
 //
 // Watches `vaultPath` and, on every transition into a defined vault,
 // calls `list_missing_secrets` and pushes the result into the

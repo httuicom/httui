@@ -1,4 +1,4 @@
-// Epic 48 Story 06 — accept-side conflict resolver hook.
+// accept-side conflict resolver hook.
 //
 // Wraps the two-step accept-and-mark-resolved chain shipped in
 // commits 97288f5 (Rust `git_checkout_conflict_path`) + e8c4dad

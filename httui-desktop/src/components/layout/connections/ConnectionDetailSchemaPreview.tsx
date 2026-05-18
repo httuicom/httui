@@ -1,4 +1,4 @@
-// Canvas §5 — Detail panel schema preview (Epic 42 Story 03).
+// Canvas §5 — Detail panel schema preview.
 //
 // Renders the connection's introspected schema as a collapsible
 // table tree, with a "Hot tables" section above (top-N by hit

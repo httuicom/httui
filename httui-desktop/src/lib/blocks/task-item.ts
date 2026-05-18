@@ -1,8 +1,8 @@
-// V2 / cenário 4.5 / M6 — checklist task shape and the flow-style
+// / M6 — checklist task shape and the flow-style
 // YAML round-trip helpers used by the editable checklist in the
 // DocHeader.
 //
-// V6 cenário 9 split: this used to live under the YAML key `preflight:`
+// split: this used to live under the YAML key `preflight:`
 // which now belongs to the V6 pre-flight checks (block-list of typed
 // kinds — connection / env_var / branch / keychain / file_exists /
 // command). The free-form checklist moved to `tasks:` so the two

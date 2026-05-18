@@ -2054,7 +2054,7 @@ fn apply_confirm_connection_picker(app: &mut App) {
         }
     }
     // Kick off schema introspection in the background. By the time
-    // the user starts typing inside the SQL field (Story 04.4b), the
+    // the user starts typing inside the SQL field, the
     // completion engine has tables/columns ready to suggest. Cheap to
     // call repeatedly — `ensure_schema_loaded` dedups on `pending`.
     app.ensure_schema_loaded(&picked_id);

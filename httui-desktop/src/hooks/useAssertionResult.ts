@@ -1,4 +1,4 @@
-// useAssertionResult — Epic 45 Story 03 run-time wiring.
+// useAssertionResult — run-time wiring.
 //
 // Pure-derivation hook. Memo'd on (blockBody, ctx). Returns null when:
 //   - ctx is null/undefined (block hasn't run yet)

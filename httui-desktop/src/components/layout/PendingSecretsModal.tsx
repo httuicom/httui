@@ -1,4 +1,4 @@
-// First-run secrets modal — V1 vertical 1, cenário 4.
+// First-run secrets modal.
 //
 // Renders a list of `MissingRef`s the user needs to provide a value
 // for. Each row has Save (persist + remove from store) and Skip

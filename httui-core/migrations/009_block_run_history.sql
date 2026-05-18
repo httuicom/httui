@@ -1,4 +1,4 @@
--- Story 24.6 — Block run history (HTTP block).
+-- Block run history (HTTP block).
 --
 -- Stores metadata only (method, URL canonical, status, sizes, elapsed,
 -- timestamp) for the most recent N runs per (file_path, alias). Body of

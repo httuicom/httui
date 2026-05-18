@@ -1,4 +1,4 @@
-// V6 / cenário 9 — suggestion provider for the pre-flight check
+// suggestion provider for the pre-flight check
 // builder popover. Returns autocomplete candidates per kind.
 //
 // MVP scope:

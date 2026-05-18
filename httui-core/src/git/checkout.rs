@@ -1,6 +1,6 @@
 //! `git checkout` + `git checkout -b` — branch switching.
 //! Plus `git_checkout_conflict_path` for accepting one side of a
-//! merge conflict (Epic 48 Story 06).
+//! merge conflict.
 
 use std::path::Path;
 

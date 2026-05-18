@@ -3,12 +3,11 @@
 // (DTO conversion) are tested below; substantive logic
 // (file-backed CRUD, atomic write, secret resolution) lives in
 // `httui_core::vault_config::connections_store` at >80% coverage.
-// Same rationale as `commands/environments.rs` (audit-016) and
-// `vault_config_commands.rs` (audit-002). Retires when Epic 20a
-// Story 05 lands the per-domain command harness.
+// Same rationale as `commands/environments.rs` and
+// `vault_config_commands.rs`. Retires when the per-domain
+// command harness lands.
 
-//! Connection Tauri commands — file-backed cutover (Epic 19 Story 02
-//! Phase 3; audit-015).
+//! Connection Tauri commands — file-backed cutover.
 //!
 //! Wire-compat with the legacy `db::connections::ConnectionPublic`
 //! shape so the React frontend doesn't need changes:
@@ -102,7 +101,7 @@ pub struct UpdateConnection {
 
 // Defaults mirror `vault_config::connections_store::to_legacy` —
 // the file-backed format doesn't yet carry these advanced fields,
-// and the canvas connection form (Epic 42) doesn't expose them
+// and the canvas connection form doesn't expose them
 // either. When per-connection overrides become user-facing, the
 // file format grows a `[<conn>.advanced]` section.
 const DEFAULT_TIMEOUT_MS: i64 = 10_000;
@@ -247,8 +246,8 @@ pub async fn test_connection(
 }
 
 /// Vault-wide grep for db-block fences referencing `connection=<name>`.
-/// Powers the "Used in runbooks" panel in ConnectionsPage (V4 cenário
-/// 7). Wraps `httui_core::connection_uses::find_connection_uses` —
+/// Powers the "Used in runbooks" panel in ConnectionsPage. Wraps
+/// `httui_core::connection_uses::find_connection_uses`
 /// substantive logic + tests live there.
 #[tauri::command]
 pub async fn find_connection_uses_cmd(
@@ -305,7 +304,7 @@ mod tests {
     #[test]
     fn to_wire_emits_default_advanced_fields() {
         // The file format doesn't carry advanced timeout/pool fields
-        // yet (Epic 42 form doesn't expose them either). Defaults
+        // yet (form doesn't expose them either). Defaults
         // mirror `vault_config::connections_store::to_legacy`.
         let wire = to_wire(sample_file_public("z"));
         assert_eq!(wire.timeout_ms, DEFAULT_TIMEOUT_MS);

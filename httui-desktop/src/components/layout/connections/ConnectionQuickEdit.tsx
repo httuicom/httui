@@ -1,4 +1,4 @@
-// Connection quick-edit popover body (V11 cenário 2 — carry Epic 23).
+// Connection quick-edit popover body (carry).
 //
 // Mounted by ConnectionsList inside a Portal+Popover anchored to the
 // sidebar chip (NOT a Dialog — preserves CM6 focus). Surfaces, in

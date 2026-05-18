@@ -1,4 +1,4 @@
-// V6 / cenário 9 — fetches the pre-flight evaluation for the active
+// fetches the pre-flight evaluation for the active
 // file and exposes the `PreflightPillItem[]` the DocHeader pill row
 // expects.
 //
@@ -10,7 +10,7 @@
 //  - explicit `recheck()` call from the consumer (Re-check button).
 //
 // Errors fall through silently — the hook returns an empty list so
-// the pill row hides itself, matching the V2 cenário 4.5 contract.
+// the pill row hides itself, matching the contract.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 

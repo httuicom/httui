@@ -15,7 +15,7 @@
 //! the expected shape is dropped (with no error) so the surrounding
 //! frontmatter parser stays generic. Items with unknown keys are
 //! recorded as `PreflightItem::Unknown` for forward-compat — the
-//! evaluator (Story 02) can choose to surface them as `Skip { reason
+//! evaluator can choose to surface them as `Skip { reason
 //! "unknown check kind" }` later.
 
 use serde::Serialize;
@@ -163,7 +163,7 @@ mod tests {
 
     #[test]
     fn parse_records_keychain_as_unknown_kind() {
-        // V6 cenário 9: keychain was removed from the typed set. Legacy
+        // keychain was removed from the typed set. Legacy
         // YAML that still uses it falls through to Unknown so the file
         // doesn't break — the pill renders as a skip with the key.
         let raw = "preflight:\n  - keychain: payments-db.password\n";

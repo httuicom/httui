@@ -1,4 +1,4 @@
-// V10 cenário 4 — branch list + checkout actions for the status-bar
+// branch list + checkout actions for the status-bar
 // BranchMenu. Lazy: `loadBranches()` is called when the menu opens
 // (branches change rarely, polling is overkill — matches the
 // `useGitRemotes` posture). `selectBranch` / `createBranch` route to

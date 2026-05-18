@@ -1,4 +1,4 @@
-//! `git clone` — V1 vertical 1, cenário 2.
+//! `git clone`.
 //!
 //! Shells out to `git clone <url> <parent>/<repo-name>` using the
 //! system `git`. Auth (HTTPS PAT, SSH keys) is delegated to the
