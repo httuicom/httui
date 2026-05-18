@@ -1,23 +1,26 @@
 # Release process
 
-How a tagged release of **httui notes** is built, signed, published,
-and distributed. The pipeline is `.github/workflows/release.yml`,
+How a tagged release of **httui** is built, published, and
+distributed. The pipeline is `.github/workflows/release.yml`,
 triggered by pushing a `v*` tag.
 
-> **v1 status:** the macOS build is an **unsigned developer build**
-> (no Apple Developer ID — decision 2026-05-17). The signing path is
-> fully wired and gated on secrets; the day the cert exists, set the
-> secrets and re-tag — no workflow edits. Some steps below
-> (notarization, Homebrew/winget, the soak) can only be verified with
-> real certs, tokens, CI runs, and wall-clock time — they are
-> **CI/cert-bound** and validated post-tag, not in this repo.
+> **Status:** httui is pre-stable (`0.x`); the first public release is
+> `v0.4.0`. macOS and Windows builds are **unsigned** (no Apple
+> Developer ID / Authenticode — decision 2026-05-17): macOS is ad-hoc
+> signed, Windows triggers SmartScreen. The `APPLE_*` env is **not
+> wired** in `release.yml`; enabling Developer ID signing later is a
+> *deliberate workflow edit* (re-add the env) plus the secrets — see
+> §5, not a secrets-only switch. Notarization, Homebrew/winget
+> publishing, and the RC soak can only be verified with real certs,
+> tokens, CI runs, and wall-clock time — they are **CI/cert-bound**
+> and validated post-tag.
 
 ## 1. Required GitHub secrets
 
 | Secret | Purpose | Unset behaviour |
 |---|---|---|
 | `TAURI_SIGNING_PRIVATE_KEY` | minisign key signing the updater artifacts (`latest.json` + `.sig`). Public key is pinned in `tauri.conf.json` → `plugins.updater.pubkey`. | No updater artifacts; in-app auto-update is inert. Installers still ship. |
-| `APPLE_CERTIFICATE` | Base64 of the Developer ID `.p12`. **Not referenced by the workflow in v1** — see §5. | macOS build is **unsigned**, ad-hoc signed (see §5). |
+| `APPLE_CERTIFICATE` | Base64 of the Developer ID `.p12`. **Not referenced by the workflow** — see §5. | macOS build is **unsigned**, ad-hoc signed (see §5). |
 | `APPLE_CERTIFICATE_PASSWORD` | `.p12` password. | — |
 | `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Name (TEAMID)`. | — |
 | `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` | Notarization (app-specific password). | No notarization. |
@@ -28,16 +31,16 @@ triggered by pushing a `v*` tag.
 
 ## 2. Tag conventions
 
-- Stable: `vMAJOR.MINOR.PATCH` — e.g. `v1.0.0`.
+- Stable: `vMAJOR.MINOR.PATCH` — e.g. `v0.4.0`.
 - Pre-release: append `-rc.N`, `-beta.N`, or `-alpha.N`. Canonical
-  form uses the dot (`v1.0.0-rc.1`); the bare form (`v1.0.0-rc1`) is
+  form uses the dot (`v0.4.0-rc.1`); the bare form (`v0.4.0-rc1`) is
   also accepted by the gate.
 - A pre-release tag ⇒ GitHub release flagged **prerelease** and
   excluded from the default auto-update channel (users opt in under
   **Settings → General → Software updates → Include pre-releases**).
 - The `validate` job **fails the whole release** if `CHANGELOG.md`
   has no `## [VERSION]` section. A pre-release falls back to its base
-  version section (`v1.0.0-rc.1` → `## [1.0.0]`). Notes are curated,
+  version section (`v0.4.0-rc.1` → `## [0.4.0]`). Notes are curated,
   never auto-derived.
 
 ## 3. Cutting a release
@@ -47,8 +50,8 @@ triggered by pushing a `v*` tag.
 2. Commit on `main` (or release branch).
 3. Tag and push:
    ```bash
-   git tag v1.0.0-rc.1
-   git push origin v1.0.0-rc.1
+   git tag v0.4.1-rc.1
+   git push origin v0.4.1-rc.1
    ```
 4. Watch **Actions → Release**. Jobs: `validate` → `release`
    (macOS arm64, macOS x64, Linux, Windows in parallel) →
@@ -56,24 +59,27 @@ triggered by pushing a `v*` tag.
 5. Verify the GitHub Release: `.dmg` ×2, `.app.tar.gz` + `.sig`,
    `.msi`, `.exe`, `.deb`, `.rpm`, `.AppImage`, `latest.json`.
 
-## 4. Two-tag soak (cenário 10)
+## 4. RC soak (recommended)
 
-Before the final stable `vX.Y.0`:
+For a significant release, ship one or more `-rc` tags first and let
+them soak before cutting the stable `vX.Y.0`:
 
-- **Minimum:** ship at least **one `-rc` tag and let it soak for ≥ 1
-  week** with no release-blocking bug.
-- **Recommended for a major:** two RCs (`-rc.1`, `-rc.2`), each
-  soaked ≥ 1 week.
-- Only then tag the stable `vX.Y.0`. Patch releases (`vX.Y.Z`,
-  Z>0) may skip the soak when shipping an isolated fix.
+- A soak of ~1 week per RC with no release-blocking bug is the
+  recommended bar for a feature release.
+- Pre-stable `0.x` and isolated patch releases (`vX.Y.Z`, Z>0) may
+  ship directly when the change is small and well-tested — `v0.4.0`
+  itself shipped after a same-day RC pass.
 
-Record each RC and its soak window in the PR / release notes.
+When you do soak, record each RC and its window in the release notes.
 
-## 5. macOS — unsigned dev build (v1) & Gatekeeper
+## 5. macOS — unsigned build & Gatekeeper
 
-Without the `APPLE_*` secrets the `.dmg` is **not** notarized.
-Gatekeeper will refuse it on first open. Two user workarounds (put
-these in the release notes / website):
+The `.dmg` is **not** notarized, so Gatekeeper blocks a manually
+downloaded `.app` on first open. The two supported install paths
+clear this automatically — **the install script
+(`https://httui.com/install.sh`) and the Homebrew cask both strip the
+quarantine attribute on install**, so users hitting those never see a
+prompt. Only a hand-downloaded `.dmg` needs a workaround:
 
 - **Right-click → Open**, then confirm the dialog; or
 - Clear the quarantine attribute:
@@ -98,16 +104,16 @@ Gatekeeper then accepts the build with no user steps.
 
 ## 6. Windows
 
-`.msi` and `.exe` (NSIS) ship **unsigned** for v1 — SmartScreen warns
-on first run; users click **More info → Run anyway**. A code-signing
-cert is optional and out of scope for v1.
+`.msi` and `.exe` (NSIS) ship **unsigned** — SmartScreen warns on
+first run; users click **More info → Run anyway**. An Authenticode
+cert is optional and out of scope for now.
 
 ## 7. Linux
 
 ```bash
-sudo dpkg -i httui_1.0.0_amd64.deb        # Debian/Ubuntu
-sudo rpm -i  httui-1.0.0-1.x86_64.rpm     # Fedora/RHEL
-chmod +x httui_1.0.0_amd64.AppImage && ./httui_1.0.0_amd64.AppImage
+sudo dpkg -i httui_0.4.0_amd64.deb        # Debian/Ubuntu
+sudo rpm -i  httui-0.4.0-1.x86_64.rpm     # Fedora/RHEL
+chmod +x httui_0.4.0_amd64.AppImage && ./httui_0.4.0_amd64.AppImage
 ```
 
 ## 8. Homebrew (cenário 5)
