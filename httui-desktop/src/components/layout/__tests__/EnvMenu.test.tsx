@@ -189,7 +189,11 @@ describe("EnvMenu — V11 controlled / numeric / clone", () => {
     );
     const clone = screen.getByTestId("env-menu-clone");
     expect(clone.textContent).toContain("Clone local");
-    await user.click(clone);
+    // Ark/Zag sets pointer-events:none on the menu item during the
+    // open transition; under CI load it can still be set when this
+    // click runs (flaky). The element is genuinely interactive once
+    // settled, so skip userEvent's transient pointer-events guard.
+    await user.click(clone, { pointerEventsCheck: 0 });
     expect(onRequestClone).toHaveBeenCalledOnce();
   });
 
