@@ -29,51 +29,50 @@ function InstallTerminal() {
         <Text flex="1" textAlign="center" fontSize="11px" color="stone.200">
           ~/projects · zsh
         </Text>
-        <Text
-          fontSize="10px"
-          color="moss.300"
-          px={2}
-          py={0.5}
-          border="1px solid"
-          borderColor="moss.700"
-          rounded="sm"
-          fontWeight="600"
-        >
-          COPY
-        </Text>
       </HStack>
       <Box px={5} py={5} fontSize="14px" lineHeight="1.8">
         <Text>
           <Text as="span" color="moss.300">
             $
           </Text>{" "}
-          curl -fsSL httui.sh/install | sh
+          curl -fsSL https://httui.com/install.sh | sh
         </Text>
         <Text color="stone.200" fontSize="13px">
-          ✓ httui 0.8.2 installed in ~/.httui/bin
+          ✓ downloading the latest release…
         </Text>
         <Text color="stone.200" fontSize="13px">
-          ✓ shell: zsh detected, alias 'httui' added
+          ✓ installed httui → /Applications/httui.app
         </Text>
         <Text>
           <Text as="span" color="moss.300">
             $
           </Text>{" "}
-          httui new my-runbook.md
+          open /Applications/httui.app
         </Text>
       </Box>
     </Box>
   );
 }
 
-// InstallSection — single primary terminal block + 4
-// alt-installs. OSS-style minimal.
+// InstallSection — primary curl one-liner + the real alternatives.
+// Everything here is a command that actually works today.
 export function InstallSection() {
   const distros = [
-    { label: "Homebrew", code: "brew install httui", icon: "" },
-    { label: "apt / dnf", code: "apt install httui", icon: "" },
-    { label: "winget", code: "winget install httui", icon: "▣" },
-    { label: "From source", code: "go install httui/cmd/httui", icon: "{ }" },
+    {
+      label: "Homebrew",
+      icon: "",
+      lines: ["brew tap httuicom/httui", "brew install --cask httui"],
+    },
+    {
+      label: "GitHub Releases",
+      icon: "▣",
+      lines: [".dmg · .msi · .exe", ".deb · .rpm · .AppImage"],
+    },
+    {
+      label: "From source",
+      icon: "{ }",
+      lines: ["make install-deps", "cargo tauri build"],
+    },
   ];
   return (
     <Box
@@ -109,14 +108,14 @@ export function InstallSection() {
           color="fg.muted"
           maxW="580px"
         >
-          One terminal command. No signup, no card, no telemetry.
+          One line. No signup, no card, no telemetry.
         </Text>
       </VStack>
 
       <InstallTerminal />
 
-      {/* Alt installs */}
-      <SimpleGrid maxW="920px" mx="auto" columns={{ base: 2, md: 4 }} gap={2.5}>
+      {/* Real alternatives */}
+      <SimpleGrid maxW="920px" mx="auto" columns={{ base: 1, md: 3 }} gap={2.5}>
         {distros.map((p) => (
           <Box
             key={p.label}
@@ -126,15 +125,25 @@ export function InstallSection() {
             borderColor="border"
             rounded="md"
           >
-            <HStack gap={2} mb={1.5} fontSize="11px" color="fg.subtle">
+            <HStack gap={2} mb={2} fontSize="11px" color="fg.subtle">
               <Text fontFamily="mono">{p.icon}</Text>
               <Text fontWeight="600" color="fg.muted">
                 {p.label}
               </Text>
             </HStack>
-            <Text fontFamily="mono" fontSize="11.5px" color="fg" truncate>
-              {p.code}
-            </Text>
+            <VStack align="stretch" gap={0.5}>
+              {p.lines.map((line) => (
+                <Text
+                  key={line}
+                  fontFamily="mono"
+                  fontSize="11.5px"
+                  color="fg"
+                  truncate
+                >
+                  {line}
+                </Text>
+              ))}
+            </VStack>
           </Box>
         ))}
       </SimpleGrid>
@@ -144,11 +153,11 @@ export function InstallSection() {
         mt={7}
         fontSize="xs"
         color="fg.muted"
-        maxW="700px"
+        maxW="720px"
         mx="auto"
         lineHeight="1.7"
       >
-        Prefer a GUI? Builds for{" "}
+        GUI builds for{" "}
         <Text as="span" fontFamily="mono" color="fg.muted">
           macOS
         </Text>{" "}
@@ -160,11 +169,13 @@ export function InstallSection() {
         <Text as="span" fontFamily="mono" color="fg.muted">
           Windows
         </Text>{" "}
-        on the{" "}
+        on{" "}
         <Text as="span" color="accent.emphasized" fontWeight="600">
           GitHub releases
         </Text>
-        . A VS Code extension is also available.
+        . The macOS build is an unsigned developer build — the install
+        script and the Homebrew cask clear the Gatekeeper quarantine for
+        you, and in-app auto-update keeps it current.
       </Text>
     </Box>
   );

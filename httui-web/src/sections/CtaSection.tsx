@@ -55,7 +55,7 @@ export function CtaSection() {
           rounded="sm"
           fontSize="13px"
         >
-          brew install httui
+          curl -fsSL https://httui.com/install.sh | sh
         </Text>{" "}
         and it's yours.
       </Text>
