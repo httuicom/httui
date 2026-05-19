@@ -1,8 +1,3 @@
-// size:exclude file — TUI app entrypoint, frozen scope per
-// `feedback_notes_app_focus`. Sweep owner: (TUI parity).
-// coverage:exclude file — same rationale (frozen scope; coverage
-// gate not actionable until TUI parity wakes up). Audit-023.
-
 use crossterm::event::KeyEvent;
 use std::path::PathBuf;
 use tokio::sync::mpsc::UnboundedSender;
