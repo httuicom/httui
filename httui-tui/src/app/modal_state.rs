@@ -352,3 +352,322 @@ impl DbSettingsState {
         self.focus = (self.focus + n - 1) % n;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::vim::lineedit::LineEdit;
+
+    // ---- FenceEditKind ----
+
+    #[test]
+    fn fence_edit_kind_label_is_alias() {
+        assert_eq!(FenceEditKind::Alias.label(), "alias");
+    }
+
+    #[test]
+    fn fence_edit_state_pins_segment_and_kind() {
+        let st = FenceEditState {
+            segment_idx: 3,
+            kind: FenceEditKind::Alias,
+            input: LineEdit::from_str("req1"),
+        };
+        assert_eq!(st.segment_idx, 3);
+        assert_eq!(st.kind, FenceEditKind::Alias);
+        assert_eq!(st.input.as_str(), "req1");
+        // Derived Debug/Clone/PartialEq stay covered.
+        assert_eq!(st.kind, st.clone().kind);
+        assert!(format!("{st:?}").contains("Alias"));
+    }
+
+    // ---- BlockExportFormat ----
+
+    #[test]
+    fn block_export_format_db_list_is_the_four_tabular_serializers() {
+        assert_eq!(
+            BlockExportFormat::DB_FORMATS,
+            &[
+                BlockExportFormat::Csv,
+                BlockExportFormat::Json,
+                BlockExportFormat::Markdown,
+                BlockExportFormat::Insert,
+            ]
+        );
+    }
+
+    #[test]
+    fn block_export_format_http_list_is_the_five_code_generators() {
+        assert_eq!(
+            BlockExportFormat::HTTP_FORMATS,
+            &[
+                BlockExportFormat::Curl,
+                BlockExportFormat::Fetch,
+                BlockExportFormat::Python,
+                BlockExportFormat::HTTPie,
+                BlockExportFormat::HttpFile,
+            ]
+        );
+    }
+
+    #[test]
+    fn block_export_format_label_covers_every_variant() {
+        assert_eq!(BlockExportFormat::Csv.label(), "CSV");
+        assert_eq!(BlockExportFormat::Json.label(), "JSON");
+        assert_eq!(BlockExportFormat::Markdown.label(), "Markdown table");
+        assert_eq!(BlockExportFormat::Insert.label(), "INSERT statements");
+        assert_eq!(BlockExportFormat::Curl.label(), "cURL");
+        assert_eq!(BlockExportFormat::Fetch.label(), "JavaScript (fetch)");
+        assert_eq!(BlockExportFormat::Python.label(), "Python (requests)");
+        assert_eq!(BlockExportFormat::HTTPie.label(), "HTTPie");
+        assert_eq!(BlockExportFormat::HttpFile.label(), ".http file");
+    }
+
+    #[test]
+    fn db_export_format_alias_points_at_block_export_format() {
+        // The back-compat type alias must remain usable.
+        let f: DbExportFormat = BlockExportFormat::Json;
+        assert_eq!(f.label(), "JSON");
+    }
+
+    // ---- DbExportPickerState ----
+
+    #[test]
+    fn db_export_picker_new_seeds_selection_zero_and_keeps_formats() {
+        let st = DbExportPickerState::new(9, BlockExportFormat::DB_FORMATS);
+        assert_eq!(st.segment_idx, 9);
+        assert_eq!(st.selected, 0);
+        assert_eq!(st.formats.len(), 4);
+        assert_eq!(st.formats[0], BlockExportFormat::Csv);
+
+        let http = DbExportPickerState::new(0, BlockExportFormat::HTTP_FORMATS);
+        assert_eq!(http.formats.len(), 5);
+        assert_eq!(http.formats[0], BlockExportFormat::Curl);
+    }
+
+    // ---- ContentSearchState ----
+
+    fn result(path: &str) -> httui_core::search::ContentSearchResult {
+        httui_core::search::ContentSearchResult {
+            file_path: path.to_string(),
+            snippet: format!("…{path}…"),
+        }
+    }
+
+    #[test]
+    fn content_search_new_is_empty_and_not_building() {
+        let st = ContentSearchState::new();
+        assert!(st.query.is_empty());
+        assert!(st.results.is_empty());
+        assert_eq!(st.selected, 0);
+        assert!(!st.building);
+        assert!(st.chosen().is_none());
+    }
+
+    #[test]
+    fn content_search_select_next_clamps_at_last_result() {
+        let mut st = ContentSearchState::new();
+        st.results = vec![result("a.md"), result("b.md"), result("c.md")];
+        assert_eq!(st.chosen().unwrap().file_path, "a.md");
+        st.select_next();
+        assert_eq!(st.selected, 1);
+        st.select_next();
+        assert_eq!(st.selected, 2);
+        // Already at the end — clamps, never overshoots.
+        st.select_next();
+        assert_eq!(st.selected, 2);
+        assert_eq!(st.chosen().unwrap().file_path, "c.md");
+    }
+
+    #[test]
+    fn content_search_select_next_is_a_noop_on_empty_results() {
+        let mut st = ContentSearchState::new();
+        st.select_next();
+        assert_eq!(st.selected, 0);
+    }
+
+    #[test]
+    fn content_search_select_prev_stops_at_zero() {
+        let mut st = ContentSearchState::new();
+        st.results = vec![result("a.md"), result("b.md")];
+        st.selected = 1;
+        st.select_prev();
+        assert_eq!(st.selected, 0);
+        // Can't go below zero.
+        st.select_prev();
+        assert_eq!(st.selected, 0);
+    }
+
+    // ---- DbSettingsState ----
+
+    fn field(label: &'static str, key: &'static str, val: &str) -> SettingsField {
+        SettingsField {
+            label,
+            key,
+            input: LineEdit::from_str(val),
+        }
+    }
+
+    fn db_settings(field_count: usize) -> DbSettingsState {
+        let fields = (0..field_count)
+            .map(|i| {
+                if i == 0 {
+                    field("Limit", "limit", "100")
+                } else {
+                    field("Timeout (ms)", "timeout_ms", "30000")
+                }
+            })
+            .collect();
+        DbSettingsState {
+            segment_idx: 2,
+            fields,
+            focus: 0,
+        }
+    }
+
+    #[test]
+    fn db_settings_focused_input_mut_targets_the_focused_field() {
+        let mut st = db_settings(2);
+        assert_eq!(st.focused_input_mut().as_str(), "100");
+        st.focus = 1;
+        assert_eq!(st.focused_input_mut().as_str(), "30000");
+        // Mutating through the borrow hits the live buffer.
+        st.focused_input_mut().insert_char('0');
+        assert_eq!(st.fields[1].input.as_str(), "300000");
+    }
+
+    #[test]
+    fn db_settings_focused_input_mut_clamps_out_of_range_focus() {
+        let mut st = db_settings(2);
+        st.focus = 99; // defensive: open path never does this
+                       // Falls back to the last field instead of panicking.
+        assert_eq!(st.focused_input_mut().as_str(), "30000");
+    }
+
+    #[test]
+    fn db_settings_focus_next_wraps_with_multiple_fields() {
+        let mut st = db_settings(2);
+        assert_eq!(st.focus, 0);
+        st.focus_next();
+        assert_eq!(st.focus, 1);
+        st.focus_next();
+        assert_eq!(st.focus, 0); // wrap
+    }
+
+    #[test]
+    fn db_settings_focus_prev_wraps_with_multiple_fields() {
+        let mut st = db_settings(2);
+        st.focus_prev();
+        assert_eq!(st.focus, 1); // wrap backwards
+        st.focus_prev();
+        assert_eq!(st.focus, 0);
+    }
+
+    #[test]
+    fn db_settings_focus_cycling_is_a_noop_with_a_single_field() {
+        // The HTTP case ships one field (timeout only) — Tab/BackTab
+        // must not move focus or modulo-by-zero.
+        let mut st = db_settings(1);
+        st.focus_next();
+        assert_eq!(st.focus, 0);
+        st.focus_prev();
+        assert_eq!(st.focus, 0);
+    }
+
+    // ---- Document-carrying + plain state structs ----
+
+    fn doc() -> Document {
+        Document::from_markdown("status 200\nheader: x\n\nbody\n").unwrap()
+    }
+
+    #[test]
+    fn db_row_detail_state_carries_a_navigable_sub_document() {
+        let st = DbRowDetailState {
+            segment_idx: 1,
+            row: 4,
+            title: " row 4 ".into(),
+            doc: doc(),
+            viewport_height: 12,
+            viewport_top: 0,
+        };
+        assert_eq!(st.segment_idx, 1);
+        assert_eq!(st.row, 4);
+        assert_eq!(st.title, " row 4 ");
+        assert_eq!(st.viewport_height, 12);
+        assert!(!st.doc.segments().is_empty());
+    }
+
+    #[test]
+    fn http_response_detail_state_carries_a_navigable_sub_document() {
+        let st = HttpResponseDetailState {
+            segment_idx: 2,
+            title: " 200 OK ".into(),
+            doc: doc(),
+            viewport_height: 20,
+            viewport_top: 3,
+        };
+        assert_eq!(st.segment_idx, 2);
+        assert_eq!(st.title, " 200 OK ");
+        assert_eq!(st.viewport_top, 3);
+        assert!(!st.doc.segments().is_empty());
+    }
+
+    #[test]
+    fn completion_popup_state_tracks_prefix_and_anchor() {
+        let st = CompletionPopupState {
+            segment_idx: 5,
+            items: vec![crate::sql_completion::CompletionItem {
+                label: "SELECT".into(),
+                kind: crate::sql_completion::CompletionKind::Keyword,
+                detail: None,
+            }],
+            selected: 0,
+            anchor_line: 2,
+            anchor_offset: 7,
+            prefix: "SEL".into(),
+        };
+        assert_eq!(st.segment_idx, 5);
+        assert_eq!(st.items.len(), 1);
+        assert_eq!(st.items[0].label, "SELECT");
+        assert_eq!(st.anchor_line, 2);
+        assert_eq!(st.anchor_offset, 7);
+        assert_eq!(st.prefix, "SEL");
+    }
+
+    #[test]
+    fn db_confirm_run_state_carries_segment_and_reason() {
+        let st = DbConfirmRunState {
+            segment_idx: 8,
+            reason: "UPDATE without WHERE".into(),
+        };
+        assert_eq!(st.segment_idx, 8);
+        assert_eq!(st.reason, "UPDATE without WHERE");
+    }
+
+    #[test]
+    fn block_history_state_carries_title_and_entries() {
+        let entry = httui_core::block_history::HistoryEntry {
+            id: 1,
+            file_path: "/v/notes.md".into(),
+            block_alias: "req1".into(),
+            method: "GET".into(),
+            url_canonical: "https://api.test/users".into(),
+            status: Some(200),
+            request_size: Some(0),
+            response_size: Some(42),
+            elapsed_ms: Some(120),
+            outcome: "ok".into(),
+            ran_at: "2026-05-18T00:00:00Z".into(),
+            plan: None,
+        };
+        let st = BlockHistoryState {
+            segment_idx: 6,
+            title: "GET req1".into(),
+            entries: vec![entry],
+            selected: 0,
+        };
+        assert_eq!(st.segment_idx, 6);
+        assert_eq!(st.title, "GET req1");
+        assert_eq!(st.entries.len(), 1);
+        assert_eq!(st.entries[st.selected].status, Some(200));
+    }
+}
