@@ -58,6 +58,17 @@ pub fn resolve(key: KeyEvent) -> Option<Action> {
         // their real meaning. `Ctrl+C` is Copy — the running-query
         // cancel moves to `Esc` in fase 3 p3.
         (KeyModifiers::CONTROL, KeyCode::Char('c')) => Action::Copy,
+        // `Ctrl+Shift+X` runs EXPLAIN on the focused DB block. Vim binds
+        // EXPLAIN to plain `Ctrl+X`; in Standard `Ctrl+X` is Cut, so
+        // EXPLAIN moves to the shifted variant — same pattern as
+        // `Ctrl+Shift+Z` below. Some terminals report the char as `'X'`
+        // (SHIFT-folded uppercase), others as `'x'` — accept both.
+        // Must match BEFORE the bare `Ctrl+X` Cut arm.
+        (m, KeyCode::Char('x') | KeyCode::Char('X'))
+            if m.contains(KeyModifiers::CONTROL) && m.contains(KeyModifiers::SHIFT) =>
+        {
+            Action::ExplainBlock
+        }
         (KeyModifiers::CONTROL, KeyCode::Char('x')) => Action::Cut,
         (KeyModifiers::CONTROL, KeyCode::Char('v')) => Action::PasteSystem,
 
@@ -302,5 +313,28 @@ mod tests {
             resolve(shift(KeyCode::PageUp)),
             Some(Action::Motion(Motion::HalfPageUp, 1))
         );
+    }
+
+    #[test]
+    fn ctrl_shift_x_decodes_to_explain_block() {
+        // tui-V1 / fase 5 p5: EXPLAIN moves from Ctrl+X (vim) to
+        // Ctrl+Shift+X in Standard, because Ctrl+X is Cut here. Matched
+        // BEFORE the bare Ctrl+X Cut arm. Lowercase and SHIFT-folded
+        // uppercase both resolve (terminals differ).
+        assert_eq!(
+            resolve(ctrl_shift(KeyCode::Char('x'))),
+            Some(Action::ExplainBlock)
+        );
+        assert_eq!(
+            resolve(ctrl_shift(KeyCode::Char('X'))),
+            Some(Action::ExplainBlock)
+        );
+    }
+
+    #[test]
+    fn ctrl_x_is_still_cut_no_regression() {
+        // Non-regression: the bare Ctrl+X without SHIFT must still be
+        // Cut — the new Ctrl+Shift+X arm above must not swallow it.
+        assert_eq!(resolve(ctrl(KeyCode::Char('x'))), Some(Action::Cut));
     }
 }
