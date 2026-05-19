@@ -334,9 +334,14 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
             app.help_visible = false;
             app.vim.enter_normal();
         }
-        Action::JumpNextBlock => apply_jump_block(app, JumpDir::Next),
-        Action::JumpPrevBlock => apply_jump_block(app, JumpDir::Prev),
-        Action::RerunLastBlock => apply_rerun_last_block(app),
+        Action::JumpNextBlock
+        | Action::JumpPrevBlock
+        | Action::RerunLastBlock
+        | Action::WriteAll
+        | Action::ReselectVisual
+        | Action::ScrollCursorTo(_) => {
+            crate::input::apply::navigation::apply_navigation(app, action, recording)
+        }
         Action::WriteFile => {
             // `<C-s>` — same code path as `:w`, status reporting and
             // all. Routed through `ex::execute` (rather than the
@@ -347,9 +352,6 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
                 _ => {}
             }
         }
-        Action::WriteAll => apply_write_all(app),
-        Action::ReselectVisual => apply_reselect_visual(app),
-        Action::ScrollCursorTo(pos) => apply_scroll_cursor_to(app, pos),
         Action::CompletionNext
         | Action::CompletionPrev
         | Action::CompletionAccept
@@ -792,15 +794,16 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
 
 // tree-prompt / search / DB-prefetch / block-jump / scroll /
 // write-all appliers moved to `crate::input::apply::navigation`
-// (fase 1 p5f). First group still called by the untouched
-// `apply_action`; `should_prefetch` has no production caller left
-// here but the dispatch `mod tests` references it.
+// (fase 1 p5f). The block-jump / rerun / write-all / reselect /
+// scroll appliers are now reached via the `apply_action` navigation
+// group (`apply_navigation`, fase 1 p6f); the rest stay re-exported
+// because remaining inline `apply_action` arms still call them by
+// bare name. `should_prefetch` has no production caller left here but
+// the dispatch `mod tests` references it.
 #[allow(unused_imports)]
 pub(crate) use crate::input::apply::navigation::should_prefetch;
 pub(crate) use crate::input::apply::navigation::{
-    apply_jump_block, apply_rerun_last_block, apply_reselect_visual, apply_scroll_cursor_to,
-    apply_write_all, execute_search, list_vault_md_files, maybe_prefetch_db_more_rows,
-    run_tree_prompt, JumpDir,
+    execute_search, list_vault_md_files, maybe_prefetch_db_more_rows, run_tree_prompt,
 };
 
 // operator / paste / visual-operator appliers moved to

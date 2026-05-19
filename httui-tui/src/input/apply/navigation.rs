@@ -5,6 +5,7 @@
 
 use crate::app::{App, StatusKind};
 use crate::buffer::{Cursor, Segment};
+use crate::input::action::Action;
 use crate::tree::{TreePrompt, TreePromptKind};
 use crate::vim::ex;
 use crate::vim::search;
@@ -519,4 +520,24 @@ pub(crate) fn apply_write_all(app: &mut App) {
         ),
     };
     app.set_status(status_kind, msg);
+}
+
+/// `apply_action` sub-match for the block-jump / rerun / write-all /
+/// reselect-visual / scroll-cursor navigation domain. Mechanically
+/// split out of the `apply_action` router in `vim/dispatch.rs` (tui-v2
+/// vertical 1, fase 1 p6f) — arm bodies copied verbatim. The
+/// tree-prompt setup arms stay with the `misc` group (p6g) so this
+/// module keeps its size budget. The outer router routes only this
+/// group's variants here, so the `unreachable!` is a
+/// compile-time-backed invariant.
+pub(crate) fn apply_navigation(app: &mut App, action: Action, _recording: bool) {
+    match action {
+        Action::JumpNextBlock => apply_jump_block(app, JumpDir::Next),
+        Action::JumpPrevBlock => apply_jump_block(app, JumpDir::Prev),
+        Action::RerunLastBlock => apply_rerun_last_block(app),
+        Action::WriteAll => apply_write_all(app),
+        Action::ReselectVisual => apply_reselect_visual(app),
+        Action::ScrollCursorTo(pos) => apply_scroll_cursor_to(app, pos),
+        _ => unreachable!("apply_navigation: variante fora do grupo"),
+    }
 }
