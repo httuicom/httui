@@ -65,3 +65,120 @@ impl TabBar {
         self.tabs.get_mut(idx)?.active_leaf_mut().document.as_mut()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::buffer::Document;
+    use crate::pane::Pane;
+
+    fn tab_with_path(name: &str) -> TabState {
+        TabState::new(Pane {
+            document: None,
+            document_path: Some(PathBuf::from(name)),
+            viewport_top: 0,
+            viewport_height: 0,
+        })
+    }
+
+    fn tab_with_doc(name: &str) -> TabState {
+        TabState::new(Pane::new(
+            Document::from_markdown("body\n").unwrap(),
+            PathBuf::from(name),
+        ))
+    }
+
+    fn tab_no_path() -> TabState {
+        TabState::new(Pane::empty())
+    }
+
+    #[test]
+    fn default_tabbar_is_empty() {
+        let tb = TabBar::default();
+        assert!(tb.is_empty());
+        assert_eq!(tb.len(), 0);
+        assert_eq!(tb.active(), 0);
+    }
+
+    #[test]
+    fn len_and_is_empty_track_the_tab_vec() {
+        let mut tb = TabBar::default();
+        tb.tabs.push(tab_with_path("a.md"));
+        tb.tabs.push(tab_with_path("b.md"));
+        assert!(!tb.is_empty());
+        assert_eq!(tb.len(), 2);
+    }
+
+    #[test]
+    fn active_returns_the_active_index() {
+        let mut tb = TabBar::default();
+        tb.tabs.push(tab_with_path("a.md"));
+        tb.tabs.push(tab_with_path("b.md"));
+        tb.active = 1;
+        assert_eq!(tb.active(), 1);
+    }
+
+    #[test]
+    fn focused_paths_lists_each_tabs_focused_leaf_path() {
+        let mut tb = TabBar::default();
+        tb.tabs.push(tab_with_path("a.md"));
+        tb.tabs.push(tab_no_path());
+        let paths = tb.focused_paths();
+        assert_eq!(paths, vec![Some(PathBuf::from("a.md")), None]);
+    }
+
+    #[test]
+    fn find_focused_returns_index_of_matching_tab() {
+        let mut tb = TabBar::default();
+        tb.tabs.push(tab_with_path("a.md"));
+        tb.tabs.push(tab_with_path("b.md"));
+        assert_eq!(tb.find_focused(Path::new("b.md")), Some(1));
+        assert_eq!(tb.find_focused(Path::new("a.md")), Some(0));
+    }
+
+    #[test]
+    fn find_focused_none_when_no_tab_shows_the_path() {
+        let mut tb = TabBar::default();
+        tb.tabs.push(tab_with_path("a.md"));
+        tb.tabs.push(tab_no_path());
+        assert_eq!(tb.find_focused(Path::new("missing.md")), None);
+    }
+
+    #[test]
+    fn active_document_mut_borrows_the_active_tabs_document() {
+        let mut tb = TabBar::default();
+        tb.tabs.push(tab_with_doc("a.md"));
+        tb.tabs.push(tab_with_doc("b.md"));
+        tb.active = 1;
+        let doc = tb.active_document_mut().expect("active doc");
+        // Mutate through the borrow to prove it's the live document.
+        doc.mark_dirty();
+        assert!(tb.tabs[1]
+            .active_leaf()
+            .document
+            .as_ref()
+            .unwrap()
+            .is_dirty());
+        assert!(!tb.tabs[0]
+            .active_leaf()
+            .document
+            .as_ref()
+            .unwrap()
+            .is_dirty());
+    }
+
+    #[test]
+    fn active_document_mut_none_when_active_index_out_of_range() {
+        let mut tb = TabBar::default();
+        tb.tabs.push(tab_with_doc("a.md"));
+        tb.active = 9; // past the end
+        assert!(tb.active_document_mut().is_none());
+    }
+
+    #[test]
+    fn active_document_mut_none_when_focused_leaf_has_no_document() {
+        let mut tb = TabBar::default();
+        tb.tabs.push(tab_no_path());
+        assert!(tb.active_document_mut().is_none());
+    }
+}
