@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Post-0.4.0 work lands here.
 
+### Added
+
+- **TUI**: standard (non-modal) edit mode is now the default profile — arrow keys move the cursor, `Ctrl+Z/Y` undo/redo, `Ctrl+C/X/V` copy/cut/paste, `Home/End/PageUp/PageDown` navigate, `Shift+arrow`/`Shift+Home`/`Shift+End` extend selection, `Ctrl+S` saves. Users can edit without any knowledge of vim. `Ctrl+Shift+X` runs EXPLAIN on the focused DB block (vim still uses bare `Ctrl+X`).
+- **TUI**: vim mode is now opt-in via `editor.mode = "vim"` in the config — the modal vim engine is preserved unchanged for users who prefer it.
+- **TUI**: `Ctrl+Shift+M` hot-toggles between standard and vim at runtime, in any mode (Normal/Insert/Visual/Cmdline/Search), without restarting. Transient input state (vim pending operators, standard selection anchor) is reset on toggle.
+- **TUI**: auto-save (1s debounce after the last edit) in standard mode, plus an unconditional flush before quit so nothing is lost on `:q` or `Ctrl+C` shutdown.
+- **TUI**: inspectable keymap data layer (`input::map`) — every chord-to-Action binding for the standard profile lives in a single table; the vim profile's flat chords are listed documentary-style. Foundation for the Settings keymap UI in V9.
+
 ## [0.4.0] - 2026-05-18
 
 First public release. httui is a git-native, local-first desktop
