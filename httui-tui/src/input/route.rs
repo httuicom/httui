@@ -14,13 +14,26 @@
 //!
 //! Introduced by tui-V1 / fase 2 p5.
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::App;
 use crate::config::EditorMode;
 
 /// Route one keystroke by the configured editor profile.
 pub fn route(app: &mut App, key: KeyEvent) {
+    // Hot toggle (Cenário 2 step 3 / Action::ToggleEditorMode):
+    // `Ctrl+Shift+M` flips `config.editor.mode` and resets transient
+    // input state in BOTH directions. Intercepted BEFORE the
+    // per-profile branch so the chord works regardless of the
+    // currently-active profile — `Vim::dispatch` would otherwise
+    // swallow it inside any modal state (e.g. Insert/Visual). Some
+    // terminals fold SHIFT+m to uppercase 'M'; others report lowercase
+    // 'm' with both modifiers set — accept both.
+    if is_toggle_editor_mode(key) {
+        toggle_editor_mode(app);
+        return;
+    }
+
     match app.config.editor.mode {
         // Literal passthrough — exactly the call the old
         // `handle_key` made. Vim behaviour stays byte-identical; we
@@ -28,6 +41,37 @@ pub fn route(app: &mut App, key: KeyEvent) {
         EditorMode::Vim => crate::input::dispatch::dispatch(app, key),
         EditorMode::Standard => route_standard(app, key),
     }
+}
+
+/// `true` when `key` is the cross-profile hot-toggle chord
+/// (`Ctrl+Shift+M`). Pure helper so route-tests can drive it without
+/// constructing an `App`.
+fn is_toggle_editor_mode(key: KeyEvent) -> bool {
+    let needs = KeyModifiers::CONTROL | KeyModifiers::SHIFT;
+    matches!(key.code, KeyCode::Char('m') | KeyCode::Char('M')) && key.modifiers.contains(needs)
+}
+
+/// Flip `config.editor.mode` and clear transient input state in BOTH
+/// profiles so the new profile starts from a clean slate:
+///
+/// - Vim → Standard: `VimState::enter_normal` drops pending operators /
+///   counts / cmdline / search buffer / visual anchor.
+/// - Standard → Vim: `StandardState::default` drops the selection
+///   anchor (the only Standard-owned transient).
+///
+/// Modal popups (`completion_popup`, `db_settings`, `block_history`,
+/// pickers, the help modal, `running_query`) are NOT touched — they
+/// own their own dismissal flow and the next routed key reaches them
+/// through the new profile's path. `app.last_edit` is preserved
+/// because the toggle is a meta-action, not an edit: a pending
+/// auto-save debounce should still flush.
+fn toggle_editor_mode(app: &mut App) {
+    app.config.editor.mode = match app.config.editor.mode {
+        EditorMode::Standard => EditorMode::Vim,
+        EditorMode::Vim => EditorMode::Standard,
+    };
+    app.vim.enter_normal();
+    app.standard = crate::app::StandardState::default();
 }
 
 /// Standard-mode path: minimal pre-filters mirrored from the top of
@@ -703,5 +747,158 @@ mod tests {
         let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
         route(&mut app, key(KeyCode::Enter));
         assert!(app.last_edit.is_some(), "InsertNewline must set last_edit");
+    }
+
+    // ---------------------------------------------------------------
+    // Hot toggle (Cenário 2 step 3 / Fase 6 p1) — Ctrl+Shift+M flips
+    // `config.editor.mode` from BOTH profiles, in EVERY mode, and
+    // resets transient input state in the receiving profile.
+    // ---------------------------------------------------------------
+
+    // Note: the `ctrl_shift(KeyCode) -> KeyEvent` helper is defined
+    // earlier in this test module (Fase 3 selection tests) and reused
+    // here unchanged. Some terminals report `Ctrl+Shift+M` as
+    // `Char('m')` with both modifiers; others fold SHIFT into
+    // `Char('M')`. Both shapes must trigger the toggle.
+
+    #[test]
+    fn is_toggle_chord_accepts_lowercase_m_with_ctrl_shift() {
+        // Pure helper test — no `App` needed. Covers the lowercase
+        // arm of the `Char('m') | Char('M')` match.
+        assert!(super::is_toggle_editor_mode(ctrl_shift(KeyCode::Char('m'))));
+    }
+
+    #[test]
+    fn is_toggle_chord_accepts_uppercase_m_with_ctrl_shift() {
+        // Some terminals fold SHIFT into uppercase — must still fire.
+        assert!(super::is_toggle_editor_mode(ctrl_shift(KeyCode::Char('M'))));
+    }
+
+    #[test]
+    fn is_toggle_chord_rejects_bare_ctrl_m() {
+        // Bare `Ctrl+M` is historically Enter — must NOT trigger the
+        // toggle. Only the SHIFT-augmented chord does.
+        assert!(!super::is_toggle_editor_mode(ctrl(KeyCode::Char('m'))));
+    }
+
+    #[test]
+    fn is_toggle_chord_rejects_shift_m_without_ctrl() {
+        // Plain `Shift+M` is "type capital M" — must NOT toggle.
+        assert!(!super::is_toggle_editor_mode(KeyEvent::new(
+            KeyCode::Char('M'),
+            KeyModifiers::SHIFT,
+        )));
+    }
+
+    #[test]
+    fn is_toggle_chord_rejects_unrelated_chord() {
+        // Sanity: a wholly different chord (`Ctrl+S`) is not the
+        // toggle.
+        assert!(!super::is_toggle_editor_mode(ctrl(KeyCode::Char('s'))));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_flips_standard_to_vim() {
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        assert_eq!(app.config.editor.mode, EditorMode::Vim);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_flips_vim_to_standard() {
+        let (mut app, _d, _v) = app_with_note(EditorMode::Vim).await;
+        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        assert_eq!(app.config.editor.mode, EditorMode::Standard);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_clears_vim_transient_state_on_vim_to_standard() {
+        // Park vim in Insert with a pending count: toggle must drop
+        // both (call `enter_normal`) so re-toggling back into Vim
+        // doesn't resume mid-operation.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Vim).await;
+        route(&mut app, key(KeyCode::Char('i')));
+        assert_eq!(app.vim.mode, crate::vim::mode::Mode::Insert);
+        app.vim.pending_count = Some(7);
+        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        // Profile flipped AND vim state was reset.
+        assert_eq!(app.config.editor.mode, EditorMode::Standard);
+        assert_eq!(app.vim.mode, crate::vim::mode::Mode::Normal);
+        assert_eq!(app.vim.pending_count, None);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_clears_standard_anchor_on_standard_to_vim() {
+        // Seed a Standard selection (Shift+Right twice) then toggle:
+        // the anchor must be dropped so Vim's visual-mode logic
+        // doesn't see leftover Standard state.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let shift_right = KeyEvent::new(KeyCode::Right, KeyModifiers::SHIFT);
+        route(&mut app, shift_right);
+        route(&mut app, shift_right);
+        assert!(
+            app.standard.anchor.is_some(),
+            "Shift+arrow should have seeded the Standard anchor"
+        );
+        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        assert_eq!(app.config.editor.mode, EditorMode::Vim);
+        assert!(
+            app.standard.anchor.is_none(),
+            "toggle must drop the Standard anchor before handing off to Vim"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_works_from_vim_insert_mode() {
+        // Critical: the chord must be intercepted BEFORE the per-profile
+        // branch. Otherwise vim's Insert-mode handler would type the
+        // character. Enter Insert mode first, then toggle — the
+        // document must NOT gain an 'm' (or 'M') and the profile must
+        // flip.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Vim).await;
+        route(&mut app, key(KeyCode::Char('i')));
+        assert_eq!(app.vim.mode, crate::vim::mode::Mode::Insert);
+        let before = app.document().unwrap().to_markdown();
+        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        let after = app.document().unwrap().to_markdown();
+        assert_eq!(
+            before, after,
+            "toggle chord must NOT be typed as text in vim Insert"
+        );
+        assert_eq!(app.config.editor.mode, EditorMode::Standard);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_preserves_last_edit_clock() {
+        // The toggle is a meta-action, not an edit. A pending
+        // auto-save debounce (driven by `last_edit`) should NOT be
+        // cleared by the profile flip — otherwise a user editing then
+        // toggling would lose the pending flush.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        route(&mut app, key(KeyCode::Char('z')));
+        let clock_before = app.last_edit;
+        assert!(clock_before.is_some());
+        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        assert_eq!(
+            app.last_edit, clock_before,
+            "toggle must NOT reset the auto-save edit clock"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_is_round_trip_clean() {
+        // Symmetry: Standard → Vim → Standard returns to a usable
+        // Standard with no residual state on either side. A plain
+        // arrow after the round-trip must move the cursor (proves the
+        // Standard route is alive) without re-seeding the anchor.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        assert_eq!(app.config.editor.mode, EditorMode::Vim);
+        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        assert_eq!(app.config.editor.mode, EditorMode::Standard);
+        assert!(app.standard.anchor.is_none());
+        // Sanity: a typed char still inserts.
+        route(&mut app, key(KeyCode::Char('Q')));
+        assert!(app.document().unwrap().to_markdown().contains('Q'));
     }
 }
