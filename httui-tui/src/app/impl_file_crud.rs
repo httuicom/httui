@@ -177,3 +177,191 @@ impl App {
         Ok(format!("deleted \"{}\"", file_name(&target_rel)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use tempfile::TempDir;
+
+    /// Build an `App` over a vault seeded with `(rel, body)` files.
+    /// `App::new` calls `block_in_place` → multi-thread runtime needed.
+    /// Temp dirs are returned so they outlive (and clean up) the vault.
+    async fn app_with_files(files: &[(&str, &str)]) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        for (rel, body) in files {
+            let p = vault.path().join(rel);
+            if let Some(parent) = p.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            std::fs::write(p, body).unwrap();
+        }
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool);
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn create_document_writes_file_and_opens_it() {
+        let (mut app, _d, vault) = app_with_files(&[("a.md", "alpha\n")]).await;
+        let msg = app
+            .create_document(PathBuf::from("sub/new.md"), false)
+            .unwrap();
+        assert_eq!(msg, "\"new.md\"");
+        assert!(vault.path().join("sub/new.md").is_file());
+        // It became the focused pane (open_document(force=true)).
+        assert_eq!(
+            app.document_path().map(|p| p.to_string_lossy().to_string()),
+            Some("sub/new.md".to_string())
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn create_document_refuses_over_dirty_buffer_then_force_works() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "alpha\n")]).await;
+        app.document_mut().unwrap().mark_dirty();
+        let err = app
+            .create_document(PathBuf::from("x.md"), false)
+            .unwrap_err();
+        assert!(err.contains("no write since last change"));
+        assert!(app.create_document(PathBuf::from("x.md"), true).is_ok());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn create_document_surfaces_core_error_on_existing_path() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "alpha\n")]).await;
+        // a.md already exists → httui_core::fs::create_note errors.
+        let err = app
+            .create_document(PathBuf::from("a.md"), true)
+            .unwrap_err();
+        assert!(err.starts_with("create failed:"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn create_folder_makes_dir_and_rejects_existing() {
+        let (mut app, _d, vault) = app_with_files(&[("a.md", "a\n")]).await;
+        let msg = app.create_folder(PathBuf::from("notes/sub")).unwrap();
+        assert_eq!(msg, "created folder \"sub\"");
+        assert!(vault.path().join("notes/sub").is_dir());
+        // Second attempt on the now-existing path errors.
+        let err = app.create_folder(PathBuf::from("notes/sub")).unwrap_err();
+        assert!(err.contains("path already exists"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn rename_path_moves_file_and_updates_open_panes() {
+        let (mut app, _d, vault) =
+            app_with_files(&[("a.md", "alpha\n"), ("b.md", "bravo\n")]).await;
+        // a.md is the active pane (alphabetical first).
+        let msg = app
+            .rename_path(Some(PathBuf::from("a.md")), PathBuf::from("renamed/a2.md"))
+            .unwrap();
+        assert_eq!(msg, "renamed to \"a2.md\"");
+        assert!(!vault.path().join("a.md").exists());
+        assert!(vault.path().join("renamed/a2.md").is_file());
+        // The pane that showed a.md now points at the new path.
+        assert_eq!(
+            app.document_path().map(|p| p.to_string_lossy().to_string()),
+            Some("renamed/a2.md".to_string())
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn rename_path_uses_active_path_when_src_none() {
+        let (mut app, _d, vault) = app_with_files(&[("a.md", "alpha\n")]).await;
+        let msg = app.rename_path(None, PathBuf::from("b.md")).unwrap();
+        assert_eq!(msg, "renamed to \"b.md\"");
+        assert!(vault.path().join("b.md").is_file());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn rename_path_errors_when_destination_exists() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "alpha\n"), ("b.md", "bravo\n")]).await;
+        let err = app
+            .rename_path(Some(PathBuf::from("a.md")), PathBuf::from("b.md"))
+            .unwrap_err();
+        assert!(err.starts_with("E13: File exists"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn rename_path_errors_with_no_file_name_when_no_src_and_no_active() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "a\n")]).await;
+        if let Some(p) = app.active_pane_mut() {
+            p.document_path = None;
+        }
+        let err = app.rename_path(None, PathBuf::from("z.md")).unwrap_err();
+        assert_eq!(err, "no file name");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn rename_path_drops_search_index_branch_runs() {
+        let (mut app, _d, vault) = app_with_files(&[("a.md", "alpha\n")]).await;
+        // Flip the gate so the index-maintenance spawn path executes
+        // (best-effort fire-and-forget; we only need the sync code +
+        // the move itself to succeed).
+        app.content_search_index_built = true;
+        let msg = app
+            .rename_path(Some(PathBuf::from("a.md")), PathBuf::from("a2.md"))
+            .unwrap();
+        assert_eq!(msg, "renamed to \"a2.md\"");
+        assert!(vault.path().join("a2.md").is_file());
+        tokio::task::yield_now().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn delete_path_removes_file_and_empties_matching_panes() {
+        let (mut app, _d, vault) =
+            app_with_files(&[("a.md", "alpha\n"), ("b.md", "bravo\n")]).await;
+        // a.md is active; delete it.
+        let msg = app.delete_path(Some(PathBuf::from("a.md")), false).unwrap();
+        assert_eq!(msg, "deleted \"a.md\"");
+        assert!(!vault.path().join("a.md").exists());
+        // The pane that showed a.md was emptied.
+        assert!(app.active_pane().unwrap().document.is_none());
+        assert!(app.active_pane().unwrap().document_path.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn delete_path_removes_a_directory_recursively() {
+        let (mut app, _d, vault) = app_with_files(&[("a.md", "a\n"), ("dir/c.md", "c\n")]).await;
+        app.content_search_index_built = true;
+        let msg = app.delete_path(Some(PathBuf::from("dir")), true).unwrap();
+        assert_eq!(msg, "deleted \"dir\"");
+        assert!(!vault.path().join("dir").exists());
+        tokio::task::yield_now().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn delete_path_refuses_dirty_active_then_force_works() {
+        let (mut app, _d, vault) = app_with_files(&[("a.md", "alpha\n")]).await;
+        app.document_mut().unwrap().mark_dirty();
+        let err = app
+            .delete_path(Some(PathBuf::from("a.md")), false)
+            .unwrap_err();
+        assert!(err.contains("no write since last change"));
+        let msg = app.delete_path(Some(PathBuf::from("a.md")), true).unwrap();
+        assert_eq!(msg, "deleted \"a.md\"");
+        assert!(!vault.path().join("a.md").exists());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn delete_path_errors_on_missing_target_and_no_file_name() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "a\n")]).await;
+        let err = app
+            .delete_path(Some(PathBuf::from("ghost.md")), true)
+            .unwrap_err();
+        assert!(err.starts_with("delete failed:"));
+        // No target + no active path → "no file name".
+        if let Some(p) = app.active_pane_mut() {
+            p.document_path = None;
+        }
+        let err = app.delete_path(None, true).unwrap_err();
+        assert_eq!(err, "no file name");
+    }
+}
