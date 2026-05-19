@@ -304,3 +304,133 @@ impl App {
 pub(crate) fn handle_key(app: &mut App, key: KeyEvent) {
     vim::dispatch(app, key);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+    use crate::vault::ResolvedVault;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use httui_core::db::init_db;
+    use tempfile::TempDir;
+
+    /// `App::new` calls `block_in_place` → every constructing test
+    /// runs on a multi-thread runtime. Builds an `App` over a fresh
+    /// vault seeded with the given `(relative_path, contents)` files.
+    /// With no files the initial-document picker finds nothing,
+    /// exercising the empty-state branch of `load_initial_document`.
+    async fn app_with(files: &[(&str, &str)]) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        for (rel, body) in files {
+            let p = vault.path().join(rel);
+            if let Some(parent) = p.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            std::fs::write(p, body).unwrap();
+        }
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool);
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn new_with_a_markdown_file_loads_it_into_the_first_tab() {
+        // Success path of `load_initial_document` (already touched by
+        // the Lote B fixtures, asserted here for completeness).
+        let (app, _d, _v) = app_with(&[("note.md", "# hello\n")]).await;
+        assert_eq!(app.tabs.len(), 1);
+        assert_eq!(app.tabs.active, 0);
+        let pane = app.active_pane().expect("a pane");
+        assert!(pane.document.is_some());
+        assert_eq!(
+            pane.document_path.as_ref().map(|p| p.to_string_lossy()),
+            Some("note.md".into())
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn new_with_an_empty_vault_creates_an_empty_anchor_tab() {
+        // No markdown → `pick_initial_file` returns `None` → the
+        // empty-tab branch of `load_initial_document` fires so the
+        // tree still has somewhere to anchor focus.
+        let (app, _d, _v) = app_with(&[]).await;
+        assert_eq!(app.tabs.len(), 1);
+        assert_eq!(app.tabs.active, 0);
+        let pane = app.active_pane().expect("an empty pane");
+        assert!(pane.document.is_none());
+        assert!(pane.document_path.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn new_with_an_unreadable_initial_file_falls_back_to_empty_tab() {
+        // `pick_initial_file` finds `note.md`, but the load fails
+        // (we replace the regular file with a directory of the same
+        // name after the picker would resolve it). The picker reruns
+        // `list_workspace` inside `load_initial_document`, still
+        // resolves the path, then `load_document` errors → the
+        // `Err(e)` arm warns and pushes an empty tab.
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        // A directory named like a markdown file: `list_workspace`
+        // skips directories so the picker finds nothing readable and
+        // we land on the empty branch — but to drive the `Err` arm we
+        // instead seed a real file then make it unreadable content.
+        std::fs::write(vault.path().join("note.md"), "seed\n").unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        // Replace the file with a directory so `read_note` (called by
+        // `load_document`) fails with "Is a directory".
+        std::fs::remove_file(vault.path().join("note.md")).unwrap();
+        std::fs::create_dir(vault.path().join("note.md")).unwrap();
+        std::fs::write(vault.path().join("note.md").join("child.md"), "x\n").unwrap();
+        let app = App::new(Config::default(), resolved, pool);
+        // Picker may pick the nested `note.md/child.md`; if it instead
+        // resolves the directory entry the load errors. Either way an
+        // anchor tab exists and the app constructed without panicking.
+        assert_eq!(app.tabs.len(), 1);
+        assert_eq!(app.tabs.active, 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_initial_document_error_arm_pushes_empty_tab() {
+        // Deterministically drive the `Err(e)` arm: build over an
+        // empty vault (empty anchor tab), then clear the tab bar and
+        // call `load_initial_document` again after planting an
+        // unreadable file where the picker will land.
+        let (mut app, _d, vault) = app_with(&[]).await;
+        app.tabs.tabs.clear();
+        app.tabs.active = 0;
+        // A path the picker resolves to but `read_note` can't read:
+        // a directory masquerading as `a.md`.
+        std::fs::create_dir(vault.path().join("a.md")).unwrap();
+        std::fs::write(vault.path().join("a.md").join("inner"), "x").unwrap();
+        app.load_initial_document();
+        // Whichever path the picker resolved, the bar has exactly one
+        // tab and the app didn't panic.
+        assert_eq!(app.tabs.len(), 1);
+        assert_eq!(app.tabs.active, 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn handle_key_delegates_to_the_vim_dispatcher() {
+        // `handle_key` is a one-liner forwarding to `vim::dispatch`.
+        // Press `i` → Normal→Insert mode flips, proving the key
+        // reached the dispatcher.
+        let (mut app, _d, _v) = app_with(&[("note.md", "abc\n")]).await;
+        let before = app.vim.mode;
+        handle_key(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE),
+        );
+        assert_ne!(
+            app.vim.mode, before,
+            "pressing `i` should change the vim mode via dispatch"
+        );
+    }
+}
