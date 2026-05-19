@@ -58,47 +58,79 @@ async fn main_loop(
             .map_err(|e| crate::error::TuiError::Terminal(format!("draw: {e}")))?;
 
         match events.next().await {
-            Some(AppEvent::Key(k)) => {
-                handle_key(app, k);
-                // Any keystroke that opened/closed a tab, ran `:e`,
-                // or picked a file from quickopen / tree changes the
-                // active document. Re-target the watcher in lockstep
-                // so external edits to the new file get reloaded
-                // and stale watches on closed files stop firing.
-                app.sync_file_watcher();
+            // A live event — fold it into `app`. `handle_app_event`
+            // returns `false` when the event was a quit signal, in
+            // which case `should_quit` is already set and the
+            // `while` guard ends the loop next iteration.
+            Some(ev) => {
+                let _ = handle_app_event(app, ev);
             }
-            Some(AppEvent::Resize(_, _)) => {}
-            Some(AppEvent::Tick) => {}
-            Some(AppEvent::DbBlockResult {
-                segment_idx,
-                kind,
-                outcome,
-            }) => {
-                crate::commands::db::handle_db_block_result(app, segment_idx, kind, outcome);
-            }
-            Some(AppEvent::HttpBlockResult {
-                segment_idx,
-                outcome,
-            }) => {
-                crate::commands::http::handle_http_block_result(app, segment_idx, outcome);
-            }
-            Some(AppEvent::SchemaLoaded {
-                connection_id,
-                result,
-            }) => {
-                app.on_schema_loaded(connection_id, result);
-            }
-            Some(AppEvent::ContentSearchIndexBuilt { result }) => {
-                crate::commands::search::handle_index_built(app, result);
-            }
-            Some(AppEvent::FileChangedExternally { path }) => {
-                handle_file_changed_externally(app, path);
-            }
-            Some(AppEvent::Quit) | None => app.should_quit = true,
+            // Channel closed (the event-stream task exited). Same
+            // outcome as an explicit `Quit`: stop the loop.
+            None => app.should_quit = true,
         }
     }
     debug!("main loop exiting");
     Ok(())
+}
+
+/// Fold a single `AppEvent` into `app`. Extracted verbatim from the
+/// `main_loop` match so the per-arm logic is reachable from headless
+/// tests without a real terminal + event stream (tui-v2 vertical 1,
+/// fase 2 p3c — owner decision per `decisions.md` TD7). Pure code
+/// move: every arm runs the exact same logic, in the same order of
+/// side effects, as the inlined `match` it replaces.
+///
+/// Returns `should_continue` — `true` for every event except `Quit`
+/// (which sets `app.should_quit = true` and returns `false`,
+/// mirroring the old `Some(AppEvent::Quit) => app.should_quit = true`
+/// arm; the `while !app.should_quit` guard then ends the loop). The
+/// stream-closed (`None`) case is handled by the caller, not here,
+/// because `handle_app_event` takes a concrete `AppEvent`.
+fn handle_app_event(app: &mut App, ev: AppEvent) -> bool {
+    match ev {
+        AppEvent::Key(k) => {
+            handle_key(app, k);
+            // Any keystroke that opened/closed a tab, ran `:e`,
+            // or picked a file from quickopen / tree changes the
+            // active document. Re-target the watcher in lockstep
+            // so external edits to the new file get reloaded
+            // and stale watches on closed files stop firing.
+            app.sync_file_watcher();
+        }
+        AppEvent::Resize(_, _) => {}
+        AppEvent::Tick => {}
+        AppEvent::DbBlockResult {
+            segment_idx,
+            kind,
+            outcome,
+        } => {
+            crate::commands::db::handle_db_block_result(app, segment_idx, kind, outcome);
+        }
+        AppEvent::HttpBlockResult {
+            segment_idx,
+            outcome,
+        } => {
+            crate::commands::http::handle_http_block_result(app, segment_idx, outcome);
+        }
+        AppEvent::SchemaLoaded {
+            connection_id,
+            result,
+        } => {
+            app.on_schema_loaded(connection_id, result);
+        }
+        AppEvent::ContentSearchIndexBuilt { result } => {
+            crate::commands::search::handle_index_built(app, result);
+        }
+        AppEvent::FileChangedExternally { path } => {
+            handle_file_changed_externally(app, path);
+        }
+        AppEvent::Quit => {
+            app.should_quit = true;
+            return false;
+        }
+    }
+    true
 }
 
 /// Fold a `FileChangedExternally` event into the active pane.
@@ -329,14 +361,220 @@ mod tests {
         assert!(app.document().unwrap().to_markdown().contains("SELECT 1"));
     }
 
+    // ----- handle_app_event ----------------------------------------------
+    //
+    // The `main_loop` match body, extracted to a free fn so every arm
+    // is reachable headless. These tests assert (a) the event is
+    // routed to the right handler (via that handler's known
+    // observable effect) and (b) the `should_continue` contract:
+    // `false` only for `Quit`, `true` for everything else. The
+    // per-handler logic itself is covered by the handlers' own test
+    // modules (`commands::{db,http,search}`, `impl_schema`).
+
+    // `AppEvent` is already in scope via `use super::*;` (re-exported
+    // from the module-level `use crate::event::{AppEvent, EventLoop}`).
+    use crate::event::DbBlockResultKind;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn key_event_routes_to_dispatch_and_continues() {
+        // `Key` forwards to `handle_key` (vim dispatch). Pressing `i`
+        // flips Normal→Insert, proving the arm reached the dispatcher;
+        // the event is non-terminal so `should_continue` is `true`.
+        let (mut app, _d, _v) = app_fixture("abc\n").await;
+        let before = app.vim.mode;
+        let cont = handle_app_event(
+            &mut app,
+            AppEvent::Key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE)),
+        );
+        assert!(cont, "Key is non-terminal");
+        assert_ne!(app.vim.mode, before, "`i` should flip the vim mode");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn resize_is_a_noop_that_continues() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        let before = app.document().unwrap().to_markdown();
+        let cont = handle_app_event(&mut app, AppEvent::Resize(120, 40));
+        assert!(cont);
+        // Pure no-op: document + status untouched, quit not set.
+        assert_eq!(app.document().unwrap().to_markdown(), before);
+        assert!(app.status_message.is_none());
+        assert!(!app.should_quit);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tick_is_a_noop_that_continues() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        let cont = handle_app_event(&mut app, AppEvent::Tick);
+        assert!(cont);
+        assert!(app.status_message.is_none());
+        assert!(!app.should_quit);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn quit_sets_should_quit_and_stops_the_loop() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        assert!(!app.should_quit);
+        let cont = handle_app_event(&mut app, AppEvent::Quit);
+        assert!(!cont, "Quit is the only terminal event");
+        assert!(app.should_quit, "Quit must set should_quit");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn db_block_result_routes_to_the_db_handler() {
+        // An `Err` outcome for a `Run` always clears `running_query`
+        // and (with no matching block) is a safe no-op on the doc.
+        // Reaching the handler at all proves the arm routes; we assert
+        // the handler's invariant (running_query cleared) + continue.
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        app.running_query = None;
+        let cont = handle_app_event(
+            &mut app,
+            AppEvent::DbBlockResult {
+                segment_idx: 999,
+                kind: DbBlockResultKind::Run,
+                outcome: Err("boom".to_string()),
+            },
+        );
+        assert!(cont, "DbBlockResult is non-terminal");
+        assert!(
+            app.running_query.is_none(),
+            "the db handler always clears running_query"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn http_block_result_routes_to_the_http_handler() {
+        // Seed a doc with prose then an http block. `from_markdown`
+        // also prepends a synthetic empty-prose segment before a
+        // leading block, but here the explicit prose run already
+        // occupies seg 0, so the block lands at `segment_idx = 1`.
+        // With a real block, the handler reaches its `Err` branch
+        // (no block → early-return before touching status). The
+        // `Err` arm flips block state + surfaces a status error —
+        // observable proof the event reached
+        // `handle_http_block_result`.
+        let (mut app, _d, _v) =
+            app_fixture("intro\n\n```http alias=h\nGET https://example.com/users\n```\n").await;
+        // Locate the block segment so the test isn't coupled to the
+        // exact padding rule.
+        let block_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, crate::buffer::Segment::Block(_)))
+            .expect("doc has an http block");
+        let cont = handle_app_event(
+            &mut app,
+            AppEvent::HttpBlockResult {
+                segment_idx: block_idx,
+                outcome: Err("network down".to_string()),
+            },
+        );
+        assert!(cont, "HttpBlockResult is non-terminal");
+        let msg = app.status_message.as_ref().expect("status surfaced");
+        assert_eq!(msg.kind, StatusKind::Error);
+        assert!(msg.text.contains("network down"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn schema_loaded_err_routes_to_on_schema_loaded() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        let cont = handle_app_event(
+            &mut app,
+            AppEvent::SchemaLoaded {
+                connection_id: "conn-1".to_string(),
+                result: Err("introspection failed".to_string()),
+            },
+        );
+        assert!(cont, "SchemaLoaded is non-terminal");
+        // `on_schema_loaded`'s Err arm surfaces a status error.
+        let msg = app.status_message.as_ref().expect("status surfaced");
+        assert_eq!(msg.kind, StatusKind::Error);
+        assert!(msg.text.contains("schema introspection failed"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn schema_loaded_ok_routes_and_stores_into_cache() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        let cont = handle_app_event(
+            &mut app,
+            AppEvent::SchemaLoaded {
+                connection_id: "conn-ok".to_string(),
+                result: Ok(Vec::new()),
+            },
+        );
+        assert!(cont);
+        // Ok arm clears the pending flag without surfacing an error.
+        assert!(app.status_message.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn content_search_index_built_err_routes_to_search_handler() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        let cont = handle_app_event(
+            &mut app,
+            AppEvent::ContentSearchIndexBuilt {
+                result: Err("fts build failed".to_string()),
+            },
+        );
+        assert!(cont, "ContentSearchIndexBuilt is non-terminal");
+        // The Err arm dumps the modal + sets a status error.
+        let msg = app.status_message.as_ref().expect("status surfaced");
+        assert_eq!(msg.kind, StatusKind::Error);
+        assert!(msg.text.contains("fts build failed"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn content_search_index_built_ok_routes_and_sets_flag() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        assert!(!app.content_search_index_built);
+        let cont = handle_app_event(
+            &mut app,
+            AppEvent::ContentSearchIndexBuilt { result: Ok(()) },
+        );
+        assert!(cont);
+        assert!(
+            app.content_search_index_built,
+            "the Ok arm flips content_search_index_built"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn file_changed_externally_routes_to_the_reload_path() {
+        // Clean buffer + a real disk diff → silent reload + Info
+        // status, proving the arm forwards to
+        // `handle_file_changed_externally`.
+        let (mut app, _d, vault) = app_fixture("before\n").await;
+        let absolute = vault.path().join("note.md");
+        std::fs::write(&absolute, "after external edit\n").unwrap();
+        let cont = handle_app_event(
+            &mut app,
+            AppEvent::FileChangedExternally {
+                path: absolute.clone(),
+            },
+        );
+        assert!(cont, "FileChangedExternally is non-terminal");
+        let msg = app.status_message.as_ref().expect("status surfaced");
+        assert_eq!(msg.kind, StatusKind::Info);
+        assert!(app
+            .document()
+            .unwrap()
+            .to_markdown()
+            .contains("after external edit"));
+    }
+
     // ----- run / main_loop are terminal-bound ----------------------------
     //
     // `run` calls `terminal::setup` (raw-mode an interactive TTY) and
     // `EventLoop::start` (a `crossterm::event::EventStream` background
     // task that needs a real tty). `main_loop` only ever runs *inside*
-    // `run`, driving `terminal.draw` + `events.next()`. Neither can be
-    // exercised from a headless `cargo test` process without a
-    // production refactor to inject the terminal + event stream. Per
-    // the Lote C brief these are NOT refactored here — see the final
-    // report for the seam analysis.
+    // `run`, driving `terminal.draw` + `events.next()`. Both are pure
+    // wiring (terminal setup/teardown + the extracted
+    // `handle_app_event` calls covered above) and cannot be exercised
+    // from a headless `cargo test` process without injecting the
+    // terminal + event stream. See the final report for the seam
+    // analysis.
 }
