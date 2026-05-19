@@ -143,13 +143,13 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
     }
 }
 
-// completion-popup + DB-confirm appliers moved to
-// `crate::input::apply::completion` (fase 1 p5c). Re-exported so the
-// untouched `dispatch` router + `apply_action` keep resolving them.
+// completion-popup helpers moved to
+// `crate::input::apply::completion` (fase 1 p5c). The popup-key
+// appliers are now reached via the `apply_action` completion group
+// (`apply_completion`, fase 1 p6b); only the three the `dispatch`
+// router itself still calls stay re-exported here.
 pub(crate) use crate::input::apply::completion::{
-    apply_cancel_db_run, apply_completion_accept, apply_completion_dismiss, apply_completion_next,
-    apply_completion_prev, apply_confirm_db_run, force_open_completion_popup,
-    parse_completion_popup_key, refresh_completion_popup,
+    force_open_completion_popup, parse_completion_popup_key, refresh_completion_popup,
 };
 
 /// Run an action against the app. `recording` toggles whether the
@@ -389,12 +389,14 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
         }
         Action::MoveTabPickerCursor(delta) => apply_move_tab_picker_cursor(app, delta),
         Action::ConfirmTabPicker => apply_confirm_tab_picker(app),
-        Action::CompletionNext => apply_completion_next(app),
-        Action::CompletionPrev => apply_completion_prev(app),
-        Action::CompletionAccept => apply_completion_accept(app),
-        Action::CompletionDismiss => apply_completion_dismiss(app),
-        Action::ConfirmDbRun => apply_confirm_db_run(app),
-        Action::CancelDbRun => apply_cancel_db_run(app),
+        Action::CompletionNext
+        | Action::CompletionPrev
+        | Action::CompletionAccept
+        | Action::CompletionDismiss
+        | Action::ConfirmDbRun
+        | Action::CancelDbRun => {
+            crate::input::apply::completion::apply_completion(app, action, recording)
+        }
         Action::ExitInsert => {
             // Recoil the cursor one column (vim's `<Esc>` semantics)
             // and flip the mode. The "did the user just finish a

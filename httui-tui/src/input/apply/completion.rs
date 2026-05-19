@@ -298,3 +298,20 @@ pub(crate) fn apply_completion_accept(app: &mut App) {
         doc.insert_char_at_cursor(ch);
     }
 }
+
+/// `apply_action` sub-match for the completion-popup + DB-confirm
+/// domain. Mechanically split out of the `apply_action` router in
+/// `vim/dispatch.rs` (tui-v2 vertical 1, fase 1 p6b) — arm bodies are
+/// copied verbatim. The outer router routes only this group's variants
+/// here, so the `unreachable!` is a compile-time-backed invariant.
+pub(crate) fn apply_completion(app: &mut App, action: Action, _recording: bool) {
+    match action {
+        Action::CompletionNext => apply_completion_next(app),
+        Action::CompletionPrev => apply_completion_prev(app),
+        Action::CompletionAccept => apply_completion_accept(app),
+        Action::CompletionDismiss => apply_completion_dismiss(app),
+        Action::ConfirmDbRun => apply_confirm_db_run(app),
+        Action::CancelDbRun => apply_cancel_db_run(app),
+        _ => unreachable!("apply_completion: variante fora do grupo"),
+    }
+}
