@@ -33,24 +33,11 @@ use crate::vim::{self, VimState};
 // The blanket `pub use` re-exports keep every `crate::app::*` call
 // site resolving without edits.
 mod result_tab;
+mod status;
 pub use result_tab::*;
+pub use status::*;
 
 const SCROLL_OFF: u16 = 3;
-
-/// Severity hint for [`StatusMessage`]; drives the status-bar styling.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StatusKind {
-    Info,
-    Error,
-}
-
-/// Transient footer message — shown until the next keystroke replaces it.
-/// Set by ex commands (`:w wrote …`, `:q error …`).
-#[derive(Debug, Clone)]
-pub struct StatusMessage {
-    pub text: String,
-    pub kind: StatusKind,
-}
 
 /// Open-tab registry. Each tab owns an independent [`TabState`] (a
 /// binary tree of panes); the active tab is `tabs[active]`. Inactive
