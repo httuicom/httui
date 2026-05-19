@@ -5,6 +5,7 @@
 
 use crate::app::{App, StatusKind};
 use crate::buffer::{Cursor, Segment};
+use crate::input::action::Action;
 use crate::vim::mode::Mode;
 
 // ───────────── connection picker popup ─────────────
@@ -497,4 +498,57 @@ pub(crate) fn apply_confirm_environment_picker(app: &mut App) {
     }
     app.refresh_active_env_name();
     app.set_status(StatusKind::Info, format!("env: {}", picked.name));
+}
+
+/// `apply_action` sub-match for the picker-popup domain: connection
+/// (`gc`), environment (`gE`), tab (`gb`), block-template (`gN`).
+/// Mechanically split out of the `apply_action` router in
+/// `vim/dispatch.rs` (tui-v2 vertical 1, fase 1 p6e) — arm bodies
+/// copied verbatim. The outer router routes only this group's variants
+/// here, so the `unreachable!` is a compile-time-backed invariant.
+pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
+    match action {
+        Action::OpenConnectionPicker => {
+            if let Err(msg) = open_connection_picker(app) {
+                app.set_status(StatusKind::Error, msg);
+            }
+        }
+        Action::CloseConnectionPicker => apply_close_connection_picker(app),
+        Action::MoveConnectionPickerCursor(delta) => {
+            apply_move_connection_picker_cursor(app, delta)
+        }
+        Action::ConfirmConnectionPicker => apply_confirm_connection_picker(app),
+        Action::DeleteConnectionInPicker => apply_delete_connection_in_picker(app),
+        Action::OpenEnvironmentPicker => {
+            if let Err(msg) = open_environment_picker(app) {
+                app.set_status(StatusKind::Error, msg);
+            }
+        }
+        Action::CloseEnvironmentPicker => apply_close_environment_picker(app),
+        Action::MoveEnvironmentPickerCursor(delta) => {
+            apply_move_environment_picker_cursor(app, delta)
+        }
+        Action::ConfirmEnvironmentPicker => apply_confirm_environment_picker(app),
+        Action::OpenBlockTemplatePicker => {
+            app.block_template_picker = Some(crate::app::BlockTemplatePickerState::new());
+            app.vim.mode = Mode::BlockTemplatePicker;
+            app.vim.reset_pending();
+        }
+        Action::CloseBlockTemplatePicker => {
+            app.block_template_picker = None;
+            app.vim.enter_normal();
+        }
+        Action::MoveBlockTemplatePickerCursor(delta) => {
+            apply_move_block_template_picker_cursor(app, delta)
+        }
+        Action::ConfirmBlockTemplatePicker => apply_confirm_block_template_picker(app),
+        Action::OpenTabPicker => apply_open_tab_picker(app),
+        Action::CloseTabPicker => {
+            app.tab_picker = None;
+            app.vim.enter_normal();
+        }
+        Action::MoveTabPickerCursor(delta) => apply_move_tab_picker_cursor(app, delta),
+        Action::ConfirmTabPicker => apply_confirm_tab_picker(app),
+        _ => unreachable!("apply_pickers: variante fora do grupo"),
+    }
 }

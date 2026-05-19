@@ -207,20 +207,28 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::CopyHttpResponseBody => {
             crate::input::apply::modal_detail::apply_modal_detail(app, action, recording)
         }
-        Action::OpenConnectionPicker => {
-            if let Err(msg) = open_connection_picker(app) {
-                app.set_status(StatusKind::Error, msg);
-            }
+        Action::OpenConnectionPicker
+        | Action::CloseConnectionPicker
+        | Action::MoveConnectionPickerCursor(_)
+        | Action::ConfirmConnectionPicker
+        | Action::DeleteConnectionInPicker
+        | Action::OpenEnvironmentPicker
+        | Action::CloseEnvironmentPicker
+        | Action::MoveEnvironmentPickerCursor(_)
+        | Action::ConfirmEnvironmentPicker
+        | Action::OpenBlockTemplatePicker
+        | Action::CloseBlockTemplatePicker
+        | Action::MoveBlockTemplatePickerCursor(_)
+        | Action::ConfirmBlockTemplatePicker
+        | Action::OpenTabPicker
+        | Action::CloseTabPicker
+        | Action::MoveTabPickerCursor(_)
+        | Action::ConfirmTabPicker => {
+            crate::input::apply::pickers::apply_pickers(app, action, recording)
         }
         Action::ExplainBlock => crate::commands::db::run_explain(app),
         Action::CopyAsCurl => crate::commands::http::copy_as_curl(app),
         Action::CycleDisplayMode => crate::commands::db::cycle_display_mode(app),
-        Action::CloseConnectionPicker => apply_close_connection_picker(app),
-        Action::MoveConnectionPickerCursor(delta) => {
-            apply_move_connection_picker_cursor(app, delta)
-        }
-        Action::ConfirmConnectionPicker => apply_confirm_connection_picker(app),
-        Action::DeleteConnectionInPicker => apply_delete_connection_in_picker(app),
         Action::OpenDbExportPicker => {
             if let Err(msg) = crate::commands::db::open_export_picker(app) {
                 app.set_status(StatusKind::Error, msg);
@@ -317,16 +325,6 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
                 s.query.move_end();
             }
         }
-        Action::OpenEnvironmentPicker => {
-            if let Err(msg) = open_environment_picker(app) {
-                app.set_status(StatusKind::Error, msg);
-            }
-        }
-        Action::CloseEnvironmentPicker => apply_close_environment_picker(app),
-        Action::MoveEnvironmentPickerCursor(delta) => {
-            apply_move_environment_picker_cursor(app, delta)
-        }
-        Action::ConfirmEnvironmentPicker => apply_confirm_environment_picker(app),
         Action::OpenHelp => {
             app.help_visible = true;
             app.vim.mode = Mode::Help;
@@ -352,26 +350,6 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
         Action::WriteAll => apply_write_all(app),
         Action::ReselectVisual => apply_reselect_visual(app),
         Action::ScrollCursorTo(pos) => apply_scroll_cursor_to(app, pos),
-        Action::OpenBlockTemplatePicker => {
-            app.block_template_picker = Some(crate::app::BlockTemplatePickerState::new());
-            app.vim.mode = Mode::BlockTemplatePicker;
-            app.vim.reset_pending();
-        }
-        Action::CloseBlockTemplatePicker => {
-            app.block_template_picker = None;
-            app.vim.enter_normal();
-        }
-        Action::MoveBlockTemplatePickerCursor(delta) => {
-            apply_move_block_template_picker_cursor(app, delta)
-        }
-        Action::ConfirmBlockTemplatePicker => apply_confirm_block_template_picker(app),
-        Action::OpenTabPicker => apply_open_tab_picker(app),
-        Action::CloseTabPicker => {
-            app.tab_picker = None;
-            app.vim.enter_normal();
-        }
-        Action::MoveTabPickerCursor(delta) => apply_move_tab_picker_cursor(app, delta),
-        Action::ConfirmTabPicker => apply_confirm_tab_picker(app),
         Action::CompletionNext
         | Action::CompletionPrev
         | Action::CompletionAccept
@@ -843,22 +821,11 @@ pub(crate) use crate::input::apply::operator::{
 // `maybe_prefetch_db_more_rows`, the top-level dispatcher) call
 // directly into that module.
 
-// connection-picker appliers moved to `crate::input::apply::pickers`
-// (fase 1 p5d). Re-exported so the untouched `apply_action` resolves them.
-pub(crate) use crate::input::apply::pickers::{
-    apply_close_connection_picker, apply_confirm_connection_picker,
-    apply_delete_connection_in_picker, apply_move_connection_picker_cursor, open_connection_picker,
-};
-
-// tab / template / environment picker appliers moved to
-// `crate::input::apply::pickers` (fase 1 p5d). Re-exported so the
-// untouched `apply_action` keeps resolving them.
-pub(crate) use crate::input::apply::pickers::{
-    apply_close_environment_picker, apply_confirm_block_template_picker,
-    apply_confirm_environment_picker, apply_confirm_tab_picker,
-    apply_move_block_template_picker_cursor, apply_move_environment_picker_cursor,
-    apply_move_tab_picker_cursor, apply_open_tab_picker, open_environment_picker,
-};
+// connection / environment / tab / block-template picker appliers
+// moved to `crate::input::apply::pickers` (fase 1 p5d). They are now
+// reached via the `apply_action` picker group
+// (`apply_pickers`, fase 1 p6e), so no facade re-export is needed
+// here anymore.
 
 // result-detail modal appliers moved to
 // `crate::input::apply::modal_detail` (fase 1 p5e). The open/close/copy
