@@ -1,6 +1,7 @@
 //! Editor render pipeline: layout → clip to viewport → dispatch
 //! per-segment renderer → cursor → status bar.
 
+mod anchor;
 mod block_history;
 mod block_template_picker;
 mod blocks;
@@ -41,6 +42,8 @@ use crate::buffer::{
 use crate::pane::{PaneNode, SplitDir};
 use crate::vim::mode::Mode;
 use crate::vim::search;
+
+pub(crate) use anchor::BlockAnchor;
 
 pub fn render(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
@@ -291,7 +294,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Compute the focused block's screen rect so the popup can
     // anchor right above it (or below if there's no headroom).
     if let Some(state) = app.connection_picker.as_ref() {
-        let anchor = compute_block_anchor(app, editor_area, state.segment_idx);
+        let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         connection_picker::render(frame, editor_area, state, anchor);
     }
 
@@ -300,7 +303,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // visual context — the previous status-bar prompt felt detached
     // from the action.
     if let Some(state) = app.fence_edit.as_ref() {
-        let anchor = compute_block_anchor(app, editor_area, state.segment_idx);
+        let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         fence_edit::render(frame, editor_area, state, anchor);
     }
 
@@ -310,7 +313,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // above or centered if no room. Painted last so it floats above
     // the editor cursor and any earlier overlays.
     if let Some(state) = app.completion_popup.as_ref() {
-        let anchor = compute_block_anchor(app, editor_area, state.segment_idx);
+        let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         completion_popup::render(frame, editor_area, state, anchor);
     }
 
@@ -325,7 +328,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // rows. Same chrome as the connection picker; anchored above
     // the block when there's headroom.
     if let Some(state) = app.db_export_picker.as_ref() {
-        let anchor = compute_block_anchor(app, editor_area, state.segment_idx);
+        let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         db_export_picker::render(frame, editor_area, state, anchor);
     }
 
@@ -333,7 +336,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // form (limit + timeout) with Tab focus cycle. Anchored above
     // the block; falls back below or centered when no headroom.
     if let Some(state) = app.db_settings.as_ref() {
-        let anchor = compute_block_anchor(app, editor_area, state.segment_idx);
+        let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         db_settings_modal::render(frame, editor_area, state, anchor);
     }
 
@@ -341,7 +344,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Read-only listing of the last N runs; same chrome as the
     // connection picker but wider (the timestamp column needs room).
     if let Some(state) = app.block_history.as_ref() {
-        let anchor = compute_block_anchor(app, editor_area, state.segment_idx);
+        let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         block_history::render(frame, editor_area, state, anchor);
     }
 
@@ -373,49 +376,6 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     if let Some(state) = app.tab_picker.as_ref() {
         tab_picker::render(frame, editor_area, state, app.tabs.active);
     }
-}
-
-/// Locate `segment_idx` in the active pane's layout and translate
-/// to screen coordinates (subtract `pane.viewport_top`). Returns
-/// `None` when the pane has no document, the segment isn't in the
-/// layout, or it's entirely scrolled off-screen — caller falls
-/// back to a centered popup.
-fn compute_block_anchor(app: &App, editor_area: Rect, segment_idx: usize) -> Option<BlockAnchor> {
-    let pane = app.active_pane()?;
-    let doc = pane.document.as_ref()?;
-    let layouts = layout_document(doc, editor_area.width);
-    let layout = layouts.iter().find(|l| l.segment_idx == segment_idx)?;
-    let viewport_top = pane.viewport_top;
-    let block_bottom = layout.y_start.saturating_add(layout.height);
-    if block_bottom <= viewport_top {
-        return None;
-    }
-    let screen_top = editor_area
-        .y
-        .saturating_add(layout.y_start.saturating_sub(viewport_top));
-    let visible_height = layout
-        .height
-        .saturating_sub(viewport_top.saturating_sub(layout.y_start))
-        .min(
-            editor_area
-                .height
-                .saturating_sub(screen_top.saturating_sub(editor_area.y)),
-        );
-    if visible_height == 0 {
-        return None;
-    }
-    Some(BlockAnchor {
-        screen_top,
-        height: visible_height,
-    })
-}
-
-/// Screen-coordinate rect of a focused block — used by the
-/// connection picker popup to anchor itself.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct BlockAnchor {
-    pub screen_top: u16,
-    pub height: u16,
 }
 
 /// Recursively paint a pane tree into `area`. Each leaf's
