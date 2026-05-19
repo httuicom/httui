@@ -6,6 +6,7 @@
 use crate::app::{App, StatusKind};
 use crate::buffer::block::BlockNode;
 use crate::buffer::{Cursor, Segment};
+use crate::input::action::Action;
 use crate::vim::mode::Mode;
 
 // ───────────── result-detail modals (DB row + HTTP response) ─────────────
@@ -465,5 +466,22 @@ pub(crate) fn http_response_raw_body(app: &App, segment_idx: usize) -> Option<St
         None
     } else {
         Some(body)
+    }
+}
+
+/// `apply_action` sub-match for the result-detail modal domain (DB
+/// row-detail + HTTP response-detail open/close/copy). Mechanically
+/// split out of the `apply_action` router in `vim/dispatch.rs` (tui-v2
+/// vertical 1, fase 1 p6c) — arm bodies copied verbatim. The outer
+/// router routes only this group's variants here, so the
+/// `unreachable!` is a compile-time-backed invariant.
+pub(crate) fn apply_modal_detail(app: &mut App, action: Action, _recording: bool) {
+    match action {
+        Action::OpenDbRowDetail => apply_open_result_detail(app),
+        Action::CloseDbRowDetail => apply_close_db_row_detail(app),
+        Action::CopyDbRowDetailJson => apply_copy_db_row_detail_json(app),
+        Action::CloseHttpResponseDetail => apply_close_http_response_detail(app),
+        Action::CopyHttpResponseBody => apply_copy_http_response_body(app),
+        _ => unreachable!("apply_modal_detail: variante fora do grupo"),
     }
 }

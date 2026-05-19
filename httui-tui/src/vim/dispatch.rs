@@ -219,11 +219,13 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
             apply_visual_select_textobject(app, textobj);
         }
         Action::RunBlock => crate::commands::db::apply_run_block(app),
-        Action::OpenDbRowDetail => apply_open_result_detail(app),
-        Action::CloseDbRowDetail => apply_close_db_row_detail(app),
-        Action::CopyDbRowDetailJson => apply_copy_db_row_detail_json(app),
-        Action::CloseHttpResponseDetail => apply_close_http_response_detail(app),
-        Action::CopyHttpResponseBody => apply_copy_http_response_body(app),
+        Action::OpenDbRowDetail
+        | Action::CloseDbRowDetail
+        | Action::CopyDbRowDetailJson
+        | Action::CloseHttpResponseDetail
+        | Action::CopyHttpResponseBody => {
+            crate::input::apply::modal_detail::apply_modal_detail(app, action, recording)
+        }
         Action::OpenConnectionPicker => {
             if let Err(msg) = open_connection_picker(app) {
                 app.set_status(StatusKind::Error, msg);
@@ -884,15 +886,11 @@ pub(crate) use crate::input::apply::pickers::{
 };
 
 // result-detail modal appliers moved to
-// `crate::input::apply::modal_detail` (fase 1 p5e). The first group is
-// still called by the untouched `apply_action`; the second group has
-// no production caller left here but the dispatch `mod tests`
-// (`use super::*`) references it, so it stays re-exported behind
+// `crate::input::apply::modal_detail` (fase 1 p5e). The open/close/copy
+// appliers are now reached via the `apply_action` modal-detail group
+// (`apply_modal_detail`, fase 1 p6c); only the formatters the dispatch
+// `mod tests` (`use super::*`) references stay re-exported here behind
 // `#[allow(unused_imports)]`.
-pub(crate) use crate::input::apply::modal_detail::{
-    apply_close_db_row_detail, apply_close_http_response_detail, apply_copy_db_row_detail_json,
-    apply_copy_http_response_body, apply_open_result_detail,
-};
 #[allow(unused_imports)]
 pub(crate) use crate::input::apply::modal_detail::{
     build_http_response_body_text, build_http_response_modal_title, format_size,
