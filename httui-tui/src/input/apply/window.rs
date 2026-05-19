@@ -3,8 +3,21 @@
 //! change.
 
 use crate::app::{App, StatusKind};
+use crate::input::action::Action;
 use crate::input::types::WindowCmd;
 use crate::pane::{FocusDir, SplitDir};
+
+/// `apply_action` sub-match for the window/split domain. Mechanically
+/// split out of the `apply_action` router in `vim/dispatch.rs` (tui-v2
+/// vertical 1, fase 1 p6a) — the arm bodies are copied verbatim. The
+/// outer router routes only the variants in this group here, so the
+/// `unreachable!` is a compile-time-backed invariant.
+pub(crate) fn apply_window(app: &mut App, action: Action, _recording: bool) {
+    match action {
+        Action::Window(cmd) => apply_window_cmd(app, cmd),
+        _ => unreachable!("apply_window: variante fora do grupo"),
+    }
+}
 
 // ───────────── window / split commands ─────────────
 

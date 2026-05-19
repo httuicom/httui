@@ -589,7 +589,7 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
                 }
             }
         }
-        Action::Window(cmd) => apply_window_cmd(app, cmd),
+        Action::Window(_) => crate::input::apply::window::apply_window(app, action, recording),
         Action::TreeToggle => {
             if app.tree.visible {
                 app.tree.visible = false;
@@ -897,9 +897,9 @@ pub(crate) use crate::input::apply::modal_detail::{
 };
 
 // window / split commands moved to `crate::input::apply::window`
-// (fase 1 p5a). Re-exported so the untouched `apply_action` router
-// keeps resolving `apply_window_cmd` via its bare call site.
-pub(crate) use crate::input::apply::window::apply_window_cmd;
+// (fase 1 p5a). The `apply_action` window group routes to
+// `crate::input::apply::window::apply_window` directly (fase 1 p6a),
+// so no facade re-export is needed here anymore.
 
 // ───────────── . repeat ─────────────
 
