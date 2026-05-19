@@ -5,107 +5,68 @@
 //!
 //! Pure function by design (`KeyEvent -> Option<Action>`): no `App`,
 //! no side effects, trivially unit-testable. Unmatched keys return
-//! `None` so the router can ignore them (V1 keeps the surface
-//! deliberately small — clipboard / selection land in a later fase).
+//! `None` so the router can ignore them.
 //!
-//! Introduced by tui-V1 / fase 2 p4.
+//! Since tui-V01 / fase 6 p2-p3 the leaf chords (Ctrl+C/X/V/S/Z/Y,
+//! arrows, Home/End/PageUp/Down, Shift-selection variants,
+//! Ctrl+Shift+X EXPLAIN, Ctrl+Shift+Z redo, Enter/Backspace/Delete)
+//! live in the data-driven [`crate::input::map`] table — `resolve`
+//! delegates to [`crate::input::map::lookup_standard`] first and falls
+//! through to the parametric `InsertChar(c)` arm only for unbound
+//! printable chars. That single fall-through is the only chord-to-
+//! action mapping NOT in the map: it's parametric in `c`, not a leaf
+//! binding.
+//!
+//! Introduced by tui-V1 / fase 2 p4; refactored data-driven by
+//! tui-V01 / fase 6 p2-p3.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::input::action::Action;
-use crate::input::types::Motion;
 
 /// Translate one key in Standard mode. Returns `None` for keys the
 /// standard profile doesn't bind (the router treats that as a no-op).
 /// Wired by the Standard branch of `crate::input::route::route`.
 pub fn resolve(key: KeyEvent) -> Option<Action> {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-
-    // Motions that selection-extend (`Shift`+them) and move
-    // (without `Shift`) symmetrically. Keep this list and the page
-    // arms below in lockstep.
-    let motion = match code {
-        KeyCode::Up => Some(Motion::Up),
-        KeyCode::Down => Some(Motion::Down),
-        KeyCode::Left => Some(Motion::Left),
-        KeyCode::Right => Some(Motion::Right),
-        KeyCode::Home => Some(Motion::LineStart),
-        KeyCode::End => Some(Motion::LineEnd),
-        _ => None,
-    };
-    if let Some(m) = motion {
-        // `Shift`+<motion> extends the selection; the bare key just
-        // moves (the router collapses any active anchor on a plain
-        // Motion). This degrades gracefully when SHIFT is absent —
-        // identical behaviour to before fase 3.
-        return Some(if modifiers.contains(KeyModifiers::SHIFT) {
-            Action::SelectExtend(m)
-        } else {
-            Action::Motion(m, 1)
-        });
+    // Leaf chord-to-action bindings live in the inspectable keymap
+    // table (Cenário 3 — single source). The cross-profile toggle
+    // (`Ctrl+Shift+M`) is intercepted by `route::route` BEFORE this
+    // function ever runs, but it also appears in the map so V9's UI
+    // can surface it; `lookup_standard` happens to find it too — no
+    // harm done, because if we ever reach here with the toggle chord
+    // (route lost the race) returning `Action::ToggleEditorMode`
+    // would still be the right semantic answer.
+    if let Some(action) = crate::input::map::lookup_standard(key) {
+        return Some(action);
     }
 
-    Some(match (modifiers, code) {
-        // Page motions — no selection-extend variant in V1 (page
-        // keys aren't a selection idiom users expect).
-        (_, KeyCode::PageDown) => Action::Motion(Motion::HalfPageDown, 1),
-        (_, KeyCode::PageUp) => Action::Motion(Motion::HalfPageUp, 1),
-
-        // Clipboard chords. The CONTROL guard on the InsertChar arm
-        // below already keeps these from being typed; here they get
-        // their real meaning. `Ctrl+C` is Copy — the running-query
-        // cancel moves to `Esc` in fase 3 p3.
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => Action::Copy,
-        // `Ctrl+Shift+X` runs EXPLAIN on the focused DB block. Vim binds
-        // EXPLAIN to plain `Ctrl+X`; in Standard `Ctrl+X` is Cut, so
-        // EXPLAIN moves to the shifted variant — same pattern as
-        // `Ctrl+Shift+Z` below. Some terminals report the char as `'X'`
-        // (SHIFT-folded uppercase), others as `'x'` — accept both.
-        // Must match BEFORE the bare `Ctrl+X` Cut arm.
-        (m, KeyCode::Char('x') | KeyCode::Char('X'))
-            if m.contains(KeyModifiers::CONTROL) && m.contains(KeyModifiers::SHIFT) =>
-        {
-            Action::ExplainBlock
+    // The only chord-to-action binding NOT in the data table: any
+    // printable char without CONTROL inserts literally. The CONTROL
+    // guard keeps `Ctrl+<char>` chords (Ctrl+S, Ctrl+C, …) from
+    // being typed as text — those are bound in the table and would
+    // have returned above.
+    if let KeyEvent {
+        code: KeyCode::Char(c),
+        modifiers,
+        ..
+    } = key
+    {
+        if !modifiers.contains(KeyModifiers::CONTROL) {
+            return Some(Action::InsertChar(c));
         }
-        (KeyModifiers::CONTROL, KeyCode::Char('x')) => Action::Cut,
-        (KeyModifiers::CONTROL, KeyCode::Char('v')) => Action::PasteSystem,
-
-        // `Ctrl+S` — universal save, same as vim's `:w` / `<C-s>`.
-        (KeyModifiers::CONTROL, KeyCode::Char('s')) => Action::WriteFile,
-
-        // Undo / redo (tui-V1 / fase 4 p1). These sit BEFORE the
-        // InsertChar arm (whose guard is `!CONTROL`) so the Ctrl
-        // chords never get typed as text. `Ctrl+Shift+Z` is matched
-        // first — otherwise the bare `Ctrl+Z` arm (which doesn't look
-        // at SHIFT) would swallow the redo chord. `Ctrl+Y` is the
-        // Windows-style redo alias.
-        (m, KeyCode::Char('z') | KeyCode::Char('Z'))
-            if m.contains(KeyModifiers::CONTROL) && m.contains(KeyModifiers::SHIFT) =>
-        {
-            Action::Redo
-        }
-        (KeyModifiers::CONTROL, KeyCode::Char('z')) => Action::Undo,
-        (KeyModifiers::CONTROL, KeyCode::Char('y')) => Action::Redo,
-
-        // Text editing.
-        (_, KeyCode::Enter) => Action::InsertNewline,
-        (_, KeyCode::Backspace) => Action::DeleteBackward,
-        (_, KeyCode::Delete) => Action::DeleteForward,
-        // Any printable char without CONTROL inserts literally. The
-        // CONTROL guard keeps `Ctrl+<char>` chords (e.g. the `Ctrl+S`
-        // arm above, future clipboard binds) from being typed as text.
-        (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => Action::InsertChar(c),
-
-        // Everything else is unbound in Standard mode.
-        _ => return None,
-    })
+    }
+    None
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Fase 6 p3 moved the chord-to-Action table to `input::map`, so
+    // `Motion` is no longer imported at module scope (production now
+    // only deals in `Action`). Tests still construct `Motion`-bearing
+    // `Action`s via the `Action::Motion(...)` arms — pull the type in
+    // here so the existing test surface keeps working unchanged.
+    use crate::input::types::Motion;
 
     fn k(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)

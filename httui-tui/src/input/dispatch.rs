@@ -331,6 +331,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::MoveContentSearchCursor(..)
         | Action::MoveDbExportPickerCursor(..)
         | Action::Noop
+        | Action::ToggleEditorMode
         | Action::OpenBlockHistory
         | Action::OpenContentSearch
         | Action::OpenDbExportPicker

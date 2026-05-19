@@ -412,5 +412,14 @@ pub enum Action {
     /// Standard profile: `Ctrl+V` — paste the system clipboard at the
     /// cursor, replacing the selection if one is active. Fase 3 p1.
     PasteSystem,
+    /// Cross-profile meta-action: `Ctrl+Shift+M` flips
+    /// `config.editor.mode` between Standard and Vim at runtime.
+    /// Intercepted in [`crate::input::route::route`] BEFORE the
+    /// per-profile branch, so this variant never reaches
+    /// `apply_action` — the multi-arm group treats it as a no-op
+    /// for exhaustiveness. The variant exists so the inspectable
+    /// keymap table in [`crate::input::map`] can name the binding
+    /// without needing a parallel `MetaAction` enum. Fase 6 p2.
+    ToggleEditorMode,
     Noop,
 }
