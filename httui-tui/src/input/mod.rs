@@ -17,5 +17,6 @@ pub mod block_swap;
 pub mod dispatch;
 pub mod map;
 pub mod parser;
+pub mod route;
 pub mod standard;
 pub mod types;

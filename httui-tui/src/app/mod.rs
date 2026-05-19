@@ -14,7 +14,7 @@ use crate::event::AppEvent;
 use crate::pane::{Pane, TabState};
 use crate::tree::FileTree;
 use crate::vault::ResolvedVault;
-use crate::vim::{self, VimState};
+use crate::vim::VimState;
 
 // Mechanical split of the old monolithic `app.rs` (tui-v2 vertical 1,
 // fase 2). Each submodule is a pure code move — no behavior change.
@@ -297,7 +297,7 @@ impl App {
 // is the P5 input-rewire seam; `event_loop::main_loop` reaches it via
 // `super::handle_key`.
 pub(crate) fn handle_key(app: &mut App, key: KeyEvent) {
-    vim::dispatch(app, key);
+    crate::input::route::route(app, key);
 }
 
 #[cfg(test)]
@@ -414,10 +414,14 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn handle_key_delegates_to_the_vim_dispatcher() {
-        // `handle_key` is a one-liner forwarding to `vim::dispatch`.
-        // Press `i` → Normal→Insert mode flips, proving the key
-        // reached the dispatcher.
+        // `handle_key` forwards to `input::route::route`. With
+        // mode=Vim the router is a literal passthrough to
+        // `dispatch`, so pressing `i` flips Normal→Insert, proving
+        // the key reached the dispatcher. The default profile is now
+        // Standard (tui-V1 / fase 2 p5), so this vim-contract test
+        // opts into Vim explicitly.
         let (mut app, _d, _v) = app_with(&[("note.md", "abc\n")]).await;
+        app.config.editor.mode = crate::config::EditorMode::Vim;
         let before = app.vim.mode;
         handle_key(
             &mut app,

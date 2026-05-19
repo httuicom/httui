@@ -17,11 +17,7 @@ use crate::input::types::Motion;
 
 /// Translate one key in Standard mode. Returns `None` for keys the
 /// standard profile doesn't bind (the router treats that as a no-op).
-// Wired by the Standard branch of `crate::input::route::route` in
-// fase 2 p5 (next commit). Decoder + tests land first so the table is
-// reviewed in isolation; `allow(dead_code)` is dropped the moment the
-// router calls it.
-#[allow(dead_code)]
+/// Wired by the Standard branch of `crate::input::route::route`.
 pub fn resolve(key: KeyEvent) -> Option<Action> {
     let KeyEvent {
         code, modifiers, ..

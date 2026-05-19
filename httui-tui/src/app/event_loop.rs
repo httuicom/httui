@@ -378,10 +378,15 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn key_event_routes_to_dispatch_and_continues() {
-        // `Key` forwards to `handle_key` (vim dispatch). Pressing `i`
-        // flips Normal→Insert, proving the arm reached the dispatcher;
-        // the event is non-terminal so `should_continue` is `true`.
+        // `Key` forwards to `handle_key` → `input::route::route`.
+        // This test asserts the *vim* path specifically (Normal→Insert
+        // on `i`), so it opts into Vim mode — the default is now
+        // Standard (tui-V1 / fase 2 p5: Standard is the default
+        // profile). Pressing `i` flips the vim mode, proving the arm
+        // reached the dispatcher; the event is non-terminal so
+        // `should_continue` is `true`.
         let (mut app, _d, _v) = app_fixture("abc\n").await;
+        app.config.editor.mode = crate::config::EditorMode::Vim;
         let before = app.vim.mode;
         let cont = handle_app_event(
             &mut app,
