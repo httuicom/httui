@@ -14,5 +14,6 @@
 pub mod action;
 pub mod apply;
 pub mod block_swap;
+pub mod dispatch;
 pub mod parser;
 pub mod types;

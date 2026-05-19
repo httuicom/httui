@@ -24,7 +24,13 @@ use crate::vim::lineedit::LineEdit;
 // Pure types + the Action set live in `crate::input`; this facade
 // re-exports them so the ~7 external `crate::vim::parser::{...}`
 // call sites and the in-file `mod tests` (`use super::*`) keep
-// resolving unchanged (tui-v2 vertical 1, fase 1 p1).
+// resolving unchanged (tui-v2 vertical 1, fase 1 p1). `Action` lost
+// its last production consumer when `vim::dispatch` became a facade
+// and `crate::input::dispatch` started importing `Action` from its
+// canonical `crate::input::action` path (fase 1 p6-router); the
+// in-file `mod tests` (`use super::*`) still references it, so it
+// stays re-exported behind `#[allow(unused_imports)]`.
+#[allow(unused_imports)]
 pub use crate::input::action::Action;
 pub use crate::input::types::{
     InsertPos, Motion, MotionClass, Operator, PastePos, ScrollPos, TextObject,
