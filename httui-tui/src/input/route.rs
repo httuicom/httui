@@ -63,6 +63,28 @@ fn route_standard(app: &mut App, key: KeyEvent) {
         return;
     };
 
+    // Auto-save edit-clock tap (tui-V01 / fase 5 p2). Set
+    // `app.last_edit` for any action that *mutates* the buffer; the
+    // Tick branch in `event_loop` debounces against it. The list
+    // mirrors `standard_undo::maybe_snapshot`'s mutating set, plus
+    // Cut/Paste (which snapshot in `standard_sel`). Motion / Copy /
+    // ClearSelection / SelectExtend are pure cursor moves and must
+    // NOT reset the clock — otherwise just navigating after an edit
+    // would push the debounce indefinitely. Ortogonal to
+    // `edit_group`/`maybe_snapshot` (no shared state).
+    use crate::input::action::Action;
+    if matches!(
+        action,
+        Action::InsertChar(_)
+            | Action::InsertNewline
+            | Action::DeleteBackward
+            | Action::DeleteForward
+            | Action::Cut
+            | Action::PasteSystem
+    ) {
+        app.last_edit = Some(std::time::Instant::now());
+    }
+
     // Undo-group snapshot policy (tui-V1 / fase 4 p2). Runs once per
     // keystroke BEFORE any dispatch so the snapshot captures the
     // pre-edit document; it covers every path below (incl. the
@@ -75,7 +97,7 @@ fn route_standard(app: &mut App, key: KeyEvent) {
     // dedicated (fully-covered) `standard_sel` module, with a real
     // clipboard injected here. The vim path never reaches this — it
     // never decodes into these `Action`s — so Cenário 2 is untouched.
-    use crate::input::action::Action;
+    // `Action` is already in scope from the auto-save tap above.
     match action {
         Action::SelectExtend(_)
         | Action::ClearSelection
@@ -633,5 +655,53 @@ mod tests {
             crate::input::standard::resolve(ctrl(KeyCode::Char('v'))),
             Some(crate::input::action::Action::PasteSystem)
         );
+    }
+
+    // ----- fase 5 p2: last_edit clock --------------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn insert_char_sets_last_edit_clock() {
+        // Standard-mode `a` decodes to InsertChar('a'); the auto-save
+        // tap must record `last_edit`. Proves the textual-action arm
+        // of the matches!() in route_standard.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        assert!(app.last_edit.is_none(), "fresh App: no edit clock yet");
+        route(&mut app, key(KeyCode::Char('a')));
+        assert!(
+            app.last_edit.is_some(),
+            "InsertChar must set last_edit (auto-save debounce input)"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn motion_does_not_set_last_edit_clock() {
+        // A pure cursor move (Left arrow → Action::Motion) must NOT
+        // reset the clock — otherwise just navigating after an edit
+        // would push the debounce window indefinitely.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        route(&mut app, key(KeyCode::Right));
+        assert!(
+            app.last_edit.is_none(),
+            "Motion must NOT set last_edit (only mutating actions do)"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn delete_backward_sets_last_edit_clock() {
+        // Backspace decodes to DeleteBackward — also part of the
+        // mutating set the tap watches.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        // Move cursor into the doc so backspace has something to bite.
+        route(&mut app, key(KeyCode::Right));
+        assert!(app.last_edit.is_none());
+        route(&mut app, key(KeyCode::Backspace));
+        assert!(app.last_edit.is_some(), "DeleteBackward must set last_edit");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn insert_newline_sets_last_edit_clock() {
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        route(&mut app, key(KeyCode::Enter));
+        assert!(app.last_edit.is_some(), "InsertNewline must set last_edit");
     }
 }

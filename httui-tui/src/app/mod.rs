@@ -1,5 +1,6 @@
 use crossterm::event::KeyEvent;
 use std::path::PathBuf;
+use std::time::Instant;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::warn;
 
@@ -195,6 +196,17 @@ pub struct App {
     /// path never reads or writes it (Cenário 2 stays byte-identical).
     /// Introduced by tui-V1 / fase 3 p0.
     pub standard: StandardState,
+    /// Wall-clock timestamp of the most recent textual edit in the
+    /// active document — set by `input::route::route_standard` after
+    /// any mutating action (InsertChar / InsertNewline /
+    /// DeleteBackward / DeleteForward / Cut / PasteSystem). Read by
+    /// the `Tick` branch in `event_loop` to decide when the auto-save
+    /// debounce has elapsed. `None` means "no edit since the last
+    /// auto-save (or app start)" — both gate the debounce check.
+    /// Lives here rather than in `StandardState` because that struct
+    /// is pure `Copy`/`Eq` data; `Instant` would break it.
+    /// Introduced by tui-V01 / fase 5 p2 (auto-save).
+    pub last_edit: Option<Instant>,
 }
 
 impl App {
@@ -239,6 +251,7 @@ impl App {
             last_run_anchor: None,
             tab_picker: None,
             standard: StandardState::default(),
+            last_edit: None,
         };
         app.load_initial_document();
         app.refresh_active_env_name();
