@@ -254,6 +254,30 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn standard_ctrl_s_resets_undo_group_so_post_save_undoes_alone() {
+        // tui-V1 / fase 4 p3 — harden Ctrl+S: WriteFile is a
+        // non-textual action, so `maybe_snapshot` resets edit_group.
+        // Type, save, type again → one Ctrl+Z undoes ONLY the
+        // post-save run (the save split the undo group); the file is
+        // saved (dirty cleared) in between.
+        let (mut app, _d, vault) = app_with_note(EditorMode::Standard).await;
+        type_str(&mut app, "PRE");
+        let after_pre = app.document().unwrap().to_markdown();
+        route(&mut app, ctrl(KeyCode::Char('s')));
+        assert!(!app.document().unwrap().is_dirty(), "Ctrl+S clears dirty");
+        let on_disk = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
+        assert!(on_disk.contains("PRE"), "saved file has the pre-save run");
+        type_str(&mut app, "POST");
+        assert!(app.document().unwrap().to_markdown().contains("POST"));
+        route(&mut app, ctrl(KeyCode::Char('z')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            after_pre,
+            "one undo reverses only the post-save typing (WriteFile reset the group)"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn standard_clears_transient_status_on_keystroke() {
         // Mirrors the vim path's "press a key to dismiss" feel.
         let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
