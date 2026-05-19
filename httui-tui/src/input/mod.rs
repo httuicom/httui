@@ -12,4 +12,5 @@
 //! facades so the ~16 existing call sites need no changes.
 
 pub mod action;
+pub mod parser;
 pub mod types;
