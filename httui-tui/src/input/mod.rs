@@ -10,3 +10,6 @@
 //! Plan: `docs-llm/tui-v2/vertical-01-input-model.md`. Until the split
 //! lands, `vim::parser` / `vim::dispatch` remain thin re-export
 //! facades so the ~16 existing call sites need no changes.
+
+pub mod action;
+pub mod types;
