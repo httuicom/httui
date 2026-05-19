@@ -10,7 +10,6 @@ use crate::buffer::Cursor;
 use crate::buffer::Segment;
 use crate::input::block_swap::{action_needs_block_swap, InBlockSwap};
 use crate::tree::{TreePrompt, TreePromptKind};
-use crate::vim::change::ChangeRecord;
 use crate::vim::ex::{self, ExResult};
 use crate::vim::insert::{position_for_insert, recoil_after_exit};
 use crate::vim::mode::Mode;
@@ -20,8 +19,7 @@ use crate::vim::parser::{
     parse_content_search, parse_db_confirm_run, parse_db_export_picker, parse_db_row_detail,
     parse_db_settings_modal, parse_environment_picker, parse_fence_edit, parse_help,
     parse_http_response_detail, parse_insert, parse_normal, parse_quickopen, parse_search,
-    parse_tab_picker, parse_tree, parse_tree_prompt, parse_visual, Action, InsertPos, Motion,
-    Operator,
+    parse_tab_picker, parse_tree, parse_tree_prompt, parse_visual, Action, Motion,
 };
 
 /// Top-level vim key dispatcher. The app's `handle_key` delegates here.
@@ -155,7 +153,7 @@ pub(crate) use crate::input::apply::completion::{
 /// Run an action against the app. `recording` toggles whether the
 /// resulting change updates `last_change` — `.` replay sets it to
 /// `false` so a `.` after a `.` doesn't trample its own record.
-fn apply_action(app: &mut App, action: Action, recording: bool) {
+pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
     match action {
         Action::Noop => {}
         Action::Quit => {
@@ -464,7 +462,7 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
             app.refresh_viewport_for_cursor();
         }
         Action::RepeatChange(count) => {
-            replay_last_change(app, count.max(1));
+            crate::input::apply::replay::replay_last_change(app, count.max(1));
         }
         Action::EnterSearch(forward) => {
             app.vim.enter_search(forward);
@@ -809,11 +807,10 @@ pub(crate) use crate::input::apply::navigation::{
 // operator / paste / visual-operator appliers moved to
 // `crate::input::apply::operator` (fase 1 p5b). The visual/operator
 // arms are now reached via the `apply_action` operator group
-// (`apply_operator`, fase 1 p6d); only the four the `replay_*` helpers
-// still call by bare name stay re-exported here.
-pub(crate) use crate::input::apply::operator::{
-    apply_op_linewise, apply_op_motion, apply_op_textobject, apply_paste,
-};
+// (`apply_operator`, fase 1 p6d) and the operator appliers the
+// `replay_*` helpers need are imported directly by
+// `crate::input::apply::replay` (fase 1 p6-replay), so no facade
+// re-export is needed here anymore.
 
 // ───────────── block execution (`r` in normal) ─────────────
 //
@@ -847,78 +844,12 @@ pub(crate) use crate::input::apply::modal_detail::{
 // so no facade re-export is needed here anymore.
 
 // ───────────── . repeat ─────────────
-
-fn replay_last_change(app: &mut App, count: usize) {
-    let Some(record) = app.vim.last_change.clone() else {
-        return;
-    };
-    for _ in 0..count {
-        replay_once(app, record.clone());
-    }
-}
-
-fn replay_once(app: &mut App, record: ChangeRecord) {
-    match record {
-        ChangeRecord::OperatorMotion(op, motion, c) => {
-            apply_op_motion(app, op, motion, c, false);
-        }
-        ChangeRecord::OperatorLinewise(op, c) => {
-            apply_op_linewise(app, op, c, false);
-        }
-        ChangeRecord::OperatorTextObject(op, t, c) => {
-            apply_op_textobject(app, op, t, c, false);
-        }
-        ChangeRecord::Paste(pos, c) => {
-            apply_paste(app, pos, c, false);
-        }
-        ChangeRecord::Insert { pos, typed } => {
-            replay_insert_session(app, Some(pos), None, &typed);
-        }
-        ChangeRecord::ChangeMotion {
-            motion,
-            op_count,
-            typed,
-        } => {
-            apply_op_motion(app, Operator::Change, motion, op_count, false);
-            replay_typed(app, &typed);
-            // Replay's ExitInsert fires through dispatch only via real
-            // keystrokes; here we exit synthetically.
-            apply_action(app, Action::ExitInsert, false);
-        }
-        ChangeRecord::ChangeLinewise { op_count, typed } => {
-            apply_op_linewise(app, Operator::Change, op_count, false);
-            replay_typed(app, &typed);
-            apply_action(app, Action::ExitInsert, false);
-        }
-        ChangeRecord::ChangeTextObject {
-            textobj,
-            op_count,
-            typed,
-        } => {
-            apply_op_textobject(app, Operator::Change, textobj, op_count, false);
-            replay_typed(app, &typed);
-            apply_action(app, Action::ExitInsert, false);
-        }
-    }
-}
-
-fn replay_insert_session(app: &mut App, pos: Option<InsertPos>, _origin: Option<()>, typed: &str) {
-    if let Some(p) = pos {
-        apply_action(app, Action::EnterInsert(p), false);
-    }
-    replay_typed(app, typed);
-    apply_action(app, Action::ExitInsert, false);
-}
-
-fn replay_typed(app: &mut App, typed: &str) {
-    for c in typed.chars() {
-        if c == '\n' {
-            apply_action(app, Action::InsertNewline, false);
-        } else {
-            apply_action(app, Action::InsertChar(c), false);
-        }
-    }
-}
+//
+// `replay_last_change` / `replay_once` / `replay_insert_session` /
+// `replay_typed` moved to `crate::input::apply::replay` (fase 1
+// p6-replay). The `apply_action` `RepeatChange` arm calls
+// `crate::input::apply::replay::replay_last_change` directly; no
+// facade re-export is needed here.
 
 #[cfg(test)]
 mod tests {
