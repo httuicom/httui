@@ -129,7 +129,20 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             anchor,
             linewise: true,
         }),
-        _ => None,
+        // Standard (non-modal) profile has no `Mode::Visual`; the
+        // Shift+arrow selection lives on `app.standard.anchor`. The
+        // pure helper returns `None` for the Vim profile, so this arm
+        // can never leak into the vim render path — Cenário 2 stays
+        // byte-identical (no vim arm touched). Disjoint `&` reads of
+        // `app.config` / `app.standard`, before any `&mut app.tabs`.
+        _ => crate::input::apply::standard_sel::standard_overlay_anchor(
+            app.config.editor.mode,
+            app.standard.anchor,
+        )
+        .map(|anchor| VisualOverlay {
+            anchor,
+            linewise: false,
+        }),
     };
 
     // Walk the active tab's pane tree, painting each leaf in its slice
@@ -836,5 +849,91 @@ mod tests {
         app.vim.last_search = Some("token".into());
         let (text, _c) = render(&mut app, 60, 8);
         assert!(text.contains("find token here"), "got: {text:?}");
+    }
+
+    // ---- Standard-profile selection overlay (fase 3 P-W) -----------
+
+    /// Same as `render` but returns the raw cell buffer so a test can
+    /// assert per-cell `bg`. The selection overlay only mutates the
+    /// background, so the bg is the load-bearing signal.
+    fn render_buf(app: &mut App, w: u16, h: u16) -> ratatui::buffer::Buffer {
+        let backend = TestBackend::new(w, h);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                super::render(f, app);
+            })
+            .unwrap();
+        terminal.backend().buffer().clone()
+    }
+
+    /// The exact bg the vim visual overlay paints (`ui/overlay.rs`
+    /// `Style::default().bg(Color::Rgb(60, 70, 110))`). The Standard
+    /// arm reuses the SAME `VisualOverlay`, so it must paint this bg.
+    const SEL_BG: ratatui::style::Color = ratatui::style::Color::Rgb(60, 70, 110);
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_mode_selection_paints_highlight_bg() {
+        // Cenário 1 passo 5 (pleno): Standard profile, a non-empty
+        // Shift-selection (anchor + moved caret) → cells in the range
+        // carry the selection bg. Proves the highlight is *visible*.
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "select this line\n")]).await;
+        open_doc(&mut app, "select this line\n");
+        app.config.editor.mode = EditorMode::Standard;
+        app.vim.mode = Mode::Normal; // Standard has no Mode::Visual
+        app.vim.visual_anchor = None;
+        app.standard.anchor = Some(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        if let Some(d) = app.tabs.active_document_mut() {
+            d.set_cursor(Cursor::InProse {
+                segment_idx: 0,
+                offset: 6,
+            });
+        }
+        let buf = render_buf(&mut app, 60, 10);
+        let painted = (0..10)
+            .flat_map(|y| (0..60).map(move |x| (x, y)))
+            .filter(|&(x, y)| buf.cell((x, y)).unwrap().bg == SEL_BG)
+            .count();
+        assert!(
+            painted >= 6,
+            "Standard selection must paint the highlight bg over the \
+             selected run; painted {painted} cells with SEL_BG"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn vim_profile_ignores_standard_anchor_no_highlight() {
+        // Guarda Cenário 2: Vim profile, no vim visual anchor, but a
+        // stray `standard.anchor` set → the Standard arm resolves to
+        // `None` (helper returns None for Vim), so NO cell gets the
+        // selection bg. The Standard path can never leak into vim.
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "select this line\n")]).await;
+        open_doc(&mut app, "select this line\n");
+        app.config.editor.mode = EditorMode::Vim;
+        app.vim.mode = Mode::Normal;
+        app.vim.visual_anchor = None;
+        app.standard.anchor = Some(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        if let Some(d) = app.tabs.active_document_mut() {
+            d.set_cursor(Cursor::InProse {
+                segment_idx: 0,
+                offset: 6,
+            });
+        }
+        let buf = render_buf(&mut app, 60, 10);
+        let painted = (0..10)
+            .flat_map(|y| (0..60).map(move |x| (x, y)))
+            .filter(|&(x, y)| buf.cell((x, y)).unwrap().bg == SEL_BG)
+            .count();
+        assert_eq!(
+            painted, 0,
+            "Vim profile must never paint a Standard-anchor selection \
+             (Cenário 2 byte-identical); painted {painted}"
+        );
     }
 }

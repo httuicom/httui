@@ -200,18 +200,10 @@ fn paste_system(app: &mut App, clip: &mut impl SystemClipboard) {
 /// model, so the renderer pairs this anchor with `linewise = false`.
 /// The moving end is the doc cursor, exactly like the vim overlay.
 ///
-/// A future overlay-render task wires this into `ui/mod.rs` (one
-/// call site) alongside the existing vim-overlay match; the vim arm
-/// is deliberately NOT folded in here so Cenário 2 stays
-/// byte-identical and this helper has a single responsibility.
-//
-// Not yet called: wiring it requires editing the pre-existing
-// `ui/mod.rs` legacy monolith (1.2k L, ~0% coverage) which fase 3
-// must not grow (size/coverage gates would FAIL that legacy file
-// with no in-scope fix). Tracked as a deferred overlay-render task;
-// the logic ships covered + ready. The allow keeps clippy green
-// until that task lands.
-#[allow(dead_code)]
+/// Wired into `ui/render_root.rs` (one call site) as the fallback arm
+/// of the visual-overlay match, alongside the existing vim-overlay
+/// arms; the vim arms are deliberately NOT folded in here so Cenário 2
+/// stays byte-identical and this helper keeps a single responsibility.
 pub(crate) fn standard_overlay_anchor(
     editor_mode: crate::config::EditorMode,
     standard_anchor: Option<Cursor>,
