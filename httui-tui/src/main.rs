@@ -14,6 +14,7 @@ mod document_loader;
 mod error;
 mod event;
 mod fs_watch;
+mod input;
 mod pane;
 mod schema;
 mod sql_completion;
