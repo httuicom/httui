@@ -20,7 +20,7 @@ use crate::config::Config;
 use crate::document_loader;
 use crate::error::TuiResult;
 use crate::event::{AppEvent, EventLoop};
-use crate::pane::{Pane, PaneNode, TabState};
+use crate::pane::{Pane, TabState};
 use crate::terminal;
 use crate::tree::FileTree;
 use crate::ui;
@@ -31,6 +31,7 @@ use crate::vim::{self, VimState};
 // fase 2). Each submodule is a pure code move — no behavior change.
 // The blanket `pub use` re-exports keep every `crate::app::*` call
 // site resolving without edits.
+mod helpers;
 mod modal_state;
 mod picker_state;
 mod result_tab;
@@ -38,6 +39,7 @@ mod running;
 mod status;
 mod tabbar;
 mod viewport;
+pub(crate) use helpers::*;
 pub use modal_state::*;
 pub use picker_state::*;
 pub use result_tab::*;
@@ -774,56 +776,6 @@ impl App {
 
         Ok(format!("deleted \"{}\"", file_name(&target_rel)))
     }
-}
-
-fn tab_has_dirty(tab: &TabState) -> bool {
-    let mut dirty = false;
-    for_each_leaf(&tab.root, &mut |pane| {
-        if pane.document.as_ref().is_some_and(|d| d.is_dirty()) {
-            dirty = true;
-        }
-    });
-    dirty
-}
-
-fn for_each_leaf(node: &PaneNode, f: &mut impl FnMut(&Pane)) {
-    match node {
-        PaneNode::Leaf(p) => f(p),
-        PaneNode::Split { first, second, .. } => {
-            for_each_leaf(first, f);
-            for_each_leaf(second, f);
-        }
-    }
-}
-
-fn for_each_leaf_mut(node: &mut PaneNode, f: &mut impl FnMut(&mut Pane)) {
-    match node {
-        PaneNode::Leaf(p) => f(p),
-        PaneNode::Split { first, second, .. } => {
-            for_each_leaf_mut(first, f);
-            for_each_leaf_mut(second, f);
-        }
-    }
-}
-
-/// Snapshot the connection table into a `id → name` map so renderers
-/// can stay sync. Falls back to an empty map on any error — the worst
-/// case is footers showing the raw `connection=…` value from the fence.
-fn load_connection_names(pool: &SqlitePool) -> std::collections::HashMap<String, String> {
-    use httui_core::db::connections::list_connections;
-    let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(list_connections(pool))
-    });
-    result
-        .ok()
-        .map(|conns| conns.into_iter().map(|c| (c.id, c.name)).collect())
-        .unwrap_or_default()
-}
-
-fn file_name(p: &std::path::Path) -> String {
-    p.file_name()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| p.display().to_string())
 }
 
 pub async fn run(config: Config, resolved: ResolvedVault, app_pool: SqlitePool) -> TuiResult<()> {
