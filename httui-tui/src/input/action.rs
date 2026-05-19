@@ -401,9 +401,7 @@ pub enum Action {
     SelectExtend(Motion),
     /// Standard profile: a plain (non-Shift) arrow while a selection
     /// is active drops the anchor before moving. Routed by
-    /// `route_standard` from fase 3 p2; the allow keeps p1's
-    /// `clippy -D warnings` green until that wiring lands.
-    #[allow(dead_code)]
+    /// `route_standard` (fase 3 p2). Never decoded by the vim path.
     ClearSelection,
     /// Standard profile: `Ctrl+C` — copy the active selection to the
     /// system clipboard (no-op without a selection). Fase 3 p1.

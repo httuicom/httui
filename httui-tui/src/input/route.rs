@@ -59,8 +59,38 @@ fn route_standard(app: &mut App, key: KeyEvent) {
         }
     }
 
-    if let Some(action) = crate::input::standard::resolve(key) {
-        crate::input::dispatch::apply_action(app, action, /* recording = */ true);
+    let Some(action) = crate::input::standard::resolve(key) else {
+        return;
+    };
+
+    // Standard-mode selection / clipboard family is handled by the
+    // dedicated (fully-covered) `standard_sel` module, with a real
+    // clipboard injected here. The vim path never reaches this — it
+    // never decodes into these `Action`s — so Cenário 2 is untouched.
+    use crate::input::action::Action;
+    match action {
+        Action::SelectExtend(_)
+        | Action::ClearSelection
+        | Action::Copy
+        | Action::Cut
+        | Action::PasteSystem => {
+            let mut clip = crate::clipboard::ArboardClipboard;
+            crate::input::apply::standard_sel::apply_standard_sel(app, action, &mut clip);
+        }
+        Action::Motion(..) if app.standard.anchor.is_some() => {
+            // A plain (non-Shift) arrow while a selection is active
+            // collapses it first, then moves normally — conventional
+            // editor behaviour. Collapse routes through `standard_sel`
+            // so anchor ownership stays in one covered place.
+            let mut clip = crate::clipboard::ArboardClipboard;
+            crate::input::apply::standard_sel::apply_standard_sel(
+                app,
+                Action::ClearSelection,
+                &mut clip,
+            );
+            crate::input::dispatch::apply_action(app, action, /* recording = */ true);
+        }
+        _ => crate::input::dispatch::apply_action(app, action, /* recording = */ true),
     }
 }
 
@@ -225,5 +255,60 @@ mod tests {
             app.status_message.is_none(),
             "any standard keystroke should clear the transient status"
         );
+    }
+
+    fn shift(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::SHIFT)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_shift_arrow_starts_a_selection() {
+        // fase 3 p2: first Shift+arrow seeds the anchor at the
+        // pre-move caret and advances the caret (moving end).
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let before = app.document().unwrap().cursor();
+        assert!(app.standard.anchor.is_none());
+        route(&mut app, shift(KeyCode::Right));
+        assert_eq!(
+            app.standard.anchor,
+            Some(before),
+            "anchor seeded at the caret before the move"
+        );
+        assert_ne!(
+            app.document().unwrap().cursor(),
+            before,
+            "caret (moving end) advanced"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_plain_arrow_collapses_active_selection() {
+        // A bare arrow while a selection is active drops the anchor
+        // and still moves the caret.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        route(&mut app, shift(KeyCode::Right));
+        assert!(app.standard.anchor.is_some(), "precondition: selecting");
+        let mid = app.document().unwrap().cursor();
+        route(&mut app, key(KeyCode::Right));
+        assert!(
+            app.standard.anchor.is_none(),
+            "plain arrow collapses the selection"
+        );
+        assert_ne!(
+            app.document().unwrap().cursor(),
+            mid,
+            "plain arrow still moves the caret after collapsing"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_plain_arrow_without_selection_is_unchanged() {
+        // No anchor → behaves exactly like before fase 3 (no-op on
+        // the anchor, normal move).
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let before = app.document().unwrap().cursor();
+        route(&mut app, key(KeyCode::Right));
+        assert!(app.standard.anchor.is_none());
+        assert_ne!(app.document().unwrap().cursor(), before);
     }
 }
