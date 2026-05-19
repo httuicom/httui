@@ -100,3 +100,139 @@ impl App {
         pane.viewport_top = clamp_viewport(pane.viewport_top, pane.viewport_height, cursor_y);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{DbRowDetailState, HttpResponseDetailState};
+    use crate::buffer::Document;
+    use crate::config::Config;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use tempfile::TempDir;
+
+    /// Build a real `App` rooted at a fresh tmpdir vault containing one
+    /// markdown note, with an isolated (empty-schema) SQLite pool.
+    ///
+    /// `App::new` runs `load_connection_names` + `refresh_active_env_name`,
+    /// both of which call `tokio::task::block_in_place` — that panics on a
+    /// current-thread runtime, so every constructing test is
+    /// `#[tokio::test(flavor = "multi_thread")]`. Returns the temp dirs
+    /// too so they outlive the `App` (dropping them deletes the vault).
+    async fn app_fixture(note: &str) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        std::fs::write(vault.path().join("note.md"), note).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool);
+        (app, data, vault)
+    }
+
+    fn detail_doc(body: &str) -> Document {
+        Document::from_markdown(body).unwrap()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn accessors_resolve_the_initial_documents_pane() {
+        let (app, _d, _v) = app_fixture("# hello\n\nworld\n").await;
+
+        // The single tab loaded by `App::new` is active …
+        assert!(app.active_tab().is_some());
+        assert!(app.active_pane().is_some());
+        // … and its document + path are reachable through the accessors.
+        assert!(app.document().is_some());
+        assert_eq!(
+            app.document_path().map(|p| p.to_string_lossy().to_string()),
+            Some("note.md".to_string())
+        );
+        assert_eq!(app.viewport_height(), 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn mutable_accessors_yield_the_same_pane() {
+        let (mut app, _d, _v) = app_fixture("body text\n").await;
+
+        assert!(app.active_tab_mut().is_some());
+        let pane = app.active_pane_mut().expect("active pane");
+        pane.viewport_height = 42;
+        pane.viewport_top = 3;
+        // Re-read through the immutable path to confirm the write stuck.
+        assert_eq!(app.viewport_height(), 42);
+        assert!(app.document_mut().is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn document_redirects_to_db_row_detail_modal_while_open() {
+        let (mut app, _d, _v) = app_fixture("editor body\n").await;
+        app.db_row_detail = Some(DbRowDetailState {
+            segment_idx: 0,
+            row: 0,
+            title: "row".into(),
+            doc: detail_doc("MODAL BODY\n"),
+            viewport_height: 7,
+            viewport_top: 0,
+        });
+
+        // While the modal is up the accessors return the modal doc, not
+        // the editor's note, and report the modal's viewport height.
+        // Compare against an independently-serialized reference doc so
+        // the assertion is roundtrip-stable (markdown may normalize).
+        let modal_md = detail_doc("MODAL BODY\n").to_markdown();
+        let editor_md = detail_doc("editor body\n").to_markdown();
+        assert_eq!(
+            app.document().map(|d| d.to_markdown()),
+            Some(modal_md.clone())
+        );
+        assert_ne!(app.document().map(|d| d.to_markdown()), Some(editor_md));
+        assert_eq!(app.viewport_height(), 7);
+        assert_eq!(app.document_mut().map(|d| d.to_markdown()), Some(modal_md));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn document_redirects_to_http_response_detail_modal_while_open() {
+        let (mut app, _d, _v) = app_fixture("editor body\n").await;
+        app.http_response_detail = Some(HttpResponseDetailState {
+            segment_idx: 0,
+            title: "resp".into(),
+            doc: detail_doc("HTTP MODAL\n"),
+            viewport_height: 9,
+            viewport_top: 0,
+        });
+
+        let modal_md = detail_doc("HTTP MODAL\n").to_markdown();
+        assert_eq!(
+            app.document().map(|d| d.to_markdown()),
+            Some(modal_md.clone())
+        );
+        assert_eq!(app.viewport_height(), 9);
+        assert_eq!(app.document_mut().map(|d| d.to_markdown()), Some(modal_md));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn refresh_viewport_for_cursor_clamps_top() {
+        let (mut app, _d, _v) = app_fixture("# title\n\nbody line\n").await;
+        // A non-zero viewport_top with cursor at doc start must be
+        // clamped back so the cursor stays visible.
+        {
+            let pane = app.active_pane_mut().unwrap();
+            pane.viewport_height = 10;
+            pane.viewport_top = 50;
+        }
+        app.refresh_viewport_for_cursor();
+        assert_eq!(app.active_pane().unwrap().viewport_top, 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn refresh_viewport_for_cursor_noop_without_document() {
+        let (mut app, _d, _v) = app_fixture("x\n").await;
+        // Empty the focused pane's document → the early-return path.
+        if let Some(p) = app.active_pane_mut() {
+            p.document = None;
+        }
+        app.refresh_viewport_for_cursor();
+        assert!(app.active_pane().unwrap().document.is_none());
+    }
+}
