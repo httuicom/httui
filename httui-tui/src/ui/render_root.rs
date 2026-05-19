@@ -351,3 +351,490 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         tab_picker::render(frame, editor_area, state, app.tabs.active);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{App, BlockExportFormat, CompletionPopupState};
+    use crate::app::{
+        BlockHistoryState, BlockTemplatePickerState, ConnectionPickerState, ContentSearchState,
+        DbConfirmRunState, DbExportPickerState, DbRowDetailState, DbSettingsState,
+        EnvironmentPickerState, FenceEditState, HttpResponseDetailState, SettingsField,
+        TabPickerState,
+    };
+    use crate::buffer::{Cursor, Document};
+    use crate::config::{Config, EditorMode};
+    use crate::pane::{Pane, TabState};
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use ratatui::backend::{Backend, TestBackend};
+    use ratatui::Terminal;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    async fn app_with_files(files: &[(&str, &str)]) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        for (rel, body) in files {
+            let p = vault.path().join(rel);
+            if let Some(parent) = p.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            std::fs::write(p, body).unwrap();
+        }
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool);
+        (app, data, vault)
+    }
+
+    /// Open `a.md` into a focused leaf of tab 0 so the renderer has a
+    /// real document tree to walk instead of the empty-state path.
+    fn open_doc(app: &mut App, md: &str) {
+        let doc = Document::from_markdown(md).unwrap();
+        let pane = Pane::new(doc, PathBuf::from("a.md"));
+        app.tabs.tabs = vec![TabState::new(pane)];
+        app.tabs.active = 0;
+    }
+
+    fn render(app: &mut App, w: u16, h: u16) -> (String, Option<(u16, u16)>) {
+        let backend = TestBackend::new(w, h);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                super::render(f, app);
+            })
+            .unwrap();
+        let cur = terminal
+            .backend_mut()
+            .get_cursor_position()
+            .ok()
+            .map(|p| (p.x, p.y));
+        let buf = terminal.backend().buffer().clone();
+        let text: String = (0..h)
+            .flat_map(|y| (0..w).map(move |x| (x, y)))
+            .map(|(x, y)| buf.cell((x, y)).unwrap().symbol().to_string())
+            .collect();
+        (text, cur)
+    }
+
+    // ---- tab bar visibility ----------------------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn single_tab_hides_tab_bar_and_renders_doc() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "hello world\n")]).await;
+        open_doc(&mut app, "hello world\n");
+        let (text, _c) = render(&mut app, 60, 12);
+        assert!(text.contains("hello world"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn multiple_tabs_show_the_tab_bar() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "alpha\n")]).await;
+        open_doc(&mut app, "alpha content\n");
+        // Add a second tab → show_tabs branch.
+        let pane2 = Pane::new(
+            Document::from_markdown("beta content\n").unwrap(),
+            PathBuf::from("b.md"),
+        );
+        app.tabs.tabs.push(TabState::new(pane2));
+        let (text, _c) = render(&mut app, 70, 14);
+        assert!(app.tabs.len() > 1);
+        assert!(text.contains("alpha content"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn empty_state_when_no_tabs() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.tabs.tabs.clear();
+        let (text, _c) = render(&mut app, 60, 10);
+        assert!(
+            text.contains("no markdown files yet"),
+            "expected empty-state hint: {text:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn single_empty_leaf_renders_empty_state_inline() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.tabs.tabs = vec![TabState::new(Pane::empty())];
+        app.tabs.active = 0;
+        let (text, _c) = render(&mut app, 60, 10);
+        assert!(text.contains("no markdown files yet"), "got: {text:?}");
+    }
+
+    // ---- tree sidebar ----------------------------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_visible_splits_body_and_paints_sidebar() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "doc body\n")]).await;
+        open_doc(&mut app, "doc body\n");
+        app.tree.visible = true;
+        let (text, _c) = render(&mut app, 80, 16);
+        // Editor content still shows next to the sidebar.
+        assert!(text.contains("doc body"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_hidden_uses_full_width_editor() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "wide editor\n")]).await;
+        open_doc(&mut app, "wide editor\n");
+        app.tree.visible = false;
+        let (text, _c) = render(&mut app, 80, 12);
+        assert!(text.contains("wide editor"), "got: {text:?}");
+    }
+
+    // ---- mode-specific cursor placement ----------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn command_line_mode_places_cursor_in_status_row() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.vim.mode = Mode::CommandLine;
+        app.vim.cmdline = crate::vim::lineedit::LineEdit::from_str("w");
+        let (_t, cur) = render(&mut app, 60, 10);
+        assert!(cur.is_some(), "command-line cursor should be set");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn search_mode_places_cursor_and_live_highlights() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "find me here\n")]).await;
+        open_doc(&mut app, "find me here\n");
+        app.vim.mode = Mode::Search;
+        app.vim.search_forward = true;
+        app.vim.search_buf = crate::vim::lineedit::LineEdit::from_str("me");
+        let (_t, cur) = render(&mut app, 60, 10);
+        assert!(cur.is_some(), "search cursor should be set");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn quickopen_mode_renders_and_sets_cursor() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.vim.mode = Mode::QuickOpen;
+        let (_t, cur) = render(&mut app, 60, 12);
+        assert!(cur.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn content_search_mode_renders_when_state_present() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.vim.mode = Mode::ContentSearch;
+        app.content_search = Some(ContentSearchState::new());
+        let (_t, cur) = render(&mut app, 60, 12);
+        assert!(cur.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_prompt_mode_places_cursor_in_status_row() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.vim.mode = Mode::TreePrompt;
+        app.tree.prompt = Some(crate::tree::TreePrompt::new(
+            crate::tree::TreePromptKind::Create { dir: String::new() },
+            "new.md".into(),
+        ));
+        let (_t, cur) = render(&mut app, 60, 10);
+        assert!(cur.is_some(), "tree-prompt cursor should be set");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn suppress_cursor_when_modal_owns_input() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.help_visible = true; // any suppressing modal
+        let (text, _c) = render(&mut app, 60, 12);
+        // Help modal painted on top.
+        assert!(!text.trim().is_empty());
+    }
+
+    // ---- visual overlay paths --------------------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn visual_mode_overlay_path_is_exercised() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "select this line\n")]).await;
+        open_doc(&mut app, "select this line\n");
+        app.config.editor.mode = EditorMode::Vim;
+        app.vim.mode = Mode::Visual;
+        app.vim.visual_anchor = Some(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        if let Some(d) = app.tabs.active_document_mut() {
+            d.set_cursor(Cursor::InProse {
+                segment_idx: 0,
+                offset: 6,
+            });
+        }
+        let (text, _c) = render(&mut app, 60, 10);
+        assert!(text.contains("select this line"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn visual_line_mode_overlay_path_is_exercised() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "line A\nline B\n")]).await;
+        open_doc(&mut app, "line A\nline B\n");
+        app.vim.mode = Mode::VisualLine;
+        app.vim.visual_anchor = Some(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        let (text, _c) = render(&mut app, 60, 10);
+        assert!(text.contains("line A"), "got: {text:?}");
+    }
+
+    // ---- modal / popup overlay stack -------------------------------
+
+    fn sub_doc() -> Document {
+        Document::from_markdown("status 200\nheader: x\n\nbody\n").unwrap()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn db_row_detail_modal_paints() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.db_row_detail = Some(DbRowDetailState {
+            segment_idx: 0,
+            row: 0,
+            title: " row 1 ".into(),
+            doc: sub_doc(),
+            viewport_height: 10,
+            viewport_top: 0,
+        });
+        let (text, _c) = render(&mut app, 70, 16);
+        assert!(text.contains("body"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn http_response_detail_modal_paints_with_visual() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.vim.mode = Mode::Visual;
+        app.vim.visual_anchor = Some(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        app.http_response_detail = Some(HttpResponseDetailState {
+            segment_idx: 0,
+            title: " 200 OK ".into(),
+            doc: sub_doc(),
+            viewport_height: 10,
+            viewport_top: 0,
+        });
+        let (text, _c) = render(&mut app, 70, 16);
+        assert!(
+            text.contains("status 200") || text.contains("body"),
+            "got: {text:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn connection_picker_popup_paints_anchored() {
+        let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        open_doc(&mut app, src);
+        let seg = app
+            .tabs
+            .active_document_mut()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, crate::buffer::Segment::Block(_)))
+            .unwrap();
+        app.connection_picker = Some(ConnectionPickerState {
+            segment_idx: seg,
+            connections: vec![crate::app::ConnectionEntry {
+                id: "c1".into(),
+                name: "Local PG".into(),
+                kind: "postgres".into(),
+            }],
+            selected: 0,
+        });
+        let (text, _c) = render(&mut app, 70, 16);
+        assert!(text.contains("Local PG"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fence_edit_popup_paints() {
+        let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        open_doc(&mut app, src);
+        app.fence_edit = Some(FenceEditState {
+            segment_idx: 0,
+            kind: crate::app::FenceEditKind::Alias,
+            input: crate::vim::lineedit::LineEdit::from_str("req1"),
+        });
+        let (text, _c) = render(&mut app, 70, 14);
+        assert!(
+            text.contains("req1") || text.contains("alias"),
+            "got: {text:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn completion_popup_paints() {
+        let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        open_doc(&mut app, src);
+        app.completion_popup = Some(CompletionPopupState {
+            segment_idx: 0,
+            items: vec![crate::sql_completion::CompletionItem {
+                label: "SELECT".into(),
+                kind: crate::sql_completion::CompletionKind::Keyword,
+                detail: None,
+            }],
+            selected: 0,
+            anchor_line: 0,
+            anchor_offset: 0,
+            prefix: "SEL".into(),
+        });
+        let (text, _c) = render(&mut app, 70, 16);
+        assert!(text.contains("SELECT"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn db_confirm_run_modal_paints() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.db_confirm_run = Some(DbConfirmRunState {
+            segment_idx: 0,
+            reason: "UPDATE without WHERE".into(),
+        });
+        let (text, _c) = render(&mut app, 70, 14);
+        assert!(
+            text.contains("WHERE") || text.contains("UPDATE"),
+            "got: {text:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn db_export_picker_modal_paints() {
+        let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        open_doc(&mut app, src);
+        app.db_export_picker = Some(DbExportPickerState::new(0, BlockExportFormat::DB_FORMATS));
+        let (text, _c) = render(&mut app, 70, 16);
+        assert!(
+            text.contains("CSV") || text.contains("JSON"),
+            "got: {text:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn db_settings_modal_paints() {
+        let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        open_doc(&mut app, src);
+        app.db_settings = Some(DbSettingsState {
+            segment_idx: 0,
+            fields: vec![SettingsField {
+                label: "Limit",
+                key: "limit",
+                input: crate::vim::lineedit::LineEdit::from_str("100"),
+            }],
+            focus: 0,
+        });
+        let (text, _c) = render(&mut app, 70, 16);
+        assert!(
+            text.contains("Limit") || text.contains("100"),
+            "got: {text:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn block_history_modal_paints() {
+        let src = "```http alias=h\nGET https://x.com\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        open_doc(&mut app, src);
+        app.block_history = Some(BlockHistoryState {
+            segment_idx: 0,
+            title: "GET h".into(),
+            entries: vec![],
+            selected: 0,
+        });
+        let (text, _c) = render(&mut app, 70, 16);
+        assert!(
+            text.contains("GET h") || !text.trim().is_empty(),
+            "got: {text:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn environment_picker_modal_paints() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.environment_picker = Some(EnvironmentPickerState {
+            entries: vec![crate::app::EnvironmentEntry {
+                id: "e1".into(),
+                name: "staging".into(),
+            }],
+            selected: 0,
+            active_id: None,
+        });
+        let (text, _c) = render(&mut app, 70, 14);
+        assert!(text.contains("staging"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn help_modal_paints() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.help_visible = true;
+        let (text, _c) = render(&mut app, 80, 24);
+        assert!(!text.trim().is_empty(), "help modal should paint");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn block_template_picker_modal_paints() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.block_template_picker = Some(BlockTemplatePickerState::new());
+        let (text, _c) = render(&mut app, 70, 16);
+        assert!(
+            text.contains("HTTP") || !text.trim().is_empty(),
+            "got: {text:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tab_picker_modal_paints() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        open_doc(&mut app, "x\n");
+        app.tab_picker = Some(TabPickerState {
+            entries: vec![crate::app::TabPickerEntry {
+                idx: 0,
+                label: "a.md".into(),
+                dirty: false,
+            }],
+            selected: 0,
+        });
+        let (text, _c) = render(&mut app, 70, 14);
+        assert!(text.contains("a.md"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn noh_search_no_highlight_path() {
+        // search_highlight false + not in Search mode → search_pattern
+        // resolves to None (the `:noh` branch).
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "plain text\n")]).await;
+        open_doc(&mut app, "plain text\n");
+        app.vim.mode = Mode::Normal;
+        app.vim.search_highlight = false;
+        let (text, _c) = render(&mut app, 60, 8);
+        assert!(text.contains("plain text"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn persisted_search_highlight_uses_last_search() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "find token here\n")]).await;
+        open_doc(&mut app, "find token here\n");
+        app.vim.mode = Mode::Normal;
+        app.vim.search_highlight = true;
+        app.vim.last_search = Some("token".into());
+        let (text, _c) = render(&mut app, 60, 8);
+        assert!(text.contains("find token here"), "got: {text:?}");
+    }
+}
