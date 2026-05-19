@@ -6,4 +6,5 @@
 
 pub mod completion;
 pub mod operator;
+pub mod pickers;
 pub mod window;
