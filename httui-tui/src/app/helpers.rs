@@ -196,4 +196,43 @@ mod tests {
         let p = Path::new("/");
         assert_eq!(file_name(p), p.display().to_string());
     }
+
+    // ───────────── load_connection_names ─────────────
+    //
+    // Exercises `block_in_place` + `Handle::current().block_on(...)`.
+    // `block_in_place` panics on a current-thread runtime, so these
+    // are `#[tokio::test(flavor = "multi_thread")]`.
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_connection_names_maps_id_to_name() {
+        use httui_core::db::init_db;
+        use tempfile::TempDir;
+
+        let data = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        sqlx::query(
+            "INSERT INTO connections (id, name, driver, host, port, database_name) \
+             VALUES (?, ?, 'postgres', 'localhost', 5432, 'db')",
+        )
+        .bind("conn-id")
+        .bind("prod-db")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let names = load_connection_names(&pool);
+        assert_eq!(names.get("conn-id").map(String::as_str), Some("prod-db"));
+        assert_eq!(names.len(), 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_connection_names_empty_when_no_connections() {
+        use httui_core::db::init_db;
+        use tempfile::TempDir;
+
+        let data = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        // Fresh DB → no rows → empty map (not an error).
+        assert!(load_connection_names(&pool).is_empty());
+    }
 }
