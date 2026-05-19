@@ -21,7 +21,6 @@ use super::App;
 /// least `debounce` has elapsed since the last textual edit. `now` is
 /// injected so tests use a synthetic `Instant` (no real clock).
 // Wired by `event_loop::handle_app_event` (fase 5 p3 — Tick path).
-#[allow(dead_code)]
 pub(crate) fn should_autosave(
     last_edit: Option<Instant>,
     now: Instant,
@@ -38,6 +37,36 @@ pub(crate) fn should_autosave(
 /// FTS index updates are intentionally NOT mirrored here — that's a
 /// best-effort freshness hook in the interactive `:w`, and a full
 /// rebuild reconciles on next search-modal open (see `ex.rs:342-360`).
+/// Tick-driven auto-save (tui-V01 / fase 5 p3 — fecha Cenário 4
+/// "espero ~1s → salva"). Called once per `AppEvent::Tick`. No-op
+/// outside Standard mode (Cenário 2 stays byte-identical), or when
+/// the debounce hasn't elapsed, or when the active doc is clean.
+/// On fire: reuses `vim::ex::execute(_, ExCmd::Write)` so the
+/// serialize/write/mark_clean/FTS-refresh sequence stays in one
+/// place, then clears `last_edit` so a single auto-save burst only
+/// fires once — the next textual edit re-arms the clock.
+pub(crate) fn tick_autosave(app: &mut App) {
+    use crate::config::EditorMode;
+    if app.config.editor.mode != EditorMode::Standard {
+        return;
+    }
+    let debounce = Duration::from_millis(app.config.auto_save_debounce_ms);
+    let dirty = app
+        .tabs
+        .active_document_mut()
+        .map(|d| d.is_dirty())
+        .unwrap_or(false);
+    if !should_autosave(app.last_edit, Instant::now(), debounce, dirty) {
+        return;
+    }
+    // Reuse the same path as `:w` — single source of truth for
+    // "serialize + write + mark_clean (+ FTS refresh)".
+    let _ = crate::vim::ex::execute(app, crate::vim::ex::ExCmd::Write);
+    // Disarm: don't re-save every tick after a single edit. A new
+    // textual action re-sets `last_edit` in `route_standard`.
+    app.last_edit = None;
+}
+
 // Wired by `event_loop::main_loop` (fase 5 p4 — flush on quit).
 #[allow(dead_code)]
 pub(crate) fn flush_all_dirty(app: &mut App) {
@@ -221,5 +250,111 @@ mod tests {
             .as_ref()
             .unwrap()
             .is_dirty());
+    }
+
+    // ----- fase 5 p3: tick_autosave ----------------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tick_autosave_saves_when_debounce_elapsed_in_standard_mode() {
+        let (mut app, _d, vault) = app_fixture("body\n").await;
+        // Dirty the active doc and put `last_edit` far in the past so
+        // the debounce window has elapsed for sure.
+        for ch in "HI".chars() {
+            app.tabs
+                .active_document_mut()
+                .unwrap()
+                .insert_char_at_cursor(ch);
+        }
+        app.last_edit = Some(Instant::now() - Duration::from_secs(10));
+        app.config.auto_save_debounce_ms = 1000;
+        // Mode default = Standard.
+
+        tick_autosave(&mut app);
+
+        // Doc on disk reflects the edit, doc in memory is clean, and
+        // `last_edit` was disarmed so subsequent ticks don't re-save.
+        let body = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
+        assert!(body.contains("HI"), "tick must persist edits: {body:?}");
+        assert!(!app.tabs.active_document_mut().unwrap().is_dirty());
+        assert!(app.last_edit.is_none(), "tick must disarm last_edit");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tick_autosave_skips_when_debounce_not_elapsed() {
+        let (mut app, _d, vault) = app_fixture("body\n").await;
+        for ch in "HI".chars() {
+            app.tabs
+                .active_document_mut()
+                .unwrap()
+                .insert_char_at_cursor(ch);
+        }
+        // Edit just now → 1s debounce has NOT elapsed.
+        app.last_edit = Some(Instant::now());
+        app.config.auto_save_debounce_ms = 1000;
+
+        tick_autosave(&mut app);
+
+        // Disk still holds the original body; doc stays dirty.
+        let body = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
+        assert_eq!(body, "body\n");
+        assert!(app.tabs.active_document_mut().unwrap().is_dirty());
+        assert!(
+            app.last_edit.is_some(),
+            "skipped tick must NOT disarm last_edit"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tick_autosave_is_a_noop_in_vim_mode() {
+        // Cenário 2 invariant: vim path must NOT auto-save on tick.
+        let (mut app, _d, vault) = app_fixture("body\n").await;
+        app.config.editor.mode = crate::config::EditorMode::Vim;
+        for ch in "HI".chars() {
+            app.tabs
+                .active_document_mut()
+                .unwrap()
+                .insert_char_at_cursor(ch);
+        }
+        app.last_edit = Some(Instant::now() - Duration::from_secs(10));
+        app.config.auto_save_debounce_ms = 1000;
+
+        tick_autosave(&mut app);
+
+        // Disk untouched; doc still dirty (vim users :w explicitly).
+        let body = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
+        assert_eq!(body, "body\n", "vim mode must NOT auto-save on tick");
+        assert!(app.tabs.active_document_mut().unwrap().is_dirty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tick_autosave_is_a_noop_when_debounce_is_zero() {
+        // `auto_save_debounce_ms == 0` is the "off" knob.
+        let (mut app, _d, vault) = app_fixture("body\n").await;
+        for ch in "HI".chars() {
+            app.tabs
+                .active_document_mut()
+                .unwrap()
+                .insert_char_at_cursor(ch);
+        }
+        app.last_edit = Some(Instant::now() - Duration::from_secs(10));
+        app.config.auto_save_debounce_ms = 0;
+
+        tick_autosave(&mut app);
+
+        let body = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
+        assert_eq!(body, "body\n", "debounce=0 disables auto-save");
+        assert!(app.tabs.active_document_mut().unwrap().is_dirty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tick_autosave_is_a_noop_when_no_edit_yet() {
+        // Fresh App — `last_edit=None`. Preserves the existing
+        // `tick_is_a_noop_that_continues` contract for the default
+        // fixture (Cenário "no work since startup, nothing to save").
+        let (mut app, _d, vault) = app_fixture("body\n").await;
+        assert!(app.last_edit.is_none());
+        tick_autosave(&mut app);
+        let body = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
+        assert_eq!(body, "body\n");
     }
 }
