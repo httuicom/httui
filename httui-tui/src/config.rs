@@ -24,6 +24,7 @@ pub struct Config {
     pub ui: UiConfig,
     pub blocks: BlocksConfig,
     pub chat: ChatConfig,
+    pub editor: EditorConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,6 +58,26 @@ pub struct ChatConfig {
     pub enabled: bool,
 }
 
+/// Editor input profile.
+///
+/// `Standard` (the default) is the conventional editor model — arrow
+/// keys, `Ctrl+Z`/`Ctrl+Y` undo/redo, `Ctrl+C`/`X`/`V` clipboard,
+/// `Shift+arrow` selection. `Vim` opts into the modal engine. Vim is
+/// opt-in by design: the default UX must not assume vim knowledge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EditorMode {
+    #[default]
+    Standard,
+    Vim,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct EditorConfig {
+    pub mode: EditorMode,
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -68,6 +89,7 @@ impl Default for Config {
             ui: UiConfig::default(),
             blocks: BlocksConfig::default(),
             chat: ChatConfig::default(),
+            editor: EditorConfig::default(),
         }
     }
 }
@@ -165,5 +187,37 @@ mod tests {
         let cfg = load_or_init(&path).unwrap();
         assert_eq!(cfg.theme, "dark");
         assert_eq!(cfg.sidebar_width, 50);
+    }
+
+    #[test]
+    fn editor_mode_defaults_to_standard() {
+        // Vim is opt-in: a fresh config must NOT be vim (TD2).
+        assert_eq!(EditorMode::default(), EditorMode::Standard);
+        assert_eq!(Config::default().editor.mode, EditorMode::Standard);
+    }
+
+    #[test]
+    fn editor_mode_roundtrips_through_toml() {
+        let mut cfg = Config::default();
+        cfg.editor.mode = EditorMode::Vim;
+        let s = toml::to_string_pretty(&cfg).unwrap();
+        let back: Config = toml::from_str(&s).unwrap();
+        assert_eq!(back.editor.mode, EditorMode::Vim);
+        // Serialized form is lowercase.
+        assert!(s.contains("mode = \"vim\""));
+    }
+
+    #[test]
+    fn config_without_editor_section_falls_back_to_standard() {
+        let raw = "theme = \"dark\"\n";
+        let cfg: Config = toml::from_str(raw).unwrap();
+        assert_eq!(cfg.editor.mode, EditorMode::Standard);
+    }
+
+    #[test]
+    fn explicit_editor_mode_vim_parses() {
+        let raw = "[editor]\nmode = \"vim\"\n";
+        let cfg: Config = toml::from_str(raw).unwrap();
+        assert_eq!(cfg.editor.mode, EditorMode::Vim);
     }
 }
