@@ -6,6 +6,7 @@
 
 pub mod lineedit;
 pub mod normal;
+pub mod visual;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
