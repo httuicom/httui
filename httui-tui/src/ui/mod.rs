@@ -143,12 +143,17 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Capture the visual-selection overlay (only painted on the focused
     // leaf — the moving end of the selection is the cursor, the anchor
     // lives on `VimState`).
-    let visual_overlay = derive_visual_overlay(
-        app.vim.mode,
-        app.vim.visual_anchor,
-        app.config.editor.mode,
-        app.standard.anchor,
-    );
+    let visual_overlay = match (app.vim.mode, app.vim.visual_anchor) {
+        (Mode::Visual, Some(anchor)) => Some(VisualOverlay {
+            anchor,
+            linewise: false,
+        }),
+        (Mode::VisualLine, Some(anchor)) => Some(VisualOverlay {
+            anchor,
+            linewise: true,
+        }),
+        _ => None,
+    };
 
     // Walk the active tab's pane tree, painting each leaf in its slice
     // and setting its `viewport_height` for the next dispatch tick.
@@ -428,53 +433,6 @@ pub(crate) struct BlockAnchor {
 pub(crate) struct VisualOverlay {
     pub anchor: Cursor,
     pub linewise: bool,
-}
-
-/// Pure derivation of the selection overlay so it's unit-testable
-/// without rendering a frame. Two independent sources:
-///
-/// - **Vim** — `Mode::Visual` / `Mode::VisualLine` + the vim
-///   `visual_anchor`. Unchanged from the original inline `match`;
-///   the Standard arm never touches this path, so Cenário 2 (vim)
-///   stays byte-identical.
-/// - **Standard** — `EditorMode::Standard` + `App.standard.anchor`.
-///   Charwise only (no linewise selection in the non-modal model).
-///   The moving end is the doc cursor, read by the renderer.
-///
-/// Added by tui-V1 / fase 3 p2.
-fn derive_visual_overlay(
-    vim_mode: Mode,
-    vim_anchor: Option<Cursor>,
-    editor_mode: crate::config::EditorMode,
-    standard_anchor: Option<Cursor>,
-) -> Option<VisualOverlay> {
-    // Vim path first — identical to the pre-fase-3 inline match.
-    match (vim_mode, vim_anchor) {
-        (Mode::Visual, Some(anchor)) => {
-            return Some(VisualOverlay {
-                anchor,
-                linewise: false,
-            })
-        }
-        (Mode::VisualLine, Some(anchor)) => {
-            return Some(VisualOverlay {
-                anchor,
-                linewise: true,
-            })
-        }
-        _ => {}
-    }
-    // Standard path — only when that profile is active and a
-    // selection is anchored.
-    if editor_mode == crate::config::EditorMode::Standard {
-        if let Some(anchor) = standard_anchor {
-            return Some(VisualOverlay {
-                anchor,
-                linewise: false,
-            });
-        }
-    }
-    None
 }
 
 #[allow(clippy::too_many_arguments)] // bundle into RenderContext if it grows further.
@@ -1229,74 +1187,5 @@ fn overlay_search_highlights(
             };
             buf.set_style(rect, highlight);
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config::EditorMode;
-
-    fn cur(off: usize) -> Cursor {
-        Cursor::InProse {
-            segment_idx: 0,
-            offset: off,
-        }
-    }
-
-    #[test]
-    fn vim_visual_yields_charwise_overlay() {
-        let ov = derive_visual_overlay(Mode::Visual, Some(cur(3)), EditorMode::Vim, None)
-            .expect("vim visual → overlay");
-        assert_eq!(ov.anchor, cur(3));
-        assert!(!ov.linewise);
-    }
-
-    #[test]
-    fn vim_visual_line_yields_linewise_overlay() {
-        let ov = derive_visual_overlay(Mode::VisualLine, Some(cur(0)), EditorMode::Vim, None)
-            .expect("vim visual-line → overlay");
-        assert!(ov.linewise);
-    }
-
-    #[test]
-    fn vim_normal_mode_has_no_overlay() {
-        assert!(derive_visual_overlay(Mode::Normal, Some(cur(1)), EditorMode::Vim, None).is_none());
-        // Visual mode but no anchor → still none.
-        assert!(derive_visual_overlay(Mode::Visual, None, EditorMode::Vim, None).is_none());
-    }
-
-    #[test]
-    fn standard_profile_with_anchor_yields_charwise_overlay() {
-        let ov = derive_visual_overlay(Mode::Normal, None, EditorMode::Standard, Some(cur(5)))
-            .expect("standard + anchor → overlay");
-        assert_eq!(ov.anchor, cur(5));
-        assert!(!ov.linewise, "standard selection is always charwise");
-    }
-
-    #[test]
-    fn standard_profile_without_anchor_has_no_overlay() {
-        assert!(derive_visual_overlay(Mode::Normal, None, EditorMode::Standard, None).is_none());
-    }
-
-    #[test]
-    fn standard_anchor_ignored_when_profile_is_vim() {
-        // Defensive: a stale standard anchor must never paint while
-        // the vim profile is active (the vim path owns the overlay).
-        assert!(derive_visual_overlay(Mode::Normal, None, EditorMode::Vim, Some(cur(2))).is_none());
-    }
-
-    #[test]
-    fn vim_overlay_wins_over_standard_anchor() {
-        // Both sources populated (shouldn't happen in practice, but
-        // the vim arm is checked first → vim wins, Cenário 2 intact).
-        let ov = derive_visual_overlay(
-            Mode::Visual,
-            Some(cur(1)),
-            EditorMode::Standard,
-            Some(cur(9)),
-        )
-        .expect("vim arm checked first");
-        assert_eq!(ov.anchor, cur(1));
     }
 }

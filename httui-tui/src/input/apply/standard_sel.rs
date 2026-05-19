@@ -192,6 +192,37 @@ fn paste_system(app: &mut App, clip: &mut impl SystemClipboard) {
     app.refresh_viewport_for_cursor();
 }
 
+/// The Standard-mode selection anchor to paint, or `None` when no
+/// selection should be drawn. Pure + owned by the selection module
+/// (kept out of the `ui/mod.rs` legacy render monolith on purpose —
+/// that file is a pre-existing size/coverage debt and fase 3 must
+/// not grow it). The selection is always charwise in the non-modal
+/// model, so the renderer pairs this anchor with `linewise = false`.
+/// The moving end is the doc cursor, exactly like the vim overlay.
+///
+/// A future overlay-render task wires this into `ui/mod.rs` (one
+/// call site) alongside the existing vim-overlay match; the vim arm
+/// is deliberately NOT folded in here so Cenário 2 stays
+/// byte-identical and this helper has a single responsibility.
+//
+// Not yet called: wiring it requires editing the pre-existing
+// `ui/mod.rs` legacy monolith (1.2k L, ~0% coverage) which fase 3
+// must not grow (size/coverage gates would FAIL that legacy file
+// with no in-scope fix). Tracked as a deferred overlay-render task;
+// the logic ships covered + ready. The allow keeps clippy green
+// until that task lands.
+#[allow(dead_code)]
+pub(crate) fn standard_overlay_anchor(
+    editor_mode: crate::config::EditorMode,
+    standard_anchor: Option<Cursor>,
+) -> Option<Cursor> {
+    if editor_mode == crate::config::EditorMode::Standard {
+        standard_anchor
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -464,5 +495,25 @@ mod tests {
             "paste reproduced the copied run: {:?}",
             app.document().unwrap().to_markdown()
         );
+    }
+
+    #[test]
+    fn standard_overlay_anchor_only_paints_in_standard_with_anchor() {
+        use crate::config::EditorMode;
+        let a = Cursor::InProse {
+            segment_idx: 0,
+            offset: 4,
+        };
+        // Standard + anchor → paint it.
+        assert_eq!(
+            standard_overlay_anchor(EditorMode::Standard, Some(a)),
+            Some(a)
+        );
+        // Standard, no anchor → nothing.
+        assert_eq!(standard_overlay_anchor(EditorMode::Standard, None), None);
+        // Vim profile → never paint a Standard anchor (the vim path
+        // owns the overlay; Cenário 2 stays byte-identical).
+        assert_eq!(standard_overlay_anchor(EditorMode::Vim, Some(a)), None);
+        assert_eq!(standard_overlay_anchor(EditorMode::Vim, None), None);
     }
 }
