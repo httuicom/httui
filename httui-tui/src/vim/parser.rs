@@ -27,8 +27,14 @@ use crate::vim::lineedit::LineEdit;
 // resolving unchanged (tui-v2 vertical 1, fase 1 p1).
 pub use crate::input::action::Action;
 pub use crate::input::types::{
-    InsertPos, Motion, MotionClass, Operator, PastePos, ScrollPos, TextObject, WindowCmd,
+    InsertPos, Motion, MotionClass, Operator, PastePos, ScrollPos, TextObject,
 };
+// `WindowCmd` lost its last production consumer when the window/split
+// appliers moved to `crate::input::apply::window` (fase 1 p5a). The
+// in-file `mod tests` (`use super::*`) still references it, so it stays
+// re-exported behind `#[allow(unused_imports)]`.
+#[allow(unused_imports)]
+pub use crate::input::types::WindowCmd;
 
 // Keymap helper primitives + per-mode decoders now all live under
 // `crate::input::parser` (fase 1 p2/p3); `vim::parser` keeps only the

@@ -1,0 +1,78 @@
+//! Window / split pane commands. Mechanically moved out of
+//! `vim/dispatch.rs` (tui-v2 vertical 1, fase 1 p5a) with no logic
+//! change.
+
+use crate::app::{App, StatusKind};
+use crate::input::types::WindowCmd;
+use crate::pane::{FocusDir, SplitDir};
+
+// ───────────── window / split commands ─────────────
+
+pub(crate) fn apply_window_cmd(app: &mut App, cmd: WindowCmd) {
+    match cmd {
+        WindowCmd::SplitVertical => split_focused(app, SplitDir::Vertical),
+        WindowCmd::SplitHorizontal => split_focused(app, SplitDir::Horizontal),
+        WindowCmd::FocusLeft => focus_dir(app, FocusDir::Left),
+        WindowCmd::FocusRight => focus_dir(app, FocusDir::Right),
+        WindowCmd::FocusUp => focus_dir(app, FocusDir::Up),
+        WindowCmd::FocusDown => focus_dir(app, FocusDir::Down),
+        WindowCmd::Cycle => {
+            if let Some(tab) = app.active_tab_mut() {
+                tab.cycle_focus();
+            }
+            app.refresh_viewport_for_cursor();
+        }
+        WindowCmd::Close => close_focused_pane(app),
+        WindowCmd::Equalize => {
+            if let Some(tab) = app.active_tab_mut() {
+                tab.equalize();
+            }
+        }
+    }
+}
+
+pub(crate) fn split_focused(app: &mut App, dir: SplitDir) {
+    let Some(tab) = app.active_tab_mut() else {
+        return;
+    };
+    let new_pane = tab.active_leaf().snapshot_clone();
+    tab.split(dir, new_pane);
+    app.refresh_viewport_for_cursor();
+}
+
+pub(crate) fn focus_dir(app: &mut App, dir: FocusDir) {
+    if let Some(tab) = app.active_tab_mut() {
+        tab.focus_dir(dir);
+    }
+    app.refresh_viewport_for_cursor();
+}
+
+/// Close the focused pane. When it's the only pane in the active tab,
+/// closes the tab; when there are no tabs left, quits.
+pub(crate) fn close_focused_pane(app: &mut App) {
+    let leaf_count = app.active_tab().map(|t| t.leaf_count()).unwrap_or(0);
+    if leaf_count > 1 {
+        if app.document().is_some_and(|d| d.is_dirty()) {
+            app.set_status(
+                StatusKind::Error,
+                "no write since last change (add ! to override)",
+            );
+            return;
+        }
+        if let Some(tab) = app.active_tab_mut() {
+            tab.close_focused();
+        }
+        app.refresh_viewport_for_cursor();
+        return;
+    }
+    match app.close_tab(false) {
+        Ok(msg) => app.set_status(StatusKind::Info, msg),
+        Err(msg) => {
+            app.set_status(StatusKind::Error, msg);
+            return;
+        }
+    }
+    if app.tabs.is_empty() {
+        app.should_quit = true;
+    }
+}

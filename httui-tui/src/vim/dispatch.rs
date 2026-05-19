@@ -5,7 +5,6 @@ use crate::buffer::block::BlockNode;
 use crate::buffer::{Cursor, Segment};
 use crate::commands::db::{load_active_env_vars, resolve_connection_id_sync};
 use crate::input::block_swap::{action_needs_block_swap, InBlockSwap};
-use crate::pane::{FocusDir, SplitDir};
 use crate::tree::{TreePrompt, TreePromptKind};
 use crate::vim::change::{ChangeOrigin, ChangeRecord};
 use crate::vim::ex::{self, ExResult};
@@ -19,7 +18,7 @@ use crate::vim::parser::{
     parse_db_settings_modal, parse_environment_picker, parse_fence_edit, parse_help,
     parse_http_response_detail, parse_insert, parse_normal, parse_quickopen, parse_search,
     parse_tab_picker, parse_tree, parse_tree_prompt, parse_visual, Action, InsertPos, Motion,
-    Operator, PastePos, TextObject, WindowCmd,
+    Operator, PastePos, TextObject,
 };
 use crate::vim::search;
 
@@ -3065,76 +3064,10 @@ fn http_response_raw_body(app: &App, segment_idx: usize) -> Option<String> {
     }
 }
 
-// ───────────── window / split commands ─────────────
-
-fn apply_window_cmd(app: &mut App, cmd: WindowCmd) {
-    match cmd {
-        WindowCmd::SplitVertical => split_focused(app, SplitDir::Vertical),
-        WindowCmd::SplitHorizontal => split_focused(app, SplitDir::Horizontal),
-        WindowCmd::FocusLeft => focus_dir(app, FocusDir::Left),
-        WindowCmd::FocusRight => focus_dir(app, FocusDir::Right),
-        WindowCmd::FocusUp => focus_dir(app, FocusDir::Up),
-        WindowCmd::FocusDown => focus_dir(app, FocusDir::Down),
-        WindowCmd::Cycle => {
-            if let Some(tab) = app.active_tab_mut() {
-                tab.cycle_focus();
-            }
-            app.refresh_viewport_for_cursor();
-        }
-        WindowCmd::Close => close_focused_pane(app),
-        WindowCmd::Equalize => {
-            if let Some(tab) = app.active_tab_mut() {
-                tab.equalize();
-            }
-        }
-    }
-}
-
-fn split_focused(app: &mut App, dir: SplitDir) {
-    let Some(tab) = app.active_tab_mut() else {
-        return;
-    };
-    let new_pane = tab.active_leaf().snapshot_clone();
-    tab.split(dir, new_pane);
-    app.refresh_viewport_for_cursor();
-}
-
-fn focus_dir(app: &mut App, dir: FocusDir) {
-    if let Some(tab) = app.active_tab_mut() {
-        tab.focus_dir(dir);
-    }
-    app.refresh_viewport_for_cursor();
-}
-
-/// Close the focused pane. When it's the only pane in the active tab,
-/// closes the tab; when there are no tabs left, quits.
-fn close_focused_pane(app: &mut App) {
-    let leaf_count = app.active_tab().map(|t| t.leaf_count()).unwrap_or(0);
-    if leaf_count > 1 {
-        if app.document().is_some_and(|d| d.is_dirty()) {
-            app.set_status(
-                StatusKind::Error,
-                "no write since last change (add ! to override)",
-            );
-            return;
-        }
-        if let Some(tab) = app.active_tab_mut() {
-            tab.close_focused();
-        }
-        app.refresh_viewport_for_cursor();
-        return;
-    }
-    match app.close_tab(false) {
-        Ok(msg) => app.set_status(StatusKind::Info, msg),
-        Err(msg) => {
-            app.set_status(StatusKind::Error, msg);
-            return;
-        }
-    }
-    if app.tabs.is_empty() {
-        app.should_quit = true;
-    }
-}
+// window / split commands moved to `crate::input::apply::window`
+// (fase 1 p5a). Re-exported so the untouched `apply_action` router
+// keeps resolving `apply_window_cmd` via its bare call site.
+pub(crate) use crate::input::apply::window::apply_window_cmd;
 
 // ───────────── . repeat ─────────────
 

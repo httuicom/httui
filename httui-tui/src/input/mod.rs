@@ -12,6 +12,7 @@
 //! facades so the ~16 existing call sites need no changes.
 
 pub mod action;
+pub mod apply;
 pub mod block_swap;
 pub mod parser;
 pub mod types;
