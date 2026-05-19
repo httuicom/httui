@@ -64,6 +64,20 @@ pub fn resolve(key: KeyEvent) -> Option<Action> {
         // `Ctrl+S` — universal save, same as vim's `:w` / `<C-s>`.
         (KeyModifiers::CONTROL, KeyCode::Char('s')) => Action::WriteFile,
 
+        // Undo / redo (tui-V1 / fase 4 p1). These sit BEFORE the
+        // InsertChar arm (whose guard is `!CONTROL`) so the Ctrl
+        // chords never get typed as text. `Ctrl+Shift+Z` is matched
+        // first — otherwise the bare `Ctrl+Z` arm (which doesn't look
+        // at SHIFT) would swallow the redo chord. `Ctrl+Y` is the
+        // Windows-style redo alias.
+        (m, KeyCode::Char('z') | KeyCode::Char('Z'))
+            if m.contains(KeyModifiers::CONTROL) && m.contains(KeyModifiers::SHIFT) =>
+        {
+            Action::Redo
+        }
+        (KeyModifiers::CONTROL, KeyCode::Char('z')) => Action::Undo,
+        (KeyModifiers::CONTROL, KeyCode::Char('y')) => Action::Redo,
+
         // Text editing.
         (_, KeyCode::Enter) => Action::InsertNewline,
         (_, KeyCode::Backspace) => Action::DeleteBackward,
@@ -238,6 +252,42 @@ mod tests {
         // fase 3 p3 routes query-cancel onto Esc; the decoder still
         // returns None for Esc (the router owns the cancel path).
         assert_eq!(resolve(k(KeyCode::Esc)), None);
+    }
+
+    fn ctrl_shift(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+    }
+
+    #[test]
+    fn ctrl_z_decodes_to_undo() {
+        // tui-V1 / fase 4 p1: Ctrl+Z is undo in Standard mode.
+        assert_eq!(resolve(ctrl(KeyCode::Char('z'))), Some(Action::Undo));
+    }
+
+    #[test]
+    fn ctrl_y_decodes_to_redo() {
+        // Windows-style redo alias.
+        assert_eq!(resolve(ctrl(KeyCode::Char('y'))), Some(Action::Redo));
+    }
+
+    #[test]
+    fn ctrl_shift_z_decodes_to_redo() {
+        // Ctrl+Shift+Z is the conventional redo chord; matched BEFORE
+        // the bare Ctrl+Z arm so the SHIFT variant wins. Both the
+        // lowercase and the SHIFT-folded uppercase code resolve.
+        assert_eq!(resolve(ctrl_shift(KeyCode::Char('z'))), Some(Action::Redo));
+        assert_eq!(resolve(ctrl_shift(KeyCode::Char('Z'))), Some(Action::Redo));
+    }
+
+    #[test]
+    fn ctrl_z_does_not_fall_into_insert_char() {
+        // The undo arm sits before the InsertChar arm, so Ctrl+Z is
+        // never typed literally as a 'z'.
+        assert_ne!(
+            resolve(ctrl(KeyCode::Char('z'))),
+            Some(Action::InsertChar('z'))
+        );
+        assert_eq!(resolve(ctrl(KeyCode::Char('z'))), Some(Action::Undo));
     }
 
     #[test]
