@@ -63,6 +63,14 @@ fn route_standard(app: &mut App, key: KeyEvent) {
         return;
     };
 
+    // Undo-group snapshot policy (tui-V1 / fase 4 p2). Runs once per
+    // keystroke BEFORE any dispatch so the snapshot captures the
+    // pre-edit document; it covers every path below (incl. the
+    // anchor-collapse branch). It only ever resets the group for
+    // Cut/Paste (those snapshot themselves in `standard_sel`), so
+    // there's no double snapshot. The vim path never reaches here.
+    crate::input::apply::standard_undo::maybe_snapshot(app, &action);
+
     // Standard-mode selection / clipboard family is handled by the
     // dedicated (fully-covered) `standard_sel` module, with a real
     // clipboard injected here. The vim path never reaches this — it
@@ -424,6 +432,168 @@ mod tests {
         assert!(
             after == before || after.len() >= before.len(),
             "paste must not shrink/corrupt the doc: {before:?} -> {after:?}"
+        );
+    }
+
+    fn ctrl_shift(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+    }
+
+    fn type_str(app: &mut App, s: &str) {
+        for c in s.chars() {
+            route(app, key(KeyCode::Char(c)));
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_undo_rewinds_a_whole_typed_word_not_one_char() {
+        // Cenário 1 passo 6: typing "abc" then Ctrl+Z must restore the
+        // ORIGINAL doc (one undo group for the whole run), not peel a
+        // single char.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let original = app.document().unwrap().to_markdown();
+        type_str(&mut app, "abc");
+        assert!(app.document().unwrap().to_markdown().contains("abc"));
+        route(&mut app, ctrl(KeyCode::Char('z')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            original,
+            "one Ctrl+Z undoes the whole typed word"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_motion_splits_undo_groups() {
+        // "ab" + Right + "cd" → Ctrl+Z undoes only "cd", a second
+        // Ctrl+Z undoes "ab".
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let original = app.document().unwrap().to_markdown();
+        type_str(&mut app, "ab");
+        let after_ab = app.document().unwrap().to_markdown();
+        route(&mut app, key(KeyCode::Right));
+        type_str(&mut app, "cd");
+        route(&mut app, ctrl(KeyCode::Char('z')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            after_ab,
+            "first undo removes only the post-motion 'cd'"
+        );
+        route(&mut app, ctrl(KeyCode::Char('z')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            original,
+            "second undo removes 'ab'"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_word_boundary_splits_undo_at_whitespace() {
+        // "hello world" → Ctrl+Z undoes " world", Ctrl+Z undoes
+        // "hello" (the word→space boundary opened a 2nd group).
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let original = app.document().unwrap().to_markdown();
+        type_str(&mut app, "hello world");
+        assert!(app
+            .document()
+            .unwrap()
+            .to_markdown()
+            .contains("hello world"));
+        route(&mut app, ctrl(KeyCode::Char('z')));
+        let mid = app.document().unwrap().to_markdown();
+        assert!(
+            mid.contains("hello") && !mid.contains("hello world"),
+            "first undo peels ' world', leaving 'hello': {mid:?}"
+        );
+        route(&mut app, ctrl(KeyCode::Char('z')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            original,
+            "second undo peels 'hello'"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_redo_restores_via_ctrl_y_and_ctrl_shift_z() {
+        // Type → undo → redo round-trips for both redo chords. The
+        // fixture seeds "abc\n", so type a string that is NOT a
+        // substring of the seed to tell typed-vs-undone apart.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let original = app.document().unwrap().to_markdown();
+        type_str(&mut app, "ZZZ");
+        let typed = app.document().unwrap().to_markdown();
+        assert!(typed.contains("ZZZ"));
+        route(&mut app, ctrl(KeyCode::Char('z')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            original,
+            "undo rewinds the typed run"
+        );
+        route(&mut app, ctrl(KeyCode::Char('y')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            typed,
+            "Ctrl+Y redoes"
+        );
+        // And again via Ctrl+Shift+Z.
+        route(&mut app, ctrl(KeyCode::Char('z')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            original,
+            "undo rewinds again"
+        );
+        route(&mut app, ctrl_shift(KeyCode::Char('z')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            typed,
+            "Ctrl+Shift+Z redoes"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_cut_then_type_undoes_independently_no_double_snapshot() {
+        // Shift-select + Cut (snapshot owned by standard_sel) then
+        // type → Ctrl+Z undoes the typing, Ctrl+Z undoes the cut.
+        // Proves maybe_snapshot does NOT double-snapshot Cut.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let original = app.document().unwrap().to_markdown();
+        route(&mut app, shift(KeyCode::Right));
+        route(&mut app, ctrl(KeyCode::Char('x')));
+        let after_cut = app.document().unwrap().to_markdown();
+        // Headless clipboard may make cut a no-op; only assert the
+        // undo-grouping invariant when the cut actually mutated.
+        if after_cut != original {
+            type_str(&mut app, "Z");
+            route(&mut app, ctrl(KeyCode::Char('z')));
+            assert_eq!(
+                app.document().unwrap().to_markdown(),
+                after_cut,
+                "first undo removes only the typed 'Z'"
+            );
+            route(&mut app, ctrl(KeyCode::Char('z')));
+            assert_eq!(
+                app.document().unwrap().to_markdown(),
+                original,
+                "second undo reverses the cut (no double snapshot)"
+            );
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_ctrl_z_with_nothing_to_undo_sets_status_no_panic() {
+        // Ctrl+Z on a pristine doc → "already at oldest change", no
+        // panic, doc untouched.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let original = app.document().unwrap().to_markdown();
+        route(&mut app, ctrl(KeyCode::Char('z')));
+        assert_eq!(app.document().unwrap().to_markdown(), original);
+        let msg = app
+            .status_message
+            .as_ref()
+            .map(|m| m.text.clone())
+            .unwrap_or_default();
+        assert!(
+            msg.contains("oldest change"),
+            "expected the 'already at oldest change' status, got: {msg:?}"
         );
     }
 

@@ -14,6 +14,7 @@
 //! file as structural-only (STRUCT auto-pass), like `app/status.rs`.
 
 use crate::buffer::Cursor;
+use crate::input::apply::standard_undo::EditGroupKind;
 
 /// Selection anchor for the Standard (non-modal) editor profile. The
 /// moving end of the selection is always the document cursor; the
@@ -24,4 +25,9 @@ pub struct StandardState {
     /// selection. Seeded on the first `Shift`+arrow, cleared by a
     /// plain arrow / `ClearSelection`.
     pub anchor: Option<Cursor>,
+    /// Which kind of text edit is currently being coalesced into one
+    /// undo group (tui-V1 / fase 4 p2). `None` ⇒ the next textual edit
+    /// opens a fresh group (forces a snapshot). Reset by any
+    /// non-textual action so undo granularity stays sane.
+    pub edit_group: Option<EditGroupKind>,
 }

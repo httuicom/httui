@@ -14,5 +14,8 @@ pub mod replay;
 /// fresh, fully-covered module (NOT `coverage:exclude`, unlike the
 /// mechanically-relocated legacy groups). Added by tui-V1 / fase 3.
 pub mod standard_sel;
+/// Standard-mode undo-group snapshot policy — a fresh, fully-covered
+/// module (NOT `coverage:exclude`). Added by tui-V1 / fase 4 p2.
+pub mod standard_undo;
 pub mod tree_nav;
 pub mod window;
