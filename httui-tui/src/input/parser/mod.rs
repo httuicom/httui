@@ -4,6 +4,7 @@
 //!
 //! Per-mode decoders live in sibling submodules (fase 1 p3).
 
+pub mod lineedit;
 pub mod normal;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
