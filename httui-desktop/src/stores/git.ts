@@ -80,6 +80,20 @@ function stopTimer(timer: ReturnType<typeof setInterval> | null) {
   if (timer) clearInterval(timer);
 }
 
+/**
+ * Structural equality for the polled IPC payloads. The 2s poll calls
+ * `gitStatus`/`gitRemoteList` which deserialize a *fresh* object every
+ * tick — `set({status:next})` then changes the store ref even when git
+ * is byte-identical, re-rendering every subscriber (GitPanelContainer
+ * + GitSidePanel) every 2s. Skipping the `set()` when the payload is
+ * unchanged keeps the old reference so subscribers don't re-render on
+ * a no-op poll. `JSON.stringify` is safe here: these are small plain
+ * structs from serde with a stable field order across polls.
+ */
+function sameJson(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export const useGitStore = create<GitState>()(
   devtools(
     (set, get) => ({
@@ -133,6 +147,12 @@ export const useGitStore = create<GitState>()(
         try {
           const next = await gitStatus(vp);
           if (get().vaultPath !== vp) return;
+          const prev = get();
+          if (prev.status !== null && sameJson(prev.status, next)) {
+            // Unchanged poll — keep the ref; only clear a stale error.
+            if (prev.statusError !== null) set({ statusError: null });
+            return;
+          }
           set({ status: next, statusError: null });
         } catch (e) {
           if (get().vaultPath !== vp) return;
@@ -149,6 +169,15 @@ export const useGitStore = create<GitState>()(
         try {
           const list = await gitRemoteList(vp);
           if (get().vaultPath !== vp) return;
+          const prev = get();
+          if (
+            prev.remotesLoaded &&
+            prev.remotesError === null &&
+            sameJson(prev.remotes, list)
+          ) {
+            // Unchanged poll — keep the ref so subscribers don't churn.
+            return;
+          }
           set({ remotes: list, remotesLoaded: true, remotesError: null });
         } catch (e) {
           if (get().vaultPath !== vp) return;
