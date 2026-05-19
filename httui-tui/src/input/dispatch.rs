@@ -232,6 +232,19 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::ScrollCursorTo(_) => {
             crate::input::apply::navigation::apply_navigation(app, action, recording)
         }
+        Action::SelectExtend(_)
+        | Action::ClearSelection
+        | Action::Copy
+        | Action::Cut
+        | Action::PasteSystem => {
+            // Standard-mode-only family. `route_standard` intercepts
+            // these *before* `apply_action` in production (so it can
+            // inject a clipboard + manage the anchor), so this arm is
+            // the formal closure that keeps the match exhaustive — it
+            // routes through the real clipboard for completeness.
+            let mut clip = crate::clipboard::ArboardClipboard;
+            crate::input::apply::standard_sel::apply_standard_sel(app, action, &mut clip)
+        }
         Action::Window(_) => crate::input::apply::window::apply_window(app, action, recording),
         Action::FocusSwap
         | Action::TabGoto(..)

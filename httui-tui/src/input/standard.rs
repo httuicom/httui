@@ -23,17 +23,43 @@ pub fn resolve(key: KeyEvent) -> Option<Action> {
         code, modifiers, ..
     } = key;
 
+    // Motions that selection-extend (`Shift`+them) and move
+    // (without `Shift`) symmetrically. Keep this list and the page
+    // arms below in lockstep.
+    let motion = match code {
+        KeyCode::Up => Some(Motion::Up),
+        KeyCode::Down => Some(Motion::Down),
+        KeyCode::Left => Some(Motion::Left),
+        KeyCode::Right => Some(Motion::Right),
+        KeyCode::Home => Some(Motion::LineStart),
+        KeyCode::End => Some(Motion::LineEnd),
+        _ => None,
+    };
+    if let Some(m) = motion {
+        // `Shift`+<motion> extends the selection; the bare key just
+        // moves (the router collapses any active anchor on a plain
+        // Motion). This degrades gracefully when SHIFT is absent —
+        // identical behaviour to before fase 3.
+        return Some(if modifiers.contains(KeyModifiers::SHIFT) {
+            Action::SelectExtend(m)
+        } else {
+            Action::Motion(m, 1)
+        });
+    }
+
     Some(match (modifiers, code) {
-        // Cursor movement — count is always 1; the standard profile
-        // has no count prefix (that's a vim concept).
-        (_, KeyCode::Up) => Action::Motion(Motion::Up, 1),
-        (_, KeyCode::Down) => Action::Motion(Motion::Down, 1),
-        (_, KeyCode::Left) => Action::Motion(Motion::Left, 1),
-        (_, KeyCode::Right) => Action::Motion(Motion::Right, 1),
-        (_, KeyCode::Home) => Action::Motion(Motion::LineStart, 1),
-        (_, KeyCode::End) => Action::Motion(Motion::LineEnd, 1),
+        // Page motions — no selection-extend variant in V1 (page
+        // keys aren't a selection idiom users expect).
         (_, KeyCode::PageDown) => Action::Motion(Motion::HalfPageDown, 1),
         (_, KeyCode::PageUp) => Action::Motion(Motion::HalfPageUp, 1),
+
+        // Clipboard chords. The CONTROL guard on the InsertChar arm
+        // below already keeps these from being typed; here they get
+        // their real meaning. `Ctrl+C` is Copy — the running-query
+        // cancel moves to `Esc` in fase 3 p3.
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => Action::Copy,
+        (KeyModifiers::CONTROL, KeyCode::Char('x')) => Action::Cut,
+        (KeyModifiers::CONTROL, KeyCode::Char('v')) => Action::PasteSystem,
 
         // `Ctrl+S` — universal save, same as vim's `:w` / `<C-s>`.
         (KeyModifiers::CONTROL, KeyCode::Char('s')) => Action::WriteFile,
@@ -148,5 +174,83 @@ mod tests {
         assert_eq!(resolve(k(KeyCode::Tab)), None);
         assert_eq!(resolve(k(KeyCode::F(1))), None);
         assert_eq!(resolve(k(KeyCode::Insert)), None);
+    }
+
+    fn shift(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::SHIFT)
+    }
+
+    #[test]
+    fn shift_arrows_extend_the_selection() {
+        // fase 3 p1: Shift+<motion> decodes to SelectExtend(<same
+        // Motion>) for every selecting motion.
+        assert_eq!(
+            resolve(shift(KeyCode::Up)),
+            Some(Action::SelectExtend(Motion::Up))
+        );
+        assert_eq!(
+            resolve(shift(KeyCode::Down)),
+            Some(Action::SelectExtend(Motion::Down))
+        );
+        assert_eq!(
+            resolve(shift(KeyCode::Left)),
+            Some(Action::SelectExtend(Motion::Left))
+        );
+        assert_eq!(
+            resolve(shift(KeyCode::Right)),
+            Some(Action::SelectExtend(Motion::Right))
+        );
+        assert_eq!(
+            resolve(shift(KeyCode::Home)),
+            Some(Action::SelectExtend(Motion::LineStart))
+        );
+        assert_eq!(
+            resolve(shift(KeyCode::End)),
+            Some(Action::SelectExtend(Motion::LineEnd))
+        );
+    }
+
+    #[test]
+    fn bare_arrows_still_plain_motions_after_fase3() {
+        // Degrade-gracefully guarantee: dropping SHIFT yields exactly
+        // the pre-fase-3 Motion(_, 1) (no SelectExtend leak).
+        for (code, m) in [
+            (KeyCode::Up, Motion::Up),
+            (KeyCode::Down, Motion::Down),
+            (KeyCode::Left, Motion::Left),
+            (KeyCode::Right, Motion::Right),
+            (KeyCode::Home, Motion::LineStart),
+            (KeyCode::End, Motion::LineEnd),
+        ] {
+            assert_eq!(resolve(k(code)), Some(Action::Motion(m, 1)));
+        }
+    }
+
+    #[test]
+    fn ctrl_cxv_decode_to_clipboard_actions() {
+        assert_eq!(resolve(ctrl(KeyCode::Char('c'))), Some(Action::Copy));
+        assert_eq!(resolve(ctrl(KeyCode::Char('x'))), Some(Action::Cut));
+        assert_eq!(resolve(ctrl(KeyCode::Char('v'))), Some(Action::PasteSystem));
+    }
+
+    #[test]
+    fn esc_still_none_after_clipboard_binds() {
+        // fase 3 p3 routes query-cancel onto Esc; the decoder still
+        // returns None for Esc (the router owns the cancel path).
+        assert_eq!(resolve(k(KeyCode::Esc)), None);
+    }
+
+    #[test]
+    fn page_keys_have_no_shift_select_variant() {
+        // Page keys keep their plain motion even with SHIFT (no
+        // SelectExtend) — V1 scope decision.
+        assert_eq!(
+            resolve(shift(KeyCode::PageDown)),
+            Some(Action::Motion(Motion::HalfPageDown, 1))
+        );
+        assert_eq!(
+            resolve(shift(KeyCode::PageUp)),
+            Some(Action::Motion(Motion::HalfPageUp, 1))
+        );
     }
 }

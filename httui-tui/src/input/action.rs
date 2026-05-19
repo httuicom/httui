@@ -393,5 +393,26 @@ pub enum Action {
     /// template's text into the prose segment at cursor and re-parse
     /// so the typed fence promotes to a block.
     ConfirmBlockTemplatePicker,
+    /// Standard (non-modal) profile: `Shift`+arrow / `Shift`+Home /
+    /// `Shift`+End. Extends the Standard selection by the wrapped
+    /// motion, seeding `App.standard.anchor` from the cursor on the
+    /// first one. No vim equivalent — the vim path never decodes
+    /// into this (Cenário 2 stays byte-identical). Fase 3 p1.
+    SelectExtend(Motion),
+    /// Standard profile: a plain (non-Shift) arrow while a selection
+    /// is active drops the anchor before moving. Routed by
+    /// `route_standard` from fase 3 p2; the allow keeps p1's
+    /// `clippy -D warnings` green until that wiring lands.
+    #[allow(dead_code)]
+    ClearSelection,
+    /// Standard profile: `Ctrl+C` — copy the active selection to the
+    /// system clipboard (no-op without a selection). Fase 3 p1.
+    Copy,
+    /// Standard profile: `Ctrl+X` — cut the active selection (copy +
+    /// delete + collapse anchor). No-op without a selection. Fase 3 p1.
+    Cut,
+    /// Standard profile: `Ctrl+V` — paste the system clipboard at the
+    /// cursor, replacing the selection if one is active. Fase 3 p1.
+    PasteSystem,
     Noop,
 }

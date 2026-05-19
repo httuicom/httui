@@ -46,9 +46,6 @@ pub fn set_text(text: &str) -> Result<(), String> {
 /// fresh handle per call, same failure surface. Used by the
 /// Standard-mode paste (`Ctrl+V`) path via the [`SystemClipboard`]
 /// seam.
-// Wired by `route_standard`'s PasteSystem arm in fase 3 p4; the
-// allow keeps p0's `clippy -D warnings` green until then.
-#[allow(dead_code)]
 pub fn get_text() -> Result<String, String> {
     let mut clip = Clipboard::new().map_err(unavailable_msg)?;
     clip.get_text().map_err(|e| io_msg("read", e))
@@ -59,9 +56,6 @@ pub fn get_text() -> Result<String, String> {
 /// [`FakeClipboard`] (deterministic, no display server) while
 /// production passes [`ArboardClipboard`] (thin pass-through to the
 /// free functions above).
-// Consumed by the fase 3 p3/p4 Copy/Cut/Paste handlers; the allow
-// keeps p0's `clippy -D warnings` green until the wiring lands.
-#[allow(dead_code)]
 pub trait SystemClipboard {
     /// Current clipboard text, or a user-facing error string.
     fn get(&mut self) -> Result<String, String>;
@@ -72,9 +66,6 @@ pub trait SystemClipboard {
 /// Production [`SystemClipboard`] — each call delegates to the
 /// per-call-handle free functions, so behaviour is byte-identical
 /// to the legacy direct calls.
-// Constructed by `route_standard` from fase 3 p3 onward; the allow
-// keeps p0's `clippy -D warnings` green until then.
-#[allow(dead_code)]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ArboardClipboard;
 

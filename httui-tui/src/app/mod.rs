@@ -192,9 +192,7 @@ pub struct App {
     /// Standard-mode (non-modal) selection anchor. Only meaningful
     /// when `config.editor.mode == EditorMode::Standard`; the vim
     /// path never reads or writes it (Cenário 2 stays byte-identical).
-    /// Introduced by tui-V1 / fase 3 p0; read by `route_standard`
-    /// from p2 onward (allow until then keeps p0's clippy green).
-    #[allow(dead_code)]
+    /// Introduced by tui-V1 / fase 3 p0.
     pub standard: StandardState,
 }
 

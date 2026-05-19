@@ -10,5 +10,9 @@ pub mod navigation;
 pub mod operator;
 pub mod pickers;
 pub mod replay;
+/// Standard-mode (non-modal) selection + clipboard handlers — a
+/// fresh, fully-covered module (NOT `coverage:exclude`, unlike the
+/// mechanically-relocated legacy groups). Added by tui-V1 / fase 3.
+pub mod standard_sel;
 pub mod tree_nav;
 pub mod window;
