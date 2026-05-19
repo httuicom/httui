@@ -68,7 +68,6 @@ pub(crate) fn tick_autosave(app: &mut App) {
 }
 
 // Wired by `event_loop::main_loop` (fase 5 p4 — flush on quit).
-#[allow(dead_code)]
 pub(crate) fn flush_all_dirty(app: &mut App) {
     let vault = app.vault_path.to_string_lossy().into_owned();
     for tab in &mut app.tabs.tabs {

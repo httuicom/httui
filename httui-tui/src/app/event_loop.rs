@@ -71,7 +71,24 @@ async fn main_loop(
         }
     }
     debug!("main loop exiting");
+    // Auto-save safety-net (tui-V01 / fase 5 p4 — Cenário 4 "fecho/
+    // saio → nada se perde"). Covers BOTH exit routes through this
+    // tail — `app.should_quit = true` from the Quit arm, and the
+    // channel-closed `None` branch that historically dropped
+    // unsaved edits with no warning. Idempotent vs. `:wq`: a doc
+    // that's already clean serializes the same bytes and is
+    // skipped inside `flush_all_dirty`.
+    flush_on_exit(app);
     Ok(())
+}
+
+/// Save every dirty document across every open tab/pane before the
+/// process tears down. Extracted as a tiny seam so the wiring stays
+/// readable and the integration test can call it directly without a
+/// real terminal + event stream. All real logic lives in the covered
+/// `super::autosave::flush_all_dirty`.
+fn flush_on_exit(app: &mut App) {
+    super::autosave::flush_all_dirty(app);
 }
 
 /// Fold a single `AppEvent` into `app`. Extracted verbatim from the
@@ -612,4 +629,57 @@ mod tests {
     // from a headless `cargo test` process without injecting the
     // terminal + event stream. See the final report for the seam
     // analysis.
+
+    // ----- fase 5 p4: flush_on_exit safety-net -----------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn flush_on_exit_writes_dirty_buffers_before_teardown() {
+        // Proves the seam: any dirty doc still in memory at the
+        // moment the main loop exits gets persisted by the safety-net.
+        // Mirrors Cenário 4 "fecho/saio → nada se perde", incl. the
+        // channel-closed `None` branch which historically dropped
+        // unsaved edits with no warning.
+        let (mut app, _d, vault) = app_fixture("body\n").await;
+        for ch in "BYE".chars() {
+            app.tabs
+                .active_document_mut()
+                .unwrap()
+                .insert_char_at_cursor(ch);
+        }
+        assert!(app.tabs.active_document_mut().unwrap().is_dirty());
+
+        flush_on_exit(&mut app);
+
+        let on_disk = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
+        assert!(
+            on_disk.contains("BYE"),
+            "flush_on_exit must persist: {on_disk:?}"
+        );
+        assert!(
+            !app.tabs.active_document_mut().unwrap().is_dirty(),
+            "flush_on_exit must mark clean"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn flush_on_exit_is_idempotent_with_writequit() {
+        // `:wq` already wrote + marked clean; a subsequent exit-flush
+        // must be a no-op (and never panic or corrupt the file).
+        let (mut app, _d, vault) = app_fixture("body\n").await;
+        for ch in "X".chars() {
+            app.tabs
+                .active_document_mut()
+                .unwrap()
+                .insert_char_at_cursor(ch);
+        }
+        // Simulate `:w` having run.
+        let _ = crate::vim::ex::execute(&mut app, crate::vim::ex::ExCmd::Write);
+        assert!(!app.tabs.active_document_mut().unwrap().is_dirty());
+        let before = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
+
+        flush_on_exit(&mut app);
+
+        let after = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
+        assert_eq!(before, after, "flush after clean save is a no-op");
+    }
 }
