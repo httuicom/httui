@@ -9,17 +9,13 @@ use crate::buffer::Cursor;
 #[allow(unused_imports)]
 use crate::buffer::Segment;
 use crate::input::block_swap::{action_needs_block_swap, InBlockSwap};
-use crate::tree::{TreePrompt, TreePromptKind};
-use crate::vim::ex::{self, ExResult};
-use crate::vim::insert::{position_for_insert, recoil_after_exit};
 use crate::vim::mode::Mode;
-use crate::vim::motions;
 use crate::vim::parser::{
     parse_block_history, parse_block_template_picker, parse_cmdline, parse_connection_picker,
     parse_content_search, parse_db_confirm_run, parse_db_export_picker, parse_db_row_detail,
     parse_db_settings_modal, parse_environment_picker, parse_fence_edit, parse_help,
     parse_http_response_detail, parse_insert, parse_normal, parse_quickopen, parse_search,
-    parse_tab_picker, parse_tree, parse_tree_prompt, parse_visual, Action, Motion,
+    parse_tab_picker, parse_tree, parse_tree_prompt, parse_visual, Action,
 };
 
 /// Top-level vim key dispatcher. The app's `handle_key` delegates here.
@@ -154,50 +150,32 @@ pub(crate) use crate::input::apply::completion::{
 /// resulting change updates `last_change` — `.` replay sets it to
 /// `false` so a `.` after a `.` doesn't trample its own record.
 pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
+    // Mechanically partitioned (tui-v2 vertical 1, fase 1 p6):
+    // every variant routes to its domain's `apply_<group>` in
+    // `crate::input::apply::*`. The match stays EXHAUSTIVE — the
+    // compiler proves every `Action` is routed; each group's own
+    // `unreachable!` proves nothing is mis-routed into it.
     match action {
-        Action::Noop => {}
-        Action::Quit => {
-            app.should_quit = true;
-        }
-        Action::Motion(m, count) => {
-            // When the row-detail modal is open `app.document_mut()`
-            // redirects to its body doc, so the motion engine drives
-            // the modal's cursor automatically. Skip the editor-only
-            // book-keeping (paginated-result prefetch, viewport
-            // refresh) when the modal owns the focus.
-            let in_modal = app.vim.mode == Mode::DbRowDetail;
-            if !in_modal && matches!(m, Motion::Down) {
-                maybe_prefetch_db_more_rows(app);
-            }
-            let viewport = app.viewport_height();
-            if let Some(doc) = app.document_mut() {
-                motions::apply(m, doc, count, viewport);
-            }
-            if m.is_find() {
-                app.vim.last_find = Some(m);
-            }
-            if !in_modal {
-                app.refresh_viewport_for_cursor();
-            }
-        }
-        Action::EnterInsert(pos) => {
-            if let Some(doc) = app.document_mut() {
-                doc.snapshot();
-                position_for_insert(doc, pos);
-            }
-            app.vim.enter_insert();
-            app.vim.insert_session.start_plain(pos);
-            app.refresh_viewport_for_cursor();
-        }
         Action::EnterVisual
         | Action::EnterVisualLine
         | Action::ExitVisual
         | Action::VisualSwap
         | Action::VisualOperator(_)
-        | Action::VisualSelectTextObject(_) => {
+        | Action::VisualSelectTextObject(_)
+        | Action::OperatorMotion(..)
+        | Action::OperatorLinewise(..)
+        | Action::OperatorTextObject(..)
+        | Action::Paste(..) => {
             crate::input::apply::operator::apply_operator(app, action, recording)
         }
-        Action::RunBlock => crate::commands::db::apply_run_block(app),
+        Action::CompletionNext
+        | Action::CompletionPrev
+        | Action::CompletionAccept
+        | Action::CompletionDismiss
+        | Action::ConfirmDbRun
+        | Action::CancelDbRun => {
+            crate::input::apply::completion::apply_completion(app, action, recording)
+        }
         Action::OpenDbRowDetail
         | Action::CloseDbRowDetail
         | Action::CopyDbRowDetailJson
@@ -224,114 +202,6 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::ConfirmTabPicker => {
             crate::input::apply::pickers::apply_pickers(app, action, recording)
         }
-        Action::ExplainBlock => crate::commands::db::run_explain(app),
-        Action::CopyAsCurl => crate::commands::http::copy_as_curl(app),
-        Action::CycleDisplayMode => crate::commands::db::cycle_display_mode(app),
-        Action::OpenDbExportPicker => {
-            if let Err(msg) = crate::commands::db::open_export_picker(app) {
-                app.set_status(StatusKind::Error, msg);
-            }
-        }
-        Action::CloseDbExportPicker => crate::commands::db::close_export_picker(app),
-        Action::MoveDbExportPickerCursor(delta) => {
-            crate::commands::db::move_export_picker_cursor(app, delta)
-        }
-        Action::ConfirmDbExportPicker => crate::commands::db::confirm_export_picker(app),
-        Action::OpenDbSettingsModal => {
-            if let Err(msg) = crate::commands::db::open_db_settings_modal(app) {
-                app.set_status(StatusKind::Error, msg);
-            }
-        }
-        Action::CloseDbSettingsModal => crate::commands::db::close_db_settings_modal(app),
-        Action::ConfirmDbSettingsModal => crate::commands::db::confirm_db_settings_modal(app),
-        Action::DbSettingsFocusNext => crate::commands::db::db_settings_focus_step(app, 1),
-        Action::DbSettingsFocusPrev => crate::commands::db::db_settings_focus_step(app, -1),
-        Action::DbSettingsChar(c) => {
-            if let Some(s) = app.db_settings.as_mut() {
-                s.focused_input_mut().insert_char(c);
-            }
-        }
-        Action::DbSettingsBackspace => {
-            if let Some(s) = app.db_settings.as_mut() {
-                s.focused_input_mut().delete_before();
-            }
-        }
-        Action::DbSettingsDelete => {
-            if let Some(s) = app.db_settings.as_mut() {
-                s.focused_input_mut().delete_after();
-            }
-        }
-        Action::DbSettingsCursorLeft => {
-            if let Some(s) = app.db_settings.as_mut() {
-                s.focused_input_mut().move_left();
-            }
-        }
-        Action::DbSettingsCursorRight => {
-            if let Some(s) = app.db_settings.as_mut() {
-                s.focused_input_mut().move_right();
-            }
-        }
-        Action::DbSettingsCursorHome => {
-            if let Some(s) = app.db_settings.as_mut() {
-                s.focused_input_mut().move_home();
-            }
-        }
-        Action::DbSettingsCursorEnd => {
-            if let Some(s) = app.db_settings.as_mut() {
-                s.focused_input_mut().move_end();
-            }
-        }
-        Action::OpenBlockHistory => {
-            if let Err(msg) = crate::commands::http::open_block_history(app) {
-                app.set_status(StatusKind::Error, msg);
-            }
-        }
-        Action::CloseBlockHistory => crate::commands::http::close_block_history(app),
-        Action::MoveBlockHistoryCursor(delta) => {
-            crate::commands::http::move_block_history_cursor(app, delta)
-        }
-        Action::OpenContentSearch => {
-            if let Err(msg) = crate::commands::search::open_content_search(app) {
-                app.set_status(StatusKind::Error, msg);
-            }
-        }
-        Action::CloseContentSearch => crate::commands::search::close_content_search(app),
-        Action::ConfirmContentSearch => crate::commands::search::confirm_content_search(app),
-        Action::MoveContentSearchCursor(delta) => {
-            crate::commands::search::move_content_search_cursor(app, delta)
-        }
-        Action::ContentSearchChar(c) => crate::commands::search::content_search_char(app, c),
-        Action::ContentSearchBackspace => crate::commands::search::content_search_backspace(app),
-        Action::ContentSearchDelete => crate::commands::search::content_search_delete(app),
-        Action::ContentSearchCursorLeft => {
-            if let Some(s) = app.content_search.as_mut() {
-                s.query.move_left();
-            }
-        }
-        Action::ContentSearchCursorRight => {
-            if let Some(s) = app.content_search.as_mut() {
-                s.query.move_right();
-            }
-        }
-        Action::ContentSearchCursorHome => {
-            if let Some(s) = app.content_search.as_mut() {
-                s.query.move_home();
-            }
-        }
-        Action::ContentSearchCursorEnd => {
-            if let Some(s) = app.content_search.as_mut() {
-                s.query.move_end();
-            }
-        }
-        Action::OpenHelp => {
-            app.help_visible = true;
-            app.vim.mode = Mode::Help;
-            app.vim.reset_pending();
-        }
-        Action::CloseHelp => {
-            app.help_visible = false;
-            app.vim.enter_normal();
-        }
         Action::JumpNextBlock
         | Action::JumpPrevBlock
         | Action::RerunLastBlock
@@ -340,469 +210,135 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::ScrollCursorTo(_) => {
             crate::input::apply::navigation::apply_navigation(app, action, recording)
         }
-        Action::WriteFile => {
-            // `<C-s>` — same code path as `:w`, status reporting and
-            // all. Routed through `ex::execute` (rather than the
-            // string-based `ex::run`) to skip a redundant parse.
-            match ex::execute(app, ex::ExCmd::Write) {
-                ex::ExResult::Ok(msg) => app.set_status(StatusKind::Info, msg),
-                ex::ExResult::Err(msg) => app.set_status(StatusKind::Error, msg),
-                _ => {}
-            }
-        }
-        Action::CompletionNext
-        | Action::CompletionPrev
-        | Action::CompletionAccept
-        | Action::CompletionDismiss
-        | Action::ConfirmDbRun
-        | Action::CancelDbRun => {
-            crate::input::apply::completion::apply_completion(app, action, recording)
-        }
-        Action::ExitInsert => {
-            // Recoil the cursor one column (vim's `<Esc>` semantics)
-            // and flip the mode. The "did the user just finish a
-            // fence?" reparse is handled at the dispatch top level —
-            // running it here would fire while the in-block swap is
-            // still pretending the block is a Prose segment, which
-            // splices the synthetic prose back into the doc and
-            // jumps the cursor out of the block.
-            if let Some(doc) = app.document_mut() {
-                recoil_after_exit(doc);
-            }
-            app.vim.enter_normal();
-            if recording {
-                if let Some(record) = app.vim.insert_session.finish() {
-                    app.vim.last_change = Some(record);
-                }
-            } else {
-                // Discard the in-flight session without overwriting the
-                // existing `last_change` — replay path.
-                let _ = app.vim.insert_session.finish();
-            }
-        }
-        Action::InsertChar(c) => {
-            if let Some(doc) = app.document_mut() {
-                doc.insert_char_at_cursor(c);
-            }
-            app.vim.insert_session.push_char(c);
-        }
-        Action::InsertNewline => {
-            if let Some(doc) = app.document_mut() {
-                doc.insert_newline_at_cursor();
-            }
-            app.vim.insert_session.push_newline();
-            app.refresh_viewport_for_cursor();
-        }
-        Action::DeleteBackward => {
-            if let Some(doc) = app.document_mut() {
-                doc.delete_char_before_cursor();
-            }
-            app.vim.insert_session.pop_char();
-        }
-        Action::DeleteForward => {
-            if let Some(doc) = app.document_mut() {
-                doc.delete_char_at_cursor();
-            }
-        }
-        Action::EnterCmdline => {
-            app.vim.enter_cmdline();
-        }
-        Action::CmdlineChar(c) => {
-            app.vim.cmdline_push(c);
-        }
-        Action::CmdlineBackspace => {
-            // Empty buffer + backspace exits the prompt — same as `<Esc>`.
-            if !app.vim.cmdline_pop() {
-                app.vim.enter_normal();
-            }
-        }
-        Action::CmdlineDelete => {
-            app.vim.cmdline.delete_after();
-        }
-        Action::CmdlineCursorLeft => app.vim.cmdline.move_left(),
-        Action::CmdlineCursorRight => app.vim.cmdline.move_right(),
-        Action::CmdlineCursorHome => app.vim.cmdline.move_home(),
-        Action::CmdlineCursorEnd => app.vim.cmdline.move_end(),
-        Action::CmdlineCancel => {
-            app.vim.enter_normal();
-        }
-        Action::CmdlineExecute => {
-            let buf = app.vim.cmdline.take();
-            app.vim.enter_normal();
-            match ex::run(app, &buf) {
-                ExResult::Ok(msg) => app.set_status(StatusKind::Info, msg),
-                ExResult::Err(msg) => app.set_status(StatusKind::Error, msg),
-                ExResult::Unknown(s) => app.set_status(
-                    StatusKind::Error,
-                    format!("E492: not an editor command: {s}"),
-                ),
-                ExResult::Empty | ExResult::Quit => {}
-            }
-        }
-        Action::OperatorMotion(..)
-        | Action::OperatorLinewise(..)
-        | Action::OperatorTextObject(..)
-        | Action::Paste(..) => {
-            crate::input::apply::operator::apply_operator(app, action, recording)
-        }
-        Action::Undo => {
-            if let Some(doc) = app.document_mut() {
-                if !doc.undo() {
-                    app.set_status(StatusKind::Info, "already at oldest change");
-                }
-            }
-            app.refresh_viewport_for_cursor();
-        }
-        Action::Redo => {
-            if let Some(doc) = app.document_mut() {
-                if !doc.redo() {
-                    app.set_status(StatusKind::Info, "already at newest change");
-                }
-            }
-            app.refresh_viewport_for_cursor();
-        }
-        Action::RepeatChange(count) => {
-            crate::input::apply::replay::replay_last_change(app, count.max(1));
-        }
-        Action::EnterSearch(forward) => {
-            app.vim.enter_search(forward);
-        }
-        Action::SearchChar(c) => {
-            app.vim.search_push(c);
-        }
-        Action::SearchBackspace => {
-            if !app.vim.search_pop() {
-                app.vim.enter_normal();
-            }
-        }
-        Action::SearchDelete => {
-            app.vim.search_buf.delete_after();
-        }
-        Action::SearchCursorLeft => app.vim.search_buf.move_left(),
-        Action::SearchCursorRight => app.vim.search_buf.move_right(),
-        Action::SearchCursorHome => app.vim.search_buf.move_home(),
-        Action::SearchCursorEnd => app.vim.search_buf.move_end(),
-        Action::SearchCancel => {
-            app.vim.enter_normal();
-        }
-        Action::SearchExecute => {
-            let pattern = app.vim.search_buf.take();
-            let forward = app.vim.search_forward;
-            app.vim.enter_normal();
-            execute_search(app, &pattern, forward, /* save = */ true);
-        }
-        Action::SearchRepeat { reverse } => {
-            let Some(pattern) = app.vim.last_search.clone() else {
-                app.set_status(StatusKind::Error, "no previous search");
-                return;
-            };
-            let forward = if reverse {
-                !app.vim.last_search_forward
-            } else {
-                app.vim.last_search_forward
-            };
-            execute_search(app, &pattern, forward, /* save = */ false);
-        }
-        Action::EnterQuickOpen => {
-            let files = list_vault_md_files(&app.vault_path.to_string_lossy());
-            app.vim.enter_quickopen(files);
-        }
-        Action::QuickOpenChar(c) => {
-            app.vim.quickopen.push_char(c);
-        }
-        Action::QuickOpenBackspace => {
-            // Empty buffer + backspace closes the modal — same as `<Esc>`.
-            if app.vim.quickopen.query.is_empty() {
-                app.vim.enter_normal();
-            } else {
-                app.vim.quickopen.pop_char();
-            }
-        }
-        Action::QuickOpenDelete => app.vim.quickopen.delete_after(),
-        Action::QuickOpenCursorLeft => app.vim.quickopen.move_left(),
-        Action::QuickOpenCursorRight => app.vim.quickopen.move_right(),
-        Action::QuickOpenCursorHome => app.vim.quickopen.move_home(),
-        Action::QuickOpenCursorEnd => app.vim.quickopen.move_end(),
-        Action::QuickOpenSelectNext => {
-            app.vim.quickopen.select_next();
-        }
-        Action::QuickOpenSelectPrev => {
-            app.vim.quickopen.select_prev();
-        }
-        Action::QuickOpenCancel => {
-            app.vim.enter_normal();
-        }
-        Action::QuickOpenExecute => {
-            // Quick Open is the picker — always opens in a new tab (or
-            // switches to the existing tab if already open). The vim
-            // ex command `:e <path>` is the explicit "replace current"
-            // path for users who want that.
-            let chosen = app.vim.quickopen.chosen_path();
-            app.vim.enter_normal();
-            if let Some(path) = chosen {
-                match app.open_in_new_tab(path) {
-                    Ok(msg) => app.set_status(StatusKind::Info, msg),
-                    Err(msg) => app.set_status(StatusKind::Error, msg),
-                }
-            }
-        }
         Action::Window(_) => crate::input::apply::window::apply_window(app, action, recording),
-        Action::TreeToggle => {
-            if app.tree.visible {
-                app.tree.visible = false;
-                if app.vim.mode == Mode::Tree {
-                    app.vim.enter_normal();
-                }
-            } else {
-                app.tree.visible = true;
-                app.tree.refresh(&app.vault_path);
-                app.vim.mode = Mode::Tree;
-            }
+        Action::FocusSwap
+        | Action::TabGoto(..)
+        | Action::TabNext
+        | Action::TabPrev
+        | Action::TreeActivate
+        | Action::TreeCollapse
+        | Action::TreeCreate
+        | Action::TreeDelete
+        | Action::TreePromptBackspace
+        | Action::TreePromptCancel
+        | Action::TreePromptChar(..)
+        | Action::TreePromptCursorEnd
+        | Action::TreePromptCursorHome
+        | Action::TreePromptCursorLeft
+        | Action::TreePromptCursorRight
+        | Action::TreePromptDelete
+        | Action::TreePromptExecute
+        | Action::TreeRefresh
+        | Action::TreeRename
+        | Action::TreeSelectFirst
+        | Action::TreeSelectLast
+        | Action::TreeSelectNext
+        | Action::TreeSelectPrev
+        | Action::TreeToggle => {
+            crate::input::apply::tree_nav::apply_tree_nav(app, action, recording)
         }
-        Action::FocusSwap => {
-            if !app.tree.visible {
-                return;
-            }
-            if app.vim.mode == Mode::Tree {
-                app.vim.enter_normal();
-            } else if app.vim.mode == Mode::Normal {
-                app.vim.mode = Mode::Tree;
-            }
-        }
-        Action::TreeSelectNext => app.tree.select_next(),
-        Action::TreeSelectPrev => app.tree.select_prev(),
-        Action::TreeSelectFirst => app.tree.select_first(),
-        Action::TreeSelectLast => app.tree.select_last(),
-        Action::TreeRefresh => {
-            let vault = app.vault_path.clone();
-            app.tree.refresh(&vault);
-        }
-        Action::TreeCollapse => {
-            if app.tree.collapse_parent() {
-                let vault = app.vault_path.clone();
-                app.tree.refresh(&vault);
-            }
-        }
-        Action::TreeActivate => {
-            let Some(node) = app.tree.current().cloned() else {
-                return;
-            };
-            if node.is_dir {
-                if app.tree.toggle_expand() {
-                    let vault = app.vault_path.clone();
-                    app.tree.refresh(&vault);
-                }
-            } else {
-                // Tree-driven open mirrors the modal: every Enter opens
-                // a new tab (or switches to an existing one). Use `:e
-                // <path>` if you want the vim-style replace behavior.
-                let path = std::path::PathBuf::from(&node.path);
-                match app.open_in_new_tab(path) {
-                    Ok(msg) => {
-                        app.set_status(StatusKind::Info, msg);
-                        // Hand focus back to the editor on successful open —
-                        // matches how netrw exits the tree after Enter.
-                        app.vim.enter_normal();
-                    }
-                    Err(msg) => app.set_status(StatusKind::Error, msg),
-                }
-            }
-        }
-        Action::TabNext => {
-            // When the cursor sits on a result row, `gt` cycles
-            // the result-panel tab (Result → Messages → Plan →
-            // Stats → Result) instead of switching editor tabs —
-            // the editor-tab swap wouldn't be useful from inside a
-            // table, and the result-panel needs *some* keyboard
-            // affordance.
-            if matches!(
-                app.document().map(|d| d.cursor()),
-                Some(Cursor::InBlockResult { .. })
-            ) {
-                app.db_result_tab = app.db_result_tab.next();
-            } else {
-                app.next_tab();
-                app.refresh_viewport_for_cursor();
-            }
-        }
-        Action::TabPrev => {
-            if matches!(
-                app.document().map(|d| d.cursor()),
-                Some(Cursor::InBlockResult { .. })
-            ) {
-                app.db_result_tab = app.db_result_tab.prev();
-            } else {
-                app.prev_tab();
-                app.refresh_viewport_for_cursor();
-            }
-        }
-        Action::TabGoto(n) => {
-            app.goto_tab(n);
-            app.refresh_viewport_for_cursor();
-        }
-        Action::TreeCreate => {
-            // Open the in-tree prompt anchored to the selected folder
-            // (or the parent of the selected file). The user types
-            // either a filename (e.g. `notes.md`) or a name with
-            // trailing `/` (e.g. `subdir/`) to make a folder.
-            let dir = match app.tree.current() {
-                Some(node) if node.is_dir => node.path.clone(),
-                Some(node) => match std::path::Path::new(&node.path).parent() {
-                    Some(p) if !p.as_os_str().is_empty() => p.display().to_string(),
-                    _ => String::new(),
-                },
-                None => String::new(),
-            };
-            app.tree.prompt = Some(TreePrompt::new(
-                TreePromptKind::Create { dir },
-                String::new(),
-            ));
-            app.vim.mode = Mode::TreePrompt;
-        }
-        Action::TreeRename => {
-            let Some(node) = app.tree.current() else {
-                return;
-            };
-            // Pre-fill the buffer with the source path so the user
-            // edits the destination in place. Allowed for files and
-            // folders alike — `rename_path` handles both.
-            let path = node.path.clone();
-            app.tree.prompt = Some(TreePrompt::new(
-                TreePromptKind::Rename { from: path.clone() },
-                path,
-            ));
-            app.vim.mode = Mode::TreePrompt;
-        }
-        Action::TreeDelete => {
-            let Some(node) = app.tree.current() else {
-                return;
-            };
-            app.tree.prompt = Some(TreePrompt::new(
-                TreePromptKind::Delete {
-                    target: node.path.clone(),
-                },
-                String::new(),
-            ));
-            app.vim.mode = Mode::TreePrompt;
-        }
-        Action::TreePromptChar(c) => {
-            if let Some(prompt) = app.tree.prompt.as_mut() {
-                prompt.input.insert_char(c);
-            }
-        }
-        Action::TreePromptBackspace => {
-            if let Some(prompt) = app.tree.prompt.as_mut() {
-                if !prompt.input.delete_before() {
-                    // Empty buffer + backspace acts like cancel.
-                    app.tree.prompt = None;
-                    app.vim.mode = Mode::Tree;
-                }
-            } else {
-                app.vim.mode = Mode::Tree;
-            }
-        }
-        Action::TreePromptDelete => {
-            if let Some(prompt) = app.tree.prompt.as_mut() {
-                prompt.input.delete_after();
-            }
-        }
-        Action::TreePromptCursorLeft => {
-            if let Some(prompt) = app.tree.prompt.as_mut() {
-                prompt.input.move_left();
-            }
-        }
-        Action::TreePromptCursorRight => {
-            if let Some(prompt) = app.tree.prompt.as_mut() {
-                prompt.input.move_right();
-            }
-        }
-        Action::TreePromptCursorHome => {
-            if let Some(prompt) = app.tree.prompt.as_mut() {
-                prompt.input.move_home();
-            }
-        }
-        Action::TreePromptCursorEnd => {
-            if let Some(prompt) = app.tree.prompt.as_mut() {
-                prompt.input.move_end();
-            }
-        }
-        Action::TreePromptCancel => {
-            app.tree.prompt = None;
-            app.vim.mode = Mode::Tree;
-        }
-        Action::TreePromptExecute => {
-            let Some(prompt) = app.tree.prompt.take() else {
-                app.vim.mode = Mode::Tree;
-                return;
-            };
-            app.vim.mode = Mode::Tree;
-            run_tree_prompt(app, prompt);
-        }
-        Action::OpenFenceEditAlias => crate::commands::db::open_fence_edit_alias(app),
-        Action::FenceEditChar(c) => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.insert_char(c);
-            }
-        }
-        Action::FenceEditBackspace => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                // Backspace on an empty buffer cancels — same affordance
-                // as the tree prompt; users can hold backspace to bail.
-                if !prompt.input.delete_before() {
-                    app.fence_edit = None;
-                    app.vim.enter_normal();
-                }
-            } else {
-                app.vim.enter_normal();
-            }
-        }
-        Action::FenceEditDelete => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.delete_after();
-            }
-        }
-        Action::FenceEditCursorLeft => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.move_left();
-            }
-        }
-        Action::FenceEditCursorRight => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.move_right();
-            }
-        }
-        Action::FenceEditCursorHome => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.move_home();
-            }
-        }
-        Action::FenceEditCursorEnd => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.move_end();
-            }
-        }
-        Action::FenceEditCancel => {
-            app.fence_edit = None;
-            app.vim.enter_normal();
-            app.set_status(StatusKind::Info, "edit cancelled");
-        }
-        Action::FenceEditConfirm => crate::commands::db::confirm_fence_edit(app),
+        Action::CloseBlockHistory
+        | Action::CloseContentSearch
+        | Action::CloseDbExportPicker
+        | Action::CloseDbSettingsModal
+        | Action::CloseHelp
+        | Action::CmdlineBackspace
+        | Action::CmdlineCancel
+        | Action::CmdlineChar(..)
+        | Action::CmdlineCursorEnd
+        | Action::CmdlineCursorHome
+        | Action::CmdlineCursorLeft
+        | Action::CmdlineCursorRight
+        | Action::CmdlineDelete
+        | Action::CmdlineExecute
+        | Action::ConfirmContentSearch
+        | Action::ConfirmDbExportPicker
+        | Action::ConfirmDbSettingsModal
+        | Action::ContentSearchBackspace
+        | Action::ContentSearchChar(..)
+        | Action::ContentSearchCursorEnd
+        | Action::ContentSearchCursorHome
+        | Action::ContentSearchCursorLeft
+        | Action::ContentSearchCursorRight
+        | Action::ContentSearchDelete
+        | Action::CopyAsCurl
+        | Action::CycleDisplayMode
+        | Action::DbSettingsBackspace
+        | Action::DbSettingsChar(..)
+        | Action::DbSettingsCursorEnd
+        | Action::DbSettingsCursorHome
+        | Action::DbSettingsCursorLeft
+        | Action::DbSettingsCursorRight
+        | Action::DbSettingsDelete
+        | Action::DbSettingsFocusNext
+        | Action::DbSettingsFocusPrev
+        | Action::DeleteBackward
+        | Action::DeleteForward
+        | Action::EnterCmdline
+        | Action::EnterInsert(..)
+        | Action::EnterQuickOpen
+        | Action::EnterSearch(..)
+        | Action::ExitInsert
+        | Action::ExplainBlock
+        | Action::FenceEditBackspace
+        | Action::FenceEditCancel
+        | Action::FenceEditChar(..)
+        | Action::FenceEditConfirm
+        | Action::FenceEditCursorEnd
+        | Action::FenceEditCursorHome
+        | Action::FenceEditCursorLeft
+        | Action::FenceEditCursorRight
+        | Action::FenceEditDelete
+        | Action::InsertChar(..)
+        | Action::InsertNewline
+        | Action::Motion(..)
+        | Action::MoveBlockHistoryCursor(..)
+        | Action::MoveContentSearchCursor(..)
+        | Action::MoveDbExportPickerCursor(..)
+        | Action::Noop
+        | Action::OpenBlockHistory
+        | Action::OpenContentSearch
+        | Action::OpenDbExportPicker
+        | Action::OpenDbSettingsModal
+        | Action::OpenFenceEditAlias
+        | Action::OpenHelp
+        | Action::QuickOpenBackspace
+        | Action::QuickOpenCancel
+        | Action::QuickOpenChar(..)
+        | Action::QuickOpenCursorEnd
+        | Action::QuickOpenCursorHome
+        | Action::QuickOpenCursorLeft
+        | Action::QuickOpenCursorRight
+        | Action::QuickOpenDelete
+        | Action::QuickOpenExecute
+        | Action::QuickOpenSelectNext
+        | Action::QuickOpenSelectPrev
+        | Action::Quit
+        | Action::Redo
+        | Action::RepeatChange(..)
+        | Action::RunBlock
+        | Action::SearchBackspace
+        | Action::SearchCancel
+        | Action::SearchChar(..)
+        | Action::SearchCursorEnd
+        | Action::SearchCursorHome
+        | Action::SearchCursorLeft
+        | Action::SearchCursorRight
+        | Action::SearchDelete
+        | Action::SearchExecute
+        | Action::SearchRepeat { .. }
+        | Action::Undo
+        | Action::WriteFile => crate::input::apply::misc::apply_misc(app, action, recording),
     }
 }
 
-// tree-prompt / search / DB-prefetch / block-jump / scroll /
-// write-all appliers moved to `crate::input::apply::navigation`
-// (fase 1 p5f). The block-jump / rerun / write-all / reselect /
-// scroll appliers are now reached via the `apply_action` navigation
-// group (`apply_navigation`, fase 1 p6f); the rest stay re-exported
-// because remaining inline `apply_action` arms still call them by
-// bare name. `should_prefetch` has no production caller left here but
-// the dispatch `mod tests` references it.
+// navigation appliers moved to `crate::input::apply::navigation`
+// (fase 1 p5f). All of them are now reached via the `apply_action`
+// navigation/misc groups (fase 1 p6f / p6g), so the only thing the
+// dispatch `mod tests` (`use super::*`) still needs in scope is
+// `should_prefetch`, kept behind `#[allow(unused_imports)]`.
 #[allow(unused_imports)]
 pub(crate) use crate::input::apply::navigation::should_prefetch;
-pub(crate) use crate::input::apply::navigation::{
-    execute_search, list_vault_md_files, maybe_prefetch_db_more_rows, run_tree_prompt,
-};
 
 // operator / paste / visual-operator appliers moved to
 // `crate::input::apply::operator` (fase 1 p5b). The visual/operator
