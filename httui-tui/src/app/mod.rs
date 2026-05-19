@@ -31,6 +31,7 @@ mod modal_state;
 mod picker_state;
 mod result_tab;
 mod running;
+mod standard_state;
 mod status;
 mod tabbar;
 mod viewport;
@@ -40,6 +41,7 @@ pub use modal_state::*;
 pub use picker_state::*;
 pub use result_tab::*;
 pub use running::*;
+pub use standard_state::*;
 pub use status::*;
 pub use tabbar::*;
 pub(crate) use viewport::{clamp_viewport, cursor_y};
@@ -187,6 +189,13 @@ pub struct App {
     /// `None` until the user has run at least one block this
     /// session.
     pub last_run_anchor: Option<LastRunAnchor>,
+    /// Standard-mode (non-modal) selection anchor. Only meaningful
+    /// when `config.editor.mode == EditorMode::Standard`; the vim
+    /// path never reads or writes it (Cenário 2 stays byte-identical).
+    /// Introduced by tui-V1 / fase 3 p0; read by `route_standard`
+    /// from p2 onward (allow until then keeps p0's clippy green).
+    #[allow(dead_code)]
+    pub standard: StandardState,
 }
 
 impl App {
@@ -230,6 +239,7 @@ impl App {
             block_template_picker: None,
             last_run_anchor: None,
             tab_picker: None,
+            standard: StandardState::default(),
         };
         app.load_initial_document();
         app.refresh_active_env_name();
