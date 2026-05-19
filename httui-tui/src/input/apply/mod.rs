@@ -6,6 +6,7 @@
 
 pub mod completion;
 pub mod modal_detail;
+pub mod navigation;
 pub mod operator;
 pub mod pickers;
 pub mod window;
