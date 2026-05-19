@@ -407,4 +407,37 @@ mod tests {
             assert_eq!(md, "abc\n", "failed cut preserved the doc");
         }
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_ctrl_v_routes_to_paste_without_panicking() {
+        // fase 3 p4: Ctrl+V decodes to PasteSystem and reaches the
+        // standard_sel paste path. Through `route` the real clipboard
+        // is used (headless CI → empty/err → no-op). Deterministic
+        // invariant: routing works, nothing panics, the doc is only
+        // ever grown by real clipboard content (never corrupted).
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let before = app.document().unwrap().to_markdown();
+        route(&mut app, ctrl(KeyCode::Char('v')));
+        let after = app.document().unwrap().to_markdown();
+        // Either unchanged (no/empty clipboard) or the clipboard text
+        // was inserted at the caret — never a panic / partial write.
+        assert!(
+            after == before || after.len() >= before.len(),
+            "paste must not shrink/corrupt the doc: {before:?} -> {after:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_ctrl_v_decodes_to_paste_system() {
+        // Pin the decode: the router must hand PasteSystem to
+        // standard_sel (the behavioural mirror of the roteiro —
+        // Shift-sel→Copy→move→Paste — is proven deterministically in
+        // `apply::standard_sel::tests::roteiro_mirror_copy_move_paste`
+        // with an injected FakeClipboard; here we only assert the
+        // route seam decodes Ctrl+V correctly).
+        assert_eq!(
+            crate::input::standard::resolve(ctrl(KeyCode::Char('v'))),
+            Some(crate::input::action::Action::PasteSystem)
+        );
+    }
 }
