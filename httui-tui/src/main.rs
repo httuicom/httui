@@ -1,6 +1,7 @@
+// coverage:exclude file — binary entrypoint: cli parse + tracing/db/vault
+// bootstrap + app::run wiring; no testable business logic.
+// (2026-05-19, tui-V1 Fase 2 P3; log_dir extracted to config.rs)
 use clap::Parser;
-use directories::ProjectDirs;
-use std::path::PathBuf;
 use tracing_appender::rolling;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -66,7 +67,7 @@ async fn run(cli: Cli) -> TuiResult<()> {
 /// state dir. **Nothing** is written to stderr while the TUI is up — the
 /// alternate screen would corrupt log lines and vice versa.
 fn init_tracing(level: &str) -> TuiResult<tracing_appender::non_blocking::WorkerGuard> {
-    let log_dir = log_dir()?;
+    let log_dir = config::log_dir()?;
     std::fs::create_dir_all(&log_dir)?;
     let file_appender = rolling::daily(&log_dir, "notes-tui.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
@@ -81,16 +82,4 @@ fn init_tracing(level: &str) -> TuiResult<tracing_appender::non_blocking::Worker
         .init();
 
     Ok(guard)
-}
-
-fn log_dir() -> TuiResult<PathBuf> {
-    let dirs = ProjectDirs::from("com", "httui", "notes-tui")
-        .ok_or_else(|| TuiError::Config("could not resolve project dirs (no $HOME?)".into()))?;
-    // `state_dir` is Linux-only; on macOS/Windows fall back to data_local_dir.
-    let path = dirs
-        .state_dir()
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| dirs.data_local_dir().to_path_buf())
-        .join("logs");
-    Ok(path)
 }

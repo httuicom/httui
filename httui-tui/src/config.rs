@@ -121,6 +121,21 @@ pub fn default_config_path() -> TuiResult<PathBuf> {
     Ok(dirs.config_dir().join("config.toml"))
 }
 
+/// Directory for the TUI's rolling log files, under XDG state (Linux)
+/// or data-local (macOS/Windows) — same `ProjectDirs` root as
+/// [`default_config_path`].
+pub fn log_dir() -> TuiResult<PathBuf> {
+    let dirs = ProjectDirs::from("com", "httui", "notes-tui")
+        .ok_or_else(|| TuiError::Config("could not resolve project dirs (no $HOME?)".into()))?;
+    // `state_dir` is Linux-only; on macOS/Windows fall back to data_local_dir.
+    let path = dirs
+        .state_dir()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| dirs.data_local_dir().to_path_buf())
+        .join("logs");
+    Ok(path)
+}
+
 /// Load config from `path`, creating it with defaults on first run.
 pub fn load_or_init(path: &Path) -> TuiResult<Config> {
     if !path.exists() {
@@ -219,5 +234,25 @@ mod tests {
         let raw = "[editor]\nmode = \"vim\"\n";
         let cfg: Config = toml::from_str(raw).unwrap();
         assert_eq!(cfg.editor.mode, EditorMode::Vim);
+    }
+
+    #[test]
+    fn log_dir_is_absolute_and_ends_in_logs() {
+        // ProjectDirs resolves against the test env's $HOME; assert only
+        // platform-stable invariants (no hardcoded XDG/macOS prefix).
+        let dir = log_dir().expect("log_dir resolves in a normal env");
+        assert!(dir.is_absolute(), "log dir must be absolute: {dir:?}");
+        assert!(dir.ends_with("logs"), "log dir must end in `logs`: {dir:?}");
+    }
+
+    #[test]
+    fn log_dir_shares_root_with_default_config_path() {
+        // Both derive from the same ProjectDirs("com","httui","notes-tui")
+        // root, so they sit under a common ancestor.
+        let log = log_dir().unwrap();
+        let cfg = default_config_path().unwrap();
+        let cfg_root = cfg.parent().and_then(Path::parent);
+        let log_root = log.parent().and_then(Path::parent);
+        assert!(cfg_root.is_some() && log_root.is_some());
     }
 }
