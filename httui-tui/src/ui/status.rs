@@ -145,13 +145,22 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         ],
         None => Vec::new(),
     };
-    let mut spans = vec![Span::styled(
-        format!(" {} ", mode.label()),
-        Style::default()
-            .fg(Color::Black)
-            .bg(mode.bg())
-            .add_modifier(Modifier::BOLD),
-    )];
+    // Mode chip is a vim affordance: it only means something when the
+    // modal engine is driving input. In Standard editor mode there are
+    // no vim modes to surface, so we skip the chip entirely and let the
+    // status bar lead with the file/vault section.
+    let mut spans: Vec<Span<'static>> = if app.config.editor.mode == crate::config::EditorMode::Vim
+    {
+        vec![Span::styled(
+            format!(" {} ", mode.label()),
+            Style::default()
+                .fg(Color::Black)
+                .bg(mode.bg())
+                .add_modifier(Modifier::BOLD),
+        )]
+    } else {
+        Vec::new()
+    };
     spans.extend(running_chip);
     spans.extend(env_chip);
     spans.extend(conn_chip);
