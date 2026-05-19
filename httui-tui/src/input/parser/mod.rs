@@ -1,6 +1,10 @@
 //! Keymap helper primitives — single-key → Motion/Operator/FindKind
 //! decoders shared by the per-mode parsers. Mechanically moved out of
 //! `vim/parser.rs` (tui-v2 vertical 1, fase 1 p2) with no logic change.
+//!
+//! Per-mode decoders live in sibling submodules (fase 1 p3).
+
+pub mod normal;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
