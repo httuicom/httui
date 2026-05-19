@@ -176,3 +176,167 @@ fn handle_file_changed_externally(app: &mut App, path: std::path::PathBuf) {
         format!("reloaded {} from disk", rel.display()),
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::StatusKind;
+    use crate::config::Config;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    /// Same fixture contract as the Lote B sibling modules: `App::new`
+    /// calls `block_in_place`, so every constructing test must run on
+    /// a multi-thread runtime. `body` is written verbatim into
+    /// `note.md`, which `App::new`'s initial-document picker lands on.
+    async fn app_fixture(body: &str) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        std::fs::write(vault.path().join("note.md"), body).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool);
+        (app, data, vault)
+    }
+
+    // ----- handle_file_changed_externally --------------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fce_noop_when_no_active_pane() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        // Drop every tab so `active_pane()` returns `None` → the
+        // first `let-else` guard fires and the fn returns immediately.
+        app.tabs.tabs.clear();
+        handle_file_changed_externally(&mut app, PathBuf::from("/nowhere/note.md"));
+        assert!(app.status_message.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fce_noop_when_active_pane_has_no_path() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        // Clear the focused pane's path → the second `let-else` guard
+        // (`document_path`) fires.
+        if let Some(p) = app.active_pane_mut() {
+            p.document_path = None;
+        }
+        handle_file_changed_externally(&mut app, PathBuf::from("/nowhere/note.md"));
+        assert!(app.status_message.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fce_drops_stale_event_for_a_different_path() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        // The active doc is `note.md`; an event for some other file
+        // is stale (the user switched tabs after the write).
+        handle_file_changed_externally(&mut app, PathBuf::from("/tmp/some-other-file.md"));
+        assert!(app.status_message.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fce_returns_when_disk_read_fails() {
+        let (mut app, _d, vault) = app_fixture("body\n").await;
+        let absolute = vault.path().join("note.md");
+        // Delete the file so `read_note` errors → the `Err(_)` arm
+        // returns without surfacing a status hint.
+        std::fs::remove_file(&absolute).unwrap();
+        handle_file_changed_externally(&mut app, absolute);
+        assert!(app.status_message.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fce_returns_when_pane_has_no_document() {
+        let (mut app, _d, vault) = app_fixture("body\n").await;
+        let absolute = vault.path().join("note.md");
+        // File reads fine, but the pane's `document` is `None` → the
+        // `None => return` arm of the buffer match fires.
+        if let Some(p) = app.active_pane_mut() {
+            p.document = None;
+        }
+        handle_file_changed_externally(&mut app, absolute);
+        assert!(app.status_message.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fce_silently_drops_when_disk_equals_buffer() {
+        let (mut app, _d, vault) = app_fixture("hello world\n").await;
+        let absolute = vault.path().join("note.md");
+        // Write the buffer's *own* canonical markdown back to disk so
+        // `disk == buffer` holds exactly (avoids roundtrip drift) —
+        // this models the watcher firing on our own save.
+        let canonical = app.document().unwrap().to_markdown();
+        std::fs::write(&absolute, &canonical).unwrap();
+        handle_file_changed_externally(&mut app, absolute);
+        assert!(app.status_message.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fce_warns_and_keeps_buffer_when_dirty_and_disk_differs() {
+        let (mut app, _d, vault) = app_fixture("original\n").await;
+        let absolute = vault.path().join("note.md");
+        // Buffer has unsaved edits.
+        app.document_mut().unwrap().mark_dirty();
+        // Disk now differs from the buffer.
+        std::fs::write(&absolute, "external rewrite\n").unwrap();
+        handle_file_changed_externally(&mut app, absolute);
+        let msg = app.status_message.as_ref().expect("status surfaced");
+        assert_eq!(msg.kind, StatusKind::Error);
+        assert!(msg.text.contains(":e!"));
+        // Buffer left untouched (still the original markdown).
+        assert!(app.document().unwrap().to_markdown().contains("original"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fce_reloads_silently_when_clean_and_disk_differs() {
+        let (mut app, _d, vault) = app_fixture("before\n").await;
+        let absolute = vault.path().join("note.md");
+        // Move the viewport so we can assert it resets on reload.
+        if let Some(p) = app.active_pane_mut() {
+            p.viewport_top = 7;
+        }
+        std::fs::write(&absolute, "after the external edit\n").unwrap();
+        handle_file_changed_externally(&mut app, absolute);
+        let msg = app.status_message.as_ref().expect("status surfaced");
+        assert_eq!(msg.kind, StatusKind::Info);
+        assert!(msg.text.contains("reloaded"));
+        assert!(msg.text.contains("note.md"));
+        // New disk content is now in the buffer; viewport reset.
+        assert!(app
+            .document()
+            .unwrap()
+            .to_markdown()
+            .contains("after the external edit"));
+        assert_eq!(app.active_pane().unwrap().viewport_top, 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fce_reloads_a_document_containing_an_executable_fence() {
+        let (mut app, _d, vault) = app_fixture("before\n").await;
+        let absolute = vault.path().join("note.md");
+        // Disk now holds an executable DB fence. `Document::from_markdown`
+        // is infallible (it never returns `Err`), so the reload path
+        // always lands on the success arm — the `Err(e)` arm at
+        // event_loop.rs is unreachable with today's parser. We still
+        // assert the swap happens cleanly through the block-bearing
+        // parse path (no panic, content replaced, Info status).
+        std::fs::write(&absolute, "intro\n\n```db-conn\nSELECT 1\n```\n").unwrap();
+        handle_file_changed_externally(&mut app, absolute);
+        let msg = app.status_message.as_ref().expect("status surfaced");
+        assert_eq!(msg.kind, StatusKind::Info);
+        assert!(app.document().unwrap().to_markdown().contains("SELECT 1"));
+    }
+
+    // ----- run / main_loop are terminal-bound ----------------------------
+    //
+    // `run` calls `terminal::setup` (raw-mode an interactive TTY) and
+    // `EventLoop::start` (a `crossterm::event::EventStream` background
+    // task that needs a real tty). `main_loop` only ever runs *inside*
+    // `run`, driving `terminal.draw` + `events.next()`. Neither can be
+    // exercised from a headless `cargo test` process without a
+    // production refactor to inject the terminal + event stream. Per
+    // the Lote C brief these are NOT refactored here — see the final
+    // report for the seam analysis.
+}
