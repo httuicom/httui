@@ -98,4 +98,35 @@ mod tests {
             t = forward;
         }
     }
+
+    #[test]
+    fn label_returns_db_oriented_names() {
+        // The default (DB) labels read like a query-result viewer.
+        assert_eq!(ResultPanelTab::Result.label(), "Result");
+        assert_eq!(ResultPanelTab::Messages.label(), "Messages");
+        assert_eq!(ResultPanelTab::Plan.label(), "Plan");
+        assert_eq!(ResultPanelTab::Stats.label(), "Stats");
+    }
+
+    #[test]
+    fn label_for_http_repurposes_the_four_slots() {
+        // HTTP reads like the desktop's response viewer: the same
+        // four slots become Body / Headers / Cookies / Stats.
+        assert_eq!(ResultPanelTab::Result.label_for("http"), "Body");
+        assert_eq!(ResultPanelTab::Messages.label_for("http"), "Headers");
+        assert_eq!(ResultPanelTab::Plan.label_for("http"), "Cookies");
+        assert_eq!(ResultPanelTab::Stats.label_for("http"), "Stats");
+    }
+
+    #[test]
+    fn label_for_non_http_falls_back_to_default_label() {
+        // DB and unknown block types fall through to `label()` —
+        // verify both a known (`db-sqlite`) and an arbitrary type.
+        for bt in ["db-sqlite", "db-postgres", "unknown", ""] {
+            assert_eq!(ResultPanelTab::Result.label_for(bt), "Result");
+            assert_eq!(ResultPanelTab::Messages.label_for(bt), "Messages");
+            assert_eq!(ResultPanelTab::Plan.label_for(bt), "Plan");
+            assert_eq!(ResultPanelTab::Stats.label_for(bt), "Stats");
+        }
+    }
 }
