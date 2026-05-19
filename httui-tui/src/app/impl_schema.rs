@@ -102,3 +102,152 @@ impl App {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+    use crate::event::AppEvent;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use sqlx::SqlitePool;
+    use tempfile::TempDir;
+
+    /// Build an `App` over a fresh vault + isolated pool. `App::new`
+    /// calls `block_in_place` → multi-thread runtime required. Returns
+    /// the pool clone too so a test can seed rows on the same DB.
+    async fn app_fixture() -> (App, SqlitePool, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        std::fs::write(vault.path().join("note.md"), "body\n").unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool.clone());
+        (app, pool, data, vault)
+    }
+
+    async fn seed_connection(pool: &SqlitePool, id: &str, name: &str) {
+        sqlx::query(
+            "INSERT INTO connections (id, name, driver, host, port, database_name) \
+             VALUES (?, ?, 'postgres', 'localhost', 5432, 'db')",
+        )
+        .bind(id)
+        .bind(name)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn ensure_schema_loaded_noop_when_already_cached() {
+        let (mut app, _p, _d, _v) = app_fixture().await;
+        app.schema_cache.store("conn-1", Vec::new());
+        // Cached → returns early, never marks pending.
+        app.ensure_schema_loaded("conn-1");
+        assert!(!app.schema_cache.is_pending("conn-1"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn ensure_schema_loaded_noop_when_already_pending() {
+        let (mut app, _p, _d, _v) = app_fixture().await;
+        app.schema_cache.mark_pending("conn-2");
+        app.ensure_schema_loaded("conn-2");
+        // Still pending, no panic, no second spawn.
+        assert!(app.schema_cache.is_pending("conn-2"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn ensure_schema_loaded_noop_without_event_sender() {
+        let (mut app, _p, _d, _v) = app_fixture().await;
+        // No event loop wired (unit-test path) → silent skip, the
+        // connection never gets marked pending.
+        assert!(app.event_sender.is_none());
+        app.ensure_schema_loaded("conn-3");
+        assert!(!app.schema_cache.is_pending("conn-3"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn ensure_schema_loaded_spawns_and_emits_schema_loaded_event() {
+        let (mut app, _p, _d, _v) = app_fixture().await;
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        app.event_sender = Some(tx);
+
+        app.ensure_schema_loaded("missing-conn");
+        // The connection is marked pending the moment the spawn fires.
+        assert!(app.schema_cache.is_pending("missing-conn"));
+
+        // The background task resolves (introspection fails for an
+        // unknown connection) and pushes a `SchemaLoaded` event.
+        let evt = rx.recv().await.expect("SchemaLoaded event");
+        match evt {
+            AppEvent::SchemaLoaded {
+                connection_id,
+                result,
+            } => {
+                assert_eq!(connection_id, "missing-conn");
+                assert!(result.is_err());
+            }
+            other => panic!("expected SchemaLoaded, got {other:?}"),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn on_schema_loaded_ok_stores_grouped_tables_and_clears_pending() {
+        let (mut app, _p, _d, _v) = app_fixture().await;
+        app.schema_cache.mark_pending("c");
+        let entries = vec![httui_core::db::schema_cache::SchemaEntry {
+            schema_name: None,
+            table_name: "users".into(),
+            column_name: "id".into(),
+            data_type: Some("INTEGER".into()),
+        }];
+        app.on_schema_loaded("c".into(), Ok(entries));
+        assert!(!app.schema_cache.is_pending("c"));
+        let cached = app.schema_cache.get("c").expect("cached schema");
+        assert_eq!(cached.tables.len(), 1);
+        assert_eq!(cached.tables[0].name, "users");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn on_schema_loaded_err_sets_status_and_clears_pending() {
+        let (mut app, _p, _d, _v) = app_fixture().await;
+        app.schema_cache.mark_pending("bad");
+        app.on_schema_loaded("bad".into(), Err("boom".into()));
+        assert!(!app.schema_cache.is_pending("bad"));
+        // Cache not poisoned — retry remains possible.
+        assert!(app.schema_cache.get("bad").is_none());
+        let msg = app.status_message.as_ref().expect("status set");
+        assert_eq!(msg.kind, StatusKind::Error);
+        assert!(msg.text.contains("schema introspection failed"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn refresh_connection_names_reloads_from_sqlite() {
+        let (mut app, pool, _d, _v) = app_fixture().await;
+        // Empty at startup (no connections seeded yet).
+        assert!(app.connection_names.is_empty());
+        seed_connection(&pool, "id-1", "prod-db").await;
+        app.refresh_connection_names();
+        assert_eq!(
+            app.connection_names.get("id-1").map(String::as_str),
+            Some("prod-db")
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn refresh_active_env_name_resolves_active_environment() {
+        let (mut app, pool, _d, _v) = app_fixture().await;
+        // No active env at startup.
+        assert_eq!(app.active_env_name, None);
+        let env = httui_core::db::environments::create_environment(&pool, "staging".into())
+            .await
+            .unwrap();
+        httui_core::db::environments::set_active_environment(&pool, Some(&env.id))
+            .await
+            .unwrap();
+        app.refresh_active_env_name();
+        assert_eq!(app.active_env_name.as_deref(), Some("staging"));
+    }
+}
