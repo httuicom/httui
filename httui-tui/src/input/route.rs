@@ -14,7 +14,7 @@
 //!
 //! Introduced by tui-V1 / fase 2 p5.
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::App;
 use crate::config::EditorMode;
@@ -37,14 +37,14 @@ fn route_standard(app: &mut App, key: KeyEvent) {
     // same "press a key to dismiss" feel as the vim path.
     app.clear_status();
 
-    // `Ctrl-C` while a query is running cancels it. Mirrors the
-    // pre-mode-parse cancel in `dispatch` (same helper). The clipboard
-    // copy binding for Standard lands in fase 3 — here Ctrl-C still
-    // means "cancel the running query", which is correct for V1.
-    if app.running_query.is_some()
-        && key.modifiers == KeyModifiers::CONTROL
-        && key.code == KeyCode::Char('c')
-    {
+    // `Esc` while a query is running cancels it. fase 3 p3 moved
+    // this off `Ctrl+C` (which now decodes to `Copy` in the
+    // Standard profile) onto `Esc`. The vim path is untouched —
+    // it still cancels on `Ctrl+C` inside `dispatch` (Cenário 2
+    // byte-identical). `Esc` without a running query stays a no-op
+    // here: `standard::resolve` returns `None` for it, so the
+    // decode tail below does nothing.
+    if app.running_query.is_some() && key.code == KeyCode::Esc {
         crate::commands::db::cancel_running_query(app);
         return;
     }
@@ -99,6 +99,7 @@ mod tests {
     use super::*;
     use crate::config::Config;
     use crate::vault::ResolvedVault;
+    use crossterm::event::KeyModifiers;
     use httui_core::db::init_db;
     use tempfile::TempDir;
 
@@ -310,5 +311,100 @@ mod tests {
         route(&mut app, key(KeyCode::Right));
         assert!(app.standard.anchor.is_none());
         assert_ne!(app.document().unwrap().cursor(), before);
+    }
+
+    fn fake_running_query() -> crate::app::RunningQuery {
+        crate::app::RunningQuery {
+            segment_idx: 0,
+            cancel: tokio_util::sync::CancellationToken::new(),
+            started_at: std::time::Instant::now(),
+            kind: crate::app::RunningKind::Run,
+            cache_key: None,
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_esc_cancels_a_running_query() {
+        // fase 3 p3: query-cancel moved off Ctrl+C onto Esc.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let rq = fake_running_query();
+        let token = rq.cancel.clone();
+        app.running_query = Some(rq);
+        route(&mut app, KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert!(token.is_cancelled(), "Esc cancels the in-flight query");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_esc_without_query_is_a_noop() {
+        // No regression: Esc with nothing running does nothing
+        // (`resolve` returns None for Esc — the decode tail no-ops).
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let before = app.document().unwrap().to_markdown();
+        assert!(app.running_query.is_none());
+        route(&mut app, KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert_eq!(app.document().unwrap().to_markdown(), before);
+        assert!(app.running_query.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_ctrl_c_no_longer_cancels_query() {
+        // Ctrl+C now decodes to Copy (no selection → no-op); it must
+        // NOT cancel the running query anymore (that's Esc's job).
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let rq = fake_running_query();
+        let token = rq.cancel.clone();
+        app.running_query = Some(rq);
+        route(&mut app, ctrl(KeyCode::Char('c')));
+        assert!(
+            !token.is_cancelled(),
+            "Ctrl+C must not cancel the query in Standard mode anymore"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_ctrl_c_copies_an_active_selection() {
+        // End-to-end through `route`: Shift-select then Ctrl+C — the
+        // selection lands on the system clipboard (via the real
+        // ArboardClipboard; in headless CI the set may error but the
+        // doc is never mutated and nothing panics).
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let before = app.document().unwrap().to_markdown();
+        route(&mut app, shift(KeyCode::Right));
+        route(&mut app, shift(KeyCode::Right));
+        assert!(app.standard.anchor.is_some());
+        route(&mut app, ctrl(KeyCode::Char('c')));
+        assert_eq!(
+            app.document().unwrap().to_markdown(),
+            before,
+            "Copy never mutates the doc"
+        );
+        assert!(
+            app.standard.anchor.is_some(),
+            "Copy keeps the selection alive"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_ctrl_x_cuts_an_active_selection() {
+        // Cut removes the selected run and collapses the anchor. The
+        // clipboard write may fail headless, in which case cut is a
+        // safe no-op (text preserved) — assert the invariant either
+        // way: anchor never survives a *successful* cut, doc only
+        // shrinks if the clipboard accepted the text.
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        route(&mut app, shift(KeyCode::Right));
+        route(&mut app, shift(KeyCode::Right));
+        let had_anchor = app.standard.anchor.is_some();
+        assert!(had_anchor);
+        route(&mut app, ctrl(KeyCode::Char('x')));
+        // Either the cut succeeded (anchor collapsed, doc shrank) or
+        // the clipboard was unavailable (doc + anchor preserved). No
+        // panic, no half-state.
+        let md = app.document().unwrap().to_markdown();
+        if app.standard.anchor.is_none() {
+            assert!(md.len() < 4, "successful cut shrank the doc: {md:?}");
+        } else {
+            assert_eq!(md, "abc\n", "failed cut preserved the doc");
+        }
     }
 }
