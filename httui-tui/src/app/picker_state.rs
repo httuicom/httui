@@ -141,3 +141,150 @@ pub struct EnvironmentEntry {
     pub id: String,
     pub name: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn block_template_all_ships_the_v1_set_in_frequency_order() {
+        let all = BlockTemplate::ALL;
+        assert_eq!(all.len(), 3);
+        assert_eq!(all[0].label, "HTTP GET");
+        assert_eq!(all[1].label, "HTTP POST (JSON)");
+        assert_eq!(all[2].label, "SQLite Query");
+    }
+
+    #[test]
+    fn block_template_texts_are_valid_fences_that_parse_to_blocks() {
+        // Every template's `text` must round-trip through the parser
+        // into a single Block segment — otherwise `gN` would splice
+        // prose that never gets promoted.
+        for tpl in BlockTemplate::ALL {
+            let doc = crate::buffer::Document::from_markdown(tpl.text)
+                .unwrap_or_else(|_| panic!("template {:?} should parse", tpl.label));
+            let blocks = doc.segments().iter().filter(|s| s.is_block()).count();
+            assert_eq!(blocks, 1, "template {:?} -> one block", tpl.label);
+        }
+        // Spot-check the fence kinds.
+        assert!(BlockTemplate::ALL[0].text.starts_with("```http"));
+        assert!(BlockTemplate::ALL[2].text.starts_with("```db-sqlite"));
+    }
+
+    #[test]
+    fn block_template_is_copy_and_debug() {
+        let t = BlockTemplate::ALL[0];
+        let copied = t; // Copy — `t` stays usable below.
+        assert_eq!(copied.label, "HTTP GET");
+        assert_eq!(t.text, copied.text);
+        // Debug is derived — keep it covered.
+        assert!(format!("{t:?}").contains("HTTP GET"));
+    }
+
+    #[test]
+    fn block_template_picker_state_new_starts_at_zero() {
+        let s = BlockTemplatePickerState::new();
+        assert_eq!(s.selected, 0);
+    }
+
+    #[test]
+    fn block_template_picker_state_default_matches_new() {
+        let d = BlockTemplatePickerState::default();
+        assert_eq!(d.selected, BlockTemplatePickerState::new().selected);
+    }
+
+    #[test]
+    fn connection_picker_state_holds_anchor_and_entries() {
+        let state = ConnectionPickerState {
+            segment_idx: 4,
+            connections: vec![
+                ConnectionEntry {
+                    id: "c1".into(),
+                    name: "Local PG".into(),
+                    kind: "postgres".into(),
+                },
+                ConnectionEntry {
+                    id: "c2".into(),
+                    name: "SQLite".into(),
+                    kind: "sqlite".into(),
+                },
+            ],
+            selected: 1,
+        };
+        assert_eq!(state.segment_idx, 4);
+        assert_eq!(state.connections.len(), 2);
+        let chosen = &state.connections[state.selected];
+        assert_eq!(chosen.id, "c2");
+        assert_eq!(chosen.name, "SQLite");
+        assert_eq!(chosen.kind, "sqlite");
+        // Debug + Clone are derived — exercise them so the derives
+        // stay covered.
+        let cloned = chosen.clone();
+        assert!(format!("{cloned:?}").contains("SQLite"));
+    }
+
+    #[test]
+    fn tab_picker_state_entry_carries_back_pointer_and_dirty_flag() {
+        let state = TabPickerState {
+            entries: vec![
+                TabPickerEntry {
+                    idx: 0,
+                    label: "a.md".into(),
+                    dirty: false,
+                },
+                TabPickerEntry {
+                    idx: 1,
+                    label: "(no file)".into(),
+                    dirty: true,
+                },
+            ],
+            selected: 1,
+        };
+        let row = &state.entries[state.selected];
+        assert_eq!(row.idx, 1);
+        assert_eq!(row.label, "(no file)");
+        assert!(row.dirty);
+        assert!(format!("{:?}", row.clone()).contains("no file"));
+    }
+
+    #[test]
+    fn last_run_anchor_records_path_segment_and_alias() {
+        let a = LastRunAnchor {
+            file_path: std::path::PathBuf::from("/v/notes.md"),
+            segment_idx: 7,
+            alias: Some("req1".into()),
+        };
+        assert_eq!(a.segment_idx, 7);
+        assert_eq!(a.alias.as_deref(), Some("req1"));
+        let cloned = a.clone();
+        assert_eq!(cloned.file_path, std::path::PathBuf::from("/v/notes.md"));
+        assert!(format!("{cloned:?}").contains("req1"));
+    }
+
+    #[test]
+    fn environment_picker_state_marks_active_row() {
+        let state = EnvironmentPickerState {
+            entries: vec![
+                EnvironmentEntry {
+                    id: "e1".into(),
+                    name: "dev".into(),
+                },
+                EnvironmentEntry {
+                    id: "e2".into(),
+                    name: "prod".into(),
+                },
+            ],
+            selected: 0,
+            active_id: Some("e2".into()),
+        };
+        assert_eq!(state.entries.len(), 2);
+        assert_eq!(state.active_id.as_deref(), Some("e2"));
+        let active = state
+            .entries
+            .iter()
+            .find(|e| Some(&e.id) == state.active_id.as_ref())
+            .unwrap();
+        assert_eq!(active.name, "prod");
+        assert!(format!("{:?}", active.clone()).contains("prod"));
+    }
+}
