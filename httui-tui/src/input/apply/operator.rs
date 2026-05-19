@@ -4,6 +4,7 @@
 
 use crate::app::{App, StatusKind};
 use crate::buffer::{Cursor, Segment};
+use crate::input::action::Action;
 use crate::input::block_swap::InBlockSwap;
 use crate::input::types::{InsertPos, Motion, Operator, PastePos, TextObject};
 use crate::vim::change::{ChangeOrigin, ChangeRecord};
@@ -502,5 +503,56 @@ pub(crate) fn return_from_visual(app: &mut App) {
         app.vim.reset_pending();
     } else {
         app.vim.enter_normal();
+    }
+}
+
+/// `apply_action` sub-match for the visual / operator / paste domain.
+/// Mechanically split out of the `apply_action` router in
+/// `vim/dispatch.rs` (tui-v2 vertical 1, fase 1 p6d) — arm bodies
+/// copied verbatim (including the `recording` plumbing). The outer
+/// router routes only this group's variants here, so the
+/// `unreachable!` is a compile-time-backed invariant.
+pub(crate) fn apply_operator(app: &mut App, action: Action, recording: bool) {
+    match action {
+        Action::EnterVisual => {
+            if let Some(doc) = app.document() {
+                let cur = doc.cursor();
+                app.vim.enter_visual(cur);
+            }
+        }
+        Action::EnterVisualLine => {
+            if let Some(doc) = app.document() {
+                let cur = doc.cursor();
+                app.vim.enter_visual_line(cur);
+            }
+        }
+        Action::ExitVisual => {
+            return_from_visual(app);
+        }
+        Action::VisualSwap => {
+            if let (Some(anchor), Some(doc)) = (app.vim.visual_anchor, app.document_mut()) {
+                let cur = doc.cursor();
+                doc.set_cursor(anchor);
+                app.vim.visual_anchor = Some(cur);
+                app.refresh_viewport_for_cursor();
+            }
+        }
+        Action::VisualOperator(op) => apply_visual_operator(app, op, recording),
+        Action::VisualSelectTextObject(textobj) => {
+            apply_visual_select_textobject(app, textobj);
+        }
+        Action::OperatorMotion(op, motion, count) => {
+            apply_op_motion(app, op, motion, count, recording);
+        }
+        Action::OperatorLinewise(op, count) => {
+            apply_op_linewise(app, op, count, recording);
+        }
+        Action::OperatorTextObject(op, textobj, count) => {
+            apply_op_textobject(app, op, textobj, count, recording);
+        }
+        Action::Paste(pos, count) => {
+            apply_paste(app, pos, count, recording);
+        }
+        _ => unreachable!("apply_operator: variante fora do grupo"),
     }
 }

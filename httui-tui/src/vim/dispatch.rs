@@ -191,32 +191,13 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
             app.vim.insert_session.start_plain(pos);
             app.refresh_viewport_for_cursor();
         }
-        Action::EnterVisual => {
-            if let Some(doc) = app.document() {
-                let cur = doc.cursor();
-                app.vim.enter_visual(cur);
-            }
-        }
-        Action::EnterVisualLine => {
-            if let Some(doc) = app.document() {
-                let cur = doc.cursor();
-                app.vim.enter_visual_line(cur);
-            }
-        }
-        Action::ExitVisual => {
-            return_from_visual(app);
-        }
-        Action::VisualSwap => {
-            if let (Some(anchor), Some(doc)) = (app.vim.visual_anchor, app.document_mut()) {
-                let cur = doc.cursor();
-                doc.set_cursor(anchor);
-                app.vim.visual_anchor = Some(cur);
-                app.refresh_viewport_for_cursor();
-            }
-        }
-        Action::VisualOperator(op) => apply_visual_operator(app, op, recording),
-        Action::VisualSelectTextObject(textobj) => {
-            apply_visual_select_textobject(app, textobj);
+        Action::EnterVisual
+        | Action::EnterVisualLine
+        | Action::ExitVisual
+        | Action::VisualSwap
+        | Action::VisualOperator(_)
+        | Action::VisualSelectTextObject(_) => {
+            crate::input::apply::operator::apply_operator(app, action, recording)
         }
         Action::RunBlock => crate::commands::db::apply_run_block(app),
         Action::OpenDbRowDetail
@@ -480,17 +461,11 @@ fn apply_action(app: &mut App, action: Action, recording: bool) {
                 ExResult::Empty | ExResult::Quit => {}
             }
         }
-        Action::OperatorMotion(op, motion, count) => {
-            apply_op_motion(app, op, motion, count, recording);
-        }
-        Action::OperatorLinewise(op, count) => {
-            apply_op_linewise(app, op, count, recording);
-        }
-        Action::OperatorTextObject(op, textobj, count) => {
-            apply_op_textobject(app, op, textobj, count, recording);
-        }
-        Action::Paste(pos, count) => {
-            apply_paste(app, pos, count, recording);
+        Action::OperatorMotion(..)
+        | Action::OperatorLinewise(..)
+        | Action::OperatorTextObject(..)
+        | Action::Paste(..) => {
+            crate::input::apply::operator::apply_operator(app, action, recording)
         }
         Action::Undo => {
             if let Some(doc) = app.document_mut() {
@@ -851,12 +826,12 @@ pub(crate) use crate::input::apply::navigation::{
 };
 
 // operator / paste / visual-operator appliers moved to
-// `crate::input::apply::operator` (fase 1 p5b). Re-exported so the
-// untouched `apply_action` router + the `replay_*` helpers keep
-// resolving them via their bare call sites.
+// `crate::input::apply::operator` (fase 1 p5b). The visual/operator
+// arms are now reached via the `apply_action` operator group
+// (`apply_operator`, fase 1 p6d); only the four the `replay_*` helpers
+// still call by bare name stay re-exported here.
 pub(crate) use crate::input::apply::operator::{
-    apply_op_linewise, apply_op_motion, apply_op_textobject, apply_paste, apply_visual_operator,
-    apply_visual_select_textobject, return_from_visual,
+    apply_op_linewise, apply_op_motion, apply_op_textobject, apply_paste,
 };
 
 // ───────────── block execution (`r` in normal) ─────────────
