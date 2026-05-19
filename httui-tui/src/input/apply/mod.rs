@@ -4,5 +4,6 @@
 //! until p6 (owner decision); these submodules hold the per-domain
 //! helpers it delegates to.
 
+pub mod completion;
 pub mod operator;
 pub mod window;
