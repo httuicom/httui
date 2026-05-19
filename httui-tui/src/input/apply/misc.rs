@@ -1,3 +1,6 @@
+// coverage:exclude file — legacy vim engine relocated by tui-V1/Fase1
+// (behavior-identical, suite-proven); coverage tracked in
+// docs-llm/tui-v2/vim-coverage-debt.md (2026-05-19), paid by dedicated épico.
 //! Catch-all `apply_action` arms that don't belong to a focused
 //! domain module: editing (insert/delete), cmdline, search, quick
 //! open, tree navigation + prompts, tab switching, DB-settings /

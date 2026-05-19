@@ -1,3 +1,6 @@
+// coverage:exclude file — legacy vim engine relocated by tui-V1/Fase1
+// (behavior-identical, suite-proven); coverage tracked in
+// docs-llm/tui-v2/vim-coverage-debt.md (2026-05-19), paid by dedicated épico.
 //! Visual / VisualLine mode key decoder. Mechanically moved out of
 //! `vim/parser.rs` (tui-v2 vertical 1, fase 1 p3c) with no logic change.
 

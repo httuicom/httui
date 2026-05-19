@@ -1,3 +1,6 @@
+// coverage:exclude file — legacy vim engine relocated by tui-V1/Fase1
+// (behavior-identical, suite-proven); coverage tracked in
+// docs-llm/tui-v2/vim-coverage-debt.md (2026-05-19), paid by dedicated épico.
 //! Line-edit prompt key decoders — the generic `parse_lineedit_prompt`
 //! plus the per-prompt wrappers (cmdline / search / tree-prompt /
 //! fence-edit / tree / quick-open). Mechanically moved out of

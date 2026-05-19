@@ -1,3 +1,6 @@
+// coverage:exclude file — legacy vim engine relocated by tui-V1/Fase1
+// (behavior-identical, suite-proven); coverage tracked in
+// docs-llm/tui-v2/vim-coverage-debt.md (2026-05-19), paid by dedicated épico.
 //! Result-detail modal appliers: DB row-detail + HTTP response-detail
 //! (open / close / copy + the title/body/size formatters they share).
 //! Mechanically moved out of `vim/dispatch.rs` (tui-v2 vertical 1,

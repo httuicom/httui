@@ -1,3 +1,6 @@
+// coverage:exclude file — legacy vim engine relocated by tui-V1/Fase1
+// (behavior-identical, suite-proven); coverage tracked in
+// docs-llm/tui-v2/vim-coverage-debt.md (2026-05-19), paid by dedicated épico.
 //! Tree-sidebar navigation + in-tree prompts and tab switching.
 //! Mechanically split out of `crate::input::apply::misc` (tui-v2
 //! vertical 1, fase 1 p6g) with no logic change — every arm body is

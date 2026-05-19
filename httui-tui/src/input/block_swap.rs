@@ -1,3 +1,6 @@
+// coverage:exclude file — legacy vim engine relocated by tui-V1/Fase1
+// (behavior-identical, suite-proven); coverage tracked in
+// docs-llm/tui-v2/vim-coverage-debt.md (2026-05-19), paid by dedicated épico.
 //! Block-as-prose swap — RAII guard that temporarily promotes the
 //! cursor's executable block to a Prose segment so the operator engine
 //! can edit the fence as plain text, then rebuilds it on `exit`.
