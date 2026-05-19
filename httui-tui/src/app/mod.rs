@@ -20,6 +20,7 @@ use crate::vim::VimState;
 // fase 2). Each submodule is a pure code move — no behavior change.
 // The blanket `pub use` re-exports keep every `crate::app::*` call
 // site resolving without edits.
+mod autosave;
 mod event_loop;
 mod helpers;
 mod impl_accessors;
