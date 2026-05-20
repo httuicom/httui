@@ -37,7 +37,16 @@ pub fn resolve(key: KeyEvent) -> Option<Action> {
     // (route lost the race) returning `Action::ToggleEditorMode`
     // would still be the right semantic answer.
     if let Some(action) = crate::input::map::lookup_standard(key) {
-        return Some(action);
+        // tui-V2 vertical 2 / cenário 4: the data-driven map still
+        // emits the generic `DeleteBackward` (shared with vim). Rewrite
+        // it to the Standard-specific `DeleteBackwardStandard` so the
+        // segment-boundary path routes to `apply::standard_delete`
+        // instead of the legacy in-segment applier. The vim profile is
+        // untouched (it never calls `standard::resolve`).
+        return Some(match action {
+            Action::DeleteBackward => Action::DeleteBackwardStandard,
+            other => other,
+        });
     }
 
     // tui-V2 vertical 2: `/` in Standard is a context-aware
@@ -154,8 +163,16 @@ mod tests {
 
     #[test]
     fn enter_backspace_delete_edit_text() {
+        // Backspace decodes to the Standard-specific variant since
+        // tui-V2 vertical 2 / cenário 4 — the resolver rewrites the
+        // map's generic `DeleteBackward` so segment-boundary handling
+        // can route to `apply::standard_delete`. Vim's path keeps the
+        // generic variant; it never calls `resolve`.
         assert_eq!(resolve(k(KeyCode::Enter)), Some(Action::InsertNewline));
-        assert_eq!(resolve(k(KeyCode::Backspace)), Some(Action::DeleteBackward));
+        assert_eq!(
+            resolve(k(KeyCode::Backspace)),
+            Some(Action::DeleteBackwardStandard)
+        );
         assert_eq!(resolve(k(KeyCode::Delete)), Some(Action::DeleteForward));
     }
 

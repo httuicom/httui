@@ -72,7 +72,12 @@ pub(crate) fn maybe_snapshot(app: &mut App, action: &Action) {
             }
             // else: coalesce — same group, no snapshot.
         }
-        Action::DeleteBackward | Action::DeleteForward => {
+        Action::DeleteBackward | Action::DeleteBackwardStandard | Action::DeleteForward => {
+            // tui-V2 vertical 2 / cenário 4: `DeleteBackwardStandard`
+            // shares the Delete undo group with the legacy variants so
+            // a run of Backspaces (including ones that cross segment
+            // boundaries via `apply::standard_delete`) coalesces into
+            // one undo step.
             if app.standard.edit_group != Some(EditGroupKind::Delete) {
                 if let Some(doc) = app.document_mut() {
                     doc.snapshot();

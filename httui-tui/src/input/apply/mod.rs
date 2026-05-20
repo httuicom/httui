@@ -13,6 +13,10 @@ pub mod replay;
 /// Standard-mode `/` slash-trigger applier — a fresh, fully-covered
 /// module (NOT `coverage:exclude`). Added by tui-V2 / vertical 2.
 pub mod slash;
+/// Standard-mode Backspace applier with cross-segment boundary
+/// semantics — a fresh, fully-covered module (NOT `coverage:exclude`).
+/// Added by tui-V2 / vertical 2 / cenário 4.
+pub mod standard_delete;
 /// Standard-mode (non-modal) selection + clipboard handlers — a
 /// fresh, fully-covered module (NOT `coverage:exclude`, unlike the
 /// mechanically-relocated legacy groups). Added by tui-V1 / fase 3.

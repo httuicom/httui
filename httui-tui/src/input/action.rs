@@ -368,6 +368,22 @@ pub enum Action {
     /// is taken by vim's "find next match" motion, so the new-block
     /// chord uses capital N.
     OpenBlockTemplatePicker,
+    /// Standard-mode Backspace. Decoded by `input::standard::resolve`
+    /// (the lookup_standard table returns the generic `DeleteBackward`,
+    /// which the resolver rewrites to this variant for the Standard
+    /// profile). Vim's `Backspace` continues to decode as
+    /// `DeleteBackward` and routes through the legacy applier
+    /// unchanged.
+    ///
+    /// The applier (`apply::standard_delete`) handles segment-boundary
+    /// crossing as plain text: when `offset == 0` the keystroke walks
+    /// into the previous segment and deletes its last char from there
+    /// (rope-flat semantics, per V2 decision). If the deletion makes a
+    /// block's `raw` unparseable, the block is demoted to a `Prose`
+    /// segment so the renderer shows the text instead of an
+    /// inconsistent block widget. Added by tui-V2 / vertical 2
+    /// (cenário 4).
+    DeleteBackwardStandard,
     /// Standard-mode `/` key. Context-aware in `apply/slash.rs`:
     /// in prose, inserts `/` and opens the block-template picker
     /// (paridade com slash-commands do desktop); in a block / block
