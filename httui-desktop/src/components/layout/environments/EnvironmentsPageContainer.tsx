@@ -14,7 +14,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { useConfigChangeRefresh } from "@/hooks/useConfigChangeRefresh";
 
 import { useEnvironmentStore } from "@/stores/environment";
 import { listEnvVariables, type Environment } from "@/lib/tauri/commands";
@@ -104,26 +104,7 @@ export function EnvironmentsPageContainer({
     void refreshEnvs();
   }, [refreshEnvs]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | null = null;
-    void (async () => {
-      const fn = await listen<{ category: string }>("config-changed", (e) => {
-        if (e.payload.category === "environment") {
-          void refreshEnvs();
-        }
-      });
-      if (cancelled) {
-        fn();
-      } else {
-        unlisten = fn;
-      }
-    })();
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [refreshEnvs]);
+  useConfigChangeRefresh("environment", refreshEnvs);
 
   // Load varCount + secretCount per env in parallel, then assemble
   // summaries.

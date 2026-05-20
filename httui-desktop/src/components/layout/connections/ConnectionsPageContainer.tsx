@@ -6,7 +6,7 @@
 // don't invent a workspace tab to host it.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { useConfigChangeRefresh } from "@/hooks/useConfigChangeRefresh";
 
 import {
   createConnection,
@@ -57,30 +57,10 @@ export function ConnectionsPageContainer({
   }, [reload]);
 
   // react to external `connections.toml` edits via the file watcher.
-  // Backend emits `config-changed` with
-  // `category: "connections"` whenever the file (or its `.local`
-  // sibling) changes; we just trigger a reload — store handles
-  // dedup against in-flight UI mutations.
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | null = null;
-    void (async () => {
-      const fn = await listen<{ category: string }>("config-changed", (e) => {
-        if (e.payload.category === "connections") {
-          void reload();
-        }
-      });
-      if (cancelled) {
-        fn();
-      } else {
-        unlisten = fn;
-      }
-    })();
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [reload]);
+  // Backend emits `config-changed` (category "connections") when the
+  // file or its `.local` sibling changes on disk → reload (the store
+  // dedups against in-flight UI mutations).
+  useConfigChangeRefresh("connections", reload);
 
   // Pre-fetch schema + usages on selection change so the detail
   // panel renders without an extra click. Backend grep is fast and

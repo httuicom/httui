@@ -70,8 +70,9 @@ export function toCurl(parsed: HttpMessageParsed): string {
 
 // ─────────────────────── fetch (JavaScript) ───────────────────────
 
-/** Quote a string as a single-quoted JS literal. */
-function jsString(s: string): string {
+/** Quote a string as a single-quoted, backslash-escaped literal.
+ *  Valid for both JS and Python single-quoted string literals. */
+function backslashQuote(s: string): string {
   return `'${s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n")}'`;
 }
 
@@ -79,17 +80,17 @@ export function toFetch(parsed: HttpMessageParsed): string {
   const url = buildUrlWithQuery(parsed);
   const headers = enabledKV(parsed.headers);
   const lines: string[] = [];
-  lines.push(`await fetch(${jsString(url)}, {`);
-  lines.push(`  method: ${jsString(parsed.method)},`);
+  lines.push(`await fetch(${backslashQuote(url)}, {`);
+  lines.push(`  method: ${backslashQuote(parsed.method)},`);
   if (headers.length > 0) {
     lines.push(`  headers: {`);
     for (const h of headers) {
-      lines.push(`    ${jsString(h.key)}: ${jsString(h.value)},`);
+      lines.push(`    ${backslashQuote(h.key)}: ${backslashQuote(h.value)},`);
     }
     lines.push(`  },`);
   }
   if (methodHasBody(parsed.method, parsed.body)) {
-    lines.push(`  body: ${jsString(parsed.body)},`);
+    lines.push(`  body: ${backslashQuote(parsed.body)},`);
   }
   lines.push(`});`);
   return lines.join("\n");
@@ -97,23 +98,20 @@ export function toFetch(parsed: HttpMessageParsed): string {
 
 // ─────────────────────── Python requests ───────────────────────
 
-/** Quote as a Python single-quoted string. */
-function pyString(s: string): string {
-  return `'${s.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n")}'`;
-}
-
 export function toPython(parsed: HttpMessageParsed): string {
   const lines: string[] = [];
   lines.push("import requests");
   lines.push("");
   const fnName = parsed.method.toLowerCase();
   lines.push(`response = requests.${fnName}(`);
-  lines.push(`    ${pyString(parsed.url)},`);
+  lines.push(`    ${backslashQuote(parsed.url)},`);
   const params = enabledKV(parsed.params);
   if (params.length > 0) {
     lines.push(`    params={`);
     for (const p of params) {
-      lines.push(`        ${pyString(p.key)}: ${pyString(p.value)},`);
+      lines.push(
+        `        ${backslashQuote(p.key)}: ${backslashQuote(p.value)},`,
+      );
     }
     lines.push(`    },`);
   }
@@ -121,12 +119,14 @@ export function toPython(parsed: HttpMessageParsed): string {
   if (headers.length > 0) {
     lines.push(`    headers={`);
     for (const h of headers) {
-      lines.push(`        ${pyString(h.key)}: ${pyString(h.value)},`);
+      lines.push(
+        `        ${backslashQuote(h.key)}: ${backslashQuote(h.value)},`,
+      );
     }
     lines.push(`    },`);
   }
   if (methodHasBody(parsed.method, parsed.body)) {
-    lines.push(`    data=${pyString(parsed.body)},`);
+    lines.push(`    data=${backslashQuote(parsed.body)},`);
   }
   lines.push(`)`);
   return lines.join("\n");
