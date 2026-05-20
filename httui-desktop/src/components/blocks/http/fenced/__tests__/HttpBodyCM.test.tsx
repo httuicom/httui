@@ -26,7 +26,7 @@ vi.mock("@uiw/react-codemirror", () => ({
 import {
   HttpBodyCM,
   looksLikeJsonBody,
-} from "@/components/blocks/http/fenced/HttpFencedPanel";
+} from "@/components/blocks/http/fenced/HttpInlineEditors";
 
 beforeEach(() => {
   recordedExtensions.length = 0;
