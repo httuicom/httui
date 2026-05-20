@@ -81,7 +81,7 @@ import {
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { syntaxHighlighting } from "@codemirror/language";
 import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
@@ -250,31 +250,51 @@ const HttpInlineCM = memo(function HttpInlineCM({
   );
 });
 
-/**
- * Multi-line CodeMirror for the body in form mode. Adds JSON highlight
- * when the body looks like JSON, plus `{{ref}}` highlight + autocomplete.
- */
-const HttpBodyCM = memo(function HttpBodyCM({
-  value,
-  onCommit,
-  refsGetters,
-}: {
+/** A body is JSON-highlightable when its first non-space char is { or [. */
+export function looksLikeJsonBody(body: string): boolean {
+  const t = body.trimStart();
+  return t.startsWith("{") || t.startsWith("[");
+}
+
+export interface BodyCMProps {
   value: string;
   onCommit: (next: string) => void;
   refsGetters?: {
     getBlocks: () => BlockContext[];
     getEnvKeys: () => (string | EnvKeyInfo)[];
   };
-}) {
+}
+
+/**
+ * Multi-line CodeMirror for the body in form mode. Adds JSON highlight
+ * when the body looks like JSON, plus `{{ref}}` highlight + autocomplete.
+ *
+ * JSON highlight lives in a Compartment instead of being baked into the
+ * memoized `extensions` array: keying the memo on `value` rebuilt the
+ * whole extension set on every commit-on-blur (`onCommit` makes the
+ * parent re-emit `value`), reconfiguring the editor and causing the
+ * visible flash the draft/commit-on-blur indirection exists to avoid.
+ * The extension array is now stable; only the JSON language
+ * reconfigures, and only when the body's JSON-ness actually flips.
+ */
+export const HttpBodyCM = memo(function HttpBodyCM({
+  value,
+  onCommit,
+  refsGetters,
+}: BodyCMProps) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
 
+  const jsonCompartment = useMemo(() => new Compartment(), []);
+  const viewRef = useRef<EditorView | null>(null);
+
   const extensions = useMemo(() => {
-    const exts = [cmBodyTheme, cmTransparentBg, ...referenceHighlight];
-    const trimmed = value.trimStart();
-    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-      exts.push(json());
-    }
+    const exts: Extension[] = [
+      cmBodyTheme,
+      cmTransparentBg,
+      ...referenceHighlight,
+      jsonCompartment.of([]),
+    ];
     if (refsGetters) {
       exts.push(
         createReferenceAutocomplete(
@@ -284,7 +304,17 @@ const HttpBodyCM = memo(function HttpBodyCM({
       );
     }
     return exts;
-  }, [refsGetters, value]);
+  }, [refsGetters, jsonCompartment]);
+
+  // Drive JSON highlight off the live draft, applied through the
+  // compartment so the editor is not reconfigured and the dispatch only
+  // fires when the JSON-ness flips.
+  const isJson = looksLikeJsonBody(draft);
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: jsonCompartment.reconfigure(isJson ? json() : []),
+    });
+  }, [isJson, jsonCompartment]);
 
   return (
     <Box
@@ -299,6 +329,9 @@ const HttpBodyCM = memo(function HttpBodyCM({
         onChange={(v) => setDraft(v)}
         onBlur={() => {
           if (draft !== value) onCommit(draft);
+        }}
+        onCreateEditor={(view) => {
+          viewRef.current = view;
         }}
         extensions={extensions}
         basicSetup={{

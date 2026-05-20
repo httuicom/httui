@@ -17,6 +17,7 @@ import { createDocHeaderExtension } from "@/lib/codemirror/cm-doc-header";
 import { useEnvironmentStore } from "@/stores/environment";
 import { BlockContextProvider } from "@/components/blocks/BlockContext";
 import {
+  activeEditorTracker,
   registerActiveEditor,
   unregisterActiveEditor,
 } from "@/lib/codemirror/active-editor";
@@ -91,8 +92,8 @@ export function MarkdownEditor({
   // render; the file path also keys the outer <CodeMirror key={filePath}>
   // so a new file mount produces a fresh closure naturally.
   const extensions = useMemo(
-    () =>
-      buildExtensions({
+    () => [
+      ...buildExtensions({
         filePath,
         entriesRef,
         handleFileSelectRef,
@@ -100,6 +101,11 @@ export function MarkdownEditor({
         getActiveVariables: () =>
           useEnvironmentStore.getState().getActiveVariables(),
       }),
+      // Focus/destroy-driven active-editor registry. CM owns the
+      // listener lifecycle (auto-removed on view destroy), so there is
+      // no manual addEventListener to leak.
+      activeEditorTracker(),
+    ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -113,18 +119,12 @@ export function MarkdownEditor({
           effects: vimCompartment.reconfigure(vim()),
         });
       }
-      // Register as the active editor so out-of-editor components
-      // (schema panel, etc.) can dispatch edits into the currently-
-      // focused pane. Focus wins here: the last-focused editor is
-      // authoritative.
-      const onFocus = () => registerActiveEditor(view);
-      const onBlur = () => unregisterActiveEditor(view);
-      view.dom.addEventListener("focusin", onFocus);
-      view.dom.addEventListener("focusout", onBlur);
-      // Seed as active immediately — queueMicrotask below will focus
-      // it, but the first `focusin` fires before we've attached the
-      // listener above when there's only one pane, so re-registering
-      // here avoids losing the first registration to the race.
+      // Focus/blur are tracked by the `activeEditorTracker()` extension
+      // (CM-owned listener lifecycle — no manual addEventListener to
+      // leak). Seed as active immediately so this editor is
+      // authoritative before the first focus event: queueMicrotask
+      // focuses it, but with a single pane the first `focusin` can fire
+      // before the extension's handler runs.
       registerActiveEditor(view);
       queueMicrotask(() => view.focus());
     },

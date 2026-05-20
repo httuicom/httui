@@ -102,6 +102,9 @@ export interface NewConnectionModalProps {
   mode?: "create" | "edit";
   /** When in edit mode, used in the title (e.g. "Edit connection: payments-db"). */
   editingName?: string;
+  /** Save/IPC failure message. Rendered as an alert above the footer;
+   * the consumer keeps the modal open so the user can retry. */
+  error?: string | null;
 }
 
 export function NewConnectionModal({
@@ -119,6 +122,7 @@ export function NewConnectionModal({
   supportedKinds,
   mode = "create",
   editingName,
+  error,
 }: NewConnectionModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const [internalKind, setInternalKind] = useState<ConnectionKind>(initialKind);
@@ -239,6 +243,8 @@ export function NewConnectionModal({
                     <TabPlaceholder tab={effectiveTab} />
                   )}
                 </Box>
+
+                <ErrorBanner message={error} />
 
                 <ModalFooter
                   saveDisabled={saveDisabled}
@@ -430,5 +436,23 @@ function TabPlaceholder({ tab }: { tab: NewConnectionTabId }) {
     >
       Tab “{label}” content coming soon.
     </Box>
+  );
+}
+
+function ErrorBanner({ message }: { message?: string | null }) {
+  if (!message) return null;
+  return (
+    <Text
+      data-testid="new-connection-error"
+      role="alert"
+      px={5}
+      py={2}
+      fontSize="12px"
+      color="red.fg"
+      borderTopWidth="1px"
+      borderTopColor="border"
+    >
+      {message}
+    </Text>
   );
 }

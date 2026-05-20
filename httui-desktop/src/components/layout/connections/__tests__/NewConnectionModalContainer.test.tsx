@@ -118,6 +118,84 @@ describe("NewConnectionModalContainer", () => {
     expect(closed).toBe(true);
   });
 
+  it("surfaces a createConnection IPC failure and keeps the modal open", async () => {
+    let closed = false;
+    let created = false;
+    mockTauriCommand("create_connection", () => {
+      throw new Error("connection refused");
+    });
+    renderWithProviders(
+      <NewConnectionModalContainer
+        open={true}
+        onClose={() => {
+          closed = true;
+        }}
+        onCreated={() => {
+          created = true;
+        }}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByTestId("new-connection-field-name"),
+      "payments-db",
+    );
+    await user.click(screen.getByTestId("new-connection-save"));
+
+    const alert = await screen.findByTestId("new-connection-error");
+    expect(alert.textContent).toContain("connection refused");
+    // The failure must not silently close the modal or report success.
+    expect(created).toBe(false);
+    expect(closed).toBe(false);
+    expect(screen.getByTestId("new-connection-modal")).toBeTruthy();
+  });
+
+  it("clears the error and closes once a retried save succeeds", async () => {
+    let closed = false;
+    let fail = true;
+    mockTauriCommand("create_connection", (args: unknown) => {
+      if (fail) throw new Error("connection refused");
+      captured = args as CapturedCreate;
+      return {
+        id: "x",
+        name: "x",
+        driver: "postgres",
+        host: null,
+        port: null,
+        database_name: null,
+        username: null,
+        has_password: false,
+        ssl_mode: null,
+        timeout_ms: 0,
+        query_timeout_ms: 0,
+        ttl_seconds: 0,
+        max_pool_size: 0,
+        is_readonly: false,
+        last_tested_at: null,
+        created_at: "",
+        updated_at: "",
+      };
+    });
+    renderWithProviders(
+      <NewConnectionModalContainer
+        open={true}
+        onClose={() => {
+          closed = true;
+        }}
+        onCreated={() => {}}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.type(screen.getByTestId("new-connection-field-name"), "db");
+    await user.click(screen.getByTestId("new-connection-save"));
+    expect(await screen.findByTestId("new-connection-error")).toBeTruthy();
+
+    fail = false;
+    await user.click(screen.getByTestId("new-connection-save"));
+    expect(screen.queryByTestId("new-connection-error")).toBeNull();
+    expect(closed).toBe(true);
+  });
+
   it("Cancel calls onClose without dispatching createConnection", async () => {
     let closed = false;
     renderWithProviders(

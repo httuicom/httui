@@ -48,6 +48,50 @@ const SUPPORTED_DRIVERS: ReadonlySet<ConnectionKind> = new Set(
   SUPPORTED_NEW_CONNECTION_KINDS,
 );
 
+// Edit path: only send fields that make shape sense; password is sent
+// only when the user actually typed something (otherwise the keychain
+// value stays).
+function buildUpdateInput(
+  form: PostgresFormValue,
+  ssl: SslFormValue,
+): UpdateConnectionInput {
+  const portNum = Number(form.port);
+  const update: UpdateConnectionInput = {
+    host: form.host.trim() || undefined,
+    port: Number.isFinite(portNum) && portNum > 0 ? portNum : undefined,
+    database_name: form.database.trim() || undefined,
+    username: form.username.trim() || undefined,
+    ssl_mode: ssl.mode || undefined,
+  };
+  if (form.password.length > 0) update.password = form.password;
+  return update;
+}
+
+function buildCreateInput(
+  kind: ConnectionKind,
+  form: PostgresFormValue,
+  ssl: SslFormValue,
+): CreateConnectionInput {
+  if (kind === "sqlite") {
+    return {
+      name: form.name.trim(),
+      driver: "sqlite",
+      database_name: form.database.trim() || undefined,
+    };
+  }
+  const portNum = Number(form.port);
+  return {
+    name: form.name.trim(),
+    driver: kind as "postgres" | "mysql",
+    host: form.host.trim() || undefined,
+    port: Number.isFinite(portNum) && portNum > 0 ? portNum : undefined,
+    database_name: form.database.trim() || undefined,
+    username: form.username.trim() || undefined,
+    password: form.password || undefined,
+    ssl_mode: ssl.mode || undefined,
+  };
+}
+
 export function NewConnectionModalContainer({
   open,
   onClose,
@@ -58,6 +102,7 @@ export function NewConnectionModalContainer({
   const [tab, setTab] = useState<NewConnectionTabId>("form");
   const [form, setForm] = useState<PostgresFormValue>(EMPTY_POSTGRES_VALUE);
   const [ssl, setSsl] = useState<SslFormValue>(EMPTY_SSL_VALUE);
+  const [error, setError] = useState<string | null>(null);
 
   const isEdit = Boolean(editing);
 
@@ -93,6 +138,7 @@ export function NewConnectionModalContainer({
     setSsl(EMPTY_SSL_VALUE);
     setKind("postgres");
     setTab("form");
+    setError(null);
   };
 
   const handleClose = () => {
@@ -114,42 +160,18 @@ export function NewConnectionModalContainer({
     if (!SUPPORTED_DRIVERS.has(kind)) return;
     if (form.name.trim().length === 0) return;
 
-    if (isEdit && editing) {
-      // Edit path: only send fields that changed shape sense; password
-      // is only sent when the user actually typed something (otherwise
-      // the keychain value stays).
-      const portNum = Number(form.port);
-      const update: UpdateConnectionInput = {
-        host: form.host.trim() || undefined,
-        port: Number.isFinite(portNum) && portNum > 0 ? portNum : undefined,
-        database_name: form.database.trim() || undefined,
-        username: form.username.trim() || undefined,
-        ssl_mode: ssl.mode || undefined,
-      };
-      if (form.password.length > 0) update.password = form.password;
-      await updateConnection(editing.id, update);
-    } else {
-      let input: CreateConnectionInput;
-      if (kind === "sqlite") {
-        input = {
-          name: form.name.trim(),
-          driver: "sqlite",
-          database_name: form.database.trim() || undefined,
-        };
+    setError(null);
+    try {
+      if (isEdit && editing) {
+        await updateConnection(editing.id, buildUpdateInput(form, ssl));
       } else {
-        const portNum = Number(form.port);
-        input = {
-          name: form.name.trim(),
-          driver: kind as "postgres" | "mysql",
-          host: form.host.trim() || undefined,
-          port: Number.isFinite(portNum) && portNum > 0 ? portNum : undefined,
-          database_name: form.database.trim() || undefined,
-          username: form.username.trim() || undefined,
-          password: form.password || undefined,
-          ssl_mode: ssl.mode || undefined,
-        };
+        await createConnection(buildCreateInput(kind, form, ssl));
       }
-      await createConnection(input);
+    } catch (e) {
+      // Surface the IPC failure instead of swallowing it as an
+      // unhandled rejection — keep the modal open so the user can retry.
+      setError(e instanceof Error ? e.message : String(e));
+      return;
     }
     reset();
     onCreated();
@@ -200,6 +222,7 @@ export function NewConnectionModalContainer({
       onTabChange={setTab}
       renderTabBody={renderTabBody}
       saveDisabled={saveDisabled}
+      error={error}
       onSave={handleSave}
       onCancel={handleClose}
       supportedKinds={SUPPORTED_NEW_CONNECTION_KINDS}
