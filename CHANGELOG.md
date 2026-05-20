@@ -16,6 +16,11 @@ Post-0.4.0 work lands here.
 - **TUI**: `Ctrl+Shift+M` hot-toggles between standard and vim at runtime, in any mode (Normal/Insert/Visual/Cmdline/Search), without restarting. Transient input state (vim pending operators, standard selection anchor) is reset on toggle.
 - **TUI**: auto-save (1s debounce after the last edit) in standard mode, plus an unconditional flush before quit so nothing is lost on `:q` or `Ctrl+C` shutdown.
 - **TUI**: inspectable keymap data layer (`input::map`) — every chord-to-Action binding for the standard profile lives in a single table; the vim profile's flat chords are listed documentary-style. Foundation for the Settings keymap UI in V9.
+- **TUI**: `/` in standard-mode prose opens the block-template picker (HTTP GET, HTTP POST JSON, SQLite query). Vim keeps the `gN` chord; both routes land on the same picker. Pressing Enter on a template splices the fence at the cursor and the parser promotes it to a block.
+
+### Changed
+
+- **TUI**: Backspace at a segment boundary (start of a block's body, or start of any segment when the previous one has content) now crosses into the previous segment instead of bailing silently. The buffer behaves like a flat rope: deleting the boundary `\n` merges segments, and if the deletion makes a block's fence stop parsing the block is automatically demoted to plain prose so the renderer shows the text. Undo coalesces a run of cross-boundary deletes into a single step, same as in-segment deletes.
 
 ## [0.4.0] - 2026-05-18
 
