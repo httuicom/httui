@@ -37,15 +37,7 @@ import {
   slashIconOption,
 } from "@/lib/codemirror/cm-slash-commands";
 import { editorTheme } from "@/components/editor/editor-theme";
-import {
-  createDbBlockExtension,
-  createDbBlockCompletionSource,
-  createDbSchemaCompletionSource,
-} from "@/lib/codemirror/cm-db-block";
-import {
-  createHttpBlockExtension,
-  createHttpBlockCompletionSource,
-} from "@/lib/codemirror/cm-http-block";
+import { blockRegistry } from "@/lib/blocks/block-registry";
 import {
   wikilinks,
   createWikilinkCompletion,
@@ -141,8 +133,10 @@ export function buildExtensions(params: BuildExtensionsParams) {
     // -test follow-up — a conflicted .md must read as conflicted).
     mergeConflict(),
     ...(docHeaderHandle ? [docHeaderHandle.extension] : []),
-    createDbBlockExtension(),
-    createHttpBlockExtension(),
+    // Block-type CM6 extensions — iterates `block-registry.ts`. Order
+    // is observable (extension priority); registry preserves the
+    // pre-A5 DB-before-HTTP sequence.
+    ...blockRegistry.map((m) => m.createExtension()),
     tables(),
     slashCommands(),
     wikilinks({
@@ -160,15 +154,11 @@ export function buildExtensions(params: BuildExtensionsParams) {
       override: [
         slashCompletionSource,
         createWikilinkCompletion(() => flattenFiles(entriesRef.current)),
-        // DB block {{ref}} autocomplete — activates only when the
-        // cursor sits inside a db-* fenced body.
-        createDbBlockCompletionSource(() => filePath),
-        // Schema-aware SQL autocomplete (tables / columns) — same
-        // gating; reads from the shared SchemaCache store.
-        createDbSchemaCompletionSource(),
-        // HTTP block {{ref}} autocomplete — activates only inside an
-        // http fenced body.
-        createHttpBlockCompletionSource(() => filePath),
+        // Block-type completion sources — each module contributes 1+
+        // sources (DB returns 2: {{ref}} + schema-aware SQL; HTTP
+        // returns 1: {{ref}}). Activates only inside that type's
+        // fenced body.
+        ...blockRegistry.flatMap((m) => m.completionSources(() => filePath)),
       ],
       icons: false,
       addToOptions: [slashIconOption],

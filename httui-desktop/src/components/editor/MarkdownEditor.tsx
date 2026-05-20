@@ -7,7 +7,14 @@
 // The exclusion stays because the React shell wires together CM6,
 // portals, Tauri events and Zustand subscriptions — it can only be
 // exercised through the integration tests in `*.browser.test.tsx`.
-import { useRef, useEffect, useMemo, useCallback, useState } from "react";
+import {
+  Fragment,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+  useState,
+} from "react";
 import { Box } from "@chakra-ui/react";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { EditorView } from "@codemirror/view";
@@ -25,8 +32,7 @@ import { useWorkspaceStore } from "@/stores/workspace";
 import type { FileEntry } from "@/lib/tauri/commands";
 import { listen } from "@tauri-apps/api/event";
 
-import { DbWidgetPortals } from "./DbWidgetPortals";
-import { HttpWidgetPortals } from "./HttpWidgetPortals";
+import { blockPortals } from "@/lib/blocks/block-portal-registry";
 import { RefPopoverHost } from "./RefPopoverHost";
 import {
   DocHeaderWidgetPortal,
@@ -191,8 +197,17 @@ export function MarkdownEditor({
         />
         {editorReady && viewRef.current && (
           <>
-            <DbWidgetPortals view={viewRef.current} filePath={filePath} />
-            <HttpWidgetPortals view={viewRef.current} filePath={filePath} />
+            {/* Block-type portal mounts — iterates block-portal-
+              registry, so a new block type adds one entry there and
+              this JSX never changes (audit 03 #2 OCP). The outer
+              `editorReady && viewRef.current` guard already proves
+              `viewRef.current` non-null; the `!` is just to keep TS
+              happy across the .map callback boundary. */}
+            {blockPortals.map((p) => (
+              <Fragment key={p.id}>
+                {p.renderPortal(viewRef.current!, filePath)}
+              </Fragment>
+            ))}
             <RefPopoverHost />
             {docHeaderHandle && inlineHeader && (
               <DocHeaderWidgetPortal

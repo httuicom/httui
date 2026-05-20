@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import userEvent from "@testing-library/user-event";
-import { ExecutableBlockShell } from "@/components/blocks/ExecutableBlockShell";
+import { StandaloneBlockShell } from "@/components/blocks/StandaloneBlockShell";
 import type {
   DisplayMode,
   ExecutionState,
@@ -20,29 +20,29 @@ const baseProps = {
   outputSlot: <div data-testid="output-slot">OUTPUT</div>,
 };
 
-describe("ExecutableBlockShell", () => {
+describe("StandaloneBlockShell", () => {
   describe("header", () => {
     it("shows the block type label (HTTP)", () => {
-      renderWithProviders(<ExecutableBlockShell {...baseProps} />);
+      renderWithProviders(<StandaloneBlockShell {...baseProps} />);
       expect(screen.getByText("HTTP")).toBeInTheDocument();
     });
 
     it("falls back to uppercased block type for unknown types", () => {
       renderWithProviders(
-        <ExecutableBlockShell {...baseProps} blockType="custom" />,
+        <StandaloneBlockShell {...baseProps} blockType="custom" />,
       );
       expect(screen.getByText("CUSTOM")).toBeInTheDocument();
     });
 
     it("uses DB label for db block type", () => {
       renderWithProviders(
-        <ExecutableBlockShell {...baseProps} blockType="db" />,
+        <StandaloneBlockShell {...baseProps} blockType="db" />,
       );
       expect(screen.getByText("DB")).toBeInTheDocument();
     });
 
     it("renders alias input with the current value", () => {
-      renderWithProviders(<ExecutableBlockShell {...baseProps} />);
+      renderWithProviders(<StandaloneBlockShell {...baseProps} />);
       expect(screen.getByPlaceholderText("alias...")).toHaveValue("req1");
     });
 
@@ -50,7 +50,7 @@ describe("ExecutableBlockShell", () => {
       const user = userEvent.setup();
       const onAliasChange = vi.fn();
       renderWithProviders(
-        <ExecutableBlockShell
+        <StandaloneBlockShell
           {...baseProps}
           alias=""
           onAliasChange={onAliasChange}
@@ -66,7 +66,7 @@ describe("ExecutableBlockShell", () => {
       const user = userEvent.setup();
       const onDisplayModeChange = vi.fn();
       renderWithProviders(
-        <ExecutableBlockShell
+        <StandaloneBlockShell
           {...baseProps}
           onDisplayModeChange={onDisplayModeChange}
         />,
@@ -79,7 +79,7 @@ describe("ExecutableBlockShell", () => {
       const user = userEvent.setup();
       const onDisplayModeChange = vi.fn();
       renderWithProviders(
-        <ExecutableBlockShell
+        <StandaloneBlockShell
           {...baseProps}
           onDisplayModeChange={onDisplayModeChange}
         />,
@@ -90,20 +90,20 @@ describe("ExecutableBlockShell", () => {
 
     it("renders both slots in split mode", () => {
       renderWithProviders(
-        <ExecutableBlockShell {...baseProps} displayMode="split" />,
+        <StandaloneBlockShell {...baseProps} displayMode="split" />,
       );
       expect(screen.getByTestId("input-slot")).toBeInTheDocument();
       // outputSlot rendered only when state !== idle, but DOM still mounts the input
     });
 
     it("renders 'Run to see results' placeholder in idle state", () => {
-      renderWithProviders(<ExecutableBlockShell {...baseProps} />);
+      renderWithProviders(<StandaloneBlockShell {...baseProps} />);
       expect(screen.getByText("Run to see results")).toBeInTheDocument();
     });
 
     it("renders the actual outputSlot when not idle", () => {
       renderWithProviders(
-        <ExecutableBlockShell {...baseProps} executionState="success" />,
+        <StandaloneBlockShell {...baseProps} executionState="success" />,
       );
       expect(screen.getByTestId("output-slot")).toBeInTheDocument();
       expect(screen.queryByText("Run to see results")).not.toBeInTheDocument();
@@ -116,7 +116,7 @@ describe("ExecutableBlockShell", () => {
       const onRun = vi.fn();
       const onCancel = vi.fn();
       renderWithProviders(
-        <ExecutableBlockShell
+        <StandaloneBlockShell
           {...baseProps}
           onRun={onRun}
           onCancel={onCancel}
@@ -133,7 +133,7 @@ describe("ExecutableBlockShell", () => {
       const onRun = vi.fn();
       const onCancel = vi.fn();
       renderWithProviders(
-        <ExecutableBlockShell
+        <StandaloneBlockShell
           {...baseProps}
           executionState="running"
           onRun={onRun}
@@ -148,7 +148,7 @@ describe("ExecutableBlockShell", () => {
 
     it("shows custom statusText when running", () => {
       renderWithProviders(
-        <ExecutableBlockShell
+        <StandaloneBlockShell
           {...baseProps}
           executionState="running"
           statusText="downloading 1.2 MB…"
@@ -159,14 +159,14 @@ describe("ExecutableBlockShell", () => {
 
     it("shows state label when not running", () => {
       renderWithProviders(
-        <ExecutableBlockShell {...baseProps} executionState="success" />,
+        <StandaloneBlockShell {...baseProps} executionState="success" />,
       );
       expect(screen.getByText("success")).toBeInTheDocument();
     });
 
     it("shows 'cached' state label", () => {
       renderWithProviders(
-        <ExecutableBlockShell {...baseProps} executionState="cached" />,
+        <StandaloneBlockShell {...baseProps} executionState="cached" />,
       );
       expect(screen.getByText("cached")).toBeInTheDocument();
     });
@@ -174,7 +174,7 @@ describe("ExecutableBlockShell", () => {
 
   describe("delete button", () => {
     it("does not render when onDelete is not provided", () => {
-      renderWithProviders(<ExecutableBlockShell {...baseProps} />);
+      renderWithProviders(<StandaloneBlockShell {...baseProps} />);
       expect(
         screen.queryByRole("button", { name: /delete block/i }),
       ).not.toBeInTheDocument();
@@ -184,7 +184,7 @@ describe("ExecutableBlockShell", () => {
       const user = userEvent.setup();
       const onDelete = vi.fn();
       renderWithProviders(
-        <ExecutableBlockShell {...baseProps} onDelete={onDelete} />,
+        <StandaloneBlockShell {...baseProps} onDelete={onDelete} />,
       );
 
       await user.click(screen.getByRole("button", { name: /delete block/i }));

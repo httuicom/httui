@@ -17,11 +17,11 @@ export interface FileEntry {
 // --- Config ---
 
 export function getConfig(key: string): Promise<string | null> {
-  return invoke("get_config", { key });
+  return invoke<string | null>("get_config", { key });
 }
 
 export function setConfig(key: string, value: string): Promise<void> {
-  return invoke("set_config", { key, value });
+  return invoke<void>("set_config", { key, value });
 }
 
 // --- File-backed vault config (epic 09 foundation) ---
@@ -95,22 +95,22 @@ export interface UserConfigFile {
 export function getWorkspaceConfig(
   vaultPath: string,
 ): Promise<WorkspaceDefaults> {
-  return invoke("get_workspace_config", { vaultPath });
+  return invoke<WorkspaceDefaults>("get_workspace_config", { vaultPath });
 }
 
 export function setWorkspaceConfig(
   vaultPath: string,
   defaults: WorkspaceDefaults,
 ): Promise<void> {
-  return invoke("set_workspace_config", { vaultPath, defaults });
+  return invoke<void>("set_workspace_config", { vaultPath, defaults });
 }
 
 export function getUserConfig(): Promise<UserConfigFile> {
-  return invoke("get_user_config");
+  return invoke<UserConfigFile>("get_user_config");
 }
 
 export function setUserConfig(file: UserConfigFile): Promise<void> {
-  return invoke("set_user_config", { file });
+  return invoke<void>("set_user_config", { file });
 }
 
 /** Outcome of `ensureVaultGitignore`. */
@@ -119,7 +119,7 @@ export type GitignoreOutcome = "created" | "augmented" | "already_present";
 export function ensureVaultGitignore(
   vaultPath: string,
 ): Promise<GitignoreOutcome> {
-  return invoke("ensure_vault_gitignore", { vaultPath });
+  return invoke<GitignoreOutcome>("ensure_vault_gitignore", { vaultPath });
 }
 
 // --- Vault migration (epic 12) ---
@@ -141,7 +141,7 @@ export function migrateVaultToV1(
   vaultPath: string,
   dryRun: boolean,
 ): Promise<MigrationReport> {
-  return invoke("migrate_vault_to_v1", { vaultPath, dryRun });
+  return invoke<MigrationReport>("migrate_vault_to_v1", { vaultPath, dryRun });
 }
 
 // --- Vault scaffold + validate (epic 17) ---
@@ -155,12 +155,12 @@ export interface ScaffoldReport {
 
 /** Heuristic: does the folder look like a httui vault? */
 export function checkIsVault(vaultPath: string): Promise<boolean> {
-  return invoke("check_is_vault", { vaultPath });
+  return invoke<boolean>("check_is_vault", { vaultPath });
 }
 
 /** Scaffold default structure under the path. Idempotent. */
 export function scaffoldVault(vaultPath: string): Promise<ScaffoldReport> {
-  return invoke("scaffold_vault", { vaultPath });
+  return invoke<ScaffoldReport>("scaffold_vault", { vaultPath });
 }
 
 // --- Vault operations -----------------------------------
@@ -183,24 +183,24 @@ export interface MissingRef {
 
 /** Scan the vault for `{{keychain:...}}` refs missing from local OS keychain. */
 export function listMissingSecrets(vaultPath: string): Promise<MissingRef[]> {
-  return invoke("list_missing_secrets", { vaultPath });
+  return invoke<MissingRef[]>("list_missing_secrets", { vaultPath });
 }
 
 // --- Filesystem ---
 
 export function listWorkspace(vaultPath: string): Promise<FileEntry[]> {
-  return invoke("list_workspace", { vaultPath });
+  return invoke<FileEntry[]>("list_workspace", { vaultPath });
 }
 
 export function readNote(vaultPath: string, filePath: string): Promise<string> {
-  return invoke("read_note", { vaultPath, filePath });
+  return invoke<string>("read_note", { vaultPath, filePath });
 }
 
 export function forceReloadFile(
   vaultPath: string,
   filePath: string,
 ): Promise<void> {
-  return invoke("force_reload_file", { vaultPath, filePath });
+  return invoke<void>("force_reload_file", { vaultPath, filePath });
 }
 
 export function writeNote(
@@ -208,15 +208,15 @@ export function writeNote(
   filePath: string,
   content: string,
 ): Promise<void> {
-  return invoke("write_note", { vaultPath, filePath, content });
+  return invoke<void>("write_note", { vaultPath, filePath, content });
 }
 
 export function createNote(vaultPath: string, filePath: string): Promise<void> {
-  return invoke("create_note", { vaultPath, filePath });
+  return invoke<void>("create_note", { vaultPath, filePath });
 }
 
 export function deleteNote(vaultPath: string, filePath: string): Promise<void> {
-  return invoke("delete_note", { vaultPath, filePath });
+  return invoke<void>("delete_note", { vaultPath, filePath });
 }
 
 export function renameNote(
@@ -224,14 +224,14 @@ export function renameNote(
   oldPath: string,
   newPath: string,
 ): Promise<void> {
-  return invoke("rename_note", { vaultPath, oldPath, newPath });
+  return invoke<void>("rename_note", { vaultPath, oldPath, newPath });
 }
 
 export function createFolder(
   vaultPath: string,
   folderPath: string,
 ): Promise<void> {
-  return invoke("create_folder", { vaultPath, folderPath });
+  return invoke<void>("create_folder", { vaultPath, folderPath });
 }
 
 // --- Vault management ---
@@ -287,17 +287,17 @@ export interface SessionState {
 }
 
 export function restoreSession(): Promise<SessionState> {
-  return invoke("restore_session");
+  return invoke<SessionState>("restore_session");
 }
 
 // --- File watcher ---
 
 export function startWatching(vaultPath: string): Promise<void> {
-  return invoke("start_watching", { vaultPath });
+  return invoke<void>("start_watching", { vaultPath });
 }
 
 export function stopWatching(): Promise<void> {
-  return invoke("stop_watching");
+  return invoke<void>("stop_watching");
 }
 
 // --- Search ---
@@ -312,7 +312,7 @@ export function searchFiles(
   vaultPath: string,
   query: string,
 ): Promise<SearchResult[]> {
-  return invoke("search_files", { vaultPath, query });
+  return invoke<SearchResult[]>("search_files", { vaultPath, query });
 }
 
 export interface ContentSearchResult {
@@ -321,18 +321,18 @@ export interface ContentSearchResult {
 }
 
 export function rebuildSearchIndex(vaultPath: string): Promise<void> {
-  return invoke("rebuild_search_index", { vaultPath });
+  return invoke<void>("rebuild_search_index", { vaultPath });
 }
 
 export function searchContent(query: string): Promise<ContentSearchResult[]> {
-  return invoke("search_content", { query });
+  return invoke<ContentSearchResult[]>("search_content", { query });
 }
 
 export function updateSearchEntry(
   filePath: string,
   content: string,
 ): Promise<void> {
-  return invoke("update_search_entry", { filePath, content });
+  return invoke<void>("update_search_entry", { filePath, content });
 }
 
 // --- Environments ---
@@ -360,39 +360,39 @@ export interface EnvVariable {
 }
 
 export function listEnvironments(): Promise<Environment[]> {
-  return invoke("list_environments");
+  return invoke<Environment[]>("list_environments");
 }
 
 export function createEnvironment(name: string): Promise<Environment> {
-  return invoke("create_environment", { name });
+  return invoke<Environment>("create_environment", { name });
 }
 
 export function deleteEnvironment(id: string): Promise<void> {
-  return invoke("delete_environment", { id });
+  return invoke<void>("delete_environment", { id });
 }
 
 export function duplicateEnvironment(
   sourceId: string,
   newName: string,
 ): Promise<Environment> {
-  return invoke("duplicate_environment", { sourceId, newName });
+  return invoke<Environment>("duplicate_environment", { sourceId, newName });
 }
 
 export function renameEnvironment(
   oldId: string,
   newName: string,
 ): Promise<Environment> {
-  return invoke("rename_environment", { oldId, newName });
+  return invoke<Environment>("rename_environment", { oldId, newName });
 }
 
 export function setActiveEnvironment(id: string | null): Promise<void> {
-  return invoke("set_active_environment", { id });
+  return invoke<void>("set_active_environment", { id });
 }
 
 export function listEnvVariables(
   environmentId: string,
 ): Promise<EnvVariable[]> {
-  return invoke("list_env_variables", { environmentId });
+  return invoke<EnvVariable[]>("list_env_variables", { environmentId });
 }
 
 export function setEnvVariable(
@@ -401,11 +401,16 @@ export function setEnvVariable(
   value: string,
   isSecret?: boolean,
 ): Promise<EnvVariable> {
-  return invoke("set_env_variable", { environmentId, key, value, isSecret });
+  return invoke<EnvVariable>("set_env_variable", {
+    environmentId,
+    key,
+    value,
+    isSecret,
+  });
 }
 
 export function deleteEnvVariable(id: string): Promise<void> {
-  return invoke("delete_env_variable", { id });
+  return invoke<void>("delete_env_variable", { id });
 }
 
 /**
@@ -418,7 +423,7 @@ export function deleteEnvVariable(id: string): Promise<void> {
  * masking secrets for any display surface.
  */
 export function resolveActiveEnvVariables(): Promise<Record<string, string>> {
-  return invoke("resolve_active_env_variables");
+  return invoke<Record<string, string>>("resolve_active_env_variables");
 }
 
 /**
@@ -430,7 +435,9 @@ export function resolveActiveEnvVariables(): Promise<Record<string, string>> {
 export function resolveEnvVariables(
   environmentId: string,
 ): Promise<Record<string, string>> {
-  return invoke("resolve_env_variables", { environmentId });
+  return invoke<Record<string, string>>("resolve_env_variables", {
+    environmentId,
+  });
 }
 
 // --- Block execution ---
@@ -445,7 +452,7 @@ export function executeBlock(
   blockType: string,
   params: unknown,
 ): Promise<BlockResult> {
-  return invoke("execute_block", { blockType, params });
+  return invoke<BlockResult>("execute_block", { blockType, params });
 }
 
 // --- Block result cache ---
@@ -462,7 +469,10 @@ export function getBlockResult(
   filePath: string,
   blockHash: string,
 ): Promise<CachedBlockResult | null> {
-  return invoke("get_block_result", { filePath, blockHash });
+  return invoke<CachedBlockResult | null>("get_block_result", {
+    filePath,
+    blockHash,
+  });
 }
 
 export function saveBlockResult(
@@ -473,7 +483,7 @@ export function saveBlockResult(
   elapsedMs: number,
   totalRows?: number | null,
 ): Promise<void> {
-  return invoke("save_block_result", {
+  return invoke<void>("save_block_result", {
     filePath,
     blockHash,
     status,
@@ -523,7 +533,10 @@ export function getBlockSettings(
   filePath: string,
   blockAlias: string,
 ): Promise<HttpBlockSettings> {
-  return invoke("get_block_settings", { filePath, blockAlias });
+  return invoke<HttpBlockSettings>("get_block_settings", {
+    filePath,
+    blockAlias,
+  });
 }
 
 /** Upserts settings. Pass `undefined` for any flag to revert it to default. */
@@ -532,7 +545,11 @@ export function upsertBlockSettings(
   blockAlias: string,
   settings: HttpBlockSettings,
 ): Promise<void> {
-  return invoke("upsert_block_settings", { filePath, blockAlias, settings });
+  return invoke<void>("upsert_block_settings", {
+    filePath,
+    blockAlias,
+    settings,
+  });
 }
 
 /** Removes the row entirely. Used as cascade when a block is deleted. */
@@ -540,7 +557,7 @@ export function purgeBlockSettings(
   filePath: string,
   blockAlias: string,
 ): Promise<number> {
-  return invoke("purge_block_settings", { filePath, blockAlias });
+  return invoke<number>("purge_block_settings", { filePath, blockAlias });
 }
 
 // --- Pinned response examples (Onda 3) ---
@@ -561,7 +578,7 @@ export function saveBlockExample(
   name: string,
   responseJson: string,
 ): Promise<number> {
-  return invoke("save_block_example", {
+  return invoke<number>("save_block_example", {
     filePath,
     blockAlias,
     name,
@@ -574,12 +591,15 @@ export function listBlockExamples(
   filePath: string,
   blockAlias: string,
 ): Promise<BlockExample[]> {
-  return invoke("list_block_examples", { filePath, blockAlias });
+  return invoke<BlockExample[]>("list_block_examples", {
+    filePath,
+    blockAlias,
+  });
 }
 
 /** Delete a single example by id. */
 export function deleteBlockExample(id: number): Promise<number> {
-  return invoke("delete_block_example", { id });
+  return invoke<number>("delete_block_example", { id });
 }
 
 /** Cascade-delete all examples for a (file, alias). Used when removing a block. */
@@ -587,5 +607,5 @@ export function purgeBlockExamples(
   filePath: string,
   blockAlias: string,
 ): Promise<number> {
-  return invoke("purge_block_examples", { filePath, blockAlias });
+  return invoke<number>("purge_block_examples", { filePath, blockAlias });
 }

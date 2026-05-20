@@ -18,7 +18,7 @@ import {
 } from "react-icons/lu";
 import type { DisplayMode, ExecutionState } from "./ExecutableBlock";
 
-interface ExecutableBlockShellProps {
+interface StandaloneBlockShellProps {
   blockType: string;
   alias: string;
   displayMode: DisplayMode;
@@ -57,7 +57,6 @@ const STATE_LABELS: Record<ExecutionState, string> = {
 const BLOCK_LABELS: Record<string, string> = {
   http: "HTTP",
   db: "DB",
-  e2e: "E2E",
 };
 
 const MODE_ICONS: { mode: DisplayMode; label: string; icon: ReactNode }[] = [
@@ -66,7 +65,7 @@ const MODE_ICONS: { mode: DisplayMode; label: string; icon: ReactNode }[] = [
   { mode: "output", label: "Output", icon: <LuMonitorCheck /> },
 ];
 
-export function ExecutableBlockShell({
+export function StandaloneBlockShell({
   blockType,
   alias,
   displayMode,
@@ -82,7 +81,7 @@ export function ExecutableBlockShell({
   splitDirection,
   headerMeta: _headerMeta,
   onDelete,
-}: ExecutableBlockShellProps) {
+}: StandaloneBlockShellProps) {
   const isRunning = executionState === "running";
   const showInput = displayMode === "input" || displayMode === "split";
   const showOutput = displayMode === "output" || displayMode === "split";

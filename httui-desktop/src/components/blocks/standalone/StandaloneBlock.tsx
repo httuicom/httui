@@ -11,7 +11,7 @@ import { syntaxHighlighting } from "@codemirror/language";
 import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 import { sql } from "@codemirror/lang-sql";
 import { json } from "@codemirror/lang-json";
-import { ExecutableBlockShell } from "../ExecutableBlockShell";
+import { StandaloneBlockShell } from "../StandaloneBlockShell";
 import { ResultTable } from "../db/ResultTable";
 import {
   firstSelectResult,
@@ -221,7 +221,7 @@ export const StandaloneBlock = memo(function StandaloneBlock({
 
   return (
     <Box my={1} mx={1}>
-      <ExecutableBlockShell
+      <StandaloneBlockShell
         blockType={blockType}
         alias={alias ?? ""}
         displayMode={displayMode}
