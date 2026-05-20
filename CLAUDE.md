@@ -8,7 +8,7 @@ Notes — desktop markdown editor with executable blocks (HTTP client, DB query 
 
 > **Repo layout (post epic 00):** the desktop app lives in `httui-desktop/` (`httui-desktop/src/` for the React frontend, `httui-desktop/src-tauri/` for the Rust backend). The marketing landing is `httui-web/`, the Claude sidecar is `httui-sidecar/`. The shared Rust crate is `httui-core/`, the terminal binary `httui-tui/`, the MCP server `httui-mcp/`. **Path references like `src/components/...` in this doc are relative to `httui-desktop/`** unless otherwise prefixed.
 
-> **Recent migrations:** TipTap and the E2E block were removed (commits `7aa97e8`, `0aa2868`, `9124ad4`). The editor is now CodeMirror 6 only. State is managed by Zustand stores, not React Contexts (one legacy context remains: `WorkspaceContext`). Older docs may still reference the old architecture.
+> **Recent migrations:** TipTap and the E2E block were removed (commits `7aa97e8`, `0aa2868`, `9124ad4`). The editor is now CodeMirror 6 only. State is managed by Zustand stores, not React Contexts (the only legacy *domain* context left is `WorkspaceContext`; small CM6/UI-scoped contexts like `BlockContext` and the doc-header context also exist by design). Older docs may still reference the old architecture.
 
 ## Commands
 
@@ -68,7 +68,7 @@ Full details in `docs/ARCHITECTURE.md` (some sections may be outdated — code i
 **Frontend layers:**
 - **CM6 fenced-block extensions** — each block type has a CM6 extension (`src/lib/codemirror/cm-http-block.tsx`, `cm-db-block.tsx`) that scans the doc for its fence (```http, ```db-*), produces decorations with widget DOM containing portal slots (toolbar / form / result / statusbar), and provides a transactionFilter to keep fences atomic-on-edges.
 - **Portal mounts** (`src/components/editor/HttpWidgetPortals.tsx`, `DbWidgetPortals.tsx`) subscribe to the CM6 extension's portal registry and `createPortal` the React panels into each slot.
-- **Block panels** (`HttpFencedPanel.tsx`, `DbFencedPanel.tsx`) — each is a single large component holding toolbar, form/raw mode, result tabs, status bar, and settings drawer. ⚠️ Both are monoliths (3.876 L and 2.200 L respectively) — pending split. Avoid adding new features inline; prefer extracting sub-components first.
+- **Block panels** (`HttpFencedPanel.tsx`, `DbFencedPanel.tsx`) — each is a single large component holding toolbar, form/raw mode, result tabs, status bar, and settings drawer. ⚠️ Both are monoliths (~2.6k L and ~780 L respectively) — pending split. Avoid adding new features inline; prefer extracting sub-components first.
 - **`ExecutableBlockShell`** (`src/components/blocks/ExecutableBlockShell.tsx`) — shared shell with display modes (input/split/output), run button, status badge. Currently only consumed by `StandaloneBlock` (the diff-viewer block). HTTP/DB panels reimplement toolbar/status inline because they live outside the editor's document flow (mounted via Portal into CM6 widget DOM).
 
 **Backend layers:**
@@ -193,7 +193,7 @@ Info-string tokens: `alias`, `timeout`, `display`, `mode` (`raw|form`). Canonica
 **Architecture:**
 - `src/lib/blocks/http-fence.ts` — parser/serializer for both info string and HTTP-message body. `parseHttpMessageBody` / `stringifyHttpMessageBody` are idempotent (canonical reformat). `parseLegacyHttpBody` + `legacyToHttpMessage` handle the JSON shim.
 - `src/lib/codemirror/cm-http-block.tsx` — CM6 extension: scanner, decorations, atomic-on-fences-only, transactionFilter, method coloring on the first body line, keymap (⌘↵ run, ⌘. cancel, ⌘⇧C copy as cURL). Holds a portal registry (toolbar / form / result / statusbar slots) so React mounts inside the widget DOM.
-- `src/components/blocks/http/fenced/HttpFencedPanel.tsx` — React panel mounted via `createPortal` into each registered slot. Toolbar (badge / alias / method / host / `[raw│form]` toggle / ▶ / ⚙), result tabs (Body / Headers / Cookies / Timing / Raw with `pretty│raw` sub-toggle), status bar (status dot, host, elapsed, size, "ran X ago", `⤓` Send-as menu), settings drawer (Chakra `Portal` + `Box`, NEVER `Dialog` — preserves CM6 focus). Form mode replaces the body lines with a tabular Params/Headers/Body editor; each input uses local state + commit-on-blur to avoid the round-trip lag of re-emitting raw on every keystroke. **Single file: 3.876 L. Pending split.**
+- `src/components/blocks/http/fenced/HttpFencedPanel.tsx` — React panel mounted via `createPortal` into each registered slot. Toolbar (badge / alias / method / host / `[raw│form]` toggle / ▶ / ⚙), result tabs (Body / Headers / Cookies / Timing / Raw with `pretty│raw` sub-toggle), status bar (status dot, host, elapsed, size, "ran X ago", `⤓` Send-as menu), settings drawer (Chakra `Portal` + `Box`, NEVER `Dialog` — preserves CM6 focus). Form mode replaces the body lines with a tabular Params/Headers/Body editor; each input uses local state + commit-on-blur to avoid the round-trip lag of re-emitting raw on every keystroke. **Single file: ~2.6k L. Pending split.**
 - `src/components/editor/HttpWidgetPortals.tsx` — subscribes to the portal registry and renders panels.
 
 **Execution:**
@@ -215,7 +215,7 @@ Info-string tokens: `alias`, `timeout`, `display`, `mode` (`raw|form`). Canonica
 ## DB block
 
 - Block type `db-*` (where `*` is the connection id) in `src/components/blocks/db/`. Like the HTTP block, it is a CM6 fenced-code implementation.
-- `src/components/blocks/db/fenced/DbFencedPanel.tsx` — React panel (2.200 L, **pending split**). Connection picker, SQL editor, mutation warning for DELETE/UPDATE, result tabs.
+- `src/components/blocks/db/fenced/DbFencedPanel.tsx` — React panel (~780 L, **pending split**). Connection picker, SQL editor, mutation warning for DELETE/UPDATE, result tabs.
 - `src/components/blocks/db/ResultTable.tsx` (528 L) — virtualized result grid (`@tanstack/react-virtual`).
 - Streamed via `executeDbStreamed` (`src/lib/tauri/streamedExecution.ts`).
 - SQL safety: `{{...}}` references are converted to bind parameters (`$1`, `?`) before dispatch — never string-interpolated.

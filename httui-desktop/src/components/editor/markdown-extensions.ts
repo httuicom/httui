@@ -36,7 +36,6 @@ import {
   slashCompletionSource,
   slashIconOption,
 } from "@/lib/codemirror/cm-slash-commands";
-import { createEditorBlockWidgets } from "@/lib/codemirror/cm-block-widgets";
 import { editorTheme } from "@/components/editor/editor-theme";
 import {
   createDbBlockExtension,
@@ -144,7 +143,6 @@ export function buildExtensions(params: BuildExtensionsParams) {
     ...(docHeaderHandle ? [docHeaderHandle.extension] : []),
     createDbBlockExtension(),
     createHttpBlockExtension(),
-    createEditorBlockWidgets(),
     tables(),
     slashCommands(),
     wikilinks({
