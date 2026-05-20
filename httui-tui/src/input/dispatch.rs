@@ -246,6 +246,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
             crate::input::apply::standard_sel::apply_standard_sel(app, action, &mut clip)
         }
         Action::Window(_) => crate::input::apply::window::apply_window(app, action, recording),
+        Action::SlashKey => crate::input::apply::slash::apply_slash_key(app),
         Action::FocusSwap
         | Action::TabGoto(..)
         | Action::TabNext

@@ -40,6 +40,23 @@ pub fn resolve(key: KeyEvent) -> Option<Action> {
         return Some(action);
     }
 
+    // tui-V2 vertical 2: `/` in Standard is a context-aware
+    // slash-commands trigger. Decoder emits `SlashKey`; the applier
+    // (`input::apply::slash`) inserts the `/` literal and, when the
+    // cursor is in prose, opens the block-template picker on top.
+    // Matched BEFORE the printable-char fallback so the slash never
+    // falls through to plain `InsertChar('/')`.
+    if let KeyEvent {
+        code: KeyCode::Char('/'),
+        modifiers,
+        ..
+    } = key
+    {
+        if !modifiers.contains(KeyModifiers::CONTROL) {
+            return Some(Action::SlashKey);
+        }
+    }
+
     // The only chord-to-action binding NOT in the data table: any
     // printable char without CONTROL inserts literally. The CONTROL
     // guard keeps `Ctrl+<char>` chords (Ctrl+S, Ctrl+C, …) from
@@ -297,5 +314,40 @@ mod tests {
         // Non-regression: the bare Ctrl+X without SHIFT must still be
         // Cut — the new Ctrl+Shift+X arm above must not swallow it.
         assert_eq!(resolve(ctrl(KeyCode::Char('x'))), Some(Action::Cut));
+    }
+
+    // ───── tui-V2 vertical 2 / cenário 1 — `/` opens slash picker ─────
+
+    #[test]
+    fn slash_decodes_to_slash_key_action() {
+        // The plain `/` keypress in Standard must decode to
+        // `SlashKey` so the applier can open the block-template
+        // picker. It must NOT fall through to `InsertChar('/')` —
+        // the new arm sits before the fallback for this reason.
+        assert_eq!(resolve(k(KeyCode::Char('/'))), Some(Action::SlashKey));
+        assert_ne!(
+            resolve(k(KeyCode::Char('/'))),
+            Some(Action::InsertChar('/'))
+        );
+    }
+
+    #[test]
+    fn ctrl_slash_does_not_open_slash_picker() {
+        // Ctrl+`/` (some terminals emit this for "toggle comment"
+        // bindings) must not trigger the picker — the CONTROL guard
+        // mirrors the printable-char fallback. Returns `None` so the
+        // router treats it as unbound.
+        assert_eq!(resolve(ctrl(KeyCode::Char('/'))), None);
+    }
+
+    #[test]
+    fn shift_slash_still_opens_slash_picker() {
+        // `?` is `SHIFT+/` on most layouts but crossterm reports it
+        // as `KeyCode::Char('?')`, not `Char('/')+SHIFT`. The arm
+        // guards on CONTROL only — bare SHIFT + `/` (rare layouts)
+        // would still trigger the picker, which is the correct
+        // behavior (it's still a literal `/` keystroke).
+        let ev = KeyEvent::new(KeyCode::Char('/'), KeyModifiers::SHIFT);
+        assert_eq!(resolve(ev), Some(Action::SlashKey));
     }
 }

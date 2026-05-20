@@ -368,6 +368,14 @@ pub enum Action {
     /// is taken by vim's "find next match" motion, so the new-block
     /// chord uses capital N.
     OpenBlockTemplatePicker,
+    /// Standard-mode `/` key. Context-aware in `apply/slash.rs`:
+    /// in prose, inserts `/` and opens the block-template picker
+    /// (paridade com slash-commands do desktop); in a block / block
+    /// result, inserts `/` literally so URLs and paths stay typeable.
+    /// Vim's `/` continues to mean "open search prompt" via
+    /// `EnterSearch(false)` — this variant is decoded only by
+    /// `input::standard::resolve`. Added by tui-V2 / vertical 2.
+    SlashKey,
     /// `gb` chord — open the tab picker. Lists every open tab by
     /// its focused-leaf path; Enter switches the active tab to the
     /// picked index. Mnemonic: g + b = "go (to) buffer".
