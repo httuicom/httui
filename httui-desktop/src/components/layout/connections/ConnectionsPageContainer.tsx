@@ -6,18 +6,14 @@
 // don't invent a workspace tab to host it.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useConfigChangeRefresh } from "@/hooks/useConfigChangeRefresh";
+import { useConfigSyncedResource } from "@/hooks/useConfigSyncedResource";
 
 import {
-  createConnection,
-  deleteConnection,
   findConnectionUses,
-  listConnections,
   testConnection,
-  updateConnection,
-  type Connection,
   type UpdateConnectionInput,
 } from "@/lib/tauri/connections";
+import { useConnectionsStore } from "@/stores/connections";
 import { useSchemaCacheStore } from "@/stores/schemaCache";
 import { useWorkspaceStore } from "@/stores/workspace";
 import type { RunbookUsage } from "./connection-usages";
@@ -32,7 +28,11 @@ export function ConnectionsPageContainer({
   onNavigateFile,
 }: ConnectionsPageContainerProps) {
   const vaultPath = useWorkspaceStore((s) => s.vaultPath);
-  const [connections, setConnections] = useState<Connection[]>([]);
+  const connections = useConnectionsStore((s) => s.connections);
+  const refreshConnections = useConnectionsStore((s) => s.refresh);
+  const createConn = useConnectionsStore((s) => s.createConnection);
+  const updateConn = useConnectionsStore((s) => s.updateConnection);
+  const deleteConn = useConnectionsStore((s) => s.deleteConnection);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [usagesByConnection, setUsagesByConnection] = useState<
     Record<string, RunbookUsage[]>
@@ -47,58 +47,62 @@ export function ConnectionsPageContainer({
   const refreshSchema = useSchemaCacheStore((s) => s.refresh);
   const schemaByConn = useSchemaCacheStore((s) => s.byConnection);
 
-  const reload = useCallback(async () => {
-    const list = await listConnections();
-    setConnections(list);
-  }, []);
+  // Refresh on mount + on external `connections.toml` edits (the
+  // backend emits `config-changed` category "connections" when the
+  // file or its `.local` sibling changes on disk).
+  useConfigSyncedResource("connections", refreshConnections);
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  // react to external `connections.toml` edits via the file watcher.
-  // Backend emits `config-changed` (category "connections") when the
-  // file or its `.local` sibling changes on disk → reload (the store
-  // dedups against in-flight UI mutations).
-  useConfigChangeRefresh("connections", reload);
+  // The only field the prefetch effect reads from `connections` is
+  // the selected connection's name. Derive it here so the effect can
+  // depend on a stable string instead of the whole array.
+  const selectedConnName = useMemo(
+    () =>
+      selectedId
+        ? (connections.find((c) => c.id === selectedId)?.name ?? null)
+        : null,
+    [selectedId, connections],
+  );
 
   // Pre-fetch schema + usages on selection change so the detail
-  // panel renders without an extra click. Backend grep is fast and
-  // the user can't outrun it via repeated selects.
+  // panel renders without an extra click. Keyed on the selected
+  // connection's *name* (B4): the old `connections`-array dep re-ran
+  // the FS grep + ensureSchema on every unrelated store refresh
+  // (test-ping, CRUD, config-changed) even when the selection was
+  // unchanged. A rename still re-fires (name changes); a real
+  // selection change still re-fires (selectedId changes).
   useEffect(() => {
-    if (!selectedId || !vaultPath) return;
-    const conn = connections.find((c) => c.id === selectedId);
-    if (!conn) return;
+    if (!selectedId || !vaultPath || !selectedConnName) return;
     void ensureSchema(selectedId);
-    setUsagesLoading((m) => ({ ...m, [conn.name]: true }));
-    findConnectionUses(vaultPath, conn.name)
+    setUsagesLoading((m) => ({ ...m, [selectedConnName]: true }));
+    findConnectionUses(vaultPath, selectedConnName)
       .then((r) => {
         const usages: RunbookUsage[] = r.map((u) => ({
           filePath: u.file,
           line: u.line,
           preview: null,
         }));
-        setUsagesByConnection((m) => ({ ...m, [conn.name]: usages }));
+        setUsagesByConnection((m) => ({
+          ...m,
+          [selectedConnName]: usages,
+        }));
       })
       .finally(() => {
-        setUsagesLoading((m) => ({ ...m, [conn.name]: false }));
+        setUsagesLoading((m) => ({ ...m, [selectedConnName]: false }));
       });
-  }, [selectedId, connections, vaultPath, ensureSchema]);
+  }, [selectedId, selectedConnName, vaultPath, ensureSchema]);
 
   const handleSaveCredentials = useCallback(
     async (id: string, input: UpdateConnectionInput) => {
-      await updateConnection(id, input);
-      await reload();
+      await updateConn(id, input);
     },
-    [reload],
+    [updateConn],
   );
 
   const handleRotatePassword = useCallback(
     async (id: string, newPassword: string) => {
-      await updateConnection(id, { password: newPassword });
-      await reload();
+      await updateConn(id, { password: newPassword });
     },
-    [reload],
+    [updateConn],
   );
 
   const handleTestConnection = useCallback(
@@ -114,7 +118,7 @@ export function ConnectionsPageContainer({
     async (id: string) => {
       const src = connections.find((c) => c.id === id);
       if (!src) return;
-      await createConnection({
+      await createConn({
         name: `${src.name}-copy`,
         driver: src.driver,
         host: src.host ?? undefined,
@@ -124,18 +128,16 @@ export function ConnectionsPageContainer({
         ssl_mode: src.ssl_mode ?? undefined,
         is_readonly: src.is_readonly,
       });
-      await reload();
     },
-    [connections, reload],
+    [connections, createConn],
   );
 
   const handleDelete = useCallback(
     async (id: string) => {
-      await deleteConnection(id);
+      await deleteConn(id);
       if (selectedId === id) setSelectedId(null);
-      await reload();
     },
-    [reload, selectedId],
+    [deleteConn, selectedId],
   );
 
   // Slice the schemaCache map to the shape ConnectionsPage expects.
@@ -198,7 +200,7 @@ export function ConnectionsPageContainer({
           setEditingId(null);
         }}
         onCreated={() => {
-          void reload();
+          void refreshConnections();
         }}
       />
     </>

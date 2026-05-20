@@ -6,18 +6,12 @@
 // Mirrors VariablesPageContainer / ConnectionsPageContainer:
 // presentational page stays prop-driven, data + IPC live here.
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { useConfigChangeRefresh } from "@/hooks/useConfigChangeRefresh";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useConfigSyncedResource } from "@/hooks/useConfigSyncedResource";
+import { useCrossEnvVariables } from "@/hooks/useCrossEnvVariables";
 
 import { useEnvironmentStore } from "@/stores/environment";
-import { listEnvVariables, type Environment } from "@/lib/tauri/commands";
+import { type Environment } from "@/lib/tauri/commands";
 
 import {
   CloneEnvironmentForm,
@@ -79,7 +73,6 @@ export function EnvironmentsPageContainer({
   );
   const renameEnvironment = useEnvironmentStore((s) => s.renameEnvironment);
   const deleteEnvironment = useEnvironmentStore((s) => s.deleteEnvironment);
-  const variablesVersion = useEnvironmentStore((s) => s.variablesVersion);
 
   // FLIP swap of the ACTIVE pill across cards: capture the old
   // pill's bounding rect before switchEnvironment fires, then in
@@ -90,7 +83,6 @@ export function EnvironmentsPageContainer({
     activeEnvironment?.name ?? null,
   );
 
-  const [summaries, setSummaries] = useState<EnvironmentSummary[]>([]);
   const [cloning, setCloning] = useState<{
     filename: string;
     name: string;
@@ -98,45 +90,31 @@ export function EnvironmentsPageContainer({
   const [renaming, setRenaming] = useState<EnvironmentSummary | null>(null);
   const [deleting, setDeleting] = useState<EnvironmentSummary | null>(null);
   const [creatingEnv, setCreatingEnv] = useState(false);
-  const [secretCounts, setSecretCounts] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    void refreshEnvs();
-  }, [refreshEnvs]);
+  // Refresh on mount + on external `envs/*.toml` edits (backend
+  // `config-changed` category "environment").
+  useConfigSyncedResource("environment", refreshEnvs);
 
-  useConfigChangeRefresh("environment", refreshEnvs);
+  // Shared cross-env fan-out (audit 05 §A.3 / backlog S2). The async
+  // load lives in the hook; the page-specific derivation below stays
+  // a synchronous memo — same output, same cadence as the old effect.
+  const bundles = useCrossEnvVariables();
 
-  // Load varCount + secretCount per env in parallel, then assemble
-  // summaries.
-  useEffect(() => {
-    let cancelled = false;
-    if (environments.length === 0) {
-      setSummaries([]);
-      setSecretCounts({});
-      return;
-    }
-    void Promise.all(
-      environments.map(async (env) => {
-        const vars = await listEnvVariables(env.id).catch(() => []);
-        const secrets = vars.filter((v) => v.is_secret).length;
-        return {
-          summary: envToSummary(env, vars.length),
-          secrets,
-        };
-      }),
-    ).then((rows) => {
-      if (cancelled) return;
-      setSummaries(rows.map((r) => r.summary));
-      setSecretCounts(
-        Object.fromEntries(
-          rows.map(({ summary, secrets }) => [summary.filename, secrets]),
-        ),
-      );
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [environments, variablesVersion]);
+  const summaries = useMemo<EnvironmentSummary[]>(
+    () => bundles.map(({ env, vars }) => envToSummary(env, vars.length)),
+    [bundles],
+  );
+
+  const secretCounts = useMemo<Record<string, number>>(
+    () =>
+      Object.fromEntries(
+        bundles.map(({ env, vars }) => [
+          `${env.name}.toml`,
+          vars.filter((v) => v.is_secret).length,
+        ]),
+      ),
+    [bundles],
+  );
 
   const envByFilename = useMemo(() => {
     const m = new Map<string, Environment>();
