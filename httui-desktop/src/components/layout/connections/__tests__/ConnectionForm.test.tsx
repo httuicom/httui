@@ -86,6 +86,33 @@ describe("ConnectionForm", () => {
       expect(screen.getByText(/FILE PATH/i)).toBeInTheDocument();
     });
 
+    it("blocks Save and surfaces the validator error for an invalid form (F4)", async () => {
+      const user = userEvent.setup();
+      let created = false;
+      mockTauriCommand("create_connection", () => {
+        created = true;
+      });
+      renderWithProviders(
+        <ConnectionForm connection={null} onClose={vi.fn()} />,
+      );
+
+      // sqlite with a name but no file path → previously created a
+      // broken connection silently; now the validator blocks it.
+      await user.type(
+        screen.getByPlaceholderText("Connection name"),
+        "local-db",
+      );
+      await user.click(screen.getByText("SQLite"));
+      await user.click(screen.getByText(/create/i));
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(/SQLite file path is required/i),
+        ).toBeInTheDocument(),
+      );
+      expect(created).toBe(false);
+    });
+
     it("captures error when create_connection rejects", async () => {
       const user = userEvent.setup();
       mockTauriCommand("create_connection", () => {

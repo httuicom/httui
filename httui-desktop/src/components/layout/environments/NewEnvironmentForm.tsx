@@ -5,9 +5,9 @@
 // form per the spec; new envs are public by default.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
-import { useState } from "react";
 
 import { Btn, Input } from "@/components/atoms";
+import { useInlineForm } from "@/hooks/useInlineForm";
 
 import { validateEnvName } from "./env-name";
 
@@ -27,16 +27,13 @@ export function NewEnvironmentForm({
   onSubmit,
   onCancel,
 }: NewEnvironmentFormProps) {
-  const [name, setName] = useState("");
-  const [touched, setTouched] = useState(false);
-
-  const validation = validateEnvName(name, existingFilenames);
-  const showError = touched && !validation.ok;
+  const nameField = useInlineForm("", (n) =>
+    validateEnvName(n, existingFilenames),
+  );
 
   function handleSubmit() {
-    setTouched(true);
-    if (!validation.ok) return;
-    onSubmit?.({ name: name.trim() });
+    if (!nameField.attemptSubmit()) return;
+    onSubmit?.({ name: nameField.value.trim() });
   }
 
   return (
@@ -54,8 +51,8 @@ export function NewEnvironmentForm({
           <Input
             data-testid="new-environment-name"
             placeholder="staging"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={nameField.value}
+            onChange={(e) => nameField.setValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -66,16 +63,16 @@ export function NewEnvironmentForm({
               }
             }}
             autoFocus
-            aria-invalid={showError}
+            aria-invalid={nameField.showError}
           />
-          {showError && !validation.ok && (
+          {nameField.showError && (
             <Text
               fontSize="11px"
               color="error"
               mt={1}
               data-testid="new-environment-name-error"
             >
-              {validation.reason}
+              {nameField.error}
             </Text>
           )}
         </Box>
@@ -88,7 +85,7 @@ export function NewEnvironmentForm({
           >
             creates{" "}
             <Text as="span" fontFamily="mono">
-              envs/{name.trim() || "<name>"}.toml
+              envs/{nameField.value.trim() || "<name>"}.toml
             </Text>
           </Text>
           <Flex gap={2}>
@@ -103,7 +100,7 @@ export function NewEnvironmentForm({
               variant="primary"
               data-testid="new-environment-save"
               onClick={handleSubmit}
-              disabled={touched && !validation.ok}
+              disabled={nameField.showError}
             >
               Save
             </Btn>

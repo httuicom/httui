@@ -152,6 +152,33 @@ describe("NewVariablePopover", () => {
     unregisterActiveEditor(view as never);
   });
 
+  it("now rejects a name with a dot via the shared validator (F2 — was allowed by the old ad-hoc rule)", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<NewVariablePopover />);
+    openPopover();
+    await user.type(screen.getByTestId("new-variable-name"), "a.b");
+    await user.click(screen.getByTestId("new-variable-save"));
+    expect(setVariable).not.toHaveBeenCalled();
+    expect(
+      (await screen.findByTestId("new-variable-error")).textContent,
+    ).toMatch(/dot/i);
+    expect(useNewVariablePopoverStore.getState().open).toBe(true);
+  });
+
+  it("rejects a name with internal whitespace instead of saving it (F2)", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<NewVariablePopover />);
+    openPopover();
+    // Non-blank → the disabled gate lets the click through; the
+    // validator (not the old ad-hoc rule) is what blocks it.
+    await user.type(screen.getByTestId("new-variable-name"), "a b");
+    await user.click(screen.getByTestId("new-variable-save"));
+    expect(setVariable).not.toHaveBeenCalled();
+    expect(
+      (await screen.findByTestId("new-variable-error")).textContent,
+    ).toMatch(/whitespace/i);
+  });
+
   it("surfaces an error when there is no active environment", async () => {
     const user = userEvent.setup();
     useEnvironmentStore.setState({

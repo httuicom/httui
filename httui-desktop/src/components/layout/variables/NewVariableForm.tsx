@@ -11,6 +11,7 @@ import { useState } from "react";
 import { LuLock, LuLockOpen, LuPlus, LuX } from "react-icons/lu";
 
 import { Input } from "@/components/atoms";
+import { useInlineForm } from "@/hooks/useInlineForm";
 
 import { validateVariableName } from "./variable-name";
 
@@ -37,19 +38,16 @@ export function NewVariableForm({
   onSubmit,
   onCancel,
 }: NewVariableFormProps) {
-  const [name, setName] = useState("");
+  const nameField = useInlineForm("", (n) =>
+    validateVariableName(n, existingNames),
+  );
   const [value, setValue] = useState("");
   const [isSecret, setIsSecret] = useState(false);
-  const [touched, setTouched] = useState(false);
-
-  const validation = validateVariableName(name, existingNames);
-  const showError = touched && !validation.ok;
 
   function handleSubmit() {
-    setTouched(true);
-    if (!validation.ok) return;
+    if (!nameField.attemptSubmit()) return;
     onSubmit?.({
-      name: name.trim(),
+      name: nameField.value.trim(),
       value,
       isSecret,
       env: activeEnv,
@@ -70,8 +68,8 @@ export function NewVariableForm({
           <Input
             data-testid="new-variable-name"
             placeholder="KEY"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={nameField.value}
+            onChange={(e) => nameField.setValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.preventDefault();
@@ -79,7 +77,7 @@ export function NewVariableForm({
               }
             }}
             autoFocus
-            aria-invalid={showError}
+            aria-invalid={nameField.showError}
             css={{
               border: "none",
               borderRadius: 0,
@@ -145,7 +143,7 @@ export function NewVariableForm({
             variant="ghost"
             colorPalette="green"
             onClick={handleSubmit}
-            disabled={touched && !validation.ok}
+            disabled={nameField.showError}
           >
             <LuPlus />
           </IconButton>
@@ -165,14 +163,14 @@ export function NewVariableForm({
 
       <Flex justify="space-between" mt={1.5} px={1} gap={3}>
         <Box minW={0}>
-          {showError && !validation.ok ? (
+          {nameField.showError ? (
             <Text
               fontSize="11px"
               color="error"
               data-testid="new-variable-name-error"
               truncate
             >
-              {validation.reason}
+              {nameField.error}
             </Text>
           ) : (
             <Text

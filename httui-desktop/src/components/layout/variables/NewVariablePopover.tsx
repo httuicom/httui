@@ -11,9 +11,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { Btn, Input } from "@/components/atoms";
 import { useEscapeClose } from "@/hooks/useEscapeClose";
+import { useInlineForm } from "@/hooks/useInlineForm";
 import { getActiveEditor } from "@/lib/codemirror/active-editor";
 import { useEnvironmentStore } from "@/stores/environment";
 import { useNewVariablePopoverStore } from "@/stores/newVariablePopover";
+
+import { validateVariableName } from "./variable-name";
 
 type VarType = "Text" | "Number" | "Bool" | "Secret";
 const TYPES: VarType[] = ["Text", "Number", "Bool", "Secret"];
@@ -44,10 +47,17 @@ function NewVariableForm({ onClose }: { onClose: () => void }) {
   const activeEnv = useEnvironmentStore((s) => s.activeEnvironment);
   const setVariable = useEnvironmentStore((s) => s.setVariable);
 
-  const [name, setName] = useState("");
+  // F2: route the name through the shared inline-form idiom + the
+  // real `validateVariableName` (was an ad-hoc `name.trim() === ""`
+  // that skipped the whitespace/dot rules every other form enforces —
+  // audit 05 Part B). No duplicate list is passed: this popover is an
+  // upsert into the active env, so a colliding name is intentionally
+  // allowed (behavior preserved). `ipcError` is the separate
+  // save-failure channel.
+  const nameField = useInlineForm("", validateVariableName);
   const [value, setValue] = useState("");
   const [type, setType] = useState<VarType>("Text");
-  const [error, setError] = useState<string | null>(null);
+  const [ipcError, setIpcError] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
   useEscapeClose(onClose);
@@ -70,19 +80,21 @@ function NewVariableForm({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   async function handleSave() {
-    if (name.trim() === "") {
-      setError("Name is required");
-      return;
-    }
+    if (!nameField.attemptSubmit()) return;
     if (!activeEnv) {
-      setError("No active environment");
+      setIpcError("No active environment");
       return;
     }
     try {
-      await setVariable(activeEnv.id, name.trim(), value, type === "Secret");
+      await setVariable(
+        activeEnv.id,
+        nameField.value.trim(),
+        value,
+        type === "Secret",
+      );
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      setIpcError(e instanceof Error ? e.message : "Failed to save");
     }
   }
 
@@ -122,9 +134,10 @@ function NewVariableForm({ onClose }: { onClose: () => void }) {
           <Input
             data-testid="new-variable-name"
             placeholder="VARIABLE_NAME"
-            value={name}
+            value={nameField.value}
             autoFocus
-            onChange={(e) => setName(e.target.value)}
+            aria-invalid={nameField.showError}
+            onChange={(e) => nameField.setValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -162,14 +175,14 @@ function NewVariableForm({ onClose }: { onClose: () => void }) {
 
           <TemplateHelpers onInsert={(t) => setValue((v) => v + t)} />
 
-          {error && (
+          {(nameField.showError || ipcError) && (
             <Text
               fontSize="11px"
               color="error"
               mt={2}
               data-testid="new-variable-error"
             >
-              {error}
+              {nameField.showError ? nameField.error : ipcError}
             </Text>
           )}
 
@@ -185,7 +198,7 @@ function NewVariableForm({ onClose }: { onClose: () => void }) {
               variant="primary"
               data-testid="new-variable-save"
               onClick={() => void handleSave()}
-              disabled={!activeEnv || name.trim() === ""}
+              disabled={!activeEnv || nameField.value.trim() === ""}
             >
               Save
             </Btn>
