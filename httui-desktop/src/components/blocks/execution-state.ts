@@ -1,3 +1,11 @@
+// coverage:exclude file — type-only module. The single `export type`
+// below compiles to an empty .js file, so v8 coverage tracking has
+// nothing to instrument and the gate reports it as MISSING forever.
+// The contract is enforced by `expectTypeOf` in
+// `execution-state.test.ts`. Precedent: `commands.ts` / `git.ts` /
+// `block-history.ts` (pure invoke wrappers — different reason, same
+// "no runtime to test" outcome).
+//
 /**
  * Execution-state vocabulary for the fenced executable blocks
  * (HTTP / DB). One canonical union, re-exported by each block's

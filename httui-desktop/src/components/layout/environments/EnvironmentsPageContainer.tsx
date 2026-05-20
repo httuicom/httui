@@ -1,3 +1,24 @@
+// coverage:exclude file — the file's data-layer (env load, summary
+// derivation, request/submit handlers, activate wiring) is exercised
+// by `EnvironmentsPageContainer.test.tsx` (16 specs). The remaining
+// ~22% uncovered LOC is the FLIP animation block (lines ~140-183):
+// `useLayoutEffect` + `getBoundingClientRect` + `requestAnimationFrame`
+// + `window.matchMedia(reduce)` + DOM style.transform reads. jsdom
+// returns `{ width: 0, height: 0, left: 0, top: 0 }` for every node
+// regardless of CSS, so the animation never visibly moves and the
+// `dx === 0 && dy === 0` short-circuit ALWAYS triggers — there's no
+// branch left to drive from inside jsdom without rebuilding the
+// runtime's layout engine.
+//
+// Decision per dono (2026-05-20): jsdom-unfriendly is the documented
+// reason for `// coverage:exclude file` (see
+// [[feedback-no-coverage-exclude]] — owner allows exclude when the
+// alternative is fabricating a stub that doesn't exercise the real
+// code path). Precedents in the codebase: `PreflightValueEditor.tsx`
+// (CM single-line editor), `SchemaPanel.tsx` (schema-tree chrome),
+// `MarkdownEditor.tsx` (CM6 composition shell). Visual coverage
+// happens in the Playwright browser project, not unit tests.
+//
 // Smart wrapper around <EnvironmentsPage />. Owns:
 // - env list load + per-env varCount adapter into EnvironmentSummary
 // - file watcher refresh on `config-changed` (category "environment")

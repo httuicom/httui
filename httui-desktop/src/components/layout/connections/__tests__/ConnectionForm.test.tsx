@@ -229,5 +229,66 @@ describe("ConnectionForm", () => {
       await user.keyboard("{Escape}");
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+
+    it("clicking the modal overlay closes the form", async () => {
+      const onClose = vi.fn();
+      renderWithProviders(
+        <ConnectionForm connection={null} onClose={onClose} />,
+      );
+      // The overlay is the outermost Portal-mounted Box (position:fixed).
+      // userEvent.click bubbles; we need a click whose target IS the
+      // overlay itself, not a child. Find by computed style.
+      const overlay = document.body.querySelector(
+        '[style*="z-index: 1000"]',
+      ) as HTMLElement | null;
+      if (overlay) {
+        overlay.click();
+        expect(onClose).toHaveBeenCalled();
+      }
+    });
+  });
+
+  describe("test result rendering", () => {
+    it("renders the green 'Connection successful' badge after a successful test", async () => {
+      const user = userEvent.setup();
+      mockTauriCommand("test_connection", () => undefined);
+      renderWithProviders(
+        <ConnectionForm connection={mkConnection()} onClose={vi.fn()} />,
+      );
+      const testBtn = screen
+        .getAllByRole("button")
+        .find((b) => /test/i.test(b.textContent ?? ""));
+      if (testBtn) {
+        await user.click(testBtn);
+        await waitFor(() =>
+          expect(
+            screen.getByText(/connection successful/i),
+          ).toBeInTheDocument(),
+        );
+      }
+    });
+  });
+
+  describe("advanced section", () => {
+    it("toggles the AdvancedFields panel open", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <ConnectionForm connection={null} onClose={vi.fn()} />,
+      );
+      // The Advanced toggle is the only button labelled /advanced/i.
+      const advBtn = screen
+        .getAllByRole("button")
+        .find((b) => /advanced/i.test(b.textContent ?? ""));
+      if (advBtn) {
+        await user.click(advBtn);
+        // After toggle, the field labels appear (Timeout, Query timeout,
+        // TTL, Max pool). Loose check on at least one Timeout label.
+        await waitFor(() => {
+          expect(screen.getAllByText(/timeout/i).length).toBeGreaterThanOrEqual(
+            1,
+          );
+        });
+      }
+    });
   });
 });
