@@ -11,6 +11,7 @@ import { useState } from "react";
 
 import { Btn, Input } from "@/components/atoms";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useInlineForm } from "@/hooks/useInlineForm";
 
 import { validateEnvName } from "./env-name";
 
@@ -44,25 +45,23 @@ export function CloneEnvironmentForm({
   onSubmit,
   onCancel,
 }: CloneEnvironmentFormProps) {
-  const [name, setName] = useState("");
+  const nameField = useInlineForm("", (n) =>
+    validateEnvName(n, existingFilenames),
+  );
   const [copyVariables, setCopyVariables] = useState(true);
   const [copyConnectionsUsed, setCopyConnectionsUsed] = useState(false);
   const [markTemporary, setMarkTemporary] = useState(false);
   const [markPersonal, setMarkPersonal] = useState(false);
-  const [touched, setTouched] = useState(false);
 
-  const validation = validateEnvName(name, existingFilenames);
-  const showError = touched && !validation.ok;
-  const targetFilename = `${name.trim() || "<nome>"}${
+  const targetFilename = `${nameField.value.trim() || "<nome>"}${
     markPersonal ? ".local.toml" : ".toml"
   }`;
 
   function handleSubmit() {
-    setTouched(true);
-    if (!validation.ok) return;
+    if (!nameField.attemptSubmit()) return;
     onSubmit?.({
       sourceFilename,
-      name: name.trim(),
+      name: nameField.value.trim(),
       copyVariables,
       copyConnectionsUsed,
       markTemporary,
@@ -99,8 +98,8 @@ export function CloneEnvironmentForm({
           <Input
             data-testid="clone-environment-name"
             placeholder={`${sourceName}-copy`}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={nameField.value}
+            onChange={(e) => nameField.setValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -111,16 +110,16 @@ export function CloneEnvironmentForm({
               }
             }}
             autoFocus
-            aria-invalid={showError}
+            aria-invalid={nameField.showError}
           />
-          {showError && !validation.ok && (
+          {nameField.showError && (
             <Text
               fontSize="11px"
               color="error"
               mt={1}
               data-testid="clone-environment-name-error"
             >
-              {validation.reason}
+              {nameField.error}
             </Text>
           )}
         </Box>
@@ -175,7 +174,7 @@ export function CloneEnvironmentForm({
               variant="primary"
               data-testid="clone-environment-save"
               onClick={handleSubmit}
-              disabled={touched && !validation.ok}
+              disabled={nameField.showError}
             >
               Clone
             </Btn>

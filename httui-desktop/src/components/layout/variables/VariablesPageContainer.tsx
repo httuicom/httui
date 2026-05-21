@@ -11,17 +11,16 @@
 // page stays prop-driven, data + IPC live here.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { useConfigSyncedResource } from "@/hooks/useConfigSyncedResource";
+import {
+  useCrossEnvVariables,
+  type EnvVarsBundle,
+} from "@/hooks/useCrossEnvVariables";
 
 import { useEnvironmentStore } from "@/stores/environment";
 import { useSessionOverrideStore } from "@/stores/sessionOverride";
 import { useWorkspaceStore } from "@/stores/workspace";
-import {
-  listEnvVariables,
-  resolveEnvVariables,
-  type Environment,
-  type EnvVariable,
-} from "@/lib/tauri/commands";
+import { resolveEnvVariables, type Environment } from "@/lib/tauri/commands";
 import { grepVarUses, type VarUseEntry } from "@/lib/tauri/var-uses";
 
 import { NewVariableForm } from "./NewVariableForm";
@@ -32,11 +31,6 @@ import type { VariableRow } from "./variable-derive";
 
 interface VariablesPageContainerProps {
   onNavigateFile?: (filePath: string) => void;
-}
-
-interface EnvVarsBundle {
-  env: Environment;
-  vars: EnvVariable[];
 }
 
 /** Merge per-env variable lists into one row per key. Values map is
@@ -77,71 +71,35 @@ export function VariablesPageContainer({
   const activeEnvironment = useEnvironmentStore((s) => s.activeEnvironment);
   const refreshEnvs = useEnvironmentStore((s) => s.refresh);
   const setVariable = useEnvironmentStore((s) => s.setVariable);
-  const variablesVersion = useEnvironmentStore((s) => s.variablesVersion);
   const overrides = useSessionOverrideStore((s) => s.overrides);
   const setOverride = useSessionOverrideStore((s) => s.setOverride);
   const clearOverride = useSessionOverrideStore((s) => s.clearOverride);
 
-  const [rows, setRows] = useState<VariableRow[]>([]);
   const [usesEntriesByKey, setUsesEntriesByKey] = useState<
     Record<string, VarUseEntry[]>
   >({});
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // Initial env load — store does not auto-refresh on mount.
-  useEffect(() => {
-    void refreshEnvs();
-  }, [refreshEnvs]);
+  // Refresh on mount + on external `envs/*.toml` edits (backend
+  // `config-changed` category "environment").
+  useConfigSyncedResource("environment", refreshEnvs);
 
-  // External `envs/*.toml` edits via the file watcher.
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | null = null;
-    void (async () => {
-      const fn = await listen<{ category: string }>("config-changed", (e) => {
-        if (e.payload.category === "environment") {
-          void refreshEnvs();
-        }
-      });
-      if (cancelled) {
-        fn();
-      } else {
-        unlisten = fn;
-      }
-    })();
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [refreshEnvs]);
-
-  // Cross-env merge whenever the env list changes or a setVariable
-  // bumps `variablesVersion`.
-  useEffect(() => {
-    let cancelled = false;
-    if (environments.length === 0) {
-      setRows([]);
-      return;
-    }
-    void Promise.all(
-      environments.map(async (env) => ({
-        env,
-        vars: await listEnvVariables(env.id).catch(() => [] as EnvVariable[]),
-      })),
-    ).then((bundles) => {
-      if (cancelled) return;
-      const merged = mergeCrossEnvVariables(bundles);
-      const annotated = merged.map((r) => ({
+  // Shared cross-env fan-out (audit 05 §A.3 / backlog S2). The async
+  // load lives in the hook; the merge + usesCount annotation stay a
+  // synchronous memo here. Output is identical to the old effect — and
+  // the annotation no longer re-fires the per-env IPC when only
+  // `usesEntriesByKey` (the grep result) changes, which the old effect
+  // did redundantly.
+  const bundles = useCrossEnvVariables();
+  const rows = useMemo<VariableRow[]>(
+    () =>
+      mergeCrossEnvVariables(bundles).map((r) => ({
         ...r,
         usesCount: usesEntriesByKey[r.key]?.length ?? 0,
-      }));
-      setRows(annotated);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [environments, variablesVersion, usesEntriesByKey]);
+      })),
+    [bundles, usesEntriesByKey],
+  );
 
   // One-shot vault grep per key. Cheap (regex over *.md) and the
   // result is invariant to env changes — refetch only when the key

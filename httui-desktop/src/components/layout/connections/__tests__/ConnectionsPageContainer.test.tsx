@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { act } from "@testing-library/react";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
@@ -9,8 +10,10 @@ vi.mock("@/lib/theme/apply", () => ({ applyTheme: vi.fn() }));
 import { ConnectionsPageContainer } from "@/components/layout/connections/ConnectionsPageContainer";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { useSchemaCacheStore } from "@/stores/schemaCache";
+import { useConnectionsStore } from "@/stores/connections";
+import type { Connection } from "@/lib/tauri/connections";
 
-const sampleList = [
+const sampleList: Connection[] = [
   {
     id: "payments-db",
     name: "payments-db",
@@ -52,6 +55,7 @@ afterEach(() => {
   clearTauriListeners();
   useSchemaCacheStore.setState({ byConnection: {} });
   useWorkspaceStore.setState({ vaultPath: null });
+  useConnectionsStore.setState({ connections: [], loaded: false });
 });
 
 describe("ConnectionsPageContainer", () => {
@@ -385,5 +389,39 @@ describe("ConnectionsPageContainer", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("connections-detail-loaded")).toBeNull();
     });
+  });
+
+  it("does not re-grep usages when the connections array churns but the selection is unchanged (B4)", async () => {
+    let usesCalls = 0;
+    mockTauriCommand("find_connection_uses_cmd", () => {
+      usesCalls += 1;
+      return [];
+    });
+    renderWithProviders(<ConnectionsPageContainer />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("connection-row-payments-db"));
+    // Selection fired the prefetch exactly once.
+    await waitFor(() => expect(usesCalls).toBe(1));
+
+    // Simulate an unrelated store refresh (test-ping / CRUD /
+    // config-changed) emitting a fresh array with identical data —
+    // the selected connection's name is unchanged.
+    act(() => {
+      useConnectionsStore.setState({
+        connections: [{ ...sampleList[0] }],
+        loaded: true,
+      });
+    });
+    // Flush any effects the re-render might have scheduled.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // The grep must NOT have re-run — pre-B4 it keyed on the whole
+    // `connections` array and re-fired here.
+    expect(usesCalls).toBe(1);
+    expect(
+      screen.queryByTestId("connections-detail-loaded"),
+    ).toBeInTheDocument();
   });
 });

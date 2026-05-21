@@ -1,6 +1,6 @@
 // React mount for the DocHeader CM6 block widget.
 //
-// Mirrors `HttpWidgetPortals.tsx`: subscribes to the registry maintained
+// Mirrors `BlockWidgetPortals.tsx`: subscribes to the registry maintained
 // by `cm-doc-header.tsx` and `createPortal`s a `<DocHeaderShell>` into
 // the entry that matches this editor's `instanceId`.
 //

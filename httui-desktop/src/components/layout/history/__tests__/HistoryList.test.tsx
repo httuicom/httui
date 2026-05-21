@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 
 import {
   HistoryList,
-  formatElapsed,
   formatRelative,
   hasPlan,
   label,
@@ -190,21 +189,5 @@ describe("formatRelative", () => {
   });
   it("returns dash for unparseable input", () => {
     expect(formatRelative("not a date")).toBe("—");
-  });
-});
-
-describe("formatElapsed", () => {
-  it("renders ms under 1000", () => {
-    expect(formatElapsed(0)).toBe("0ms");
-    expect(formatElapsed(120)).toBe("120ms");
-    expect(formatElapsed(999)).toBe("999ms");
-  });
-  it("renders s under 60_000 with one decimal", () => {
-    expect(formatElapsed(1500)).toBe("1.5s");
-    expect(formatElapsed(59_999)).toBe("60.0s");
-  });
-  it("renders m above 60_000", () => {
-    expect(formatElapsed(120_000)).toBe("2m");
-    expect(formatElapsed(3 * 60_000)).toBe("3m");
   });
 });

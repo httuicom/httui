@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 
 import { WorkspaceMenu } from "@/components/layout/topbar/WorkspaceMenu";
-import { renderWithProviders, screen } from "@/test/render";
+import { renderWithProviders, screen, waitFor } from "@/test/render";
 
 const baseProps = {
   workspace: "secret-test",
@@ -42,9 +42,12 @@ describe("WorkspaceMenu", () => {
 
     // Both vault basenames are visible (one in the trigger, one in the
     // dropdown — that's why the matcher is the path entry which only
-    // exists in the dropdown).
-    expect(screen.getByText("/Users/me/secret-test")).toBeInTheDocument();
-    expect(screen.getByText("/Users/me/notes")).toBeInTheDocument();
+    // exists in the dropdown). `findByText` waits for the portal-mounted
+    // menu to render before asserting.
+    expect(
+      await screen.findByText("/Users/me/secret-test"),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("/Users/me/notes")).toBeInTheDocument();
   });
 
   it("marks the active vault with data-active=true", async () => {
@@ -55,7 +58,7 @@ describe("WorkspaceMenu", () => {
       screen.getByRole("button", { name: /Workspace secret-test/ }),
     );
 
-    const items = screen.getAllByRole("menuitem");
+    const items = await screen.findAllByRole("menuitem");
     const active = items.find((i) => i.getAttribute("data-active") === "true");
     expect(active?.getAttribute("data-vault-path")).toBe(
       "/Users/me/secret-test",
@@ -70,9 +73,16 @@ describe("WorkspaceMenu", () => {
     await user.click(
       screen.getByRole("button", { name: /Workspace secret-test/ }),
     );
-    await user.click(screen.getByText("notes"));
+    // Query by the `menuitem` role (not the bare text node): the role is
+    // applied once Chakra has fully registered the item, so the click
+    // lands on a settled element and its `onSelect` fires reliably.
+    await user.click(
+      await screen.findByRole("menuitem", { name: /\/Users\/me\/notes/ }),
+    );
 
-    expect(onSwitch).toHaveBeenCalledWith("/Users/me/notes");
+    await waitFor(() =>
+      expect(onSwitch).toHaveBeenCalledWith("/Users/me/notes"),
+    );
   });
 
   it('always shows the "Abrir outro vault…" item', async () => {
@@ -83,7 +93,7 @@ describe("WorkspaceMenu", () => {
       screen.getByRole("button", { name: /Workspace secret-test/ }),
     );
 
-    expect(screen.getByText("Abrir outro vault…")).toBeInTheDocument();
+    expect(await screen.findByText("Abrir outro vault…")).toBeInTheDocument();
   });
 
   it('clicking "Abrir outro vault…" calls onOpenOther', async () => {
@@ -96,9 +106,11 @@ describe("WorkspaceMenu", () => {
     await user.click(
       screen.getByRole("button", { name: /Workspace secret-test/ }),
     );
-    await user.click(screen.getByText("Abrir outro vault…"));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /Abrir outro vault/ }),
+    );
 
-    expect(onOpenOther).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onOpenOther).toHaveBeenCalledTimes(1));
   });
 
   it('renders only "Abrir outro vault…" when there are no vaults', async () => {
@@ -114,7 +126,7 @@ describe("WorkspaceMenu", () => {
 
     await user.click(screen.getByRole("button", { name: /Workspace —/ }));
 
-    expect(screen.getByText("Abrir outro vault…")).toBeInTheDocument();
+    expect(await screen.findByText("Abrir outro vault…")).toBeInTheDocument();
     // No data-vault-path items
     expect(
       screen

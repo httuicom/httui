@@ -78,12 +78,15 @@ KEPT=()
 for f in "${CHANGED_FILES[@]}"; do
     [ -f "$f" ] && KEPT+=("$f")
 done
-CHANGED_FILES=("${KEPT[@]}")
 
-if [ ${#CHANGED_FILES[@]} -eq 0 ]; then
+# Check emptiness BEFORE copying: on bash 3.2 (macOS) `"${KEPT[@]}"`
+# of an empty array under `set -u` is an "unbound variable" error,
+# which crashed deletion-only commits before reaching this skip.
+if [ ${#KEPT[@]} -eq 0 ]; then
     echo "coverage-check: all touched files were deleted; gate skipped"
     exit 0
 fi
+CHANGED_FILES=("${KEPT[@]}")
 
 HAS_RS=0
 HAS_FE=0

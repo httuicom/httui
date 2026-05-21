@@ -21,3 +21,23 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {}
   } as unknown as typeof ResizeObserver;
 }
+
+// matchMedia mock — Chakra UI v3 (via next-themes) reads it at module
+// load to detect the OS color-mode preference. jsdom doesn't ship one
+// and the import side-effect throws `matchMedia is not a function`
+// before any test runs. Always returns `matches: false` (light mode).
+if (typeof window !== "undefined" && typeof window.matchMedia === "undefined") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}

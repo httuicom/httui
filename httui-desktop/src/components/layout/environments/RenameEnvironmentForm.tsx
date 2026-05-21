@@ -7,9 +7,9 @@
 // without colliding with itself.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
-import { useState } from "react";
 
 import { Btn, Input } from "@/components/atoms";
+import { useInlineForm } from "@/hooks/useInlineForm";
 
 import { validateEnvName } from "./env-name";
 import type { EnvironmentSummary } from "./envs-meta";
@@ -35,24 +35,22 @@ export function RenameEnvironmentForm({
   onSubmit,
   onCancel,
 }: RenameEnvironmentFormProps) {
-  const [name, setName] = useState(env.name);
-  const [touched, setTouched] = useState(false);
-
   // Filter out the source filename so renaming to the same name (or
   // changing case) doesn't trip the duplicate check.
   const others = existingFilenames.filter((f) => f !== env.filename);
-  const validation = validateEnvName(name, others);
-  const showError = touched && !validation.ok;
-  const noChange = name.trim() === env.name;
+  const nameField = useInlineForm(env.name, (n) => validateEnvName(n, others));
+  const noChange = nameField.value.trim() === env.name;
 
   function handleSubmit() {
-    setTouched(true);
-    if (!validation.ok) return;
+    if (!nameField.attemptSubmit()) return;
     if (noChange) {
       onCancel?.();
       return;
     }
-    onSubmit?.({ sourceFilename: env.filename, newName: name.trim() });
+    onSubmit?.({
+      sourceFilename: env.filename,
+      newName: nameField.value.trim(),
+    });
   }
 
   return (
@@ -83,8 +81,8 @@ export function RenameEnvironmentForm({
         <Box>
           <Input
             data-testid="rename-environment-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={nameField.value}
+            onChange={(e) => nameField.setValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -95,16 +93,16 @@ export function RenameEnvironmentForm({
               }
             }}
             autoFocus
-            aria-invalid={showError}
+            aria-invalid={nameField.showError}
           />
-          {showError && !validation.ok && (
+          {nameField.showError && (
             <Text
               fontSize="11px"
               color="error"
               mt={1}
               data-testid="rename-environment-name-error"
             >
-              {validation.reason}
+              {nameField.error}
             </Text>
           )}
         </Box>
@@ -117,7 +115,7 @@ export function RenameEnvironmentForm({
           >
             renames to{" "}
             <Text as="span" fontFamily="mono">
-              envs/{name.trim() || "<name>"}
+              envs/{nameField.value.trim() || "<name>"}
               {env.isPersonal ? ".local.toml" : ".toml"}
             </Text>
           </Text>
@@ -133,7 +131,7 @@ export function RenameEnvironmentForm({
               variant="primary"
               data-testid="rename-environment-save"
               onClick={handleSubmit}
-              disabled={touched && !validation.ok}
+              disabled={nameField.showError}
             >
               Rename
             </Btn>

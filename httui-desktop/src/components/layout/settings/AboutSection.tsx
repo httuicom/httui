@@ -9,7 +9,7 @@ interface InfoRow {
 
 const TECH_STACK: InfoRow[] = [
   { label: "Frontend", value: "React + TypeScript + Chakra UI v3" },
-  { label: "Editor", value: "TipTap + CodeMirror 6" },
+  { label: "Editor", value: "CodeMirror 6" },
   { label: "Backend", value: "Tauri v2 (Rust)" },
   { label: "Database", value: "SQLite (sqlx)" },
   { label: "AI", value: "Claude (Anthropic SDK)" },

@@ -1,3 +1,24 @@
+// coverage:exclude file — the file's data-layer (env load, summary
+// derivation, request/submit handlers, activate wiring) is exercised
+// by `EnvironmentsPageContainer.test.tsx` (16 specs). The remaining
+// ~22% uncovered LOC is the FLIP animation block (lines ~140-183):
+// `useLayoutEffect` + `getBoundingClientRect` + `requestAnimationFrame`
+// + `window.matchMedia(reduce)` + DOM style.transform reads. jsdom
+// returns `{ width: 0, height: 0, left: 0, top: 0 }` for every node
+// regardless of CSS, so the animation never visibly moves and the
+// `dx === 0 && dy === 0` short-circuit ALWAYS triggers — there's no
+// branch left to drive from inside jsdom without rebuilding the
+// runtime's layout engine.
+//
+// Decision per dono (2026-05-20): jsdom-unfriendly is the documented
+// reason for `// coverage:exclude file` (see
+// [[feedback-no-coverage-exclude]] — owner allows exclude when the
+// alternative is fabricating a stub that doesn't exercise the real
+// code path). Precedents in the codebase: `PreflightValueEditor.tsx`
+// (CM single-line editor), `SchemaPanel.tsx` (schema-tree chrome),
+// `MarkdownEditor.tsx` (CM6 composition shell). Visual coverage
+// happens in the Playwright browser project, not unit tests.
+//
 // Smart wrapper around <EnvironmentsPage />. Owns:
 // - env list load + per-env varCount adapter into EnvironmentSummary
 // - file watcher refresh on `config-changed` (category "environment")
@@ -6,18 +27,12 @@
 // Mirrors VariablesPageContainer / ConnectionsPageContainer:
 // presentational page stays prop-driven, data + IPC live here.
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { listen } from "@tauri-apps/api/event";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useConfigSyncedResource } from "@/hooks/useConfigSyncedResource";
+import { useCrossEnvVariables } from "@/hooks/useCrossEnvVariables";
 
 import { useEnvironmentStore } from "@/stores/environment";
-import { listEnvVariables, type Environment } from "@/lib/tauri/commands";
+import { type Environment } from "@/lib/tauri/commands";
 
 import {
   CloneEnvironmentForm,
@@ -79,7 +94,6 @@ export function EnvironmentsPageContainer({
   );
   const renameEnvironment = useEnvironmentStore((s) => s.renameEnvironment);
   const deleteEnvironment = useEnvironmentStore((s) => s.deleteEnvironment);
-  const variablesVersion = useEnvironmentStore((s) => s.variablesVersion);
 
   // FLIP swap of the ACTIVE pill across cards: capture the old
   // pill's bounding rect before switchEnvironment fires, then in
@@ -90,7 +104,6 @@ export function EnvironmentsPageContainer({
     activeEnvironment?.name ?? null,
   );
 
-  const [summaries, setSummaries] = useState<EnvironmentSummary[]>([]);
   const [cloning, setCloning] = useState<{
     filename: string;
     name: string;
@@ -98,64 +111,31 @@ export function EnvironmentsPageContainer({
   const [renaming, setRenaming] = useState<EnvironmentSummary | null>(null);
   const [deleting, setDeleting] = useState<EnvironmentSummary | null>(null);
   const [creatingEnv, setCreatingEnv] = useState(false);
-  const [secretCounts, setSecretCounts] = useState<Record<string, number>>({});
 
-  useEffect(() => {
-    void refreshEnvs();
-  }, [refreshEnvs]);
+  // Refresh on mount + on external `envs/*.toml` edits (backend
+  // `config-changed` category "environment").
+  useConfigSyncedResource("environment", refreshEnvs);
 
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | null = null;
-    void (async () => {
-      const fn = await listen<{ category: string }>("config-changed", (e) => {
-        if (e.payload.category === "environment") {
-          void refreshEnvs();
-        }
-      });
-      if (cancelled) {
-        fn();
-      } else {
-        unlisten = fn;
-      }
-    })();
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [refreshEnvs]);
+  // Shared cross-env fan-out (audit 05 §A.3 / backlog S2). The async
+  // load lives in the hook; the page-specific derivation below stays
+  // a synchronous memo — same output, same cadence as the old effect.
+  const bundles = useCrossEnvVariables();
 
-  // Load varCount + secretCount per env in parallel, then assemble
-  // summaries.
-  useEffect(() => {
-    let cancelled = false;
-    if (environments.length === 0) {
-      setSummaries([]);
-      setSecretCounts({});
-      return;
-    }
-    void Promise.all(
-      environments.map(async (env) => {
-        const vars = await listEnvVariables(env.id).catch(() => []);
-        const secrets = vars.filter((v) => v.is_secret).length;
-        return {
-          summary: envToSummary(env, vars.length),
-          secrets,
-        };
-      }),
-    ).then((rows) => {
-      if (cancelled) return;
-      setSummaries(rows.map((r) => r.summary));
-      setSecretCounts(
-        Object.fromEntries(
-          rows.map(({ summary, secrets }) => [summary.filename, secrets]),
-        ),
-      );
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [environments, variablesVersion]);
+  const summaries = useMemo<EnvironmentSummary[]>(
+    () => bundles.map(({ env, vars }) => envToSummary(env, vars.length)),
+    [bundles],
+  );
+
+  const secretCounts = useMemo<Record<string, number>>(
+    () =>
+      Object.fromEntries(
+        bundles.map(({ env, vars }) => [
+          `${env.name}.toml`,
+          vars.filter((v) => v.is_secret).length,
+        ]),
+      ),
+    [bundles],
+  );
 
   const envByFilename = useMemo(() => {
     const m = new Map<string, Environment>();

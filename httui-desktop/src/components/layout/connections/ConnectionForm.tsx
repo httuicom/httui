@@ -11,102 +11,57 @@ import {
   Portal,
 } from "@chakra-ui/react";
 import { LuX, LuPlugZap, LuDatabase } from "react-icons/lu";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 
-import type {
-  Connection,
-  CreateConnectionInput,
-} from "@/lib/tauri/connections";
+import type { Connection } from "@/lib/tauri/connections";
 import {
   createConnection,
   updateConnection,
   testConnection,
 } from "@/lib/tauri/connections";
 
-import {
-  DriverSelector,
-  DRIVER_CONFIG,
-  type Driver,
-} from "./form/DriverSelector";
+import { DriverSelector, DRIVER_CONFIG } from "./form/DriverSelector";
 import { SqliteFields } from "./form/SqliteFields";
 import { NetworkFields } from "./form/NetworkFields";
 import { AdvancedFields } from "./form/AdvancedFields";
 import { buildConnectionPreview } from "./form/connection-string";
+import {
+  buildConnectionInput,
+  connectionFormReducer,
+  initConnectionFormState,
+  validateConnection,
+} from "./connection-form-state";
 
 interface ConnectionFormProps {
   connection: Connection | null;
   onClose: () => void;
 }
 
-/** Modal form for creating / editing a database connection. Holds
- * all field state (kept inline because the form's commit semantics —
- * one Save button writing all fields atomically — don't benefit from
- * splitting state into hooks). The visual sections delegate to
- * `form/*` sub-components for size hygiene. */
+/** Modal form for creating / editing a database connection. All field
+ * state lives in one `useReducer` (`connection-form-state.ts`) — the
+ * old 18 `useState` + the props→state driver→port mirror effect were
+ * a desync hazard with zero field validation (audit 02 §4 / 05 Part
+ * B). The visual sections delegate to `form/*` sub-components. */
 export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
   const isEdit = connection !== null;
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const [name, setName] = useState(connection?.name ?? "");
-  const [driver, setDriver] = useState<Driver>(
-    (connection?.driver as Driver) ?? "postgres",
+  const [s, dispatch] = useReducer(
+    connectionFormReducer,
+    connection,
+    initConnectionFormState,
   );
-  const [host, setHost] = useState(connection?.host ?? "localhost");
-  const [port, setPort] = useState(connection?.port?.toString() ?? "5432");
-  const [dbName, setDbName] = useState(connection?.database_name ?? "");
-  const [username, setUsername] = useState(connection?.username ?? "");
-  const [password, setPassword] = useState("");
-  const [sslMode, setSslMode] = useState(connection?.ssl_mode ?? "disable");
-
-  // Advanced
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [timeoutMs, setTimeoutMs] = useState(
-    (connection?.timeout_ms ?? 10000).toString(),
-  );
-  const [queryTimeoutMs, setQueryTimeoutMs] = useState(
-    (connection?.query_timeout_ms ?? 30000).toString(),
-  );
-  const [ttlSeconds, setTtlSeconds] = useState(
-    (connection?.ttl_seconds ?? 300).toString(),
-  );
-  const [maxPoolSize, setMaxPoolSize] = useState(
-    (connection?.max_pool_size ?? 5).toString(),
-  );
-
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<"success" | "error" | null>(
-    null,
-  );
-  const [testError, setTestError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Update default port when driver changes (only on new — editing
-  // keeps the existing port even if the driver is somehow swapped).
-  useEffect(() => {
-    if (!isEdit) {
-      setPort(DRIVER_CONFIG[driver].defaultPort);
-    }
-  }, [driver, isEdit]);
 
   const handleSave = useCallback(async () => {
-    setError(null);
-    setSaving(true);
+    const check = validateConnection(s);
+    if (!check.ok) {
+      dispatch({ type: "saveError", message: check.reason });
+      return;
+    }
+    dispatch({ type: "saveStart" });
 
     try {
-      const input: CreateConnectionInput = {
-        name,
-        driver,
-        ...(driver !== "sqlite" && { host, port: parseInt(port) || undefined }),
-        database_name: dbName || undefined,
-        ...(driver !== "sqlite" && { username: username || undefined }),
-        ...(driver !== "sqlite" && { password: password || undefined }),
-        ...(driver !== "sqlite" && { ssl_mode: sslMode }),
-        timeout_ms: parseInt(timeoutMs) || undefined,
-        query_timeout_ms: parseInt(queryTimeoutMs) || undefined,
-        ttl_seconds: parseInt(ttlSeconds) || undefined,
-        max_pool_size: parseInt(maxPoolSize) || undefined,
-      };
+      const input = buildConnectionInput(s);
 
       if (isEdit && connection) {
         await updateConnection(connection.id, input);
@@ -114,44 +69,28 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
         await createConnection(input);
       }
 
+      dispatch({ type: "saveDone" });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSaving(false);
+      dispatch({
+        type: "saveError",
+        message: err instanceof Error ? err.message : String(err),
+      });
     }
-  }, [
-    name,
-    driver,
-    host,
-    port,
-    dbName,
-    username,
-    password,
-    sslMode,
-    timeoutMs,
-    queryTimeoutMs,
-    ttlSeconds,
-    maxPoolSize,
-    isEdit,
-    connection,
-    onClose,
-  ]);
+  }, [s, isEdit, connection, onClose]);
 
   const handleTest = useCallback(async () => {
     if (!isEdit || !connection) return;
-    setTesting(true);
-    setTestResult(null);
-    setTestError(null);
+    dispatch({ type: "testStart" });
 
     try {
       await testConnection(connection.id);
-      setTestResult("success");
+      dispatch({ type: "testSuccess" });
     } catch (err) {
-      setTestResult("error");
-      setTestError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setTesting(false);
+      dispatch({
+        type: "testFailure",
+        message: err instanceof Error ? err.message : String(err),
+      });
     }
   }, [isEdit, connection]);
 
@@ -173,8 +112,8 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const isSqlite = driver === "sqlite";
-  const driverColor = DRIVER_CONFIG[driver].color;
+  const isSqlite = s.driver === "sqlite";
+  const driverColor = DRIVER_CONFIG[s.driver].color;
 
   return (
     <Portal>
@@ -231,34 +170,62 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
             <VStack gap={3} p={4} pb={3} align="stretch">
               <Input
                 size="sm"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={s.name}
+                onChange={(e) =>
+                  dispatch({
+                    type: "setField",
+                    field: "name",
+                    value: e.target.value,
+                  })
+                }
                 placeholder="Connection name"
                 fontWeight="medium"
               />
-              <DriverSelector value={driver} onChange={setDriver} />
+              <DriverSelector
+                value={s.driver}
+                onChange={(driver) =>
+                  dispatch({ type: "setDriver", driver, isEdit })
+                }
+              />
             </VStack>
 
             {/* Driver-specific fields */}
             <Box bg="bg.subtle" mx={4} rounded="lg" p={3} mb={3}>
               <VStack gap={2.5} align="stretch">
                 {isSqlite ? (
-                  <SqliteFields dbName={dbName} onDbNameChange={setDbName} />
+                  <SqliteFields
+                    dbName={s.dbName}
+                    onDbNameChange={(value) =>
+                      dispatch({ type: "setField", field: "dbName", value })
+                    }
+                  />
                 ) : (
                   <NetworkFields
-                    driver={driver}
-                    host={host}
-                    onHostChange={setHost}
-                    port={port}
-                    onPortChange={setPort}
-                    dbName={dbName}
-                    onDbNameChange={setDbName}
-                    username={username}
-                    onUsernameChange={setUsername}
-                    password={password}
-                    onPasswordChange={setPassword}
-                    sslMode={sslMode}
-                    onSslModeChange={setSslMode}
+                    driver={s.driver}
+                    host={s.host}
+                    onHostChange={(value) =>
+                      dispatch({ type: "setField", field: "host", value })
+                    }
+                    port={s.port}
+                    onPortChange={(value) =>
+                      dispatch({ type: "setField", field: "port", value })
+                    }
+                    dbName={s.dbName}
+                    onDbNameChange={(value) =>
+                      dispatch({ type: "setField", field: "dbName", value })
+                    }
+                    username={s.username}
+                    onUsernameChange={(value) =>
+                      dispatch({ type: "setField", field: "username", value })
+                    }
+                    password={s.password}
+                    onPasswordChange={(value) =>
+                      dispatch({ type: "setField", field: "password", value })
+                    }
+                    sslMode={s.sslMode}
+                    onSslModeChange={(value) =>
+                      dispatch({ type: "setField", field: "sslMode", value })
+                    }
                   />
                 )}
               </VStack>
@@ -276,41 +243,61 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
                 rounded="md"
                 truncate
               >
-                {buildConnectionPreview(driver, host, port, dbName, username)}
+                {buildConnectionPreview(
+                  s.driver,
+                  s.host,
+                  s.port,
+                  s.dbName,
+                  s.username,
+                )}
               </Text>
             </Box>
 
             <AdvancedFields
-              open={showAdvanced}
-              onToggle={() => setShowAdvanced(!showAdvanced)}
-              timeoutMs={timeoutMs}
-              onTimeoutMsChange={setTimeoutMs}
-              queryTimeoutMs={queryTimeoutMs}
-              onQueryTimeoutMsChange={setQueryTimeoutMs}
-              ttlSeconds={ttlSeconds}
-              onTtlSecondsChange={setTtlSeconds}
-              maxPoolSize={maxPoolSize}
-              onMaxPoolSizeChange={setMaxPoolSize}
+              open={s.showAdvanced}
+              onToggle={() => dispatch({ type: "toggleAdvanced" })}
+              timeoutMs={s.timeoutMs}
+              onTimeoutMsChange={(value) =>
+                dispatch({ type: "setField", field: "timeoutMs", value })
+              }
+              queryTimeoutMs={s.queryTimeoutMs}
+              onQueryTimeoutMsChange={(value) =>
+                dispatch({
+                  type: "setField",
+                  field: "queryTimeoutMs",
+                  value,
+                })
+              }
+              ttlSeconds={s.ttlSeconds}
+              onTtlSecondsChange={(value) =>
+                dispatch({ type: "setField", field: "ttlSeconds", value })
+              }
+              maxPoolSize={s.maxPoolSize}
+              onMaxPoolSizeChange={(value) =>
+                dispatch({ type: "setField", field: "maxPoolSize", value })
+              }
             />
 
-            {testResult && (
+            {s.testResult && (
               <Box mx={4} mb={3}>
                 <Badge
-                  colorPalette={testResult === "success" ? "green" : "red"}
+                  colorPalette={s.testResult === "success" ? "green" : "red"}
                   variant="subtle"
                   px={2}
                   py={1}
                   fontSize="xs"
                   w="100%"
                 >
-                  {testResult === "success"
+                  {s.testResult === "success"
                     ? "Connection successful"
-                    : `Connection failed${testError ? `: ${testError}` : ""}`}
+                    : `Connection failed${
+                        s.testError ? `: ${s.testError}` : ""
+                      }`}
                 </Badge>
               </Box>
             )}
 
-            {error && (
+            {s.error && (
               <Box mx={4} mb={3}>
                 <Badge
                   colorPalette="red"
@@ -320,7 +307,7 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
                   fontSize="xs"
                   w="100%"
                 >
-                  {error}
+                  {s.error}
                 </Badge>
               </Box>
             )}
@@ -348,11 +335,11 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
                 bg="bg.subtle"
                 _hover={{ bg: "bg.emphasized" }}
                 onClick={handleTest}
-                opacity={testing ? 0.5 : 1}
-                pointerEvents={testing ? "none" : "auto"}
+                opacity={s.testing ? 0.5 : 1}
+                pointerEvents={s.testing ? "none" : "auto"}
                 mr="auto"
               >
-                {testing ? <Spinner size="xs" /> : <LuPlugZap size={14} />}
+                {s.testing ? <Spinner size="xs" /> : <LuPlugZap size={14} />}
                 <Text fontSize="xs">Test</Text>
               </Box>
             )}
@@ -379,10 +366,10 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
               color="white"
               _hover={{ bg: `${driverColor}.600` }}
               onClick={handleSave}
-              opacity={saving || !name.trim() ? 0.5 : 1}
-              pointerEvents={saving || !name.trim() ? "none" : "auto"}
+              opacity={s.saving || !s.name.trim() ? 0.5 : 1}
+              pointerEvents={s.saving || !s.name.trim() ? "none" : "auto"}
             >
-              {saving ? <Spinner size="xs" /> : isEdit ? "Save" : "Create"}
+              {s.saving ? <Spinner size="xs" /> : isEdit ? "Save" : "Create"}
             </Box>
           </Flex>
         </Box>

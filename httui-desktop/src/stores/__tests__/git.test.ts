@@ -267,6 +267,91 @@ describe("useGitStore", () => {
     });
   });
 
+  describe("poll ref-stability (H2)", () => {
+    // The real IPC deserializes a fresh object every tick; mimic that
+    // so the test exercises the structural-equality guard (not mock
+    // reference identity).
+    const freshStatus = () => JSON.parse(JSON.stringify(STATUS)) as GitStatus;
+
+    it("keeps the same status + remotes refs across an unchanged poll", async () => {
+      mockTauriCommand("git_status_cmd", () => freshStatus());
+      mockTauriCommand("git_remote_list_cmd", () => [{ ...REMOTE }]);
+
+      st().acquire("/v");
+      await flush();
+      const statusRef = st().status;
+      const remotesRef = st().remotes;
+      expect(statusRef).toEqual(STATUS);
+
+      const notified = vi.fn();
+      const unsub = useGitStore.subscribe(notified);
+      vi.advanceTimersByTime(GIT_STATUS_POLL_MS);
+      await flush();
+      unsub();
+
+      // Same data → same references → no subscriber would re-render.
+      expect(st().status).toBe(statusRef);
+      expect(st().remotes).toBe(remotesRef);
+      expect(notified).not.toHaveBeenCalled();
+    });
+
+    it("swaps the status ref when git actually changes", async () => {
+      let clean = true;
+      mockTauriCommand("git_status_cmd", () => ({
+        ...freshStatus(),
+        clean,
+      }));
+      mockTauriCommand("git_remote_list_cmd", () => []);
+
+      st().acquire("/v");
+      await flush();
+      const statusRef = st().status;
+
+      clean = false; // a file changed between polls
+      vi.advanceTimersByTime(GIT_STATUS_POLL_MS);
+      await flush();
+
+      expect(st().status).not.toBe(statusRef);
+      expect(st().status?.clean).toBe(false);
+    });
+
+    it("swaps the remotes ref when a remote is added", async () => {
+      let list: { name: string; url: string }[] = [];
+      mockTauriCommand("git_status_cmd", () => freshStatus());
+      mockTauriCommand("git_remote_list_cmd", () =>
+        list.map((r) => ({ ...r })),
+      );
+
+      st().acquire("/v");
+      await flush();
+      const remotesRef = st().remotes;
+      expect(remotesRef).toEqual([]);
+
+      list = [REMOTE];
+      vi.advanceTimersByTime(GIT_STATUS_POLL_MS);
+      await flush();
+
+      expect(st().remotes).not.toBe(remotesRef);
+      expect(st().remotes).toEqual([REMOTE]);
+    });
+
+    it("clears a stale statusError on an unchanged poll without churning the ref", async () => {
+      mockTauriCommand("git_status_cmd", () => freshStatus());
+      mockTauriCommand("git_remote_list_cmd", () => []);
+
+      st().acquire("/v");
+      await flush();
+      const statusRef = st().status;
+      useGitStore.setState({ statusError: "stale boom" });
+
+      vi.advanceTimersByTime(GIT_STATUS_POLL_MS);
+      await flush();
+
+      expect(st().statusError).toBeNull();
+      expect(st().status).toBe(statusRef);
+    });
+  });
+
   it("resetGitStore tears down a live poll timer", async () => {
     mockTauriCommand("git_status_cmd", () => STATUS);
     mockTauriCommand("git_remote_list_cmd", () => []);

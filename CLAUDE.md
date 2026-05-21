@@ -8,7 +8,7 @@ Notes — desktop markdown editor with executable blocks (HTTP client, DB query 
 
 > **Repo layout (post epic 00):** the desktop app lives in `httui-desktop/` (`httui-desktop/src/` for the React frontend, `httui-desktop/src-tauri/` for the Rust backend). The marketing landing is `httui-web/`, the Claude sidecar is `httui-sidecar/`. The shared Rust crate is `httui-core/`, the terminal binary `httui-tui/`, the MCP server `httui-mcp/`. **Path references like `src/components/...` in this doc are relative to `httui-desktop/`** unless otherwise prefixed.
 
-> **Recent migrations:** TipTap and the E2E block were removed (commits `7aa97e8`, `0aa2868`, `9124ad4`). The editor is now CodeMirror 6 only. State is managed by Zustand stores, not React Contexts (one legacy context remains: `WorkspaceContext`). Older docs may still reference the old architecture.
+> **Recent migrations:** TipTap and the E2E block were removed (commits `7aa97e8`, `0aa2868`, `9124ad4`). The editor is now CodeMirror 6 only. State is managed by Zustand stores, not React Contexts (the only legacy *domain* context left is `WorkspaceContext`; small CM6/UI-scoped contexts like `BlockContext` and the doc-header context also exist by design). Older docs may still reference the old architecture.
 
 ## Commands
 
@@ -61,15 +61,52 @@ Mounted in `AppShell` when `vaultPath === null`:
 
 Full details in `docs/ARCHITECTURE.md` (some sections may be outdated — code is source of truth).
 
-**Block model — aspirational vs actual:**
-- *Aspirational*: "plugin architecture (Open/Closed)" — new block types added as vertical slices without modifying existing code, via a `BlockRegistry` and `Executor` trait.
-- *Actual*: backend has a real `Executor` trait + dispatch by `block_type` string. Frontend has **no `BlockRegistry`** — block types (HTTP, DB) are imported and wired by hand in `src/components/editor/MarkdownEditor.tsx`. Adding a new block today requires editing `MarkdownEditor.tsx`, creating a CM6 extension under `src/lib/codemirror/`, and adding a Portal mount component under `src/components/editor/`.
+**Block model — OCP closed (refactor 2026-05-19/20, audit 03 #2):**
+- *Public contract*: `BlockTypeSpec` (`src/lib/blocks/block-registry.ts`)
+  + `BlockPortalEntry` (`src/lib/blocks/block-portal-registry.tsx`).
+  Adding a new block type today = create `cm-<id>-block.tsx` + a
+  `<Id>FencedPanel.tsx`, then append a `BlockTypeSpec` to
+  `blockRegistry` and a `BlockPortalEntry` to `blockPortals`. **Zero
+  edits** to `MarkdownEditor.tsx`, `markdown-extensions.ts`, or
+  `cm-slash-commands.ts` — they consume the arrays.
+- *Backend*: `Executor` trait + `ExecutorRegistry` dispatch by
+  `block_type` string. One generic `execute_block` Tauri command routes
+  to the right executor.
 
 **Frontend layers:**
-- **CM6 fenced-block extensions** — each block type has a CM6 extension (`src/lib/codemirror/cm-http-block.tsx`, `cm-db-block.tsx`) that scans the doc for its fence (```http, ```db-*), produces decorations with widget DOM containing portal slots (toolbar / form / result / statusbar), and provides a transactionFilter to keep fences atomic-on-edges.
-- **Portal mounts** (`src/components/editor/HttpWidgetPortals.tsx`, `DbWidgetPortals.tsx`) subscribe to the CM6 extension's portal registry and `createPortal` the React panels into each slot.
-- **Block panels** (`HttpFencedPanel.tsx`, `DbFencedPanel.tsx`) — each is a single large component holding toolbar, form/raw mode, result tabs, status bar, and settings drawer. ⚠️ Both are monoliths (3.876 L and 2.200 L respectively) — pending split. Avoid adding new features inline; prefer extracting sub-components first.
-- **`ExecutableBlockShell`** (`src/components/blocks/ExecutableBlockShell.tsx`) — shared shell with display modes (input/split/output), run button, status badge. Currently only consumed by `StandaloneBlock` (the diff-viewer block). HTTP/DB panels reimplement toolbar/status inline because they live outside the editor's document flow (mounted via Portal into CM6 widget DOM).
+- **CM6 fenced-block extensions** — each block type has a CM6 extension
+  (`src/lib/codemirror/cm-http-block.tsx`, `cm-db-block.tsx`) built on
+  the shared generic skeleton in `createFencedBlockExtension.tsx` +
+  `widget-portal-registry.ts` (scanner, registry, decorations, keymap,
+  StateField, ref autocomplete are all generic; each block file owns
+  only its open-fence regex, body decoration, and any block-specific
+  fields like DB's error squiggle).
+- **Generic portal mount** — `src/components/editor/BlockWidgetPortals.tsx`
+  (80 L). One component instantiated twice in `MarkdownEditor.tsx`
+  (once per block type via the `blockPortals` array). Replaces the
+  pre-A4 `HttpWidgetPortals.tsx` / `DbWidgetPortals.tsx`.
+- **Block panels** (`HttpFencedPanel.tsx` 567 L, `DbFencedPanel.tsx`
+  779 L) — orchestrators that mount React panels into the per-block
+  CM6 widget slots via `createPortal`. The HTTP panel was decomposed
+  into 4 sibling hooks (`useHttpRefsContext`, `useHttpCacheHydrate`,
+  `useHttpCodegenSnippets`, `useHttpDrawerData`) + 4 view siblings
+  (`HttpBodyView`, `HttpInlineEditors`, `HttpFormTables`,
+  `HttpJsonVisualizer`) + a pure helper module
+  (`http-request-builder.ts`). All files now under the 600-line size
+  gate. DB panel split is deferred (no audit-#-blocker remaining).
+- **`StandaloneBlockShell`** (`src/components/blocks/StandaloneBlockShell.tsx`,
+  ex-`ExecutableBlockShell` renamed in A6) — shared shell with display
+  modes (input/split/output), run button, status badge. Currently only
+  consumed by `StandaloneBlock` (the diff-viewer block). HTTP/DB
+  panels reimplement toolbar/status inline because they live outside
+  the editor's document flow (mounted via Portal into CM6 widget DOM).
+- **Shared FSM hook** — `src/hooks/useExecutableBlock.ts` (A2a) owns
+  the `idle → running → success | error | cancelled` machine + the
+  AbortController + collect-blocks/env + try/catch/finally. The HTTP
+  panel consumes it via an adapter (`validate`, `prepare`, `execute`,
+  `elapsedOf`, `persist?`, `onOutcome?`); the DB panel kept its
+  in-place reducer (its `runExplain` / `loadMore` co-mutate the same
+  state — decision documented in audit 03 #4 RULE 4).
 
 **Backend layers:**
 - `Executor` trait + `ExecutorRegistry` — dispatch by `block_type` string. One generic `execute_block` Tauri command routes to the right executor.
@@ -156,8 +193,8 @@ Only one survives:
   - `ShareMenu` (status bar + panel toolbar) wraps `share/SharePopover` via `useShareRepoUrl`. Branch switcher lives in `BranchMenu` (status bar). Conflict regions in the markdown editor are decorated by `src/lib/codemirror/cm-merge-conflict.tsx`. Backend: `httui-core/src/git/` (`conflict.rs` = `git show :1|:2|:3`; `git_push` has `set_upstream`; `git_pull` has `ff_only`).
 - `src/components/layout/TopBar.tsx` — vault selector, environment switcher
 - `src/components/chat/` — ChatPanel, ChatConversation, ChatInput, ChatMessageBubble, ChatSessionList, ChatMarkdown, ToolUseGroup, PermissionBanner, PermissionManager, UsagePanel
-- `src/components/editor/` — MarkdownEditor (CM6 composition shell, ~206L), DiffViewer (side-by-side merge), HttpWidgetPortals, DbWidgetPortals. The CM6 extension stack lives in three sibling modules with 100% coverage: `markdown-vim-motions.ts` (vim compartment + doc-line `ArrowUp/Down` keymap + `moveByLines` motion override), `markdown-highlight-style.ts` (Chakra-driven `HighlightStyle` + `dbSqlLanguages` + `containerCss`), and `markdown-extensions.ts` (`buildExtensions(params)` + `flattenFiles` helper).
-- `src/components/blocks/` — ExecutableBlockShell, http/fenced/HttpFencedPanel, db/fenced/DbFencedPanel, db/ResultTable, standalone/StandaloneBlock
+- `src/components/editor/` — MarkdownEditor (CM6 composition shell, ~223L), DiffViewer (side-by-side merge), BlockWidgetPortals (generic, 80L — replaces pre-A4 HttpWidgetPortals/DbWidgetPortals), DocHeaderWidgetPortal. The CM6 extension stack lives in three sibling modules with 100% coverage: `markdown-vim-motions.ts` (vim compartment + doc-line `ArrowUp/Down` keymap + `moveByLines` motion override), `markdown-highlight-style.ts` (Chakra-driven `HighlightStyle` + `dbSqlLanguages` + `containerCss`), and `markdown-extensions.ts` (`buildExtensions(params)` + `flattenFiles` helper) — the last consumes `blockRegistry` from `src/lib/blocks/block-registry.ts` so adding a block type doesn't require editing this file.
+- `src/components/blocks/` — StandaloneBlockShell, http/fenced/HttpFencedPanel (+ 4 sibling hooks + 4 view siblings + http-request-builder), db/fenced/DbFencedPanel, db/ResultTable, standalone/StandaloneBlock
 
 ## Multi-pane system
 
@@ -193,8 +230,8 @@ Info-string tokens: `alias`, `timeout`, `display`, `mode` (`raw|form`). Canonica
 **Architecture:**
 - `src/lib/blocks/http-fence.ts` — parser/serializer for both info string and HTTP-message body. `parseHttpMessageBody` / `stringifyHttpMessageBody` are idempotent (canonical reformat). `parseLegacyHttpBody` + `legacyToHttpMessage` handle the JSON shim.
 - `src/lib/codemirror/cm-http-block.tsx` — CM6 extension: scanner, decorations, atomic-on-fences-only, transactionFilter, method coloring on the first body line, keymap (⌘↵ run, ⌘. cancel, ⌘⇧C copy as cURL). Holds a portal registry (toolbar / form / result / statusbar slots) so React mounts inside the widget DOM.
-- `src/components/blocks/http/fenced/HttpFencedPanel.tsx` — React panel mounted via `createPortal` into each registered slot. Toolbar (badge / alias / method / host / `[raw│form]` toggle / ▶ / ⚙), result tabs (Body / Headers / Cookies / Timing / Raw with `pretty│raw` sub-toggle), status bar (status dot, host, elapsed, size, "ran X ago", `⤓` Send-as menu), settings drawer (Chakra `Portal` + `Box`, NEVER `Dialog` — preserves CM6 focus). Form mode replaces the body lines with a tabular Params/Headers/Body editor; each input uses local state + commit-on-blur to avoid the round-trip lag of re-emitting raw on every keystroke. **Single file: 3.876 L. Pending split.**
-- `src/components/editor/HttpWidgetPortals.tsx` — subscribes to the portal registry and renders panels.
+- `src/components/blocks/http/fenced/HttpFencedPanel.tsx` (567 L) — React orchestrator panel mounted via `createPortal` into each registered slot. Toolbar (badge / alias / method / host / `[raw│form]` toggle / ▶ / ⚙), result tabs (Body / Headers / Cookies / Timing / Raw with `pretty│raw` sub-toggle), status bar (status dot, host, elapsed, size, "ran X ago", `⤓` Send-as menu), settings drawer (Chakra `Portal` + `Box`, NEVER `Dialog` — preserves CM6 focus). Form mode replaces the body lines with a tabular Params/Headers/Body editor; each input uses local state + commit-on-blur to avoid the round-trip lag of re-emitting raw on every keystroke. **Decomposed (A1 + follow-ups, 2026-05):** orchestrator delegates to sibling hooks (`useHttpRefsContext`, `useHttpCacheHydrate`, `useHttpCodegenSnippets`, `useHttpDrawerData`) + view siblings (`HttpToolbar`, `HttpStatusBar`, `HttpResultTabs`, `HttpFormMode`, `HttpSettingsDrawer`, `HttpBodyView`, `HttpInlineEditors`, `HttpFormTables`, `HttpJsonVisualizer`) + the pure `http-request-builder.ts` helpers. All under the 600-line size gate; 4 hooks at 100% cov + adapter callbacks tested at 81.8%.
+- `src/components/editor/BlockWidgetPortals.tsx` (80 L, generic) — subscribes to the portal registry and renders the panel for that block type. Instantiated twice in `MarkdownEditor.tsx` via the `blockPortals` array (one entry per block type).
 
 **Execution:**
 - Streamed via `executeHttpStreamed` (`src/lib/tauri/streamedExecution.ts`) — `Tauri::Channel<HttpChunk>` carries `Headers { ttfb_ms } → BodyChunk* → Complete`. Frontend uses `onHeaders` for the immediate status update and `onProgress` (cumulative bytes) to drive the "downloading X kb…" status-bar indicator. `Complete` is the cache-write trigger — intermediate `BodyChunk` bytes are discarded by the V1 frontend (the consolidated body lives in `Complete`).
@@ -215,8 +252,8 @@ Info-string tokens: `alias`, `timeout`, `display`, `mode` (`raw|form`). Canonica
 ## DB block
 
 - Block type `db-*` (where `*` is the connection id) in `src/components/blocks/db/`. Like the HTTP block, it is a CM6 fenced-code implementation.
-- `src/components/blocks/db/fenced/DbFencedPanel.tsx` — React panel (2.200 L, **pending split**). Connection picker, SQL editor, mutation warning for DELETE/UPDATE, result tabs.
-- `src/components/blocks/db/ResultTable.tsx` (528 L) — virtualized result grid (`@tanstack/react-virtual`).
+- `src/components/blocks/db/fenced/DbFencedPanel.tsx` (779 L) — React panel. Connection picker, SQL editor, mutation warning for DELETE/UPDATE, result tabs. Decomposition decision (audit 03 #4): the panel's `runExplain` / `loadMore` co-mutate the same FSM state as `run`, so it stays in-place rather than consume `useExecutableBlock` (RULE 4 — would require exposing setters and lose encapsulation). Adapter-based reuse would distort the contract.
+- `src/components/blocks/db/ResultTable.tsx` (525 L) — virtualized result grid (`@tanstack/react-virtual`).
 - Streamed via `executeDbStreamed` (`src/lib/tauri/streamedExecution.ts`).
 - SQL safety: `{{...}}` references are converted to bind parameters (`$1`, `?`) before dispatch — never string-interpolated.
 
@@ -250,7 +287,7 @@ Test coverage is high (~95%) for everything in `src/lib/blocks/` — see `src/li
 ## Editor features
 
 - **File conflict banner** (`src/components/layout/ConflictBanner.tsx`): shown when an open file is modified externally. Options: Reload (re-read from disk) or Keep Mine (overwrite). Auto-save suppressed during conflict.
-- **Display mode animation** (`ExecutableBlockShell.tsx`): CSS transitions between input/split/output modes. Used by `StandaloneBlock` (diff viewer); HTTP/DB panels manage modes inline.
+- **Display mode animation** (`StandaloneBlockShell.tsx`): CSS transitions between input/split/output modes. Used by `StandaloneBlock` (diff viewer); HTTP/DB panels manage modes inline.
 - **Mermaid theme sync**: re-initializes with dark/default theme on colorMode change.
 - **Inline `{{ref}}` popover** (V11): `lib/blocks/cm-ref-popover.ts` (pure `handleRefMousedown` + emitter + `refClickExtension`, wired in `markdown-extensions.ts`) → `RefPopoverHost` mounts `RefPopover` via Chakra `Popover.Root` + virtual `getAnchorRect` (NOT Dialog; `autoFocus=false` + `onOpenChange→closeRefPopover` restores caret/CM6 focus). All V11 popovers (EnvSwitcher, ConnectionQuickEdit, RefPopover, NewVariablePopover) use Chakra `Popover.Root`/Portal — no `Dialog.Root`.
 

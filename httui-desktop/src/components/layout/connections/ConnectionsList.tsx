@@ -12,12 +12,8 @@ import {
 import { LuPlus, LuDatabase } from "react-icons/lu";
 import { useCallback, useEffect, useState } from "react";
 import type { Connection } from "@/lib/tauri/connections";
-import {
-  listConnections,
-  createConnection,
-  deleteConnection,
-  testConnection,
-} from "@/lib/tauri/connections";
+import { testConnection } from "@/lib/tauri/connections";
+import { useConnectionsStore } from "@/stores/connections";
 import { useConnectionSessionOverrideStore } from "@/stores/connectionSessionOverride";
 import { TemporaryChip } from "@/components/layout/variables/TemporaryChip";
 import { ConnectionForm } from "./ConnectionForm";
@@ -53,24 +49,18 @@ async function pingConnection(id: string): Promise<PingState> {
 }
 
 export function ConnectionsList() {
-  const [connections, setConnections] = useState<Connection[]>([]);
+  const connections = useConnectionsStore((s) => s.connections);
+  const refresh = useConnectionsStore((s) => s.refresh);
+  const createConn = useConnectionsStore((s) => s.createConnection);
+  const deleteConn = useConnectionsStore((s) => s.deleteConnection);
   const [editingConn, setEditingConn] = useState<Connection | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [pings, setPings] = useState<Record<string, PingState>>({});
   const overrides = useConnectionSessionOverrideStore((s) => s.overrides);
 
-  const refresh = useCallback(async () => {
-    try {
-      const conns = await listConnections();
-      setConnections(conns);
-    } catch {
-      // silently fail
-    }
-  }, []);
-
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   // Auto-ping every connection on mount + whenever the connection
@@ -92,13 +82,12 @@ export function ConnectionsList() {
   const handleDelete = useCallback(
     async (id: string) => {
       try {
-        await deleteConnection(id);
-        await refresh();
+        await deleteConn(id);
       } catch {
         // ignore
       }
     },
-    [refresh],
+    [deleteConn],
   );
 
   const handleTest = useCallback(async (id: string) => {
@@ -113,7 +102,7 @@ export function ConnectionsList() {
       try {
         // Password lives in the keychain and can't be read back — the
         // copy starts without one (rotate it from the popover).
-        await createConnection({
+        await createConn({
           name: `${conn.name} copy`,
           driver: conn.driver,
           host: conn.host ?? undefined,
@@ -127,7 +116,6 @@ export function ConnectionsList() {
           max_pool_size: conn.max_pool_size,
           is_readonly: conn.is_readonly,
         });
-        await refresh();
       } catch {
         // Name collision / backend reject — ignore (matches the
         // list's existing fire-and-forget error posture).

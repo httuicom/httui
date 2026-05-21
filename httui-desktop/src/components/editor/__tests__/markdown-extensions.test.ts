@@ -41,9 +41,6 @@ vi.mock("@/lib/codemirror/cm-slash-commands", () => ({
   slashCompletionSource: vi.fn(),
   slashIconOption: { id: "slash-icon" },
 }));
-vi.mock("@/lib/codemirror/cm-block-widgets", () => ({
-  createEditorBlockWidgets: vi.fn(() => ({ blockWidgets: true })),
-}));
 vi.mock("@/components/editor/editor-theme", () => ({
   editorTheme: { theme: true },
 }));
