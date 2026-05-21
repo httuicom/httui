@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Post-0.4.0 work lands here.
+Post-0.4.1 work lands here.
+
+## [0.4.1] - 2026-05-21
+
+Maintenance release: installer, offline fonts, bug fixes.
+
+### Added
+
+- **One-line installer** — `curl -fsSL https://httui.com/install.sh | sh` installs the latest macOS or Linux build.
+
+### Changed
+
+- **Self-hosted fonts** — fonts are bundled instead of fetched from the Google Fonts CDN; the app now works fully offline.
+
+### Fixed
+
+- **Editor** — leaked focus listeners when switching files or toggling vim.
+- **HTTP block** — visible flash from the body editor reconfiguring on every blur in form mode.
+- **Connections** — save failures in the new-connection modal now show an error instead of failing silently.
 
 ## [0.4.0] - 2026-05-18
 
@@ -375,5 +393,6 @@ Settings → General.
   blocked on real hardware testing. Until then, the keychain prompt
   in dev/unsigned builds is documented but accepted (see audit-008).
 
-[Unreleased]: https://github.com/httuicom/httui/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/httuicom/httui/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/httuicom/httui/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/httuicom/httui/releases/tag/v0.4.0
