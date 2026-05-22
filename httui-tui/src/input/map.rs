@@ -17,7 +17,7 @@
 //!
 //! Introduced by tui-V01 / fase 6 p2 (replaces the fase 1 p7 stub).
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyModifiers};
 
 use crate::input::action::Action;
 use crate::input::types::Motion;
@@ -508,183 +508,13 @@ pub fn dump_profile(profile: Profile) -> Vec<DumpRow> {
     out
 }
 
-/// Decode a keystroke against the Standard chord table + the
-/// cross-profile meta chords. Returns `None` for keys the table
-/// doesn't bind — the caller (`standard::resolve`) falls back to its
-/// parametric arms (`InsertChar(c)` for printable chars). Pure: no
-/// `App`, no side effects.
-pub fn lookup_standard(key: KeyEvent) -> Option<Action> {
-    standard_entries()
-        .into_iter()
-        .chain(meta_entries())
-        .find(|entry| matches_chord(entry, &key))
-        .map(|entry| entry.action)
-}
-
-/// Chord predicate — exact match on both `code` and `modifiers`.
-/// Documentary entries (`chord_code = None`) never match.
-fn matches_chord(entry: &Entry, key: &KeyEvent) -> bool {
-    entry.chord_code == Some(key.code) && entry.chord_modifiers == key.modifiers
-}
+// Runtime decoding of Standard keystrokes moved to
+// `crate::input::keymap` (config-driven) in tui-V03. The tables below
+// stay as the documentary source for the V9 keymap-inspection UI.
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn ev(code: KeyCode, mods: KeyModifiers) -> KeyEvent {
-        KeyEvent::new(code, mods)
-    }
-
-    // -----------------------------------------------------------------
-    // lookup_standard
-    // -----------------------------------------------------------------
-
-    #[test]
-    fn lookup_standard_resolves_bare_arrow_to_motion() {
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Up, KeyModifiers::NONE)),
-            Some(Action::Motion(Motion::Up, 1)),
-        );
-    }
-
-    #[test]
-    fn lookup_standard_resolves_shift_arrow_to_select_extend() {
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Right, KeyModifiers::SHIFT)),
-            Some(Action::SelectExtend(Motion::Right)),
-        );
-    }
-
-    #[test]
-    fn lookup_standard_resolves_ctrl_clipboard_chords() {
-        // Triple covered in one shot — all three chord-to-Action
-        // bindings sit in the table, so a quick spot check is enough.
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('c'), KeyModifiers::CONTROL)),
-            Some(Action::Copy),
-        );
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('x'), KeyModifiers::CONTROL)),
-            Some(Action::Cut),
-        );
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('v'), KeyModifiers::CONTROL)),
-            Some(Action::PasteSystem),
-        );
-    }
-
-    #[test]
-    fn lookup_standard_resolves_undo_redo_aliases() {
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('z'), KeyModifiers::CONTROL)),
-            Some(Action::Undo),
-        );
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('y'), KeyModifiers::CONTROL)),
-            Some(Action::Redo),
-        );
-        // Cross-platform redo via SHIFT, lowercase casing.
-        let ctrl_shift = KeyModifiers::CONTROL | KeyModifiers::SHIFT;
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('z'), ctrl_shift)),
-            Some(Action::Redo),
-        );
-        // Same chord, uppercase fold — must also resolve.
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('Z'), ctrl_shift)),
-            Some(Action::Redo),
-        );
-    }
-
-    #[test]
-    fn lookup_standard_resolves_explain_block_both_casings() {
-        let ctrl_shift = KeyModifiers::CONTROL | KeyModifiers::SHIFT;
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('x'), ctrl_shift)),
-            Some(Action::ExplainBlock),
-        );
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('X'), ctrl_shift)),
-            Some(Action::ExplainBlock),
-        );
-    }
-
-    #[test]
-    fn lookup_standard_resolves_save_and_edit_primitives() {
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('s'), KeyModifiers::CONTROL)),
-            Some(Action::WriteFile),
-        );
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Enter, KeyModifiers::NONE)),
-            Some(Action::InsertNewline),
-        );
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Backspace, KeyModifiers::NONE)),
-            Some(Action::DeleteBackward),
-        );
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Delete, KeyModifiers::NONE)),
-            Some(Action::DeleteForward),
-        );
-    }
-
-    #[test]
-    fn lookup_standard_resolves_meta_toggle_chord() {
-        // Meta chords are exposed via the same lookup helper so the
-        // route layer can ask "is this key in the standard surface?"
-        // and find the toggle alongside the leaf chords.
-        let ctrl_shift = KeyModifiers::CONTROL | KeyModifiers::SHIFT;
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('m'), ctrl_shift)),
-            Some(Action::ToggleEditorMode),
-        );
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('M'), ctrl_shift)),
-            Some(Action::ToggleEditorMode),
-        );
-    }
-
-    #[test]
-    fn lookup_standard_returns_none_for_unbound_chord() {
-        // Plain printable chars without CONTROL go through the
-        // parametric `InsertChar` arm in `standard::resolve`, NOT
-        // through this table.
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('a'), KeyModifiers::NONE)),
-            None,
-        );
-        // Esc isn't bound in the table — `route_standard` handles it
-        // specially (cancel running query).
-        assert_eq!(lookup_standard(ev(KeyCode::Esc, KeyModifiers::NONE)), None,);
-        // Function keys: unbound.
-        assert_eq!(lookup_standard(ev(KeyCode::F(5), KeyModifiers::NONE)), None,);
-    }
-
-    #[test]
-    fn lookup_standard_rejects_wrong_modifier_set() {
-        // `Ctrl+C` is Copy; bare `c` is parametric InsertChar (None).
-        // `Alt+C` is unbound — modifiers must match EXACTLY.
-        assert_eq!(
-            lookup_standard(ev(KeyCode::Char('c'), KeyModifiers::ALT)),
-            None,
-        );
-    }
-
-    // -----------------------------------------------------------------
-    // matches_chord helper
-    // -----------------------------------------------------------------
-
-    #[test]
-    fn matches_chord_rejects_documentary_entries() {
-        // Documentary vim entries (`chord_code = None`) can never
-        // match a runtime keystroke — that's the whole point of the
-        // Optional code field.
-        let any_vim = vim_entries().into_iter().next().expect("non-empty");
-        assert!(any_vim.chord_code.is_none());
-        let pressed = ev(KeyCode::Char('u'), KeyModifiers::NONE);
-        assert!(!matches_chord(&any_vim, &pressed));
-    }
 
     // -----------------------------------------------------------------
     // dump_profile

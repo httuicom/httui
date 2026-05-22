@@ -1,60 +1,43 @@
 //! Standard (non-modal) key decoder. Conventional editor model: arrow
-//! keys move the cursor, printable chars insert, `Ctrl+S` saves. No
-//! modes — every key resolves to an `Action` directly, the way a
-//! plain text editor behaves.
+//! keys move the cursor, printable chars insert, configured chords run
+//! commands. No modes — every key resolves to an `Action` directly.
 //!
-//! Pure function by design (`KeyEvent -> Option<Action>`): no `App`,
-//! no side effects, trivially unit-testable. Unmatched keys return
-//! `None` so the router can ignore them.
+//! Since tui-V03 the chord→`Action` bindings are config-driven: they
+//! live in `config.keymap`, resolved into a runtime list by
+//! `crate::input::keymap` and threaded in here as the `keymap`
+//! argument. `resolve` itself only owns the two non-table rules —
+//! the `/` slash trigger and the parametric `InsertChar(c)` fallback.
 //!
-//! Since tui-V01 / fase 6 p2-p3 the leaf chords (Ctrl+C/X/V/S/Z/Y,
-//! arrows, Home/End/PageUp/Down, Shift-selection variants,
-//! Ctrl+Shift+X EXPLAIN, Ctrl+Shift+Z redo, Enter/Backspace/Delete)
-//! live in the data-driven [`crate::input::map`] table — `resolve`
-//! delegates to [`crate::input::map::lookup_standard`] first and falls
-//! through to the parametric `InsertChar(c)` arm only for unbound
-//! printable chars. That single fall-through is the only chord-to-
-//! action mapping NOT in the map: it's parametric in `c`, not a leaf
-//! binding.
-//!
-//! Introduced by tui-V1 / fase 2 p4; refactored data-driven by
-//! tui-V01 / fase 6 p2-p3.
+//! Introduced by tui-V1 / fase 2 p4; data-driven by tui-V01 / fase 6;
+//! config-driven by tui-V03.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::input::action::Action;
+use crate::input::keychord::KeyChord;
 
 /// Translate one key in Standard mode. Returns `None` for keys the
 /// standard profile doesn't bind (the router treats that as a no-op).
 /// Wired by the Standard branch of `crate::input::route::route`.
-pub fn resolve(key: KeyEvent) -> Option<Action> {
-    // Leaf chord-to-action bindings live in the inspectable keymap
-    // table (Cenário 3 — single source). The cross-profile toggle is
-    // config-driven (`EditorConfig::toggle_mode_key`, default `f2`)
-    // and intercepted by `route::route` BEFORE this function ever
-    // runs. The map still carries a static `Ctrl+Shift+M` alias so
-    // V9's UI can surface a toggle binding; `lookup_standard` finding
-    // it too is harmless — returning `Action::ToggleEditorMode` is
-    // still the right semantic answer.
-    if let Some(action) = crate::input::map::lookup_standard(key) {
-        // tui-V2 vertical 2 / cenário 4: the data-driven map still
-        // emits the generic `DeleteBackward` (shared with vim). Rewrite
-        // it to the Standard-specific `DeleteBackwardStandard` so the
-        // segment-boundary path routes to `apply::standard_delete`
-        // instead of the legacy in-segment applier. The vim profile is
-        // untouched (it never calls `standard::resolve`).
-        return Some(match action {
-            Action::DeleteBackward => Action::DeleteBackwardStandard,
-            other => other,
-        });
+///
+/// Lookup order:
+/// 1. the config-driven `keymap` (`crate::input::keymap::lookup`);
+/// 2. `/` without CONTROL → `SlashKey` (opens the block-template
+///    picker when the cursor is in prose);
+/// 3. any printable char without CONTROL → `InsertChar(c)`.
+///
+/// The cross-profile editor-mode toggle and the running-query `Esc`
+/// cancel are intercepted by `route::route` BEFORE this runs.
+pub fn resolve(keymap: &[(KeyChord, Action)], key: KeyEvent) -> Option<Action> {
+    if let Some(action) = crate::input::keymap::lookup(keymap, key) {
+        return Some(action);
     }
 
     // tui-V2 vertical 2: `/` in Standard is a context-aware
-    // slash-commands trigger. Decoder emits `SlashKey`; the applier
-    // (`input::apply::slash`) inserts the `/` literal and, when the
-    // cursor is in prose, opens the block-template picker on top.
-    // Matched BEFORE the printable-char fallback so the slash never
-    // falls through to plain `InsertChar('/')`.
+    // slash-commands trigger. The applier (`input::apply::slash`)
+    // inserts the literal `/` and, in prose, opens the picker on top.
+    // Matched before the printable-char fallback so it never falls
+    // through to plain `InsertChar('/')`.
     if let KeyEvent {
         code: KeyCode::Char('/'),
         modifiers,
@@ -66,11 +49,10 @@ pub fn resolve(key: KeyEvent) -> Option<Action> {
         }
     }
 
-    // The only chord-to-action binding NOT in the data table: any
+    // The only chord-to-action mapping NOT in the keymap table: any
     // printable char without CONTROL inserts literally. The CONTROL
-    // guard keeps `Ctrl+<char>` chords (Ctrl+S, Ctrl+C, …) from
-    // being typed as text — those are bound in the table and would
-    // have returned above.
+    // guard keeps `Ctrl+<char>` chords from being typed as text —
+    // bound ones already returned above; unbound ones stay `None`.
     if let KeyEvent {
         code: KeyCode::Char(c),
         modifiers,
@@ -87,12 +69,14 @@ pub fn resolve(key: KeyEvent) -> Option<Action> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Fase 6 p3 moved the chord-to-Action table to `input::map`, so
-    // `Motion` is no longer imported at module scope (production now
-    // only deals in `Action`). Tests still construct `Motion`-bearing
-    // `Action`s via the `Action::Motion(...)` arms — pull the type in
-    // here so the existing test surface keeps working unchanged.
+    use crate::config::KeymapConfig;
+    use crate::input::keymap::resolve_standard_keymap;
     use crate::input::types::Motion;
+
+    /// The default Standard keymap — what every fresh install sees.
+    fn km() -> Vec<(KeyChord, Action)> {
+        resolve_standard_keymap(&KeymapConfig::default())
+    }
 
     fn k(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)
@@ -103,268 +87,76 @@ mod tests {
     }
 
     #[test]
-    fn arrows_map_to_unit_motions() {
-        assert_eq!(resolve(k(KeyCode::Up)), Some(Action::Motion(Motion::Up, 1)));
+    fn resolve_consults_the_keymap() {
+        // Smoke test of the layering: `resolve` delegates table chords
+        // to `keymap::lookup`. Exhaustive chord→Action coverage lives
+        // in `input::keymap` tests.
+        assert_eq!(resolve(&km(), ctrl(KeyCode::Char('c'))), Some(Action::Copy));
         assert_eq!(
-            resolve(k(KeyCode::Down)),
-            Some(Action::Motion(Motion::Down, 1))
+            resolve(&km(), k(KeyCode::Up)),
+            Some(Action::Motion(Motion::Up, 1)),
         );
         assert_eq!(
-            resolve(k(KeyCode::Left)),
-            Some(Action::Motion(Motion::Left, 1))
-        );
-        assert_eq!(
-            resolve(k(KeyCode::Right)),
-            Some(Action::Motion(Motion::Right, 1))
-        );
-    }
-
-    #[test]
-    fn home_end_map_to_line_edges() {
-        assert_eq!(
-            resolve(k(KeyCode::Home)),
-            Some(Action::Motion(Motion::LineStart, 1))
-        );
-        assert_eq!(
-            resolve(k(KeyCode::End)),
-            Some(Action::Motion(Motion::LineEnd, 1))
-        );
-    }
-
-    #[test]
-    fn page_keys_map_to_half_page_motions() {
-        assert_eq!(
-            resolve(k(KeyCode::PageDown)),
-            Some(Action::Motion(Motion::HalfPageDown, 1))
-        );
-        assert_eq!(
-            resolve(k(KeyCode::PageUp)),
-            Some(Action::Motion(Motion::HalfPageUp, 1))
+            resolve(&km(), KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT)),
+            Some(Action::SelectExtend(Motion::Up)),
         );
     }
 
     #[test]
     fn printable_char_without_control_inserts() {
         assert_eq!(
-            resolve(k(KeyCode::Char('a'))),
-            Some(Action::InsertChar('a'))
+            resolve(&km(), k(KeyCode::Char('a'))),
+            Some(Action::InsertChar('a')),
         );
         assert_eq!(
-            resolve(k(KeyCode::Char(' '))),
-            Some(Action::InsertChar(' '))
+            resolve(&km(), k(KeyCode::Char(' '))),
+            Some(Action::InsertChar(' ')),
         );
-        // SHIFT (capital letter) still inserts — only CONTROL is the
-        // guard.
+        // SHIFT (capital letter) still inserts — only CONTROL guards.
         assert_eq!(
-            resolve(KeyEvent::new(KeyCode::Char('Z'), KeyModifiers::SHIFT)),
-            Some(Action::InsertChar('Z'))
+            resolve(&km(), KeyEvent::new(KeyCode::Char('Z'), KeyModifiers::SHIFT)),
+            Some(Action::InsertChar('Z')),
         );
     }
 
     #[test]
-    fn enter_backspace_delete_edit_text() {
-        // Backspace decodes to the Standard-specific variant since
-        // tui-V2 vertical 2 / cenário 4 — the resolver rewrites the
-        // map's generic `DeleteBackward` so segment-boundary handling
-        // can route to `apply::standard_delete`. Vim's path keeps the
-        // generic variant; it never calls `resolve`.
-        assert_eq!(resolve(k(KeyCode::Enter)), Some(Action::InsertNewline));
-        assert_eq!(
-            resolve(k(KeyCode::Backspace)),
-            Some(Action::DeleteBackwardStandard)
-        );
-        assert_eq!(resolve(k(KeyCode::Delete)), Some(Action::DeleteForward));
-    }
-
-    #[test]
-    fn ctrl_s_saves() {
-        assert_eq!(resolve(ctrl(KeyCode::Char('s'))), Some(Action::WriteFile));
-    }
-
-    #[test]
-    fn ctrl_char_is_not_typed_as_text() {
-        // A `Ctrl+<char>` that isn't bound (e.g. Ctrl+a) must NOT fall
-        // into the InsertChar arm — it's unbound, not typed.
-        assert_eq!(resolve(ctrl(KeyCode::Char('a'))), None);
+    fn ctrl_char_that_is_unbound_is_not_typed_as_text() {
+        // `Ctrl+a` isn't in the default keymap — it must resolve to
+        // `None`, NOT fall into the `InsertChar` arm.
+        assert_eq!(resolve(&km(), ctrl(KeyCode::Char('a'))), None);
     }
 
     #[test]
     fn unbound_keys_return_none() {
-        assert_eq!(resolve(k(KeyCode::Esc)), None);
-        assert_eq!(resolve(k(KeyCode::Tab)), None);
-        assert_eq!(resolve(k(KeyCode::F(1))), None);
-        assert_eq!(resolve(k(KeyCode::Insert)), None);
-    }
-
-    fn shift(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::SHIFT)
-    }
-
-    #[test]
-    fn shift_arrows_extend_the_selection() {
-        // fase 3 p1: Shift+<motion> decodes to SelectExtend(<same
-        // Motion>) for every selecting motion.
-        assert_eq!(
-            resolve(shift(KeyCode::Up)),
-            Some(Action::SelectExtend(Motion::Up))
-        );
-        assert_eq!(
-            resolve(shift(KeyCode::Down)),
-            Some(Action::SelectExtend(Motion::Down))
-        );
-        assert_eq!(
-            resolve(shift(KeyCode::Left)),
-            Some(Action::SelectExtend(Motion::Left))
-        );
-        assert_eq!(
-            resolve(shift(KeyCode::Right)),
-            Some(Action::SelectExtend(Motion::Right))
-        );
-        assert_eq!(
-            resolve(shift(KeyCode::Home)),
-            Some(Action::SelectExtend(Motion::LineStart))
-        );
-        assert_eq!(
-            resolve(shift(KeyCode::End)),
-            Some(Action::SelectExtend(Motion::LineEnd))
-        );
-    }
-
-    #[test]
-    fn bare_arrows_still_plain_motions_after_fase3() {
-        // Degrade-gracefully guarantee: dropping SHIFT yields exactly
-        // the pre-fase-3 Motion(_, 1) (no SelectExtend leak).
-        for (code, m) in [
-            (KeyCode::Up, Motion::Up),
-            (KeyCode::Down, Motion::Down),
-            (KeyCode::Left, Motion::Left),
-            (KeyCode::Right, Motion::Right),
-            (KeyCode::Home, Motion::LineStart),
-            (KeyCode::End, Motion::LineEnd),
-        ] {
-            assert_eq!(resolve(k(code)), Some(Action::Motion(m, 1)));
-        }
-    }
-
-    #[test]
-    fn ctrl_cxv_decode_to_clipboard_actions() {
-        assert_eq!(resolve(ctrl(KeyCode::Char('c'))), Some(Action::Copy));
-        assert_eq!(resolve(ctrl(KeyCode::Char('x'))), Some(Action::Cut));
-        assert_eq!(resolve(ctrl(KeyCode::Char('v'))), Some(Action::PasteSystem));
-    }
-
-    #[test]
-    fn esc_still_none_after_clipboard_binds() {
-        // fase 3 p3 routes query-cancel onto Esc; the decoder still
-        // returns None for Esc (the router owns the cancel path).
-        assert_eq!(resolve(k(KeyCode::Esc)), None);
-    }
-
-    fn ctrl_shift(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-    }
-
-    #[test]
-    fn ctrl_z_decodes_to_undo() {
-        // tui-V1 / fase 4 p1: Ctrl+Z is undo in Standard mode.
-        assert_eq!(resolve(ctrl(KeyCode::Char('z'))), Some(Action::Undo));
-    }
-
-    #[test]
-    fn ctrl_y_decodes_to_redo() {
-        // Windows-style redo alias.
-        assert_eq!(resolve(ctrl(KeyCode::Char('y'))), Some(Action::Redo));
-    }
-
-    #[test]
-    fn ctrl_shift_z_decodes_to_redo() {
-        // Ctrl+Shift+Z is the conventional redo chord; matched BEFORE
-        // the bare Ctrl+Z arm so the SHIFT variant wins. Both the
-        // lowercase and the SHIFT-folded uppercase code resolve.
-        assert_eq!(resolve(ctrl_shift(KeyCode::Char('z'))), Some(Action::Redo));
-        assert_eq!(resolve(ctrl_shift(KeyCode::Char('Z'))), Some(Action::Redo));
-    }
-
-    #[test]
-    fn ctrl_z_does_not_fall_into_insert_char() {
-        // The undo arm sits before the InsertChar arm, so Ctrl+Z is
-        // never typed literally as a 'z'.
-        assert_ne!(
-            resolve(ctrl(KeyCode::Char('z'))),
-            Some(Action::InsertChar('z'))
-        );
-        assert_eq!(resolve(ctrl(KeyCode::Char('z'))), Some(Action::Undo));
-    }
-
-    #[test]
-    fn page_keys_have_no_shift_select_variant() {
-        // Page keys keep their plain motion even with SHIFT (no
-        // SelectExtend) — V1 scope decision.
-        assert_eq!(
-            resolve(shift(KeyCode::PageDown)),
-            Some(Action::Motion(Motion::HalfPageDown, 1))
-        );
-        assert_eq!(
-            resolve(shift(KeyCode::PageUp)),
-            Some(Action::Motion(Motion::HalfPageUp, 1))
-        );
-    }
-
-    #[test]
-    fn ctrl_shift_x_decodes_to_explain_block() {
-        // tui-V1 / fase 5 p5: EXPLAIN moves from Ctrl+X (vim) to
-        // Ctrl+Shift+X in Standard, because Ctrl+X is Cut here. Matched
-        // BEFORE the bare Ctrl+X Cut arm. Lowercase and SHIFT-folded
-        // uppercase both resolve (terminals differ).
-        assert_eq!(
-            resolve(ctrl_shift(KeyCode::Char('x'))),
-            Some(Action::ExplainBlock)
-        );
-        assert_eq!(
-            resolve(ctrl_shift(KeyCode::Char('X'))),
-            Some(Action::ExplainBlock)
-        );
-    }
-
-    #[test]
-    fn ctrl_x_is_still_cut_no_regression() {
-        // Non-regression: the bare Ctrl+X without SHIFT must still be
-        // Cut — the new Ctrl+Shift+X arm above must not swallow it.
-        assert_eq!(resolve(ctrl(KeyCode::Char('x'))), Some(Action::Cut));
+        // Esc → handled specially by `route_standard` (query cancel).
+        assert_eq!(resolve(&km(), k(KeyCode::Esc)), None);
+        assert_eq!(resolve(&km(), k(KeyCode::Tab)), None);
+        // F-keys carry no default Standard binding.
+        assert_eq!(resolve(&km(), k(KeyCode::F(7))), None);
     }
 
     // ───── tui-V2 vertical 2 / cenário 1 — `/` opens slash picker ─────
 
     #[test]
     fn slash_decodes_to_slash_key_action() {
-        // The plain `/` keypress in Standard must decode to
-        // `SlashKey` so the applier can open the block-template
-        // picker. It must NOT fall through to `InsertChar('/')` —
-        // the new arm sits before the fallback for this reason.
-        assert_eq!(resolve(k(KeyCode::Char('/'))), Some(Action::SlashKey));
+        assert_eq!(resolve(&km(), k(KeyCode::Char('/'))), Some(Action::SlashKey));
         assert_ne!(
-            resolve(k(KeyCode::Char('/'))),
-            Some(Action::InsertChar('/'))
+            resolve(&km(), k(KeyCode::Char('/'))),
+            Some(Action::InsertChar('/')),
         );
     }
 
     #[test]
     fn ctrl_slash_does_not_open_slash_picker() {
-        // Ctrl+`/` (some terminals emit this for "toggle comment"
-        // bindings) must not trigger the picker — the CONTROL guard
-        // mirrors the printable-char fallback. Returns `None` so the
-        // router treats it as unbound.
-        assert_eq!(resolve(ctrl(KeyCode::Char('/'))), None);
+        // Ctrl+`/` (some terminals emit it for "toggle comment") must
+        // not trigger the picker — returns `None`.
+        assert_eq!(resolve(&km(), ctrl(KeyCode::Char('/'))), None);
     }
 
     #[test]
     fn shift_slash_still_opens_slash_picker() {
-        // `?` is `SHIFT+/` on most layouts but crossterm reports it
-        // as `KeyCode::Char('?')`, not `Char('/')+SHIFT`. The arm
-        // guards on CONTROL only — bare SHIFT + `/` (rare layouts)
-        // would still trigger the picker, which is the correct
-        // behavior (it's still a literal `/` keystroke).
+        // `/` with bare SHIFT is still a literal `/` keystroke.
         let ev = KeyEvent::new(KeyCode::Char('/'), KeyModifiers::SHIFT);
-        assert_eq!(resolve(ev), Some(Action::SlashKey));
+        assert_eq!(resolve(&km(), ev), Some(Action::SlashKey));
     }
 }

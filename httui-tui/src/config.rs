@@ -24,6 +24,7 @@ pub struct Config {
     pub blocks: BlocksConfig,
     pub chat: ChatConfig,
     pub editor: EditorConfig,
+    pub keymap: KeymapConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -99,6 +100,41 @@ impl Default for EditorConfig {
     }
 }
 
+/// `[keymap]` — per-action chord overrides for the Standard editing
+/// profile. Keys are action names (the `name` field of
+/// `crate::input::keymap::standard_actions`); values are chord strings
+/// in the `crate::input::keychord` grammar (`"ctrl+c"`, `"shift+up"`,
+/// `"f5"`, …).
+///
+/// An action absent from the map uses its built-in default, so a
+/// hand-edited partial `[keymap]` never disables the rest. The
+/// first-run config is written fully populated (`Default`) so users
+/// can see and edit every binding without consulting docs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct KeymapConfig(std::collections::BTreeMap<String, String>);
+
+impl KeymapConfig {
+    /// The configured chord string for `action_name`, if the user set
+    /// one. `None` means "use the built-in default".
+    pub fn chord_for(&self, action_name: &str) -> Option<&str> {
+        self.0.get(action_name).map(String::as_str)
+    }
+}
+
+impl Default for KeymapConfig {
+    /// Fully populated from `standard_actions` so the generated
+    /// config.toml lists every binding with its default.
+    fn default() -> Self {
+        Self(
+            crate::input::keymap::standard_actions()
+                .into_iter()
+                .map(|spec| (spec.name.to_string(), spec.default_chord.to_string()))
+                .collect(),
+        )
+    }
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -111,6 +147,7 @@ impl Default for Config {
             blocks: BlocksConfig::default(),
             chat: ChatConfig::default(),
             editor: EditorConfig::default(),
+            keymap: KeymapConfig::default(),
         }
     }
 }

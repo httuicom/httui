@@ -207,6 +207,12 @@ pub struct App {
     /// is pure `Copy`/`Eq` data; `Instant` would break it.
     /// Introduced by tui-V01 / fase 5 p2 (auto-save).
     pub last_edit: Option<Instant>,
+    /// Resolved Standard-mode keymap: chord→Action pairs built from
+    /// `config.keymap` at startup. `input::route::route_standard`
+    /// decodes Standard keystrokes against this list; the vim modal
+    /// engine is unaffected. Introduced by tui-V03 (config-driven
+    /// keymap).
+    pub standard_keymap: Vec<(crate::input::keychord::KeyChord, crate::input::action::Action)>,
 }
 
 impl App {
@@ -217,6 +223,7 @@ impl App {
         let conn_lookup = httui_core::vault_config::ConnectionsStore::new(resolved.vault.clone());
         let pool_manager = Arc::new(PoolManager::new_standalone(conn_lookup, app_pool));
         let connection_names = load_connection_names(pool_manager.app_pool());
+        let standard_keymap = crate::input::keymap::resolve_standard_keymap(&config.keymap);
         let mut app = Self {
             config,
             vault_path: resolved.vault,
@@ -252,6 +259,7 @@ impl App {
             tab_picker: None,
             standard: StandardState::default(),
             last_edit: None,
+            standard_keymap,
         };
         app.load_initial_document();
         app.refresh_active_env_name();

@@ -107,7 +107,7 @@ fn route_standard(app: &mut App, key: KeyEvent) {
         }
     }
 
-    let Some(action) = crate::input::standard::resolve(key) else {
+    let Some(action) = crate::input::standard::resolve(&app.standard_keymap, key) else {
         return;
     };
     use crate::input::action::Action;
@@ -548,10 +548,6 @@ mod tests {
         );
     }
 
-    fn ctrl_shift(code: KeyCode) -> KeyEvent {
-        KeyEvent::new(code, KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-    }
-
     fn type_str(app: &mut App, s: &str) {
         for c in s.chars() {
             route(app, key(KeyCode::Char(c)));
@@ -626,10 +622,13 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn standard_redo_restores_via_ctrl_y_and_ctrl_shift_z() {
-        // Type → undo → redo round-trips for both redo chords. The
-        // fixture seeds "abc\n", so type a string that is NOT a
-        // substring of the seed to tell typed-vs-undone apart.
+    async fn standard_redo_restores_via_ctrl_y() {
+        // Type → undo → redo round-trip. The fixture seeds "abc\n", so
+        // type a string that is NOT a substring of the seed to tell
+        // typed-vs-undone apart. Redo is `Ctrl+Y` — the old
+        // `Ctrl+Shift+Z` alias was dropped in tui-V03: a chord matcher
+        // ignores Shift on letter keys, so `ctrl+shift+z` is
+        // indistinguishable from `ctrl+z` (undo).
         let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
         let original = app.document().unwrap().to_markdown();
         type_str(&mut app, "ZZZ");
@@ -646,19 +645,6 @@ mod tests {
             app.document().unwrap().to_markdown(),
             typed,
             "Ctrl+Y redoes"
-        );
-        // And again via Ctrl+Shift+Z.
-        route(&mut app, ctrl(KeyCode::Char('z')));
-        assert_eq!(
-            app.document().unwrap().to_markdown(),
-            original,
-            "undo rewinds again"
-        );
-        route(&mut app, ctrl_shift(KeyCode::Char('z')));
-        assert_eq!(
-            app.document().unwrap().to_markdown(),
-            typed,
-            "Ctrl+Shift+Z redoes"
         );
     }
 
@@ -718,8 +704,11 @@ mod tests {
         // `apply::standard_sel::tests::roteiro_mirror_copy_move_paste`
         // with an injected FakeClipboard; here we only assert the
         // route seam decodes Ctrl+V correctly).
+        let keymap = crate::input::keymap::resolve_standard_keymap(
+            &crate::config::KeymapConfig::default(),
+        );
         assert_eq!(
-            crate::input::standard::resolve(ctrl(KeyCode::Char('v'))),
+            crate::input::standard::resolve(&keymap, ctrl(KeyCode::Char('v'))),
             Some(crate::input::action::Action::PasteSystem)
         );
     }
