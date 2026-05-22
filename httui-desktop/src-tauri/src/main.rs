@@ -1,10 +1,4 @@
-// coverage:exclude file — Tauri command orchestrator + state wiring +
-// setup hooks. No extractable logic remains after;
-// the substantive code lives in `httui-core` and per-domain
-// `commands/*.rs` modules, each tested independently. The
-// size:exclude opt-out came off in commit XXX
-// main.rs is now 547 prod lines, under the 600 gate.
-//
+// coverage:exclude file — Tauri command orchestrator + state wiring; no extractable logic.
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -16,7 +10,6 @@ use tauri::{AppHandle, Emitter, Manager};
 use httui_notes::chat::commands::*;
 use httui_notes::db::connections::{PoolManager, StatusEmitter};
 
-// --- Tauri StatusEmitter implementation ---
 
 #[derive(Clone, serde::Serialize)]
 struct ConnectionStatusEvent {
@@ -42,14 +35,6 @@ impl StatusEmitter for TauriStatusEmitter {
     }
 }
 
-// Block-related commands (execute_block, result cache, history,
-// settings, examples, hash computation) and the SharedDbExecutor /
-// SharedHttpExecutor registry wrappers moved to `commands::blocks`.
-
-// Schema commands moved to `commands::schema`.
-// Config commands moved to `commands::settings`.
-
-// Vault file commands moved to `commands::files`.
 
 /// Re-read a file from disk and emit `file-reloaded` so the editor
 /// replaces its in-memory copy. Used after MCP writes to defeat the
@@ -158,7 +143,6 @@ fn stop_watching(
 // (Connection.id == name; Environment.id == name;
 // EnvVariable.id == "<env>::<key>").
 
-// --- Internal DB query (audit/settings) ---
 
 /// Run a SELECT against the app's own SQLite (audit/settings panel).
 /// Multi-statements and writes are rejected; pagination via
@@ -173,7 +157,6 @@ async fn query_internal_db(
     httui_notes::db::query_internal_db(&pool, &query, offset, fetch_size).await
 }
 
-// --- Session restore (single IPC call for startup) ---
 
 #[derive(serde::Serialize)]
 struct SessionTabContent {
@@ -196,7 +179,6 @@ struct SessionState {
     tab_contents: Vec<SessionTabContent>,
 }
 
-// Extracts tab file paths from pane layout JSON
 fn extract_tabs_from_layout(value: &serde_json::Value) -> Vec<(String, String)> {
     let mut tabs = Vec::new();
     if let Some(typ) = value.get("type").and_then(|t| t.as_str()) {
@@ -227,7 +209,6 @@ fn extract_tabs_from_layout(value: &serde_json::Value) -> Vec<(String, String)> 
 /// Replaces ~10 chatty calls so the editor renders without flicker.
 #[tauri::command]
 async fn restore_session(pool: tauri::State<'_, SqlitePool>) -> Result<SessionState, String> {
-    // Batch all config reads concurrently
     let (
         vaults_raw,
         vim_raw,
@@ -262,7 +243,6 @@ async fn restore_session(pool: tauri::State<'_, SqlitePool>) -> Result<SessionSt
     let active_file = active_file.ok().flatten();
     let scroll_positions = scroll_positions.ok().flatten();
 
-    // Extract tab file paths from saved layout (done in Rust, no extra roundtrip)
     let tab_files: Vec<(String, String)> = if let Some(ref layout_json) = pane_layout {
         serde_json::from_str::<serde_json::Value>(layout_json)
             .map(|v| extract_tabs_from_layout(&v))
@@ -273,7 +253,6 @@ async fn restore_session(pool: tauri::State<'_, SqlitePool>) -> Result<SessionSt
         vec![]
     };
 
-    // Run list_workspace + read all tab files in parallel using blocking tasks
     let active_vault_clone = active_vault.clone();
     let tree_handle = tokio::task::spawn_blocking(move || {
         if let Some(ref vault) = active_vault_clone {
@@ -351,19 +330,13 @@ fn main() {
 
             app.manage(pool.clone());
 
-            // Per-vault store registry resolves ConnectionsStore +
-            // EnvironmentsStore for the active vault (commit 037f470).
             let store_registry = httui_notes::commands::vault_stores::VaultStoreRegistry::new();
 
-            // Connection lookup wrapper threads the registry into the
-            // pool manager so pool builds resolve connections from the
-            // file-backed store, not legacy SQLite (Phase 3).
             let conn_lookup = httui_notes::commands::vault_stores::VaultRegistryLookup::new(
                 pool.clone(),
                 store_registry.clone(),
             );
 
-            // Connection pool manager
             let emitter = Arc::new(TauriStatusEmitter {
                 app_handle: app.handle().clone(),
             });
@@ -374,7 +347,6 @@ fn main() {
             ));
             app.manage(conn_manager.clone());
 
-            // TTL cleanup + query log retention task
             let cm = conn_manager.clone();
             tauri::async_runtime::spawn(async move {
                 let mut interval = tokio::time::interval(Duration::from_secs(60));
@@ -382,7 +354,6 @@ fn main() {
                 loop {
                     interval.tick().await;
                     cm.cleanup_expired().await;
-                    // Clean query_log every ~30 min (30 ticks of 60s)
                     log_cleanup_counter += 1;
                     if log_cleanup_counter >= 30 {
                         log_cleanup_counter = 0;
@@ -391,15 +362,10 @@ fn main() {
                 }
             });
 
-            // Executor registry. DbExecutor is held as Arc<…> so the
-            // cancel-aware streamed command (see src/executions.rs) can
-            // share a single instance with the legacy `execute_block`.
             let db_executor = Arc::new(httui_notes::executor::db::DbExecutor::new(conn_manager));
             app.manage(db_executor.clone());
             app.manage(httui_notes::executions::ExecutionRegistry::new());
 
-            // HTTP executor is held as Arc<…> so the cancel-aware streamed
-            // command can share a single instance with the legacy `execute_block`.
             let http_executor = Arc::new(httui_notes::executor::http::HttpExecutor::new());
             app.manage(http_executor.clone());
 
@@ -412,23 +378,19 @@ fn main() {
             )));
             app.manage(executor_registry);
 
-            // Chat sidecar (lazy — spawned on first use, not at startup)
             app.manage(std::sync::Arc::new(tokio::sync::Mutex::new(
                 None::<httui_notes::chat::sidecar::SidecarManager>,
             )));
 
-            // Permission broker
             let pool_for_broker: SqlitePool = app.state::<SqlitePool>().inner().clone();
             app.manage(Arc::new(
                 httui_notes::chat::permissions::PermissionBroker::new(pool_for_broker),
             ));
 
-            app.manage(Arc::new(Mutex::new(Vec::<String>::new()))); // ignore_paths
+            app.manage(Arc::new(Mutex::new(Vec::<String>::new())));
+
             app.manage(Mutex::new(None::<httui_notes::fs::watcher::VaultWatcher>));
 
-            // Per-vault file-backed store registry Resolves
-            // ConnectionsStore + EnvironmentsStore
-            // for the active vault on demand, caches per vault path.
             app.manage(store_registry);
 
             Ok(())
@@ -455,8 +417,6 @@ fn main() {
             httui_notes::commands::blocks::compute_block_hash,
             httui_notes::commands::settings::get_config,
             httui_notes::commands::settings::set_config,
-            // foundation — file-backed workspace + user config.
-            // Frontend cutover lands in epic 19 (settings split).
             httui_notes::vault_config_commands::get_workspace_config,
             httui_notes::vault_config_commands::get_workspace_config_with_sources,
             httui_notes::vault_config_commands::set_workspace_config,
@@ -465,22 +425,14 @@ fn main() {
             httui_notes::vault_config_commands::set_file_docheader_compact,
             httui_notes::vault_config_commands::get_user_config,
             httui_notes::vault_config_commands::set_user_config,
-            // local override gitignore scaffolding.
             httui_notes::vault_config_commands::ensure_vault_gitignore,
-            // vault migration script.
             httui_notes::vault_config_commands::migrate_vault_to_v1,
-            // empty-state migration banner detection.
             httui_notes::vault_config_commands::detect_vault_migration,
-            // vault scaffold + validate.
             httui_notes::vault_config_commands::check_is_vault,
             httui_notes::vault_config_commands::scaffold_vault,
-            // first-run missing-secrets scan.
             httui_notes::vault_config_commands::list_missing_secrets,
-            // create vault (mkdir + git init + scaffold).
             httui_notes::vault_config_commands::create_vault_cmd,
-            // first-run secrets modal save.
             httui_notes::vault_config_commands::save_secret_cmd,
-            // git panel.
             httui_notes::git_commands::git_status_cmd,
             httui_notes::git_commands::git_log_cmd,
             httui_notes::git_commands::git_diff_cmd,
@@ -497,21 +449,15 @@ fn main() {
             httui_notes::git_commands::git_pull_cmd,
             httui_notes::git_commands::git_push_cmd,
             httui_notes::git_commands::git_conflict_versions_cmd,
-            // clone vault.
             httui_notes::git_commands::clone_vault_cmd,
-            // vault-wide tag index.
             httui_notes::tag_commands::scan_vault_tags_cmd,
-            // pre-flight evaluator (DocHeader pill row).
             httui_notes::preflight_commands::evaluate_preflight_cmd,
-            // run-body filesystem cache.
             httui_notes::run_body_commands::write_run_body_cmd,
             httui_notes::run_body_commands::read_run_body_cmd,
             httui_notes::run_body_commands::list_run_bodies_cmd,
             httui_notes::run_body_commands::trim_run_bodies_cmd,
             httui_notes::run_body_commands::rename_alias_runs_cmd,
-            // template registry.
             httui_notes::templates_commands::list_templates_cmd,
-            // captures persistence.
             httui_notes::captures_commands::read_captures_cache_cmd,
             httui_notes::captures_commands::write_captures_cache_cmd,
             httui_notes::captures_commands::delete_captures_cache_cmd,
@@ -550,7 +496,6 @@ fn main() {
             httui_notes::commands::environments::delete_env_variable,
             httui_notes::commands::environments::resolve_active_env_variables,
             httui_notes::commands::environments::resolve_env_variables,
-            // Chat
             create_chat_session,
             list_chat_sessions,
             get_chat_session,

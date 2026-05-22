@@ -1,18 +1,7 @@
-// coverage:exclude file — Tauri command shells with no testable
-// logic without spinning up the Tauri runtime. Substantive code is
-// in `crate::fs::*` (covered there). Same shape as
-// `commands/connections.rs` and `commands/environments.rs`
-// (audit-016). Justified in `audit-018-files-commands-coverage-exclude.md`.
-// Retires when the integration harness lands, mirroring the
-// retirement schedule for the other two opt-outs.
+// coverage:exclude file — Tauri command shells with no testable logic without a Tauri runtime.
 
-//! Vault file Tauri commands — list / read / write / create / rename /
-//! delete notes and folders.
-//!
-//! Extracted from `main.rs` The substantive
-//! logic lives in `crate::fs`; these wrappers just thread Tauri
-//! state (the file-watcher ignore list, the SQLite pool for cascading
-//! per-block cache cleanup) into the call.
+//! Vault file Tauri commands — list / read / write / create / rename / delete notes and folders.
+//! Substantive logic lives in `crate::fs`.
 
 use std::sync::{Arc, Mutex};
 
@@ -41,7 +30,6 @@ pub fn write_note(
     content: String,
     ignore_paths: State<'_, Arc<Mutex<Vec<String>>>>,
 ) -> Result<(), String> {
-    // Add to ignore list so file watcher skips this event
     {
         let mut ignored = ignore_paths.lock().unwrap();
         if !ignored.contains(&file_path) {
@@ -51,7 +39,6 @@ pub fn write_note(
 
     let result = crate::fs::write_note(&vault_path, &file_path, &content);
 
-    // Remove from ignore list after a short delay
     let ignore = ignore_paths.inner().clone();
     let fp = file_path.clone();
     std::thread::spawn(move || {
@@ -77,13 +64,9 @@ pub async fn delete_note(
     file_path: String,
     pool: State<'_, SqlitePool>,
 ) -> Result<(), String> {
-    // Move the file to trash first; only purge SQLite state if the FS
-    // operation succeeded so we don't drop history/examples for a file
-    // that's still on disk.
     crate::fs::delete_note(&vault_path, &file_path)?;
 
-    // Cascade purge across every per-block table (Onda 1-3). Each call is
-    // best-effort — a failure here doesn't undo the trash operation.
+    // Cascade purge across per-block tables; best-effort — failure doesn't undo the trash.
     let absolute = format!("{vault_path}/{file_path}");
     for path_variant in [&file_path, &absolute] {
         let _ = crate::block_history::purge_history_for_file(&pool, path_variant).await;
@@ -108,15 +91,8 @@ pub fn create_folder(vault_path: String, folder_path: String) -> Result<(), Stri
     crate::fs::create_folder(&vault_path, &folder_path)
 }
 
-/// Last modification timestamp for a vault note, in **epoch
-/// milliseconds**. Returns `None` if the file is absent or its mtime
-/// can't be read. Wraps the existing `httui_core::vault_config::merge
-/// ::mtime_or_none` helper so the same source of truth backs both
-/// vault-config cache invalidation and the editor toolbar timestamp.
-///
-/// Carry-over from feeds the `useFileMtime` hook
-/// that drives "edited Xm ago" in the toolbar. Polled on focus / save
-/// rather than continuously.
+/// Last modification timestamp for a vault note, in epoch milliseconds.
+/// Returns `None` if the file is absent or its mtime can't be read.
 #[tauri::command]
 pub fn get_file_mtime(vault_path: String, file_path: String) -> Option<i64> {
     let absolute = std::path::Path::new(&vault_path).join(&file_path);

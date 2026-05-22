@@ -25,9 +25,7 @@ use tauri::ipc::Channel;
 use tokio_util::sync::CancellationToken;
 
 /// Registry of in-flight cancellable executions keyed by `execution_id`.
-///
-/// Cloneable (via internal `Arc<Mutex>`) so it can be shared between the
-/// Tauri state and spawned tasks.
+/// Cloneable via internal `Arc<Mutex>`.
 #[derive(Clone, Default)]
 pub struct ExecutionRegistry {
     inner: Arc<Mutex<HashMap<String, CancellationToken>>>,
@@ -38,9 +36,7 @@ impl ExecutionRegistry {
         Self::default()
     }
 
-    /// Register a fresh token under `id`. If `id` was already registered,
-    /// the old token is overwritten (the previous execution keeps its own
-    /// token via move semantics, so cancel would already be inert).
+    /// Register a fresh token under `id`. Overwrites any existing entry (old token stays valid via move semantics).
     pub fn register(&self, id: impl Into<String>) -> CancellationToken {
         let token = CancellationToken::new();
         let mut map = self.inner.lock().expect("execution registry poisoned");
@@ -48,8 +44,7 @@ impl ExecutionRegistry {
         token
     }
 
-    /// Remove an id from the registry. Called at the end of an execution
-    /// to avoid leaking tokens.
+    /// Remove an id from the registry.
     pub fn unregister(&self, id: &str) {
         let mut map = self.inner.lock().expect("execution registry poisoned");
         map.remove(id);
@@ -83,14 +78,8 @@ impl ExecutionRegistry {
     }
 }
 
-/// Run a DB query and emit its terminal chunk on the provided channel.
-///
-/// On success emits `DbChunk::Complete(response)`. On cancel emits
-/// `DbChunk::Cancelled`. On other errors emits `DbChunk::Error`.
-///
-/// The awaited return value of the Tauri command is `Ok(())` in every
-/// non-panicking case — errors are delivered in-band via the channel so
-/// the frontend has a single path for progress + terminal states.
+/// Run a DB query and emit its terminal chunk on the channel.
+/// Errors are delivered in-band (`DbChunk::Error` / `DbChunk::Cancelled`); the command always returns `Ok(())`.
 #[tauri::command]
 pub async fn execute_db_streamed(
     db_executor: tauri::State<'_, Arc<DbExecutor>>,
@@ -120,30 +109,16 @@ pub async fn execute_db_streamed(
         }
     };
 
-    // Channel send can only fail if the frontend dropped the receiver,
-    // which is expected behavior (e.g., component unmounted). Swallow.
     let _ = on_chunk.send(chunk);
 
     Ok(())
 }
 
-/// Run an HTTP request and stream its chunks on the provided channel.
+/// Run an HTTP request and stream its chunks on the channel.
 ///
-/// Wire order on success: `Headers { ttfb_ms, ... }` → `BodyChunk { ... }` × N
-/// → `Complete(HttpResponse)`. Headers + per-chunk body are emitted as the
-/// HTTP body streams from `reqwest::Response::bytes_stream()` — frontend
-/// can update the statusbar TTFB and a "downloading X kb…" counter without
-/// waiting for the body to finish.
-///
-/// On cancel emits `HttpChunk::Cancelled` (the executor returns
-/// `Err("Request cancelled")` and we translate here — the executor itself
-/// stops emitting once the cancel fires, so partial bytes are discarded).
-/// Transport / encoding failures map to `HttpChunk::Error`. HTTP-level
-/// errors (4xx/5xx) are still "successful executions" and arrive inside
-/// `Complete`.
-///
-/// Note: the executor itself emits the terminal `Complete` chunk via the
-/// callback — we only emit a terminal chunk here on the error/cancel paths.
+/// Wire order: `Headers` → `BodyChunk`× N → `Complete`. On cancel emits `HttpChunk::Cancelled`;
+/// transport failures emit `HttpChunk::Error`. The executor emits `Complete` on success —
+/// this command only emits a terminal chunk on the error/cancel paths.
 #[tauri::command]
 pub async fn execute_http_streamed(
     http_executor: tauri::State<'_, Arc<HttpExecutor>>,
@@ -161,8 +136,6 @@ pub async fn execute_http_streamed(
     let on_chunk_for_executor = on_chunk.clone();
     let result = http_executor
         .execute_streamed(params, token.clone(), move |chunk| {
-            // Channel send only fails if the frontend dropped the receiver;
-            // that's expected (component unmount mid-stream). Swallow.
             let _ = on_chunk_for_executor.send(chunk);
         })
         .await;
@@ -177,8 +150,6 @@ pub async fn execute_http_streamed(
         };
         let _ = on_chunk.send(chunk);
     }
-    // On Ok, the executor already emitted Complete via the callback.
-
     Ok(())
 }
 

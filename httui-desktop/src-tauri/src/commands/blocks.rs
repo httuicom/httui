@@ -1,19 +1,8 @@
-// coverage:exclude file — Tauri command shells delegating to
-// `httui_core::block_results`, `block_history`, `block_settings`,
-// `block_examples`, and `executor::*`. Same shape and rationale as
-// `commands/{connections,environments,files,schema,settings}.rs`
-// (audit-016 / 018). Substantive logic lives in those crate modules
-// at >80% coverage; the shells thread Tauri state and call through.
+// coverage:exclude file — Tauri command shells delegating to httui_core block modules; no extractable logic.
 
-//! Block-related Tauri commands — generic dispatch
-//! (`execute_block`), result cache, run history, per-block settings,
-//! pinned response examples, and the server-side block-hash
-//! computation.
-//!
-//! The streamed/cancel-aware HTTP and DB execution paths live in
-//! `executions.rs` — this module is for the legacy non-streamed
-//! `execute_block` shell plus the persistence side (history /
-//! settings / examples) that the UI hits via Tauri IPC.
+//! Block-related Tauri commands — generic dispatch (`execute_block`), result cache, run history,
+//! per-block settings, pinned examples, and block-hash computation.
+//! Streamed/cancel-aware HTTP and DB paths live in `executions.rs`.
 
 use std::sync::Arc;
 
@@ -31,11 +20,7 @@ use httui_core::executor::{
     self, BlockRequest, BlockResult, Executor, ExecutorError, ExecutorRegistry,
 };
 
-// --- Executor wrapper newtypes ------------------------------------------
-
-/// Newtype wrapper letting the registry hold `DbExecutor` via `Arc` so
-/// the same instance can also back the streamed/cancel-aware Tauri
-/// command in `executions.rs`.
+/// Newtype letting the registry hold `DbExecutor` via `Arc`, shared with the streamed command in `executions.rs`.
 pub struct SharedDbExecutor(pub Arc<executor::db::DbExecutor>);
 
 #[async_trait::async_trait]
@@ -53,10 +38,7 @@ impl Executor for SharedDbExecutor {
     }
 }
 
-/// Same pattern as `SharedDbExecutor` for the HTTP executor. The
-/// streamed command pulls the `Arc<HttpExecutor>` from Tauri state;
-/// the legacy `execute_block` path continues through the registry via
-/// this wrapper.
+/// Same pattern as `SharedDbExecutor` for the HTTP executor.
 pub struct SharedHttpExecutor(pub Arc<executor::http::HttpExecutor>);
 
 #[async_trait::async_trait]
@@ -74,11 +56,7 @@ impl Executor for SharedHttpExecutor {
     }
 }
 
-// --- Generic dispatch ----------------------------------------------------
-
-/// Generic dispatch: route a `BlockRequest` to the executor registered
-/// under `block_type`. Used by the legacy non-streamed path; streamed
-/// HTTP/DB execution lives in `executions.rs`.
+/// Route a `BlockRequest` to the executor registered under `block_type`. Streamed paths live in `executions.rs`.
 #[tauri::command]
 pub async fn execute_block(
     registry: State<'_, ExecutorRegistry>,
@@ -89,7 +67,6 @@ pub async fn execute_block(
     registry.execute(req).await.map_err(|e| e.to_string())
 }
 
-// --- Block result cache --------------------------------------------------
 
 /// Look up a previously cached `BlockResult` by `(file_path, block_hash)`.
 /// Returns `None` if no cached row matches.
@@ -129,7 +106,6 @@ pub async fn save_block_result(
     .map_err(|e| e.to_string())
 }
 
-// --- Block run history --------------------------------------------------
 
 /// Return the trim-capped run history (metadata only — no bodies)
 /// for `(file_path, block_alias)`.
@@ -198,7 +174,6 @@ pub async fn purge_block_history(
         .map_err(|e| e.to_string())
 }
 
-// --- Per-block settings (Onda 1) ----------------------------------------
 
 /// Fetch persistent per-block settings (limit/timeout overrides) for
 /// `(file_path, block_alias)`. Returns defaults if no row exists.
@@ -239,7 +214,6 @@ pub async fn purge_block_settings(
         .map_err(|e| e.to_string())
 }
 
-// --- Pinned response examples (Onda 3) ----------------------------------
 
 /// Pin a named response snapshot for a block so the user can revisit
 /// it later without re-running.
@@ -288,10 +262,7 @@ pub async fn purge_block_examples(
         .map_err(|e| e.to_string())
 }
 
-// --- Block hash ----------------------------------------------------------
-
-/// T31/T35: Server-side hash computation including environment +
-/// connection context.
+/// Server-side hash computation including environment + connection context.
 #[tauri::command]
 pub async fn compute_block_hash(
     pool: State<'_, SqlitePool>,

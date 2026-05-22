@@ -18,7 +18,7 @@ fn hex_to_bytes(hex: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
-/// T25: Compute HMAC-SHA256 of a message payload.
+/// Compute HMAC-SHA256 of a message payload.
 pub fn compute_hmac(secret: &str, payload: &str) -> String {
     let mut mac =
         HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
@@ -26,7 +26,7 @@ pub fn compute_hmac(secret: &str, payload: &str) -> String {
     bytes_to_hex(&mac.finalize().into_bytes())
 }
 
-/// T25: Verify HMAC-SHA256 of a message payload (constant-time comparison).
+/// Verify HMAC-SHA256 of a message payload (constant-time comparison).
 pub fn verify_hmac(secret: &str, payload: &str, expected_hmac: &str) -> bool {
     let mut mac =
         HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
@@ -34,8 +34,6 @@ pub fn verify_hmac(secret: &str, payload: &str, expected_hmac: &str) -> bool {
     let expected_bytes = hex_to_bytes(expected_hmac).unwrap_or_default();
     mac.verify_slice(&expected_bytes).is_ok()
 }
-
-// ── Rust → Sidecar (outgoing) ────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -72,8 +70,6 @@ pub enum PermissionBehavior {
     Allow,
     Deny,
 }
-
-// ── Sidecar → Rust (incoming) ────────────────────────────────────────
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -127,8 +123,6 @@ pub struct UsageInfo {
     pub cache_read_tokens: u64,
 }
 
-// ── Tauri events emitted to frontend ─────────────────────────────────
-
 #[derive(Debug, Clone, Serialize)]
 pub struct ChatDeltaEvent {
     pub session_id: i64,
@@ -172,8 +166,6 @@ pub struct ChatErrorEvent {
     pub category: String,
     pub message: String,
 }
-
-// ── Serialization helpers ────────────────────────────────────────────
 
 impl OutgoingMessage {
     /// Serialize to a single NDJSON line (no trailing newline).

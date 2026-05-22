@@ -1,13 +1,6 @@
-// coverage:exclude file — Tauri command shells delegating to
-// `httui_core::config`. Same shape and rationale as
-// `commands/{connections,environments,files,schema}.rs`
-// (audit-016 / 018). Substantive logic lives in `httui_core::config`.
+// coverage:exclude file — Tauri command shells with no testable logic without a Tauri runtime.
 
-//! App-config Tauri commands — get / set on the `app_config` SQLite
-//! table. The full settings split (per-machine `user.toml` vs
-//! workspace `workspace.toml`) is the job; these commands stay
-//! pointed at the legacy SQLite-backed `app_config` for v1 boot
-//! compatibility.
+//! App-config Tauri commands — get / set on the `app_config` SQLite table.
 
 use sqlx::sqlite::SqlitePool;
 use tauri::State;

@@ -1,6 +1,4 @@
-//! Tauri command modules. The per-domain split is incremental —
-//! `vault_stores` is the first module; environments and connections
-//! command modules follow in a later cutover.
+//! Per-domain Tauri command modules.
 
 pub mod blocks;
 pub mod connections;

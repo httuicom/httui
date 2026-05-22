@@ -112,11 +112,11 @@ const BACKOFF_DELAYS: &[Duration] = &[
 /// Manages the sidecar process lifecycle, message multiplexing, and supervision.
 pub struct SidecarManager {
     child: Arc<Mutex<Option<CommandChild>>>,
-    /// Maps request_id → sender for incoming messages from sidecar
+    /// Maps request_id → sender for incoming messages from sidecar.
     requests: Arc<Mutex<HashMap<String, mpsc::UnboundedSender<IncomingMessage>>>>,
-    /// Flag to stop background tasks on shutdown
+    /// Flag to stop background tasks on shutdown.
     shutdown: Arc<AtomicBool>,
-    /// T25: Shared secret for HMAC message signing with sidecar
+    /// Shared secret for HMAC message signing with the sidecar.
     hmac_secret: String,
 }
 
@@ -128,7 +128,6 @@ impl SidecarManager {
         let child = Arc::new(Mutex::new(None::<CommandChild>));
         let pong_notify = Arc::new(Notify::new());
         let shutdown = Arc::new(AtomicBool::new(false));
-        // T25: Generate HMAC secret for sidecar protocol signing
         let hmac_secret = uuid::Uuid::new_v4().to_string();
 
         let manager = Self {
@@ -138,10 +137,9 @@ impl SidecarManager {
             hmac_secret: hmac_secret.clone(),
         };
 
-        // Initial spawn
         Self::spawn_process(app, &child, &requests, &pong_notify, &hmac_secret).await?;
 
-        // Supervisor task: respawn on termination with backoff
+        // Supervisor: respawn on termination with backoff.
         let app_respawn = app.clone();
         let child_respawn = child.clone();
         let requests_respawn = requests.clone();
@@ -151,14 +149,13 @@ impl SidecarManager {
         tauri::async_runtime::spawn(async move {
             let mut attempt = 0usize;
             loop {
-                // Wait for sidecar to die
                 loop {
                     tokio::time::sleep(Duration::from_secs(1)).await;
                     if shutdown_respawn.load(Ordering::Relaxed) {
                         return;
                     }
                     if child_respawn.lock().await.is_none() {
-                        break; // Process died, attempt respawn
+                        break;
                     }
                 }
 
@@ -196,7 +193,6 @@ impl SidecarManager {
             }
         });
 
-        // Health check task
         let child_health = child.clone();
         let pong_health = pong_notify.clone();
         let shutdown_health = shutdown.clone();
@@ -215,9 +211,7 @@ impl SidecarManager {
                             continue;
                         }
                     }
-                    drop(guard); // Release lock before waiting
-
-                    // Wait for pong with timeout
+                    drop(guard); // release lock before waiting for pong
                     let pong_result =
                         tokio::time::timeout(HEALTH_CHECK_TIMEOUT, pong_health.notified()).await;
 
@@ -227,7 +221,6 @@ impl SidecarManager {
                         if let Some(dead_child) = guard.take() {
                             let _ = dead_child.kill();
                         }
-                        // Supervisor task will handle respawn
                     }
                 }
             }
@@ -255,7 +248,6 @@ impl SidecarManager {
         let node_path =
             find_node().ok_or("Node.js not found. Install Node.js to use the chat feature.")?;
 
-        // Resolve claude CLI path — same bin directory as node, or via which
         let claude_path = find_claude(&node_path).unwrap_or_default();
         eprintln!(
             "[sidecar] node={}, claude={}, script={}",
@@ -293,7 +285,6 @@ impl SidecarManager {
 
         *child.lock().await = Some(new_child);
 
-        // Spawn reader task
         let requests_clone = requests.clone();
         let app_clone = app.clone();
         let child_clone = child.clone();
@@ -314,13 +305,13 @@ impl SidecarManager {
         Ok(())
     }
 
-    /// Send a message to the sidecar process via stdin (T25: HMAC signed).
+    /// Send a message to the sidecar process via stdin (HMAC signed).
     pub async fn send(&self, msg: OutgoingMessage) -> Result<(), String> {
         let payload = msg
             .to_ndjson()
             .map_err(|e| format!("Serialization error: {e}"))?;
-        // T25: Sign message with HMAC — transmit payload as a JSON string value
-        // to avoid re-serialization mismatch between serde_json and JS JSON.stringify
+        // Payload is a JSON string value to avoid re-serialization mismatch
+        // between serde_json and JS JSON.stringify.
         let hmac = super::protocol::compute_hmac(&self.hmac_secret, &payload);
         let signed = serde_json::json!({"hmac": hmac, "payload": payload}).to_string();
         let mut guard = self.child.lock().await;
@@ -395,9 +386,6 @@ impl SidecarManager {
                         continue;
                     }
 
-                    // T25: Verify HMAC on incoming messages from sidecar
-                    // Payload is transmitted as a JSON string value to avoid
-                    // re-serialization mismatch between serde_json and JS JSON.stringify
                     let parsed_line = if let Ok(envelope) =
                         serde_json::from_str::<serde_json::Value>(line)
                     {
@@ -405,7 +393,7 @@ impl SidecarManager {
                             envelope.get("hmac").and_then(|v| v.as_str()),
                             envelope.get("payload"),
                         ) {
-                            // payload can be a string (new protocol) or object (legacy)
+                            // Payload may be a string (new) or object (legacy).
                             let payload_str = if let Some(s) = payload.as_str() {
                                 s.to_string()
                             } else {
@@ -417,7 +405,7 @@ impl SidecarManager {
                             }
                             payload_str
                         } else {
-                            // No HMAC envelope — use raw line (backward compat during transition)
+                            // No HMAC envelope — raw line (backward compat).
                             line.to_string()
                         }
                     } else {
@@ -448,10 +436,8 @@ impl SidecarManager {
                 CommandEvent::Terminated(status) => {
                     eprintln!("[sidecar] Process terminated: {status:?}");
 
-                    // Mark child as dead so supervisor can respawn
                     *child.lock().await = None;
 
-                    // Notify all pending requests of failure
                     let guard = requests.lock().await;
                     for (_, tx) in guard.iter() {
                         let _ = tx.send(IncomingMessage::Error {

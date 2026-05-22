@@ -82,8 +82,6 @@ pub async fn send_chat_message(
     text: String,
     attachments: Vec<AttachmentInput>,
 ) -> Result<String, String> {
-    // 1. Persist user message
-    // 2. Build content blocks for DB (paths) and sidecar (base64) separately
     let mut db_blocks: Vec<serde_json::Value> =
         vec![serde_json::json!({"type": "text", "text": text})];
     let mut sidecar_blocks: Vec<serde_json::Value> =
@@ -94,19 +92,16 @@ pub async fn send_chat_message(
             .await
             .map_err(|e| format!("Failed to read attachment {}: {e}", att.path))?;
 
-        // Normalize: resize if > 2048px, re-encode as JPEG Q85
         let (normalized, norm_media_type) = normalize_image(&bytes, &att.media_type)
             .unwrap_or_else(|_| (bytes.clone(), att.media_type.clone()));
         let b64 = base64_encode(&normalized);
 
-        // DB stores path (for UI display)
         db_blocks.push(serde_json::json!({
             "type": "image",
             "path": att.path,
             "media_type": att.media_type,
         }));
 
-        // Sidecar gets normalized base64 (for API)
         sidecar_blocks.push(serde_json::json!({
             "type": "image",
             "source": {
@@ -122,7 +117,6 @@ pub async fn send_chat_message(
 
     chat::insert_message(&pool, session_id, "user", &content_json, None, None, false).await?;
 
-    // Auto-title: if session still has default title, set it from the first user message
     let session_for_title = chat::get_session(&pool, session_id).await?;
     if session_for_title.title == "Nova conversa" {
         let title: String = text.chars().take(50).collect();
@@ -138,14 +132,12 @@ pub async fn send_chat_message(
         }
     }
 
-    // 3. Get session for claude_session_id + resolve cwd
     let session = chat::get_session(&pool, session_id).await?;
 
     // Use session cwd, or fall back to active vault path
     let effective_cwd = if session.cwd.is_some() {
         session.cwd.clone()
     } else {
-        // Read active vault from app_config
         let row: Option<(String,)> =
             sqlx::query_as("SELECT value FROM app_config WHERE key = 'active_vault'")
                 .fetch_optional(pool.inner())
@@ -155,7 +147,6 @@ pub async fn send_chat_message(
         row.map(|r| r.0)
     };
 
-    // Resolve [[wikilinks]] in the user text and inject note content for the sidecar
     if let Some(ref cwd) = effective_cwd {
         let wikilink_re =
             regex::Regex::new(r"\[\[([^\]]+)\]\]").expect("static wikilink regex compiles");
@@ -170,7 +161,6 @@ pub async fn send_chat_message(
         }
     }
 
-    // 4. Send to sidecar (lazy spawn on first use)
     let effective_cwd_for_broker = effective_cwd.clone();
     let request_id = Uuid::new_v4().to_string();
     {
@@ -207,7 +197,6 @@ pub async fn send_chat_message(
         rx
     }; // sidecar_guard dropped here
 
-    // 5. Spawn task to process incoming events
     let pool_clone = pool.inner().clone();
     let request_id_clone = request_id.clone();
     let sidecar_clone = sidecar.inner().clone();
@@ -230,7 +219,6 @@ pub async fn send_chat_message(
                             .await;
                 }
                 IncomingMessage::TextDelta { text, .. } => {
-                    // If we were accumulating tools, flush the tool group first
                     if !current_tool_ids.is_empty() {
                         segments.push(serde_json::json!({"type": "tool_group", "tool_use_ids": current_tool_ids}));
                         current_tool_ids = Vec::new();
@@ -244,14 +232,12 @@ pub async fn send_chat_message(
                     input,
                     ..
                 } => {
-                    // Flush accumulated text as a segment before tools
                     if !current_text.is_empty() {
                         segments.push(serde_json::json!({"type": "text", "text": current_text}));
                         current_text = String::new();
                     }
                     current_tool_ids.push(tool_use_id.clone());
 
-                    // Persist partial assistant message if not yet created
                     if assistant_msg_id.is_none() {
                         let content = serde_json::json!(&segments);
                         if let Ok(msg) = chat::insert_message(
@@ -268,7 +254,6 @@ pub async fn send_chat_message(
                             assistant_msg_id = Some(msg.id);
                         }
                     }
-                    // Persist tool call
                     if let Some(msg_id) = assistant_msg_id {
                         let input_str = serde_json::to_string(&input).unwrap_or_default();
                         let _ = chat::insert_tool_call(
@@ -296,7 +281,6 @@ pub async fn send_chat_message(
                     is_error,
                     ..
                 } => {
-                    // Persist tool result
                     let result_str = serde_json::to_string(&content).unwrap_or_default();
                     let _ = chat::update_tool_call_result(
                         &pool_clone,
@@ -321,7 +305,6 @@ pub async fn send_chat_message(
                     tool_input,
                     ..
                 } => {
-                    // Check broker before prompting the user
                     let verdict = broker_clone
                         .check(
                             &tool_name,
@@ -333,7 +316,6 @@ pub async fn send_chat_message(
 
                     match verdict {
                         PermissionVerdict::Allow => {
-                            // Auto-respond allow to sidecar
                             if let Some(mgr) = sidecar_clone.lock().await.as_ref() {
                                 let _ = mgr
                                     .send(OutgoingMessage::PermissionResponse {
@@ -347,7 +329,6 @@ pub async fn send_chat_message(
                             }
                         }
                         PermissionVerdict::Deny(reason) => {
-                            // Auto-respond deny to sidecar
                             if let Some(mgr) = sidecar_clone.lock().await.as_ref() {
                                 let _ = mgr
                                     .send(OutgoingMessage::PermissionResponse {
@@ -361,7 +342,6 @@ pub async fn send_chat_message(
                             }
                         }
                         PermissionVerdict::AskUser => {
-                            // Emit to frontend for user decision
                             let _ = app.emit(
                                 "chat:permission_request",
                                 ChatPermissionRequestEvent {
@@ -377,21 +357,18 @@ pub async fn send_chat_message(
                 IncomingMessage::Done {
                     usage, stop_reason, ..
                 } => {
-                    // Flush remaining segments
                     if !current_tool_ids.is_empty() {
                         segments.push(serde_json::json!({"type": "tool_group", "tool_use_ids": current_tool_ids}));
                     }
                     if !current_text.is_empty() {
                         segments.push(serde_json::json!({"type": "text", "text": current_text}));
                     }
-                    // Persist or update assistant message
                     let content = serde_json::json!(&segments);
                     let tokens_in = usage.as_ref().map(|u| u.input_tokens as i64);
                     let tokens_out = usage.as_ref().map(|u| u.output_tokens as i64);
                     let cache_read = usage.as_ref().map(|u| u.cache_read_tokens as i64);
 
                     if let Some(msg_id) = assistant_msg_id {
-                        // Update partial message to final (including cache_read_tokens)
                         let _ = sqlx::query(
                             "UPDATE messages SET content_json = ?, tokens_in = ?, tokens_out = ?, cache_read_tokens = ?, is_partial = 0 WHERE id = ?"
                         )
@@ -415,7 +392,6 @@ pub async fn send_chat_message(
                         .await;
                     }
 
-                    // Aggregate usage stats
                     if let Some(ref u) = usage {
                         let _ = chat::upsert_usage(
                             &pool_clone,
@@ -440,14 +416,12 @@ pub async fn send_chat_message(
                 IncomingMessage::Error {
                     category, message, ..
                 } => {
-                    // Flush remaining segments for partial persistence
                     if !current_tool_ids.is_empty() {
                         segments.push(serde_json::json!({"type": "tool_group", "tool_use_ids": current_tool_ids}));
                     }
                     if !current_text.is_empty() {
                         segments.push(serde_json::json!({"type": "text", "text": current_text}));
                     }
-                    // Persist partial message if we have segments
                     if !segments.is_empty() {
                         let content = serde_json::json!(&segments);
                         let _ = chat::insert_message(
@@ -476,7 +450,6 @@ pub async fn send_chat_message(
             }
         }
 
-        // Cleanup
         if let Some(mgr) = sidecar_clone.lock().await.as_ref() {
             mgr.unregister_request(&request_id_clone).await;
         }
@@ -517,7 +490,6 @@ pub async fn respond_chat_permission(
         _ => return Err(format!("Invalid behavior: {behavior}")),
     };
 
-    // Persist rule if scope is "session" or "always" and we have a tool_name
     let scope_str = scope.as_deref().unwrap_or("once");
     if let (true, Some(tn)) = (
         scope_str == "session" || scope_str == "always",
@@ -713,7 +685,6 @@ fn normalize_image(bytes: &[u8], media_type: &str) -> Result<(Vec<u8>, String), 
     let needs_resize = w > MAX_IMAGE_DIMENSION || h > MAX_IMAGE_DIMENSION;
     let is_jpeg = media_type == "image/jpeg";
 
-    // Skip if already small enough and JPEG
     if !needs_resize && is_jpeg {
         return Ok((bytes.to_vec(), media_type.to_string()));
     }

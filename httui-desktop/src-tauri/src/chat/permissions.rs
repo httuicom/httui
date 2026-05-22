@@ -44,7 +44,7 @@ impl PermissionBroker {
             return PermissionVerdict::AskUser;
         }
 
-        // T06: Block execution (DB/HTTP/E2E) always requires user confirmation via sidecar
+        // execute_block (DB/HTTP) always requires user confirmation
         if tool_name == "execute_block" {
             return PermissionVerdict::AskUser;
         }
