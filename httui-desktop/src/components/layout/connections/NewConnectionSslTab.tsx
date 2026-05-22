@@ -1,10 +1,5 @@
-// Canvas §5 — "SSL" tab for the Nova Conexão modal.
-//
-// Renders the SSL configuration fields: sslmode select + root cert
-// path + client cert + client key paths. Pure presentational; the
-// consumer owns the value and onChange. Used both as a tab and as
-// the secondary patch surface when a connection string carries
-// ?sslmode=...&sslrootcert=... params.
+// "SSL" tab: sslmode select + root/client cert+key paths.
+// Pure presentational; also patched when a connection string carries ?sslmode= params.
 
 import {
   Box,
@@ -179,8 +174,7 @@ function ModeSelect({
   );
 }
 
-/** Path input + native file picker button. Picker filters by the
- * supplied extensions; user can still type a path manually. */
+/** Path input + native file-picker button. User can also type the path manually. */
 function FilePathInput({
   testid,
   value,
@@ -211,8 +205,7 @@ function FilePathInput({
         onChange(picked);
       }
     } catch {
-      // User dismissed or dialog plugin unavailable in dev. Silent
-      // failure — they can still type the path manually.
+      // ignore — user dismissed or dialog plugin unavailable
     }
   };
 

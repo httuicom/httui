@@ -62,7 +62,6 @@ describe("ConnectionForm", () => {
       const saveBtn = buttons.find((b) =>
         /create connection|save|^add$/i.test(b.textContent ?? ""),
       );
-      // Fallback — find by text "Create"
       await user.click(saveBtn ?? screen.getByText(/create/i));
 
       await waitFor(() => expect(received).not.toBeNull());
@@ -78,7 +77,6 @@ describe("ConnectionForm", () => {
         <ConnectionForm connection={null} onClose={vi.fn()} />,
       );
 
-      // Default = postgres → no FILE PATH label
       expect(screen.queryByText(/FILE PATH/i)).not.toBeInTheDocument();
 
       await user.click(screen.getByText("SQLite"));

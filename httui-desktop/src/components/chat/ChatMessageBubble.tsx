@@ -45,8 +45,8 @@ function parseMessageContent(
         }
       }
 
-      // Backward compat: old messages have single text block + separate tool_calls
-      // If there are tool_calls but no tool_group segments, append one at the end
+      // Backward compat: old messages have single text block + separate tool_calls.
+      // If there are tool_calls but no tool_group segments, append one at the end.
       if (
         toolCalls.length > 0 &&
         !segments.some((s) => s.type === "tool_group")
@@ -266,13 +266,11 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
     );
   }
 
-  // Assistant message — render segments in order
   const segments =
     streamingSegments && streamingSegments.length > 0
       ? streamingSegments
       : parsed.segments;
 
-  // Build a map of tool_use_id -> ChatToolCall for quick lookup
   const toolCallMap = new Map(
     message.tool_calls.map((tc) => [tc.tool_use_id, tc]),
   );
@@ -298,11 +296,9 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
             if (seg.type === "text") {
               return <ChatMarkdown key={idx} content={seg.text} />;
             }
-            // tool_group segment
             const groupToolCalls = seg.toolUseIds
               .map((id) => toolCallMap.get(id))
               .filter((tc): tc is ChatToolCall => tc != null);
-            // For streaming, filter toolActivity to only this group's IDs
             const groupActivity = toolActivity
               ? new Map(
                   seg.toolUseIds

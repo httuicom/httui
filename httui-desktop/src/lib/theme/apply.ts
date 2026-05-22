@@ -39,14 +39,12 @@ function buildSemanticStyleSheet(config: ThemeConfig): string {
   const a = accent?.scale;
   const cc = config.customColors;
 
-  // Light mode: use custom overrides if set, else derive from gray palette
   const lightBg = cc?.light?.bg ?? "#ffffff";
   const lightBgSubtle = cc?.light?.bgSubtle ?? g[50];
   const lightFg = cc?.light?.fg ?? g[950];
   const lightFgMuted = cc?.light?.fgMuted ?? g[500];
   const lightBorder = cc?.light?.border ?? g[200];
 
-  // Dark mode: use custom overrides if set, else derive from gray palette
   const darkBg = cc?.dark?.bg ?? g[950];
   const darkBgSubtle = cc?.dark?.bgSubtle ?? g[900];
   const darkFg = cc?.dark?.fg ?? g[50];
@@ -114,7 +112,6 @@ export function applyTheme(config: ThemeConfig): void {
   const root = document.documentElement;
   const s = (prop: string, val: string) => root.style.setProperty(prop, val);
 
-  // ─── Accent color (override brand palette) ────────────
   const accent = ACCENT_PALETTES[config.accentColor];
   if (accent) {
     for (const shade of SHADE_KEYS) {
@@ -122,7 +119,6 @@ export function applyTheme(config: ThemeConfig): void {
     }
   }
 
-  // ─── Gray tone (override gray palette) ────────────────
   const gray = GRAY_PALETTES[config.grayTone];
   if (gray) {
     for (const shade of SHADE_KEYS) {
@@ -130,7 +126,6 @@ export function applyTheme(config: ThemeConfig): void {
     }
   }
 
-  // ─── Semantic tokens (mode-aware via <style> injection) ─
   let styleEl = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
   if (!styleEl) {
     styleEl = document.createElement("style");
@@ -139,7 +134,6 @@ export function applyTheme(config: ThemeConfig): void {
   }
   styleEl.textContent = buildSemanticStyleSheet(config);
 
-  // ─── Border radius ────────────────────────────────────
   const r = `${config.borderRadius}px`;
   s("--chakra-radii-sm", `${Math.max(config.borderRadius - 2, 0)}px`);
   s("--chakra-radii-md", r);
@@ -147,10 +141,8 @@ export function applyTheme(config: ThemeConfig): void {
   s("--chakra-radii-xl", `${config.borderRadius + 6}px`);
   s("--chakra-radii-2xl", `${config.borderRadius + 10}px`);
 
-  // ─── Border width ─────────────────────────────────────
   s("--theme-border-width", `${config.borderWidth}px`);
 
-  // ─── Font family ──────────────────────────────────────
   const bodyFont = FONT_BODY_OPTIONS[config.fontBody];
   if (bodyFont) {
     s("--chakra-fonts-body", bodyFont.value);
@@ -162,16 +154,13 @@ export function applyTheme(config: ThemeConfig): void {
     s("--chakra-fonts-mono", monoFont.value);
   }
 
-  // ─── Font size ────────────────────────────────────────
   s("--theme-font-size", `${config.fontSize}px`);
 
-  // ─── Density ──────────────────────────────────────────
   const density = DENSITY_SCALES[config.density];
   if (density) {
     s("--theme-density", String(density.multiplier));
   }
 
-  // ─── Shadow ───────────────────────────────────────────
   const shadow = SHADOW_OPTIONS[config.shadow];
   if (shadow) {
     s("--theme-shadow", shadow.value);
@@ -203,7 +192,6 @@ export function clearTheme(): void {
   r("--theme-density");
   r("--theme-shadow");
 
-  // Remove injected style block
   const styleEl = document.getElementById(STYLE_ID);
   if (styleEl) styleEl.remove();
 }

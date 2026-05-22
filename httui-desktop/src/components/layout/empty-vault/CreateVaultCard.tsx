@@ -1,10 +1,3 @@
-// "Create vault" card — V1 vertical 1.
-//
-// Expandable card: collapsed state shows the icon/title/body and a
-// CTA pill; expanded state shows a parent-folder picker + name input
-// + Create submit. Consumer wires `onCreate(parent, name)` to the
-// Tauri `create_vault` command.
-
 import { useState, useCallback } from "react";
 import { Box, HStack, Stack, Text, chakra } from "@chakra-ui/react";
 
@@ -13,13 +6,9 @@ import { Btn, Input } from "@/components/atoms";
 const CardBox = chakra("div");
 
 export interface CreateVaultCardProps {
-  /** `(parentPath, name)` → consumer creates and switches into the
-   * new vault. */
   onCreate: (parentPath: string, name: string) => Promise<void>;
-  /** Open a directory picker for the parent folder. Returns absolute
-   * path or `null` when the user cancels. */
+  /** Open a directory picker. Returns absolute path or `null` on cancel. */
   onPickParent: () => Promise<string | null>;
-  /** Disable while another card is mid-flow. */
   busy?: boolean;
 }
 

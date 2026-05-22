@@ -1,9 +1,5 @@
-// Smart wrapper around <ConnectionsPage /> (V4). Owns data fetching,
-// IPC dispatch, and cross-store wiring; the presentational page
-// stays prop-driven and trivially testable.
-//
-// V3 lesson: keep this lean. If a feature doesn't have a clean home,
-// don't invent a workspace tab to host it.
+// Smart container for <ConnectionsPage />: owns data fetching, IPC dispatch,
+// and cross-store wiring. Keep lean — the presentational page stays prop-driven.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConfigSyncedResource } from "@/hooks/useConfigSyncedResource";
@@ -52,24 +48,33 @@ export function ConnectionsPageContainer({
   // file or its `.local` sibling changes on disk).
   useConfigSyncedResource("connections", refreshConnections);
 
-  // The only field the prefetch effect reads from `connections` is
-  // the selected connection's name. Derive it here so the effect can
-  // depend on a stable string instead of the whole array.
-  const selectedConnName = useMemo(
-    () =>
-      selectedId
-        ? (connections.find((c) => c.id === selectedId)?.name ?? null)
-        : null,
-    [selectedId, connections],
-  );
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
-  // Pre-fetch schema + usages on selection change so the detail
-  // panel renders without an extra click. Keyed on the selected
-  // connection's *name* (B4): the old `connections`-array dep re-ran
-  // the FS grep + ensureSchema on every unrelated store refresh
-  // (test-ping, CRUD, config-changed) even when the selection was
-  // unchanged. A rename still re-fires (name changes); a real
-  // selection change still re-fires (selectedId changes).
+  // Reload when the backend emits `config-changed` with category "connections".
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | null = null;
+    void (async () => {
+      const fn = await listen<{ category: string }>("config-changed", (e) => {
+        if (e.payload.category === "connections") {
+          void reload();
+        }
+      });
+      if (cancelled) {
+        fn();
+      } else {
+        unlisten = fn;
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [reload]);
+
+  // Pre-fetch schema + usages on selection so the detail panel renders immediately.
   useEffect(() => {
     if (!selectedId || !vaultPath || !selectedConnName) return;
     void ensureSchema(selectedId);
@@ -140,7 +145,6 @@ export function ConnectionsPageContainer({
     [deleteConn, selectedId],
   );
 
-  // Slice the schemaCache map to the shape ConnectionsPage expects.
   const schemaProp = useMemo(() => {
     const out: Record<
       string,

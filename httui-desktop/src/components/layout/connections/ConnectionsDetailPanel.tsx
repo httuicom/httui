@@ -1,10 +1,5 @@
-// Canvas §5 — right column of the Connections refined page (420px).
-//
-// Slice 1: empty/placeholder states.
-// Slice 2 (wiring): selection cascade renders connection name.
-// Slice 3 credentials section when a real `Connection` is
-// passed in; placeholder when only the name is known (e.g. test
-// fixtures or pre-load stubs).
+// Right detail column (420px) for the Connections page.
+// Shows credentials, schema preview, and runbook usages for the selected connection.
 
 import { Box, Stack, Text } from "@chakra-ui/react";
 
@@ -23,41 +18,23 @@ import type {
 import type { ConnectionSchema } from "@/stores/schemaCache";
 
 export interface ConnectionsDetailPanelProps {
-  /** Currently-selected connection name, or `null` for no
-   * selection. */
   selectedConnectionName: string | null;
-  /** Optional full Connection record — when present, the
-   * Credentials section renders. When omitted (legacy
-   * placeholder path), the panel falls back to the name-only
-   * placeholder. */
+  /** Full Connection record; when absent the panel shows a name-only placeholder. */
   selectedConnection?: Connection | null;
-  /** Save handler for the credentials Edit/Save flow. */
   onSaveCredentials?: (input: UpdateConnectionInput) => Promise<void> | void;
-  /** Rotate-password handler. The consumer should write to the
-   * keychain and update the `{{keychain:…}}` ref in
-   * `connections.toml`. */
+  /** Write new password to the OS keychain. */
   onRotatePassword?: (newPassword: string) => Promise<void> | void;
-  /** When provided, the Edit button delegates to the modal instead
-   * of entering inline edit. */
+  /** Delegate Edit to the modal instead of inline editing. */
   onRequestEdit?: () => void;
-  /** pre-fetched schema (consumer drives via
-   * `useSchemaCacheStore.ensureLoaded`). */
   schema?: ConnectionSchema | null;
   schemaLoading?: boolean;
   schemaError?: string | null;
-  /** Top-N hot tables for the schema preview header section.
-   * Consumer derives from a `block_run_history` join. */
   hotTables?: HotTableEntry[];
-  /** Click → consumer triggers `useSchemaCacheStore.refresh`. */
   onRefreshSchema?: () => void;
-  /** runbook usages for the selected connection. */
   usages?: RunbookUsage[];
   usagesLoading?: boolean;
-  /** Click on a usage row → consumer opens the file at the line. */
   onOpenUsage?: (filePath: string, line: number) => void;
-  /** footer actions. Test resolves to elapsed ms,
-   * Duplicate clones with " (copy)" suffix, Delete removes the
-   * connection + keychain entry after a two-step confirm. */
+  /** Test resolves to elapsed ms; Delete is two-step confirmed. */
   onTestConnection?: () => Promise<number>;
   onDuplicateConnection?: () => Promise<void> | void;
   onDeleteConnection?: () => Promise<void> | void;

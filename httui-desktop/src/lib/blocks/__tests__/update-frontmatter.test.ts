@@ -58,8 +58,6 @@ describe("updateFrontmatterTitle", () => {
     expect(updateFrontmatterTitle("", "# heading")).toContain(
       'title: "# heading"',
     );
-    // Numeric-looking titles get quoted so the YAML parser doesn't
-    // coerce them into integers.
     expect(updateFrontmatterTitle("", "2026")).toContain('title: "2026"');
   });
 
@@ -70,21 +68,17 @@ describe("updateFrontmatterTitle", () => {
   it("handles CRLF documents", () => {
     const before = "---\r\ntitle: Old\r\n---\r\nbody\r\n";
     const after = updateFrontmatterTitle(before, "New");
-    // Closing fence + body keep their CRLF; only the title line we
-    // emit uses LF (round-trip through the editor will normalize).
     expect(after).toContain("title: New");
     expect(after).toContain("---\r\nbody\r\n");
   });
 
   it("ignores `title:` keys nested under another field (indented line)", () => {
-    // Indented `title:` is not a top-level key per the slice-1 schema.
     const before = "---\nmeta:\n  title: nested\n---\nbody\n";
     const after = updateFrontmatterTitle(before, "Top");
     expect(after).toBe("---\ntitle: Top\nmeta:\n  title: nested\n---\nbody\n");
   });
 
   it("only modifies the first occurrence of `title:`", () => {
-    // Malformed input with duplicate keys — first wins, mirrors parser.
     const before = "---\ntitle: First\ntitle: Second\n---\nbody\n";
     const after = updateFrontmatterTitle(before, "Renamed");
     expect(after).toBe("---\ntitle: Renamed\ntitle: Second\n---\nbody\n");
@@ -125,7 +119,6 @@ describe("updateFrontmatterAbstract", () => {
       before,
       "line one\nline two\n  line three",
     );
-    // No double-spaces from the original \n + indent.
     expect(after).toContain("abstract: line one line two line three");
   });
 

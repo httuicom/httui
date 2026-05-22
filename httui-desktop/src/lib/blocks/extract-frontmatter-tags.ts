@@ -1,28 +1,11 @@
-// TS frontmatter parser.
+// Lightweight TS frontmatter parser — synchronous counterpart to
+// `httui_core::frontmatter::parse_frontmatter`.
 //
-// Used by:
-// - Per-save hook driving `useTagIndexStore.setTagsForFile`
-//   (`extractFrontmatterTags`).
-// - DocHeaderedEditor mount feeding `<DocHeaderShell frontmatter={…}>`
-//   so the H1 falls back to the typed title before reaching the
-//   first-heading / filename branches in `pickH1Title`
-//   (`extractFrontmatter`).
+// Used by the per-save tag-index hook and DocHeader title/abstract display.
 //
-// Synchronous so the consumer can fire it inside the editor save
-// callback / render path without an extra IPC round-trip — the Rust
-// `httui_core::frontmatter::parse_frontmatter` (252ba21) is the
-// authoritative parse on the vault-walker path
-// (`scan_vault_tags_cmd`); this is the lightweight per-edit
-// counterpart.
-//
-// Drift contract: this parser must match the Rust slice-1 schema —
-// flow-style `tags: [a, b]` only (no block-list); single-line scalar
-// `title:` / `abstract:` (block scalar `abstract: |` returns undefined
-// here, mirroring `Frontmatter::extra` capture on the Rust side).
-// When the Rust parser learns block-list / block-scalar, this helper
-// must too. Cross-checked by `parse_flow_list_returns_empty
-// _for_block_list_or_other_shapes` in the Rust tests + the matching
-// "returns [] on block-list shape" test below.
+// Drift contract: must match the Rust slice-1 schema — flow-style
+// `tags: [a, b]` only, single-line scalars. When the Rust parser gains
+// block-list or block-scalar support, this helper must follow.
 
 import { parseTaskItem, type TaskItem } from "./task-item";
 
@@ -30,23 +13,12 @@ export interface FrontmatterShape {
   title?: string;
   abstract?: string;
   tags: string[];
-  /** / M6 — checklist task items (free-form todos).
-   *  Stored under the `tasks:` key as a flow-list of `"[ ] text"` /
-   * `"[x] text"` strings. The split moved this off the legacy
-   * `preflight:` key so the typed pre-flight checks
-   *  (block-list of kinds) can own that key without colliding. */
+  /** Free-form checklist items stored under `tasks:` as a flow-list. */
   tasks: TaskItem[];
-  /** `status:` value (`draft` | `active` | `archived`,
-   *  free-form forward-compat). The `archived` value hides the note
-   *  from the default file tree view; the consumer toggle reveals it
-   *  again. Mirrors `httui_core::frontmatter::FrontmatterStatus`. */
+  /** `status:` value (`draft` | `active` | `archived`, forward-compat).
+   *  `archived` hides the note from the default file tree view. */
   status?: string;
-  /** user-visible parse error. Set when the
-   *  frontmatter region is unterminated (no closing `---`) or when a
-   *  typed list key (`tags:` / `tasks:`) carries a non-flow value
-   *  the slice-1 schema can't read (block-list shape, bare scalar).
-   *  When set, the DocHeader surfaces a "frontmatter invalid" badge so
-   *  the user has a visible signal that their YAML didn't apply. */
+  /** User-visible parse error: unterminated frontmatter or non-flow list value. */
   error?: string;
 }
 

@@ -54,7 +54,6 @@ describe("ConnectionsDetailPanel", () => {
     );
     expect(screen.getByTestId("connections-detail-loaded")).toBeInTheDocument();
     expect(screen.getByTestId("connection-credentials")).toBeInTheDocument();
-    // Placeholder must NOT render alongside the loaded panel.
     expect(screen.queryByTestId("connections-detail-placeholder")).toBeNull();
   });
 

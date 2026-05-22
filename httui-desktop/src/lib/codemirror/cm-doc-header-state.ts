@@ -23,9 +23,6 @@ import { EditorView, type DecorationSet } from "@codemirror/view";
 import { extractFrontmatter } from "@/lib/blocks/extract-frontmatter-tags";
 import type { DocHeaderFrontmatter } from "@/components/layout/docheader/docheader-derive";
 
-// Shared type for the DocHeader frontmatter range. Defined here so the
-// CM6 extension factory (`cm-doc-header.tsx`) can import it from the
-// state module without a circular import.
 export interface FrontmatterRange {
   /** Inclusive start offset (always 0 — frontmatter must be at top). */
   from: number;
@@ -33,8 +30,6 @@ export interface FrontmatterRange {
    * fence. Use this directly as the upper bound of `Decoration.replace`. */
   to: number;
 }
-
-// ───── Registry types ─────
 
 export interface DocHeaderEntry {
   id: string;
@@ -154,8 +149,6 @@ export function bindView(id: string, view: EditorView, container: HTMLElement) {
   }
 }
 
-// ───── Live frontmatter sync ─────
-
 function frontmatterEqual(
   a: DocHeaderFrontmatter | null,
   b: DocHeaderFrontmatter | null,
@@ -220,8 +213,6 @@ function countExecutableBlocks(doc: string): number {
       count += 1;
       inFence = true;
     } else if (line.startsWith("```")) {
-      // Non-executable fence — just track open/close so we don't
-      // miscount nested ``` inside markdown code blocks.
       inFence = true;
     }
   }
@@ -245,8 +236,6 @@ export function syncEntryFrontmatter(id: string, doc: string) {
   entry.blockCount = nextBlocks;
   notify();
 }
-
-// ───── Title input + body focus return ─────
 
 /** Register the DocHeader's title input element. Called by
  * `DocHeaderTitleInput` on mount; the CM6 keymap reads this to focus
@@ -280,9 +269,6 @@ export function returnFocusToBody(id: string) {
   view.focus();
 }
 
-// Per-extension state field reference — the keymap and the
-// `returnFocusToBody` helper need it to read the frontmatter range out
-// of the live editor state.
 const fieldByInstance = new Map<
   string,
   StateField<{ decorations: DecorationSet; range: FrontmatterRange | null }>
@@ -304,8 +290,6 @@ export function getFieldFor(id: string) {
     range: FrontmatterRange | null;
   }>;
 }
-
-// ───── Frontmatter rewrite annotation + dispatch helper ─────
 
 /**
  * Annotation tag set on transactions that intentionally rewrite the

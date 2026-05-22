@@ -1,31 +1,14 @@
-// Right-sidebar Outline tab list.
-//
-// Pure presentational. Consumer feeds it the array from
-// `lib/blocks/outline::extractOutline` plus an optional
-// `activeLine` (the line where the editor cursor / scroll center
-// currently sits) so the matching entry highlights.
-//
-// Indent scales with `level - 1`: H1 flush left, H2 indented one
-// step, H3 two steps. Numbering matches conventions
-// (positional 1., 2., …) when `numbered` is true. Click → fires
-// `onSelect(entry)`; consumer wires that to a CM6 dispatch.
-
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import type { OutlineEntry } from "@/lib/blocks/outline";
 
 export interface OutlineListProps {
   entries: OutlineEntry[];
-  /** 1-indexed line number the cursor currently sits on; the
-   *  outline highlights the heading whose `line` is the largest
-   *  value `<= activeLine`. */
+  /** 1-indexed cursor line; highlights the heading whose `line` is the
+   *  largest value `<= activeLine`. */
   activeLine?: number;
-  /** Add the positional `1. 2. ...` numbering matching the editor
-   *  decoration. Defaults to true. */
+  /** Positional `1. 2. …` numbering. Defaults to true. */
   numbered?: boolean;
-  /** Click handler — fires with the full entry so consumer can
-   *  dispatch via CM6 `EditorView.dispatch({ selection: { anchor:
-   *  entry.offset } })`. */
   onSelect?: (entry: OutlineEntry) => void;
 }
 

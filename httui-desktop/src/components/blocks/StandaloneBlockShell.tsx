@@ -95,7 +95,6 @@ export function StandaloneBlockShell({
       my={2}
       bg="bg"
     >
-      {/* Header */}
       <Flex
         align="center"
         gap={2}
@@ -191,7 +190,6 @@ export function StandaloneBlockShell({
         )}
       </Flex>
 
-      {/* Content area */}
       <Flex
         direction={
           displayMode === "split"

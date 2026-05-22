@@ -1,9 +1,3 @@
-// Canvas §6 Environments — pure metadata helpers.
-//
-// Personal envs live in `.local.toml` files (gitignored); the
-// underlying name is the same as the public env. Temporary envs
-// declare `[meta].temporary = true` in the TOML — we don't read the
-// file here, we just provide the type + filename helpers.
 
 const LOCAL_SUFFIX = ".local.toml";
 const TOML_SUFFIX = ".toml";
@@ -41,10 +35,8 @@ export function envNameFromFilename(filename: string): string {
   return filename;
 }
 
-/** Sort: alpha by display name (case-insensitive). The active env is
- * not pinned to position 0 — keeping cards anchored lets the FLIP
- * animation in EnvironmentsPageContainer slide the ACTIVE pill from
- * one position to another without the cards shuffling under it. */
+/** Sort alpha (case-insensitive). Active env is not pinned to position 0 —
+ * stable card positions let the FLIP animation slide the ACTIVE pill smoothly. */
 export function sortEnvironments(
   envs: ReadonlyArray<EnvironmentSummary>,
 ): ReadonlyArray<EnvironmentSummary> {

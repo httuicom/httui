@@ -45,8 +45,6 @@ describe("extractFrontmatterTags", () => {
   });
 
   it("returns [] on block-list shape (out of slice-1 schema)", () => {
-    // Drift contract: when the Rust parser learns the block-list
-    // shape, this helper must too. Until then, both return empty.
     const doc = "---\ntags:\n  - a\n  - b\n---\n";
     expect(extractFrontmatterTags(doc)).toEqual([]);
   });
@@ -58,8 +56,6 @@ describe("extractFrontmatterTags", () => {
   });
 
   it("ignores indented lines at top level", () => {
-    // Indented children belong to a parent block scalar/list — not
-    // a top-level `tags:` value.
     const doc = "---\nabstract: |\n  tags: [should-not-pick]\n---\n";
     expect(extractFrontmatterTags(doc)).toEqual([]);
   });
@@ -98,24 +94,16 @@ describe("extractFrontmatterTags", () => {
   });
 
   it("skips a line without a colon", () => {
-    // Defensive — defended by `colonIdx < 0` continue. Build a
-    // synthetic doc with a malformed line right above the tags
-    // line.
     const doc = "---\nbroken-line-no-colon\ntags: [ok]\n---\n";
     expect(extractFrontmatterTags(doc)).toEqual(["ok"]);
   });
 
   it("does not match a key whose name only contains 'tags' as a prefix/suffix", () => {
-    // `subtags` should not be picked up as `tags`.
     const doc = "---\nsubtags: [ignore]\nstaging: [skip]\n---\n";
     expect(extractFrontmatterTags(doc)).toEqual([]);
   });
 
   it("handles a value without quotes containing colons", () => {
-    // The first `:` after the key is the delimiter; later colons in
-    // the value are part of the value — but a flow-list shape
-    // shouldn't contain bare colons in unquoted entries. This test
-    // documents the failure mode (treated as a plain string entry).
     const doc = "---\ntags: [a:b, c]\n---\n";
     expect(extractFrontmatterTags(doc)).toEqual(["a:b", "c"]);
   });
@@ -131,8 +119,6 @@ describe("extractFrontmatterTags", () => {
   });
 
   it("ignores subsequent `tags:` lines (first wins)", () => {
-    // Defensive: a malformed file with two `tags:` entries —
-    // first-wins keeps things deterministic.
     const doc = "---\ntags: [first]\ntags: [second]\n---\n";
     expect(extractFrontmatterTags(doc)).toEqual(["first"]);
   });
@@ -176,10 +162,6 @@ describe("extractFrontmatter", () => {
   });
 
   it("treats `abstract: |` block-scalar marker as undefined (Rust slice-1)", () => {
-    // Drift contract: when the Rust parser learns block-scalar
-    // bodies, this helper must too. For now the multi-line abstract
-    // body is captured by the Rust raw_yaml region only — the TS
-    // helper returns abstract = undefined.
     const doc = "---\nabstract: |\n  multi line\n  body here\n---\n";
     expect(extractFrontmatter(doc).abstract).toBeUndefined();
   });
@@ -191,10 +173,6 @@ describe("extractFrontmatter", () => {
   });
 
   it("returns title undefined when blank / empty-quoted (Rust slice-1)", () => {
-    // Mirrors the Rust `parse_typed` behaviour: a literal empty
-    // value (after unquote) is dropped. Whitespace-inside-quotes
-    // (`'   '`) survives as-is — pickH1Title trims it downstream
-    // before falling back through firstHeading → filename.
     expect(extractFrontmatter("---\ntitle: \n---\n").title).toBeUndefined();
     expect(extractFrontmatter('---\ntitle: ""\n---\n').title).toBeUndefined();
     expect(extractFrontmatter("---\ntitle: ''\n---\n").title).toBeUndefined();
@@ -236,7 +214,6 @@ describe("extractFrontmatter — error path", () => {
     const fm = extractFrontmatter(doc);
     expect(fm.error).toBeDefined();
     expect(fm.error).toMatch(/não fechado/);
-    // Terminal failure: typed values aren't surfaced.
     expect(fm.title).toBeUndefined();
     expect(fm.tags).toEqual([]);
   });
@@ -261,8 +238,6 @@ describe("extractFrontmatter — error path", () => {
   });
 
   it("does not flag a typo'd `tags:` followed by another top-level key", () => {
-    // Ambiguous user input: empty value with no continuation. Treat as
-    // benign — the user might be in the middle of typing.
     const doc = "---\ntags:\ntitle: foo\n---\n";
     expect(extractFrontmatter(doc).error).toBeUndefined();
   });
@@ -278,8 +253,6 @@ describe("extractFrontmatter — error path", () => {
   });
 
   it("ignores commented continuation lines when probing block-list shape", () => {
-    // `tags:` with only a comment beneath it isn't a block-list
-    // mistake — the comment is benign and the user has no value yet.
     const doc = "---\ntags:\n  # placeholder\ntitle: foo\n---\n";
     expect(extractFrontmatter(doc).error).toBeUndefined();
   });

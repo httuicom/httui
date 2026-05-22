@@ -19,8 +19,6 @@ import {
 import { usePaneStore } from "@/stores/pane";
 import { forceReloadFile } from "@/lib/tauri/commands";
 
-// --- Types ---
-
 interface ChatDeltaPayload {
   session_id: number;
   text: string;
@@ -125,16 +123,13 @@ interface ChatState {
   resetAndContinue: () => Promise<void>;
 }
 
-// --- Module-level mutable state (not reactive, no re-render needed) ---
 let contentAccumulator = "";
 let segmentsAccumulator: ContentSegment[] = [];
 let rafId = 0;
 let activeRequestId: string | null = null;
 const pendingFileUpdates: PendingFileUpdate[] = [];
 
-// Helper to get vault path for file reload
 function getVaultPathForFile(filePath: string): string | null {
-  // Look through open tabs to find the vault path for a file
   const { layout } = usePaneStore.getState();
   function searchLayout(
     node: import("@/types/pane").PaneLayout,
@@ -155,12 +150,9 @@ function resetStreamingState() {
   cancelAnimationFrame(rafId);
 }
 
-// --- Store ---
-
 export const useChatStore = create<ChatState>()(
   devtools(
     (set, get) => ({
-      // Initial state
       sessions: [],
       activeSessionId: null,
       activeSession: null,
@@ -172,8 +164,6 @@ export const useChatStore = create<ChatState>()(
       toolActivity: new Map(),
       pendingPermission: null,
       resumeFailed: false,
-
-      // --- Session actions ---
 
       initSessions: async () => {
         try {
@@ -263,8 +253,6 @@ export const useChatStore = create<ChatState>()(
         await updateChatSessionCwd(activeSessionId, cwd);
         await refreshSessions();
       },
-
-      // --- Chat actions ---
 
       sendMessage: async (text, attachments) => {
         const { activeSessionId, messages } = get();
@@ -388,8 +376,6 @@ export const useChatStore = create<ChatState>()(
   ),
 );
 
-// --- Tauri event listeners ---
-
 export function setupChatListeners() {
   listen<ChatDeltaPayload>("chat:delta", (event) => {
     const { activeSessionId } = useChatStore.getState();
@@ -434,13 +420,9 @@ export function setupChatListeners() {
       toolActivity: next,
     });
 
-    // Track update_note calls for auto-save suppression
     if (name.includes("update_note") && input.path) {
       const filePath = String(input.path);
       pendingFileUpdates.push({ filePath, toolUseId: tool_use_id });
-      // Suppress auto-save via pane store
-      // useEditorSession suppressAutoSave is not accessible here,
-      // but we can use the same pattern via forceReloadFile on complete
     }
   });
 
@@ -471,7 +453,6 @@ export function setupChatListeners() {
     }
     useChatStore.setState({ toolActivity: next });
 
-    // Check if this is a completed update_note — force reload
     const idx = pendingFileUpdates.findIndex(
       (p) => p.toolUseId === tool_use_id,
     );
@@ -561,14 +542,11 @@ export function setupChatListeners() {
     }
   });
 
-  // Session title updates
   listen("chat:session-updated", () => {
     useChatStore.getState().refreshSessions();
   });
 }
 
-// --- Session change subscription ---
-// When activeSessionId changes, load messages for the new session
 let prevSessionId: number | null = null;
 
 export function setupSessionWatcher() {

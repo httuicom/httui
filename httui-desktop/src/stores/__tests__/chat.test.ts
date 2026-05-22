@@ -68,7 +68,7 @@ describe("chatStore", () => {
     clearTauriMocks();
     clearTauriListeners();
     listen.mockClear();
-    // Make rAF synchronous for predictable streaming assertions
+    // rAF stubbed synchronous so streaming assertions are deterministic
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       cb(0);
       return 0;
@@ -82,9 +82,6 @@ describe("chatStore", () => {
     vi.unstubAllGlobals();
   });
 
-  // ──────────────────────────────────────────────
-  // Sessions
-  // ──────────────────────────────────────────────
   describe("initSessions", () => {
     it("activates first session if it's a fresh 'Nova conversa'", async () => {
       const sessions = [
@@ -290,9 +287,6 @@ describe("chatStore", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // Chat actions
-  // ──────────────────────────────────────────────
   describe("sendMessage", () => {
     it("adds optimistic user message and starts streaming", async () => {
       mockTauriCommand("send_chat_message", () => "req-123");
@@ -479,9 +473,6 @@ describe("chatStore", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // Listeners
-  // ──────────────────────────────────────────────
   describe("setupChatListeners", () => {
     it("registers all 7 chat channels", () => {
       setupChatListeners();
@@ -585,7 +576,6 @@ describe("chatStore", () => {
         usage: null,
         stop_reason: "end_turn",
       });
-      // Allow async listChatMessages to flush
       await Promise.resolve();
       await Promise.resolve();
 
@@ -679,9 +669,6 @@ describe("chatStore", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // setupSessionWatcher
-  // ──────────────────────────────────────────────
   describe("setupSessionWatcher", () => {
     it("loads messages when activeSessionId changes to a non-null value", async () => {
       mockTauriCommand("list_chat_messages", () => [
@@ -698,13 +685,11 @@ describe("chatStore", () => {
     });
 
     it("clears state when activeSessionId becomes null", async () => {
-      // First trigger non-null to set prevSessionId
       mockTauriCommand("list_chat_messages", () => []);
       setupSessionWatcher();
       useChatStore.setState({ activeSessionId: 7 });
       await Promise.resolve();
 
-      // Now nullify
       useChatStore.setState({
         activeSessionId: null,
         messages: [mkMessage(1, 7, "user", "x")],

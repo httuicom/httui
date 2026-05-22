@@ -1,9 +1,6 @@
-// Pure scanner for "used in runbooks" detection.
-//
-// Walks markdown text and returns the line numbers where a fenced
-// code block opens with the `db-<connection_id>` info-string. The
-// canvas spec asks for file:line entries — file paths come from
-// the consumer (which hands one (path, content) tuple at a time).
+// Pure scanner: walks markdown text and returns the line numbers where a fenced
+// code block opens with the `db-<connection_id>` info-string. File paths come
+// from the consumer (one (path, content) tuple at a time).
 
 export interface RunbookUsage {
   filePath: string;
@@ -17,10 +14,8 @@ export interface RunbookUsage {
 
 const FENCE_OPEN_RE = /^```/;
 
-/** Find every opening fence whose info-string starts with
- * `db-<connectionId>`. Token boundaries are whitespace, so
- * `db-c1 alias=x` and `db-c1` both match while `db-c10` does NOT
- * match `c1`. */
+/** Find every opening fence whose info-string starts with `db-<connectionId>`.
+ * Token boundaries are whitespace: `db-c1 alias=x` matches but `db-c10` does NOT. */
 export function findUsagesInFile(
   filePath: string,
   content: string,
@@ -51,10 +46,8 @@ export function findUsagesInFile(
   return out;
 }
 
-/** Walk a list of (path, content) pairs and aggregate usages
- * across the vault for one connection. Caller supplies the file
- * map (typically obtained via the existing `search_content` /
- * vault-walk infrastructure). */
+/** Walk a list of (path, content) pairs and aggregate usages across the vault
+ * for one connection. */
 export function findUsagesAcrossVault(
   files: { path: string; content: string }[],
   connectionId: string,

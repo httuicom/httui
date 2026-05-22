@@ -70,7 +70,6 @@ describe("GitSyncButtons", () => {
     const pullBtn = screen.getByTestId("git-sync-pull");
     expect(pullBtn.textContent).toBe("Pulling…");
     expect(pullBtn.getAttribute("data-in-flight")).toBe("true");
-    // Other buttons keep their idle label.
     expect(screen.getByTestId("git-sync-fetch").textContent).toBe("Fetch");
     expect(screen.getByTestId("git-sync-push").textContent).toBe("Push");
   });
@@ -127,7 +126,6 @@ describe("GitSyncButtons", () => {
   });
 
   it("hides the no-remote hint entirely when onPush is missing", () => {
-    // No Push button → no hint to render either, even with hasRemote false.
     renderWithProviders(<GitSyncButtons hasRemote={false} />);
     expect(
       screen.queryByTestId("git-sync-no-remote-hint"),

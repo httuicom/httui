@@ -124,11 +124,6 @@ describe("VariableSecretToggle", () => {
     renderWithProviders(
       <VariableSecretToggle isSecret={true} onToggle={onToggle} />,
     );
-    // Synthesize a no-op change by re-clicking the same state via the
-    // root rather than the switch. Since native click toggles, we
-    // assert that a same-value invocation isn't propagated by directly
-    // calling the handler via re-render. (User can't fire same-value
-    // change in normal use; this guards against parent-driven races.)
     expect(onToggle).not.toHaveBeenCalled();
   });
 });

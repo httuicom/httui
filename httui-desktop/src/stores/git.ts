@@ -1,13 +1,6 @@
-// V10.1 — single source of truth for git state.
-//
-// V10 polled git status/remotes from per-component hooks and kept
-// the commit-message draft + log list in GitPanelContainer's local
-// state. V10.1 adds a second consumer (the GitSidePanel) that must
-// stay in lockstep with the pane-tab. This store owns the *polled
-// data* (status, remotes, commits) and the commit
-// draft; the pure action hooks (branch actions, conflict resolve,
-// share URL) and every presentational sub-component are carry from
-// V10 and stay untouched.
+// Single source of truth for git state. Owns polled data (status,
+// remotes, commits) and commit draft so the GitSidePanel and pane-tab
+// stay in lockstep.
 //
 // Polling is refcounted: each `useGitStatus`/`useGitRemotes` mount
 // `acquire`s and unmount `release`s. A single 2s interval runs
@@ -198,12 +191,9 @@ export const useGitStore = create<GitState>()(
         try {
           const list = await gitLog(vp, LOG_LIMIT, pathFilter ?? undefined);
           if (get().vaultPath !== vp) return;
-          // Coerce at the IPC boundary — consumers `.slice`/`.map`
-          // over this, so a non-array result must never land in state.
+          // Coerce at the IPC boundary — consumers iterate over this array.
           set({ commits: Array.isArray(list) ? list : [] });
         } catch {
-          // Transient (not a repo yet, IPC dead) — the status poll
-          // surfaces real errors; the log list just stays empty.
           set({ commits: [] });
         }
       },

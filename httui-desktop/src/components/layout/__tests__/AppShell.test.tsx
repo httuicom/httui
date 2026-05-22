@@ -119,8 +119,6 @@ describe("AppShell", () => {
     } as never);
     const { getByTestId, queryByTestId } = renderWithProviders(<AppShell />);
     expect(getByTestId("empty-vault")).toBeTruthy();
-    // PaneContainer (the editor surface) should NOT mount when there
-    // is no vault.
     expect(queryByTestId("pane-container")).toBeNull();
   });
 

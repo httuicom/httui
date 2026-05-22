@@ -1,17 +1,3 @@
-// branch picker UI.
-//
-// Pure presentational. Consumer fetches `BranchInfo[]` via the
-// existing `git_branch_list_cmd` (already shipped in 5a6e217's
-// scaffold dependencies) and feeds it in. The picker handles:
-//
-//   - Filter-as-you-type search across local + remote branches
-//   - Current branch marked + auto-skipped from selection
-//   - "New branch…" inline form (consumer wires onCreateBranch
-//     to git_checkout_b once that Tauri cmd ships)
-//   - Click → onSelectBranch(name); consumer routes to
-//     `git_checkout` (new cmd) and handles the dirty-state stash
-//     prompt itself
-
 import { useState } from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { LuCheck } from "react-icons/lu";

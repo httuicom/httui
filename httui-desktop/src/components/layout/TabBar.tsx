@@ -65,7 +65,6 @@ export function TabBar({
                 _hover={{ bg: isActive ? "bg" : "bg.muted" }}
                 onClick={() => onSelectTab(index)}
                 onMouseDown={(e) => {
-                  // Middle click to close
                   if (e.button === 1) {
                     e.preventDefault();
                     onCloseTab(index);

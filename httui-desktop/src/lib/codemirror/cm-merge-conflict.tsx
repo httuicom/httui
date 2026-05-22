@@ -1,14 +1,10 @@
-// V10 follow-up — git merge-conflict awareness in the markdown editor.
+// Git merge-conflict awareness in the markdown editor.
 //
-// Surfaced by manual testing of opening a conflicted `.md`
-// rendered the `<<<<<<< / ======= / >>>>>>>` markers as plain
-// markdown, so the user couldn't tell the file was in conflict (and
-// auto-save could regrave it). This extension decorates each conflict
-// hunk — colored "ours"/"theirs" line backgrounds, highlighted marker
-// lines — and adds an inline toolbar to accept one side (or both),
-// dispatching the doc edit. Resolution still goes through the git
-// panel for the final `git add`; this just makes the conflict
-// unmistakable and one-click resolvable in-place.
+// Decorates each conflict hunk with colored "ours"/"theirs" line
+// backgrounds and highlighted marker lines, and adds an inline toolbar
+// to accept one side (or both). Resolution still goes through the git
+// panel for the final `git add`; this makes conflicts unmistakable and
+// one-click resolvable in-place.
 
 import {
   Decoration,

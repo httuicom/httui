@@ -1,10 +1,3 @@
-// MVP-upgrade migration banner.
-//
-// Shown when AppShell detects an MVP `notes.db` without the v1
-// file layout. Pure presentational: takes `onMigrate` + `onDismiss`
-// callbacks. Mount-side detection + `migrate_vault_to_v1` Tauri
-// dispatch lands in the consumer.
-
 import { Box, HStack, Text, chakra } from "@chakra-ui/react";
 import { LuArrowRight, LuX } from "react-icons/lu";
 
@@ -16,8 +9,7 @@ const DocsLink = chakra("a");
 export interface MigrationBannerProps {
   /** Click → run the v1 migration. */
   onMigrate: () => void;
-  /** Click → hide the banner. The consumer should persist the
-   * dismissal so it doesn't re-appear next launch. */
+  /** Click → hide the banner. Consumer should persist the dismissal. */
   onDismiss: () => void;
   /** Optional override of the docs link target. */
   docsHref?: string;

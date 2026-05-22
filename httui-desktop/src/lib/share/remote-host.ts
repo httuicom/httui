@@ -44,10 +44,8 @@ export function parseRemoteUrl(url: string): ParsedRemote | null {
     if (slashIdx === -1) return null;
     host = stripped.slice(0, slashIdx);
     path = stripped.slice(slashIdx + 1);
-    // Strip user@ prefix.
     const atIdx = host.lastIndexOf("@");
     if (atIdx !== -1) host = host.slice(atIdx + 1);
-    // Strip :port.
     const portIdx = host.indexOf(":");
     if (portIdx !== -1) host = host.slice(0, portIdx);
   }

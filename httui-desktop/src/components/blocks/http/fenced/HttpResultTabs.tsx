@@ -70,8 +70,9 @@ export function HttpResultTabs({
   }
 
   const prettyBody = bodyAsText(response.body);
+  // Parsed JSON has no original raw bytes — reuse pretty.
   const rawBody =
-    typeof response.body === "string" ? response.body : prettyBody; // For parsed JSON we don't have the original raw text, so reuse pretty.
+    typeof response.body === "string" ? response.body : prettyBody;
   const headerEntries = Object.entries(response.headers);
 
   return (
@@ -137,8 +138,6 @@ export function HttpResultTabs({
   );
 }
 
-// ─────────────────────── Headers tab ───────────────────────
-
 function HeadersTab({ entries }: { entries: [string, string][] }) {
   if (entries.length === 0) {
     return (
@@ -171,8 +170,6 @@ function HeadersTab({ entries }: { entries: [string, string][] }) {
     </Box>
   );
 }
-
-// ─────────────────────── Cookies tab ───────────────────────
 
 function HttpCookiesTab({ cookies }: { cookies: HttpCookieRaw[] }) {
   if (cookies.length === 0) {
@@ -229,8 +226,6 @@ function HttpCookiesTab({ cookies }: { cookies: HttpCookieRaw[] }) {
     </Box>
   );
 }
-
-// ─────────────────────── Timing tab ───────────────────────
 
 function HttpTimingTab({ timing }: { timing: HttpTimingBreakdown }) {
   // V1 ships only `total_ms`; sub-fields are reserved for a follow-up that

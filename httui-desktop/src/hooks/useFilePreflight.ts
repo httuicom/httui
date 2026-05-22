@@ -1,17 +1,3 @@
-// fetches the pre-flight evaluation for the active
-// file and exposes the `PreflightPillItem[]` the DocHeader pill row
-// expects.
-//
-// Re-runs on:
-//  - file switch (`filePath` change)
-//  - every `saveSignal` bump from the pane store (auto-save resolved).
-//    We can't observe `dirty` directly because `unsavedFiles` is a
-//    mutated Set for keystroke perf and so doesn't notify React.
-//  - explicit `recheck()` call from the consumer (Re-check button).
-//
-// Errors fall through silently — the hook returns an empty list so
-// the pill row hides itself, matching the contract.
-
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -69,16 +55,13 @@ export function useFilePreflight({
     };
   }, [run]);
 
-  // Re-fetch after every auto-save resolves. We can't observe the
-  // dirty → clean edge through `dirty` because `unsavedFiles` is a
-  // mutated Set (perf — see pane store). The auto-save flow bumps
-  // `saveSignal` after `writeNote` lands; subscribing to it gives us
-  // a reactive signal without changing the keystroke fast path.
+  // Re-fetch on every auto-save. `unsavedFiles` is a mutated Set (perf), so
+  // we can't observe the dirty→clean edge directly; `saveSignal` is the
+  // reactive proxy bumped by `notifySaved` after each `writeNote`.
   const saveSignal = usePaneStore((s) => s.saveSignal);
   const isFirstSignalRef = useRef(true);
   useEffect(() => {
-    // Skip the first invocation — the initial-fetch effect above
-    // already runs on mount; we only want the subsequent save bumps.
+    // Skip mount — the effect above already ran.
     if (isFirstSignalRef.current) {
       isFirstSignalRef.current = false;
       return;
@@ -93,10 +76,7 @@ function toPillItem(
   raw: EvaluatedPreflightItem,
   idx: number,
 ): PreflightPillItem {
-  // `unknown` items came from YAML the parser couldn't recognize — they
-  // can't round-trip back to a valid `PreflightCheck` so the pill stays
-  // read-only (kind/value undefined keeps `canEdit` false in
-  // PreflightPills, falling back to suggestion-only behavior).
+  // `unknown` kind can't round-trip to a valid PreflightCheck; pill stays read-only.
   const editable = raw.kind !== "unknown";
   return {
     id: `${idx}-${raw.kind}-${raw.label}`,

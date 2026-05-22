@@ -26,7 +26,6 @@ describe("formatGitError", () => {
     expect(detail).toContain(
       "GH013: Repository rule violations found for refs/heads/main.",
     );
-    // Boundary tokens git would normally put on their own lines.
     expect(lines.some((l) => l.startsWith("! [remote rejected]"))).toBe(true);
     expect(lines.some((l) => l.startsWith("error: failed to push"))).toBe(true);
   });

@@ -1,10 +1,6 @@
-// Canvas §5 — Detail panel "used in runbooks" section.
-//
-// Shows a click-to-open list of file:line entries where the
-// selected connection's `db-<id>` fenced block appears. Pure
-// presentational — consumer drives the list (typically derived
-// via `findUsagesAcrossVault` from `connection-usages.ts` against
-// a vault grep).
+// Detail panel "used in runbooks" section.
+// Click-to-open list of file:line entries where the connection's `db-<id>` fence
+// appears. Pure presentational — consumer drives the list.
 
 import { Box, Flex, Stack, Text, chakra } from "@chakra-ui/react";
 
@@ -16,9 +12,7 @@ export interface ConnectionDetailUsedInProps {
   usages: RunbookUsage[];
   /** True while the consumer is loading the vault grep. */
   loading?: boolean;
-  /** Click on a row → open the file at that line. Consumer
-   * routes through `useEditorSession.handleFileSelect` + a
-   * cursor scroll. */
+  /** Open the file at that line. */
   onOpen?: (filePath: string, line: number) => void;
 }
 

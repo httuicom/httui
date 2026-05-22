@@ -49,7 +49,6 @@ describe("useShareRepoUrl", () => {
       { name: "origin", url: "not-a-url" },
     ]);
     const { result } = renderHook(() => useShareRepoUrl("/v"));
-    // First poll resolves to [] (parse failure) — assert it stays empty.
     await waitFor(() => expect(result.current.options).toEqual([]));
   });
 
@@ -62,8 +61,7 @@ describe("useShareRepoUrl", () => {
   it("open routes to the tauri shell opener", async () => {
     const { result } = renderHook(() => useShareRepoUrl(null));
     result.current.open("https://github.com/acme/widgets");
-    // The hook lazy-imports the shell plugin, so the call lands on
-    // a microtask — wait for it.
+    // Lazy import lands on a microtask — wait for it.
     await waitFor(() =>
       expect(shellOpen).toHaveBeenCalledWith("https://github.com/acme/widgets"),
     );

@@ -170,7 +170,6 @@ describe("useMigrationDetection", () => {
       await Promise.resolve();
     });
     expect(calls).toBe(2);
-    // After refresh has_legacy_db is false → no banner
     expect(result.current.shouldShowBanner).toBe(false);
   });
 

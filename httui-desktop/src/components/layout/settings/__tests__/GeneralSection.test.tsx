@@ -142,7 +142,6 @@ describe("GeneralSection", () => {
 
   it("renders 'None' when no vault is active", () => {
     renderWithWorkspace(<GeneralSection />, { vaultPath: null });
-    // The Workspace section renders the literal "None" string.
     expect(screen.getByText("None")).toBeInTheDocument();
   });
 

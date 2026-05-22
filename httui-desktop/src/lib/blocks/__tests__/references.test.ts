@@ -236,8 +236,6 @@ describe("resolveAllReferences", () => {
   });
 
   it("block alias without path takes priority over env var with same name", () => {
-    // Block "login" exists and has cache, but {{login}} with no path navigates
-    // the context root — should resolve as block ref, not env var
     const envVars = { login: "env-value-should-lose" };
     const { resolved, errors } = resolveAllReferences(
       "{{login}}",
@@ -246,7 +244,6 @@ describe("resolveAllReferences", () => {
       envVars,
     );
     expect(errors).toHaveLength(0);
-    // resolveReference with empty path returns the full context as JSON
     expect(JSON.parse(resolved)).toHaveProperty("response");
   });
 
@@ -261,8 +258,6 @@ describe("resolveAllReferences", () => {
       },
     ];
     const envVars = { myvar: "from-env" };
-    // Block exists but has no cache, and ref has no path → should NOT fall back to env
-    // because block alias match takes priority (produces error about missing cache)
     const { errors } = resolveAllReferences(
       "{{myvar}}",
       blocksNoCache,
@@ -273,11 +268,7 @@ describe("resolveAllReferences", () => {
     expect(errors[0].message).toContain("no result yet");
   });
 
-  // ─────── L166: alias/env shadow warning (T37) ───────────────
-
   it("emits warning when block alias shadows env var with same name", () => {
-    // Block "login" + env var "login": block ref resolves correctly, but
-    // a warning surfaces so the user knows their env var is being ignored.
     const envVars = { login: "from-env-shadowed" };
     const { resolved, errors, warnings } = resolveAllReferences(
       "{{login.response.body.token}}",
@@ -304,8 +295,6 @@ describe("resolveAllReferences", () => {
   });
 
   it("no shadow warning when only env var exists (no matching block)", () => {
-    // {{API_KEY}} with no matching block alias — pure env resolution, no
-    // shadowing happening, so no warning.
     const envVars = { API_KEY: "secret" };
     const { warnings } = resolveAllReferences(
       "Bearer {{API_KEY}}",
@@ -383,9 +372,6 @@ describe("db block reference shim (stage-2 response shape)", () => {
   });
 
   it("raw shape passthrough: {{alias.response.results.0.rows.0.id}}", () => {
-    // Autocomplete walks the raw shape so users naturally type
-    // `response.results.0.…`; the proxy must pass `results` through to
-    // the underlying DbResponse for this path to resolve.
     const { resolved, errors } = resolveAllReferences(
       "{{q.response.results.0.rows.0.id}}",
       [dbBlock],
@@ -460,8 +446,6 @@ describe("db block reference shim (stage-2 response shape)", () => {
         }),
       },
     };
-    // Pre-stage-2 cache exposes columns/rows at the top level; the shim
-    // only kicks in for the new shape, so legacy refs navigate raw.
     const { resolved, errors } = resolveAllReferences(
       "{{old.response.rows.0.id}}",
       [legacyBlock],
@@ -472,8 +456,6 @@ describe("db block reference shim (stage-2 response shape)", () => {
   });
 
   it("shim does not apply to non-db blocks", () => {
-    // An http block whose body happens to have a `results` field must NOT
-    // be treated as a db response.
     const httpBlock: BlockContext = {
       alias: "http",
       blockType: "http",

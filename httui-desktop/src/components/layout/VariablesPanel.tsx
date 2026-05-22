@@ -1,13 +1,3 @@
-// Sidebar variables panel.
-//
-// Lists variables of the active environment. Secret-flagged values
-// surface a key icon and render `••••` instead of the raw value;
-// non-secret values render truncated with a tooltip.
-//
-// Reads from `useEnvironmentStore.loadVariables(activeEnv.id)` and
-// re-fetches whenever the active env changes (or `variablesVersion`
-// bumps after the manager edits something).
-
 import { Box, Flex, HStack, IconButton, Text } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { LuKey, LuPencil } from "react-icons/lu";

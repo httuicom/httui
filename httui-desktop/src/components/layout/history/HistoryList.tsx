@@ -1,11 +1,3 @@
-// Right-sidebar History tab list.
-//
-// Pure presentational. Consumer fetches `block_run_history` rows
-// via existing `list_block_history` Tauri cmd, optionally filters
-// by current-runbook, and feeds the array. Click → fires
-// `onSelect(entry)` (: navigate to block + open past run);
-// right-click context menu carries.
-
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import { formatDurationCompact } from "@/lib/format/time";

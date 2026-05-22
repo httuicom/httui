@@ -83,7 +83,6 @@ export const editorTheme = EditorView.theme(
       borderTop: "1px solid var(--chakra-colors-border)",
     },
 
-    // ── Autocomplete popup (shared by db blocks + slash + wikilinks) ──
     ".cm-tooltip.cm-tooltip-autocomplete": {
       border: "1px solid var(--chakra-colors-border)",
       backgroundColor: "var(--chakra-colors-bg)",
@@ -149,7 +148,6 @@ export const editorTheme = EditorView.theme(
       border: "none !important",
     },
 
-    // ── db block SQL error squiggle ──
     ".cm-db-sql-error": {
       textDecoration: "underline wavy var(--chakra-colors-red-400)",
       textDecorationThickness: "1px",
@@ -158,7 +156,6 @@ export const editorTheme = EditorView.theme(
       borderRadius: "2px",
     },
 
-    // ── db block (unified slab card) ──
     ".cm-db-fence-line": {
       color: "var(--chakra-colors-fg-muted)",
       fontFamily: "var(--chakra-fonts-mono)",
@@ -231,7 +228,6 @@ export const editorTheme = EditorView.theme(
       paddingBottom: "var(--chakra-spacing-4)",
     },
 
-    // ── DB toolbar widget (card header) ──
     ".cm-db-toolbar-portal": {
       display: "block",
       background:
@@ -288,7 +284,6 @@ export const editorTheme = EditorView.theme(
       fontSize: "var(--chakra-font-sizes-xs)",
     },
 
-    // ── HTTP block portals (mirror DB block styling) ──
     ".cm-http-toolbar-portal": {
       display: "block",
       background:
@@ -417,7 +412,7 @@ export const editorTheme = EditorView.theme(
       pointerEvents: "none",
     },
     ".cm-http-body-line-first": { counterReset: "http-line" },
-    // Method coloring on the first request line — Fuji oklch palette.
+    // Method colors use --chakra-colors-method-* CSS vars (Fuji oklch palette, see lib/theme.ts).
     ".cm-http-method": { fontWeight: 600 },
     ".cm-http-method-get": { color: "var(--chakra-colors-method-get)" },
     ".cm-http-method-post": { color: "var(--chakra-colors-method-post)" },
@@ -474,19 +469,15 @@ export const editorTheme = EditorView.theme(
       borderBottomRightRadius: "var(--chakra-radii-md)",
     },
 
-    // ── Numbered section headings (epic 39 / story 05) ──
-    // The CM6 extension adds `.cm-numbered-heading` + a
-    // `data-heading-number` attribute on every `#`/`##` line that
-    // isn't inside a fence. Style: serif title with a small accent
-    // circle carrying the number on the leading side.
+    // The CM6 extension adds `.cm-numbered-heading` + `data-heading-number`
+    // on every #/## line outside a fence. Small accent circle on the leading
+    // side carries the section number.
     ".cm-numbered-heading": {
       position: "relative",
       paddingLeft: "32px",
       fontFamily: "var(--chakra-fonts-serif)",
     },
-    // H1 typography per canvas spec (epic 40 / story 04):
-    // 2.25rem weight 600. H2 keeps the line-default size — it inherits
-    // weight 600 from `tags.heading` in MarkdownEditor's highlight style.
+    // H1: 2.25rem weight 600. H2 inherits weight 600 from `tags.heading`.
     '.cm-numbered-heading[data-heading-level="1"]': {
       fontSize: "2.25rem",
       fontWeight: 600,

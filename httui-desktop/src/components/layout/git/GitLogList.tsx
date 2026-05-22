@@ -1,9 +1,3 @@
-// bottom section: recent commit log.
-//
-// Pure presentational. The consumer fetches via `gitLog(vault, N)` and
-// passes the array. wires the click handler to a side-panel
-// diff viewer; is just the visual surface + per-row action.
-
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import type { CommitInfo } from "@/lib/tauri/git";

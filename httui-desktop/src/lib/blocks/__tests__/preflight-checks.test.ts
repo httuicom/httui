@@ -40,10 +40,6 @@ describe("extractPreflightChecks", () => {
   });
 
   it("drops retired keychain entries as unknown kinds", () => {
-    // keychain was removed from the typed set. Legacy
-    // YAML that still declares it falls through the parser's
-    // forward-compat path — same as any unrecognized key — so the
-    // resulting list omits it without crashing on legacy notes.
     const doc =
       "---\npreflight:\n  - keychain: payments-db.password\n  - connection: ok\n---\n";
     expect(extractPreflightChecks(doc)).toEqual<PreflightCheck[]>([

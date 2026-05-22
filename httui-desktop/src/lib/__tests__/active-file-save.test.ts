@@ -3,7 +3,6 @@ import { setActiveFileSaver, saveActiveFileNow } from "@/lib/active-file-save";
 
 describe("active-file-save", () => {
   beforeEach(() => {
-    // Reset module state before each test
     setActiveFileSaver(null);
   });
 

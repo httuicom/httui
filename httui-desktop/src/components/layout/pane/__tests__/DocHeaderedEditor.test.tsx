@@ -4,14 +4,9 @@ import { DocHeaderedEditor } from "@/components/layout/pane/DocHeaderedEditor";
 import { clearTauriMocks, mockTauriCommand } from "@/test/mocks/tauri";
 import { renderWithProviders, screen } from "@/test/render";
 
-// the DocHeader is mounted INSIDE the MarkdownEditor
-// via a CM6 block widget + React portal. The portal owns the editable
-// callbacks (title / abstract / tags / checklist) and the live
-// frontmatter parse — those flows are tested at the
-// `cm-doc-header` / `update-frontmatter` level. The mock below only
-// reproduces the AMBIENT props the inlineHeader still carries
-// (filePath, compact, mtime, dirty, branch) so this test focuses on
-// the metadata wiring of `DocHeaderedEditor` itself.
+// DocHeader lives inside MarkdownEditor via CM6 portal; this stub only
+// carries the ambient props (filePath, compact, mtime, dirty, branch)
+// so the test can verify metadata wiring without a real EditorView.
 function DocHeaderStub({
   filePath,
   compact,
@@ -71,8 +66,6 @@ vi.mock("../../ConflictBanner", () => ({
 
 beforeEach(() => {
   clearTauriMocks();
-  // Default Tauri stubs that the hooks fetch on mount. Per-test
-  // overrides via mockTauriCommand replace these.
   mockTauriCommand("get_file_mtime", () => 1_700_000_000_000);
   mockTauriCommand("git_status_cmd", () => ({
     branch: "main",

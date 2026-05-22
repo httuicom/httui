@@ -1,31 +1,3 @@
-// coverage:exclude file — the file's data-layer (env load, summary
-// derivation, request/submit handlers, activate wiring) is exercised
-// by `EnvironmentsPageContainer.test.tsx` (16 specs). The remaining
-// ~22% uncovered LOC is the FLIP animation block (lines ~140-183):
-// `useLayoutEffect` + `getBoundingClientRect` + `requestAnimationFrame`
-// + `window.matchMedia(reduce)` + DOM style.transform reads. jsdom
-// returns `{ width: 0, height: 0, left: 0, top: 0 }` for every node
-// regardless of CSS, so the animation never visibly moves and the
-// `dx === 0 && dy === 0` short-circuit ALWAYS triggers — there's no
-// branch left to drive from inside jsdom without rebuilding the
-// runtime's layout engine.
-//
-// Decision per dono (2026-05-20): jsdom-unfriendly is the documented
-// reason for `// coverage:exclude file` (see
-// [[feedback-no-coverage-exclude]] — owner allows exclude when the
-// alternative is fabricating a stub that doesn't exercise the real
-// code path). Precedents in the codebase: `PreflightValueEditor.tsx`
-// (CM single-line editor), `SchemaPanel.tsx` (schema-tree chrome),
-// `MarkdownEditor.tsx` (CM6 composition shell). Visual coverage
-// happens in the Playwright browser project, not unit tests.
-//
-// Smart wrapper around <EnvironmentsPage />. Owns:
-// - env list load + per-env varCount adapter into EnvironmentSummary
-// - file watcher refresh on `config-changed` (category "environment")
-// - activate-env wiring (delegates to useEnvironmentStore)
-//
-// Mirrors VariablesPageContainer / ConnectionsPageContainer:
-// presentational page stays prop-driven, data + IPC live here.
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useConfigSyncedResource } from "@/hooks/useConfigSyncedResource";
@@ -51,14 +23,8 @@ import {
   type RenameEnvironmentPayload,
 } from "./RenameEnvironmentForm";
 
-/** Map a backend Environment + its variable count into the
- * EnvironmentSummary the EnvironmentsPage expects.
- *
- * `filename` defaults to `${name}.toml` because the backend does not
- * surface the actual on-disk path (the `.local.toml` distinction
- * lands when the backend exposes it). `isPersonal` therefore stays
- * false for now — the personal/committed split is display-only and
- * can be enriched without breaking page consumers. */
+/** Map a backend Environment + its variable count into EnvironmentSummary.
+ * `isPersonal` is always false until the backend exposes the on-disk path. */
 export function envToSummary(
   env: Environment,
   varCount: number,
@@ -76,8 +42,7 @@ export function envToSummary(
 }
 
 interface EnvironmentsPageContainerProps {
-  /** Optional override — when omitted the container surfaces its
-   * own inline create form. */
+  /** When omitted the container surfaces its own inline create form. */
   onCreateNew?: () => void;
 }
 
@@ -95,10 +60,7 @@ export function EnvironmentsPageContainer({
   const renameEnvironment = useEnvironmentStore((s) => s.renameEnvironment);
   const deleteEnvironment = useEnvironmentStore((s) => s.deleteEnvironment);
 
-  // FLIP swap of the ACTIVE pill across cards: capture the old
-  // pill's bounding rect before switchEnvironment fires, then in
-  // useLayoutEffect (post-commit, pre-paint) translate the new pill
-  // back to the old position and animate it to its real spot.
+  // FLIP: capture old pill rect before switchEnvironment fires; animate in useLayoutEffect.
   const oldPillRectRef = useRef<DOMRect | null>(null);
   const prevActiveNameRef = useRef<string | null>(
     activeEnvironment?.name ?? null,
@@ -121,21 +83,35 @@ export function EnvironmentsPageContainer({
   // a synchronous memo — same output, same cadence as the old effect.
   const bundles = useCrossEnvVariables();
 
-  const summaries = useMemo<EnvironmentSummary[]>(
-    () => bundles.map(({ env, vars }) => envToSummary(env, vars.length)),
-    [bundles],
-  );
-
-  const secretCounts = useMemo<Record<string, number>>(
-    () =>
-      Object.fromEntries(
-        bundles.map(({ env, vars }) => [
-          `${env.name}.toml`,
-          vars.filter((v) => v.is_secret).length,
-        ]),
-      ),
-    [bundles],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    if (environments.length === 0) {
+      setSummaries([]);
+      setSecretCounts({});
+      return;
+    }
+    void Promise.all(
+      environments.map(async (env) => {
+        const vars = await listEnvVariables(env.id).catch(() => []);
+        const secrets = vars.filter((v) => v.is_secret).length;
+        return {
+          summary: envToSummary(env, vars.length),
+          secrets,
+        };
+      }),
+    ).then((rows) => {
+      if (cancelled) return;
+      setSummaries(rows.map((r) => r.summary));
+      setSecretCounts(
+        Object.fromEntries(
+          rows.map(({ summary, secrets }) => [summary.filename, secrets]),
+        ),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [environments, variablesVersion]);
 
   const envByFilename = useMemo(() => {
     const m = new Map<string, Environment>();
@@ -150,8 +126,6 @@ export function EnvironmentsPageContainer({
       const base = envNameFromFilename(filename);
       const target = environments.find((e) => e.name === base);
       if (!target) return;
-      // Capture the current pill's position BEFORE the state flip so
-      // the FLIP effect below can animate from old → new.
       const oldPill = document.querySelector<HTMLElement>(
         '[data-env-active-pill="true"]',
       );
@@ -161,11 +135,8 @@ export function EnvironmentsPageContainer({
     [environments, switchEnvironment],
   );
 
-  // FLIP — runs after every commit. Fires only when the active env
-  // actually changed AND the local `summaries` already reflects the
-  // new sort (so the new pill is mounted in its real DOM position).
-  // Depending on `summaries` (not `activeEnvironment`) ensures we
-  // only animate after the per-var refetch has flushed the cards.
+  // FLIP: only animate after summaries (not just activeEnvironment) updates,
+  // so the new pill is already in its real DOM position before we read its rect.
   useLayoutEffect(() => {
     const nextName =
       summaries.find((s) => s.isActive)?.name ??
@@ -230,10 +201,8 @@ export function EnvironmentsPageContainer({
     [summaries],
   );
 
-  // backend `duplicate_environment` only accepts
-  // (source_id, new_name) and copies plain vars by default. The form's
-  // `copyConnectionsUsed` / `markTemporary` / `markPersonal`
-  // checkboxes stay UI-only until the backend grows the parameters.
+  // `copyConnectionsUsed` / `markTemporary` / `markPersonal` are UI-only
+  // until the backend exposes those parameters on duplicate_environment.
   const handleCloneSubmit = useCallback(
     async (payload: CloneEnvironmentPayload) => {
       const source = envByFilename.get(payload.sourceFilename);

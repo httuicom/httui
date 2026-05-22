@@ -162,7 +162,6 @@ describe("GitFileList", () => {
 
   it("does not fire onSelect when no callback is provided", async () => {
     renderWithProviders(<GitFileList changed={[fc({ path: "a" })]} />);
-    // Should not crash without onSelect.
     await userEvent.setup().click(screen.getByTestId("git-file-row-a"));
     expect(screen.getByTestId("git-file-row-a")).toBeInTheDocument();
   });

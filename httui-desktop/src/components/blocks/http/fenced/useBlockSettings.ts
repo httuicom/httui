@@ -1,15 +1,10 @@
 /**
- * Loads and persists per-block settings (Onda 1).
+ * Loads and persists per-block settings from the SQLite `block_settings` table
+ * keyed by `(file_path, block_alias)`. Mirrors the row in component state so
+ * the drawer renders without a round-trip on every keystroke.
  *
- * Settings live in the SQLite `block_settings` table keyed by
- * `(file_path, block_alias)`. We mirror that row in component state so the
- * drawer renders without an extra round-trip on every keystroke; updates
- * are debounced via React's batching but each call still issues an
- * upsert (the table row is small, the user toggles infrequently).
- *
- * Returns `[settings, setSettings]`. `setSettings` accepts a *partial*
- * patch — fields you omit keep their current value. Pass `undefined` for
- * a field to revert it to the default.
+ * Returns `[settings, setSettings]`. `setSettings` accepts a partial patch;
+ * pass `undefined` for a field to revert to the default.
  */
 /* eslint-disable react-hooks/set-state-in-effect --
  * The settings live outside React (SQLite). The effect mirrors the
@@ -34,8 +29,7 @@ export function useBlockSettings(
 ): [HttpBlockSettings, SetBlockSettings] {
   const [settings, setLocal] = useState<HttpBlockSettings>(EMPTY);
 
-  // Reload whenever the (file, alias) target changes. Without an alias the
-  // settings have no stable key — fall back to defaults and skip I/O.
+  // Without an alias there's no stable key — fall back to defaults and skip I/O.
   useEffect(() => {
     let cancelled = false;
     if (!alias) {
@@ -61,8 +55,7 @@ export function useBlockSettings(
     (patch) => {
       setLocal((prev) => {
         const next = { ...prev, ...patch };
-        // Best-effort upsert. Errors silently fall back to in-memory state —
-        // the user can re-toggle if the write failed (rare; SQLite local).
+        // Best-effort upsert; errors fall back to in-memory state silently.
         if (alias) {
           void upsertBlockSettings(filePath, alias, next).catch(() => {});
         }

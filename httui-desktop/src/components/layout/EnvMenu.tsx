@@ -1,14 +1,3 @@
-// Status-bar env switcher dropdown — replaces the SegmentedEnvSwitcher
-// in the TopBar. The trigger reads as a status-bar cell (dot + name)
-// and the popover lists every env with a checkmark on the active one.
-//
-// Pure presentational over the environment store: parent wires
-// `environments`, `activeEnvironment`, `onSwitch`.
-//
-// optionally controlled (`open` / `onOpenChange`) so
-// ⌘E can open it; first 9 envs get numeric shortcuts (1-9); a
-// "Clone <active>" quick action sits at the foot of the list.
-
 import { Box, HStack, Menu, Portal, chakra } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { LuCheck, LuCopy } from "react-icons/lu";
@@ -55,8 +44,7 @@ export function EnvMenu({
   const label = activeEnvironment?.name ?? "no env";
   const controlled = open !== undefined;
 
-  // Numeric shortcuts (1-9) while the dropdown is open. Only wired in
-  // controlled mode — the ⌘E path is the only one that needs them.
+  // Numeric shortcuts (1-9): only active in controlled mode (⌘E path).
   useEffect(() => {
     if (!controlled || !open) return;
     const onKey = (e: KeyboardEvent) => {

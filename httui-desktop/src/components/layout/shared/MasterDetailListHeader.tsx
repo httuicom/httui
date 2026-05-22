@@ -1,11 +1,3 @@
-// Master-detail list-panel header (V5).
-//
-// Shared header for the center column of master-detail pages
-// (Connections, Variables, Environments). Renders the serif H1, an
-// optional subtitle slot (status pills, resolution hint, etc.), and
-// an optional actions slot (action buttons). Page-specific search
-// rows live below this header inside each list panel.
-
 import { Box, Flex, HStack, Heading } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 

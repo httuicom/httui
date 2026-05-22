@@ -59,7 +59,6 @@ export function PermissionManager({ open, onClose }: PermissionManagerProps) {
 
   if (!open) return null;
 
-  // Group by workspace
   const grouped = new Map<string, ToolPermission[]>();
   for (const rule of rules) {
     const key = rule.workspace ?? "Global";
@@ -82,7 +81,6 @@ export function PermissionManager({ open, onClose }: PermissionManagerProps) {
         display="flex"
         flexDirection="column"
       >
-        {/* Header */}
         <HStack
           px={3}
           py={2}
@@ -104,7 +102,6 @@ export function PermissionManager({ open, onClose }: PermissionManagerProps) {
           </IconButton>
         </HStack>
 
-        {/* Content */}
         <Flex direction="column" flex={1} overflow="auto" p={3} gap={3}>
           {rules.length === 0 ? (
             <VStack py={8} gap={2}>

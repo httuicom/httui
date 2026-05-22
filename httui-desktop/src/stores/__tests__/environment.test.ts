@@ -240,8 +240,6 @@ describe("environmentStore", () => {
       useEnvironmentStore.setState({
         activeEnvironment: mkEnv("a", "dev", true),
       });
-      // Primary path is the resolver IPC — secrets come back already
-      // unmasked. The plain `list_env_variables` is the fallback.
       mockTauriCommand("resolve_active_env_variables", () => ({
         TOKEN: "abc",
         URL: "https://example.com",

@@ -37,7 +37,6 @@ function QuickOpenInner({ onClose }: { onClose: () => void }) {
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
-  // Scroll selected item into view
   useEffect(() => {
     itemRefs.current[safeIndex]?.scrollIntoView({ block: "nearest" });
   }, [safeIndex]);

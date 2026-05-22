@@ -106,7 +106,6 @@ describe("ConnectionsPage", () => {
     );
     expect(screen.getByTestId("connection-row-a")).toBeInTheDocument();
     expect(screen.getByTestId("connection-row-b")).toBeInTheDocument();
-    // Status counts derived from rows: 2 total, 0 ok (no enrichment).
     const status = screen.getByTestId("connections-list-status");
     expect(status.textContent).toContain("2");
   });
@@ -149,11 +148,8 @@ describe("ConnectionsPage", () => {
     renderWithProviders(
       <ConnectionsPage connections={[conn("a", "alpha-conn", "postgres")]} />,
     );
-    // Detail panel starts on empty state
     expect(screen.getByTestId("connections-detail-empty")).toBeInTheDocument();
     await userEvent.setup().click(screen.getByTestId("connection-row-a"));
-    // Slice 2 with a real Connection in the list,
-    // selection routes into the loaded credentials panel.
     expect(
       screen.getByTestId("connections-detail-loaded").textContent,
     ).toContain("alpha-conn");

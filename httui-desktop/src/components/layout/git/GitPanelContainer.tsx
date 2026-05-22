@@ -1,15 +1,3 @@
-// V10 — smart wrapper around <GitPanel />. Owns git data fetching,
-// IPC dispatch, the active tab, the commit-form state, and the log
-// filter; the presentational panel stays prop-driven and trivially
-// testable. Mirrors ConnectionsPageContainer (V4) — the
-// singleton-pane-tab pattern.
-//
-// Cenários covered here:
-//  1. Status/Log/Audit tabs, 2s poll + save-signal refresh.
-//  2. Stage toggle, commit form, working-diff preview, commit.
-//  3. Log list filter (author = in-memory, path = backend re-fetch)
-//     + commit-diff inspector on the Log tab.
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useGitCommit } from "@/hooks/useGitCommit";
@@ -102,9 +90,8 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     [status],
   );
 
-  // Path mode filters server-side (CommitInfo carries no paths);
-  // author mode filters the in-memory list. Deriving pathFilter
-  // outside the callback keeps author keystrokes from re-fetching.
+  // Path mode re-fetches server-side; author filters in-memory. Derived outside
+  // the callback so author keystrokes don't trigger a backend re-fetch.
   const pathFilter =
     logFilter.mode === "path" ? parsePathFilter(logFilter.query) : null;
 
@@ -117,8 +104,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
     void refreshLog();
   }, [refreshLog]);
 
-  // A save just landed — reflect it immediately instead of waiting
-  // for the 2s status poll. saveSignal is bumped by `notifySaved`.
+  // Reflect saves immediately rather than waiting for the 2s poll.
   useEffect(() => {
     if (saveSignal === 0) return;
     refreshStatus();
@@ -191,8 +177,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
           await useWorkspaceStore.getState().refreshFileTree(vaultPath);
         }
       } catch {
-        // git stderr is surfaced by the status poll / a future toast;
-        // the sync row just returns to idle so the user can retry.
+        // Error surfaced by the next status poll; sync row returns to idle.
       } finally {
         setSyncInFlight(null);
       }
@@ -250,8 +235,7 @@ export function GitPanelContainer(_props: GitPanelContainerProps) {
         const versions = await gitConflictVersions(vaultPath, path);
         setResolver({ path, versions });
       } catch {
-        // Path stopped being unmerged between render and click —
-        // the status poll will drop it from the banner shortly.
+        // Path became unmerged between render and click; poll will clean up.
       }
     },
     [vaultPath],

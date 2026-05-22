@@ -1,10 +1,5 @@
-// Migration-related Tauri wrappers. carry — the MVP-to-v1
-// migration banner detection probe.
-//
-// These wrappers stay pure `invoke()` shells. Coverage comes from
-// the consumer hook (`useMigrationDetection`) which mocks the
-// Tauri command names — the wrapper itself is exercised end-to-
-// end via those tests.
+// Migration-related Tauri wrappers — MVP-to-v1 migration banner detection.
+// Coverage via consumer hook (`useMigrationDetection`) that mocks the Tauri command names.
 
 import { invoke } from "@tauri-apps/api/core";
 

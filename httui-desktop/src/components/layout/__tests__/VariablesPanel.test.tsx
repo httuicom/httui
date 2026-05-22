@@ -85,10 +85,8 @@ describe("VariablesPanel", () => {
     await waitFor(() =>
       expect(screen.getByText("DB_PASSWORD")).toBeInTheDocument(),
     );
-    // Mask shown instead of plain text.
     expect(screen.queryByText("supersecret")).toBeNull();
     expect(screen.getByText("••••••••")).toBeInTheDocument();
-    // LuKey icon present for the secret row only.
     expect(screen.getByTestId("var-key-icon-DB_PASSWORD")).toBeInTheDocument();
     expect(screen.queryByTestId("var-key-icon-API_URL")).toBeNull();
   });

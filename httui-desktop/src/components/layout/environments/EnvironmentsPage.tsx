@@ -1,8 +1,3 @@
-// Canvas §6 Environments — page composition.
-//
-// Header (serif H1 + "+ New environment" button) + grid of cards.
-// Pure presentational; the consumer plugs the env list, the active
-// switch handler, and the create-form slot.
 
 import { Box, Flex, Grid, Popover, Portal, Text } from "@chakra-ui/react";
 import { useCallback, type ReactNode } from "react";
@@ -43,9 +38,7 @@ export function EnvironmentsPage({
 }: EnvironmentsPageProps) {
   const sorted = sortEnvironments(envs);
 
-  // Virtual anchor for the floating Popover — resolved on every
-  // `getAnchorRect` call so the popover follows the card if it
-  // moves (resize / scroll within the grid).
+  // Virtual anchor resolved on every call so the popover follows the card on resize/scroll.
   const getAnchorRect = useCallback(() => {
     if (!anchoredFilename) return null;
     const card = document.querySelector<HTMLElement>(
@@ -85,16 +78,7 @@ export function EnvironmentsPage({
         </Box>
         <Popover.Root
           open={!!inlineFormSlot}
-          onOpenChange={(e) => {
-            if (!e.open) {
-              // Close fires the create-form's own onCancel via the
-              // container's `creatingEnv=false` flip — but we also
-              // want clicking outside / Esc to close, so re-trigger
-              // onCreateNew? No: the form lives inside the container,
-              // closing it is the container's responsibility on
-              // submit/cancel. Outside-click here is handled by the
-              // form's own cancel ref via Popover's nested behaviour.
-            }
+          onOpenChange={() => {
           }}
           positioning={{ placement: "bottom-end", gutter: 8 }}
         >

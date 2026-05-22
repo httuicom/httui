@@ -1,9 +1,6 @@
-// Pure resolver for the DnD drag-end event in the file tree. Returns
-// `null` when the drop should be ignored (no over target, dropped on
-// self, missing data, descendant drop) or `{ sourcePath, targetDir }`
-// when `handleMoveFile` should fire. Extracted from `FileTree.tsx`
-// so the branch logic gets unit coverage without simulating DnD
-// pointer events.
+// Resolves a DnD drag-end event to `{ sourcePath, targetDir }` or `null`
+// (no target, self-drop, missing data, descendant drop).
+// Extracted from FileTree.tsx so the logic gets unit coverage without DnD pointer events.
 
 import type { DragEndEvent } from "@dnd-kit/core";
 
@@ -20,7 +17,6 @@ export function resolveFileTreeDrop(event: DragEndEvent): ResolvedDrop | null {
   const targetDir = over.data.current?.dirPath as string | undefined;
   if (!sourcePath || targetDir === undefined) return null;
 
-  // Prevent dropping into self or descendant.
   if (sourcePath === targetDir) return null;
   if (targetDir.startsWith(sourcePath + "/")) return null;
 

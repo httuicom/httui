@@ -15,15 +15,12 @@ import {
 } from "@/lib/tauri/commands";
 import { useSessionOverrideStore } from "./sessionOverride";
 
-// --- Types ---
-
 interface EnvironmentState {
   environments: Environment[];
   activeEnvironment: Environment | null;
   managerOpen: boolean;
   variablesVersion: number;
 
-  // Actions
   openManager: () => void;
   closeManager: () => void;
   refresh: () => Promise<void>;
@@ -42,8 +39,6 @@ interface EnvironmentState {
   deleteVariable: (id: string) => Promise<void>;
   getActiveVariables: () => Promise<Record<string, string>>;
 }
-
-// --- Store ---
 
 export const useEnvironmentStore = create<EnvironmentState>()(
   devtools(
@@ -127,9 +122,7 @@ export const useEnvironmentStore = create<EnvironmentState>()(
             resolved[v.key] = v.value;
           }
         }
-        // apply session overrides for the active env on top of the
-        // resolved values so block runs see the TEMPORARY
-        // value the user set, not the vault-stored one.
+        // Session overrides shadow vault-stored values for block runs.
         const overrides =
           useSessionOverrideStore.getState().overrides[
             activeEnvironment.name

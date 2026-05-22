@@ -118,8 +118,7 @@ describe("useKeyboardShortcuts", () => {
   });
 
   it("Cmd+Shift+O is a no-op when toggleOutlinePanel is undefined", () => {
-    // Optional action — older AppShell instances may not pass it.
-    // Don't preventDefault either — let the keyboard event bubble.
+    // Optional action — no preventDefault, let the event bubble.
     const actions = createActions();
     renderHook(() => useKeyboardShortcuts(actions));
     const event = new KeyboardEvent("keydown", {
@@ -212,8 +211,6 @@ describe("useKeyboardShortcuts", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  // the new popover chords (⌘E / ⌘⇧V) must not
-  // collide with common tmux / terminal external chords.
   describe("no tmux/terminal chord conflict", () => {
     it("tmux prefix chords (Ctrl+B, Ctrl+A) never open the V11 popovers", () => {
       const actions = {

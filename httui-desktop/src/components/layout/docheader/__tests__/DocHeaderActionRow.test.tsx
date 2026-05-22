@@ -141,7 +141,6 @@ describe("DocHeaderActionRow", () => {
     await user.click(screen.getByTestId("docheader-action-overflow"));
     await user.click(screen.getByTestId("docheader-action-delete"));
     expect(onDelete).toHaveBeenCalledTimes(1);
-    // Menu closes after firing.
     expect(
       screen.queryByTestId("docheader-action-overflow-menu"),
     ).not.toBeInTheDocument();

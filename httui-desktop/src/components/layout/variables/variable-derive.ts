@@ -1,8 +1,3 @@
-// Canvas §6 Variables — derivation helpers.
-//
-// Pure functions: scope filter + search match + name sort, plus a
-// composed `deriveVariableRows` and a `countVariableScopes` mirror that
-// powers the sidebar counts when the consumer doesn't pass them.
 
 import type { VariableScope } from "./variable-scopes";
 

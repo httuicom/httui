@@ -1,10 +1,3 @@
-// Empty-vault footer hint (canvas §3).
-//
-// Tiny `--fg-2` 12px line below the 3-card grid: "ou cole uma URL
-// [⌘V] e geramos o bloco | ▶ Tour interativo (2 min)". The ⌘V
-// paste-URL handler is a carry; the Tour is deferred to v1.x per
-// the spec — link kept visible but `coming-soon` styled.
-
 import { Box, HStack, Text } from "@chakra-ui/react";
 
 import { Kbd } from "@/components/atoms";

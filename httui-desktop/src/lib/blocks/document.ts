@@ -14,13 +14,6 @@ import { useEnvironmentStore } from "@/stores/environment";
 
 const EXECUTABLE_LANGS = ["http", "db"];
 
-// ---------------------------------------------------------------------------
-// CodeMirror 6 — walks CM Text (markdown) to find executable fenced blocks.
-// (The TipTap variants `collectBlocksAbove`/`collectAllBlocks` were removed
-// when TipTap was retired; the CM6 versions below are the only callers
-// across the app.)
-// ---------------------------------------------------------------------------
-
 /** Check if a fenced block language tag is an executable block type */
 function isExecutableLang(lang: string): boolean {
   if (EXECUTABLE_LANGS.includes(lang)) return true;
@@ -97,11 +90,9 @@ async function populateCachedResults(
 /**
  * Unified scan over every executable fenced block (http, e2e, db, db-*).
  *
- * `findFencedBlocks` only emits http/e2e because the editor widget system
- * renders db blocks through a dedicated extension (`cm-db-block.tsx`) and
- * would otherwise try to mount a second widget on top of them. For the
- * dependency graph we need both, so we merge the two scanners and sort by
- * document position to preserve the "blocks above" semantics.
+ * Merges `findFencedBlocks` (http/e2e) and `findDbBlocks` (db/*) because
+ * the widget system mounts db blocks via a separate extension to avoid
+ * double-mounting. Sort by position preserves "blocks above" semantics.
  */
 function collectFencedBlockContexts(doc: CMText): CollectedBlock[] {
   const contexts: CollectedBlock[] = [];
@@ -138,7 +129,6 @@ function collectFencedBlockContexts(doc: CMText): CollectedBlock[] {
 
 /**
  * Collect all executable blocks above a given position in a CM6 document.
- * CM6 equivalent of collectBlocksAbove (TipTap version).
  */
 export async function collectBlocksAboveCM(
   doc: CMText,
@@ -154,7 +144,6 @@ export async function collectBlocksAboveCM(
 
 /**
  * Collect ALL executable blocks in a CM6 document (for dependency resolution).
- * CM6 equivalent of collectAllBlocks (TipTap version).
  */
 export async function collectAllBlocksCM(
   doc: CMText,

@@ -138,7 +138,6 @@ export const ToolUseGroup = memo(function ToolUseGroup({
   const [expanded, setExpanded] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
-  // Build unified list
   const items: ToolItem[] = [];
   for (const tc of toolCalls) {
     items.push({ kind: "persisted", data: tc });
@@ -173,7 +172,6 @@ export const ToolUseGroup = memo(function ToolUseGroup({
   const itemKey = (item: ToolItem, _idx: number) =>
     item.kind === "persisted" ? item.data.tool_use_id : item.id;
 
-  // Summary line
   const summaryParts: string[] = [];
   if (pendingCount > 0) summaryParts.push(`${pendingCount} running`);
   if (errorCount > 0) summaryParts.push(`${errorCount} failed`);
@@ -190,7 +188,6 @@ export const ToolUseGroup = memo(function ToolUseGroup({
       borderColor="border"
       overflow="hidden"
     >
-      {/* Group header */}
       <HStack
         px={2}
         py={1.5}
@@ -225,7 +222,6 @@ export const ToolUseGroup = memo(function ToolUseGroup({
         </Text>
       </HStack>
 
-      {/* Expanded: list each tool */}
       {expanded && (
         <Box borderTop="1px solid" borderColor="border">
           {items.map((item, idx) => {
@@ -315,7 +311,6 @@ export const ToolUseGroup = memo(function ToolUseGroup({
                   </Box>
                 </HStack>
 
-                {/* Item detail */}
                 {isItemExpanded && (
                   <Box
                     px={3}

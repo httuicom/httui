@@ -57,7 +57,6 @@ describe("TagColumn", () => {
       "new-tag{Enter}",
     );
     expect(onAddTag).toHaveBeenCalledWith("new-tag");
-    // Form closes after submit.
     expect(screen.queryByTestId("tag-column-add-form")).not.toBeInTheDocument();
   });
 

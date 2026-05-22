@@ -1,6 +1,4 @@
 // coverage:exclude file — pure invoke() wrappers + IPC types.
-// See tech-debt.md "coverage opt-out" for the same rationale used
-// in commands.ts.
 
 import { invoke } from "@tauri-apps/api/core";
 

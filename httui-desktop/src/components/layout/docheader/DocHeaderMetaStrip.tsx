@@ -1,11 +1,3 @@
-// meta strip below the H1.
-//
-// Compact horizontal row of chips. Pure presentational; consumer
-// fetches the data via Tauri (git author + git status + run history)
-// and passes the assembled props. Each chip is a button when an
-// `onSelect*` handler is supplied so the consumer can navigate to
-// the relevant panel (Git / History / etc.).
-
 import { useState } from "react";
 import { Flex, Text, chakra } from "@chakra-ui/react";
 

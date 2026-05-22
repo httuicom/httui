@@ -59,15 +59,12 @@ describe("OutlinePanel", () => {
   it("renders the empty state when the active file has no headings", () => {
     setActiveFile("a.md", "no heading here\n\nbody only\n");
     renderWithProviders(<OutlinePanel width={300} onClose={() => {}} />);
-    // Empty headings list → OutlineList shows the "No headings yet"
-    // empty state.
     expect(screen.getByTestId("outline-empty")).toBeInTheDocument();
   });
 
   it("renders rows for the active file's headings", () => {
     setActiveFile("a.md", "# Top\n\nbody\n\n## Section\n\nmore\n\n### Sub\n");
     renderWithProviders(<OutlinePanel width={300} onClose={() => {}} />);
-    // 3 headings → 3 rows.
     const rows = screen.getAllByTestId("outline-row");
     expect(rows).toHaveLength(3);
   });

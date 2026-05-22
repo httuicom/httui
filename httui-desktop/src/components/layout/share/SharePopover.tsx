@@ -1,18 +1,3 @@
-// Share popover.
-//
-// Pure presentational. Consumer (git panel header) fetches the
-// configured remotes via `git remote -v` (Tauri command — already
-// available through `git_branch_list_cmd`'s sibling pattern; the
-// `list_remotes` cmd carries) and feeds them in as `remotes` prop.
-// The popover handles: empty state, single-remote one-click copy,
-// multi-remote dropdown picker.
-//
-// Forge-specific permalink/compare URLs are NOT this popover's job
-// — those compose via `lib/share/share-url.ts` (already shipped in
-// 3e34bcf) and surface either inside this popover (Stories 02/03
-// add actions to the action list) or in the DocHeader action row's
-// Share button.
-
 import { useState } from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
 

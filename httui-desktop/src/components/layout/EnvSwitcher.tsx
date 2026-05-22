@@ -1,12 +1,3 @@
-// Smart wrapper around <EnvMenu />. Owns:
-// - env store wiring (list / active / switch / duplicate)
-// - the ⌘E open flag (useEnvSwitcherStore — opened from AppShell)
-// - the "Clone <active>" footer action → reuses the V5 carry
-//   CloneEnvironmentForm in a Portal+Popover anchored to the
-//   status-bar env cell (Popover, not Dialog — preserves CM6 focus).
-//
-// StatusBar renders this instead of <EnvMenu /> directly.
-
 import { Box, Popover, Portal } from "@chakra-ui/react";
 import { useCallback, useState } from "react";
 

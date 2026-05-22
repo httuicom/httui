@@ -1,21 +1,3 @@
-// accept-side conflict resolver hook.
-//
-// Wraps the two-step accept-and-mark-resolved chain shipped in
-// commits 97288f5 (Rust `git_checkout_conflict_path`) + e8c4dad
-// (Tauri + TS wrapper). The `<GitConflictBanner>` component
-// (ccb7ea0) emits `onAcceptYours(path)` / `onAcceptTheirs(path)`;
-// this hook turns those callbacks into a single async invocation
-// that:
-//
-// 1. `gitCheckoutConflictPath(vault, path, side)` — replaces the
-//    working-tree file with the chosen side
-// 2. `stagePath(vault, path)` — marks the conflict resolved by
-//    re-adding the path to the index
-//
-// `busy` is the lifecycle flag the banner uses to disable buttons
-// during the operation. `error` carries the verbatim git stderr so
-// the consumer toast can surface the actual reason.
-
 import { useCallback, useState } from "react";
 
 import {

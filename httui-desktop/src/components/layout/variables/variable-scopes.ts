@@ -1,10 +1,3 @@
-// Canvas §6 Variables — scope metadata.
-//
-// Five scopes per canvas: All, Workspace, Captured (from runs),
-// Secrets (keychain-backed), Personal (per-user). The sidebar lists
-// them with an icon + count + hue; the value resolution chain itself
-// ("block → env → workspace → secret") lives in the list-panel
-// subtitle.
 
 import type { IconType } from "react-icons";
 import {

@@ -41,7 +41,6 @@ describe("EnvironmentManager", () => {
   beforeEach(() => {
     resetStore();
     clearTauriMocks();
-    // Always provide a list_env_variables fallback so loadVariables doesn't hang
     mockTauriCommand("list_env_variables", () => []);
   });
 
@@ -80,7 +79,6 @@ describe("EnvironmentManager", () => {
     });
     renderWithProviders(<EnvironmentManager />);
 
-    // 'dev' appears in sidebar (and possibly header); just confirm both names render
     expect(screen.getAllByText("dev").length).toBeGreaterThan(0);
     expect(screen.getAllByText("prod").length).toBeGreaterThan(0);
     expect(screen.getByText("active")).toBeInTheDocument();
@@ -109,10 +107,8 @@ describe("EnvironmentManager", () => {
     });
     renderWithProviders(<EnvironmentManager />);
 
-    // First env auto-selected on open — variables loaded once
     await waitFor(() => expect(varCalls).toBeGreaterThan(0));
 
-    // Click the second env
     await user.click(screen.getByText("prod"));
     await waitFor(() => expect(varCalls).toBeGreaterThan(1));
   });

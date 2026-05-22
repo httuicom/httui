@@ -1,14 +1,3 @@
-// middle section: working-tree file list grouped
-// into Staged / Unstaged / Untracked.
-//
-// Pure presentational. ships:
-//   - layout (groups, headers, per-row checkbox + status icon + path)
-//   - data attributes / callbacks for staging + per-row click
-//
-// wires `onToggleStage(file)` to `stage_path`/`unstage_path`
-// Tauri commands and `onSelect(file)` to the diff side-panel — Story
-// 01 is purely the UI surface.
-
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import { Checkbox } from "@/components/ui/checkbox";

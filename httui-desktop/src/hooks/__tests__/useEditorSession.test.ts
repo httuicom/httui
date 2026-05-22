@@ -169,7 +169,7 @@ describe("useEditorSession", () => {
         result.current.handleEditorChange("p1", "a.md", "v3", VAULT);
       });
 
-      expect(writeCalls).toBe(0); // not yet
+      expect(writeCalls).toBe(0);
 
       await act(async () => {
         vi.advanceTimersByTime(1000);
@@ -215,7 +215,6 @@ describe("useEditorSession", () => {
         writeCalls++;
       });
 
-      // Simulate active conflict
       usePaneStore.setState({ conflictFiles: new Set(["a.md"]) });
 
       const { result } = renderHook(() => useEditorSession());
@@ -246,7 +245,6 @@ describe("useEditorSession", () => {
       });
       act(() => result.current.suppressAutoSave("a.md"));
 
-      // Suppression also clears the timer; re-fire change to set new timer
       act(() => {
         result.current.handleEditorChange("p1", "a.md", "x2", VAULT);
       });
@@ -288,7 +286,6 @@ describe("useEditorSession", () => {
       });
 
       expect(errSpy).toHaveBeenCalled();
-      // file remains unsaved
       expect(usePaneStore.getState().unsavedFiles.has("a.md")).toBe(true);
       errSpy.mockRestore();
     });
@@ -301,7 +298,6 @@ describe("useEditorSession", () => {
         written = args;
       });
 
-      // Open a tab and put content in store
       usePaneStore.getState().openFile("hello.md", "# content", VAULT);
       usePaneStore.getState().markUnsaved("p1", "hello.md", true);
 
@@ -339,7 +335,6 @@ describe("useEditorSession", () => {
   describe("tag-index refresh on save (epic 52 / story 04)", () => {
     it("auto-save updates the tag index from the persisted content", async () => {
       mockTauriCommand("write_note", () => {});
-      // Reset the tag store; assert it's empty before the save.
       useTagIndexStore.getState().clearAll();
       expect(useTagIndexStore.getState().getAllTags()).toEqual([]);
 
@@ -365,7 +360,6 @@ describe("useEditorSession", () => {
 
     it("forceSave updates the tag index from the persisted content", async () => {
       mockTauriCommand("write_note", () => {});
-      // Set up the active tab + content.
       usePaneStore.setState({
         layout: {
           type: "leaf",
@@ -394,13 +388,10 @@ describe("useEditorSession", () => {
     it("flips the file's tag set when frontmatter is removed in a save", async () => {
       mockTauriCommand("write_note", () => {});
       useTagIndexStore.getState().clearAll();
-      // Seed an old set of tags as if they were already indexed.
       useTagIndexStore.getState().setTagsForFile("rb.md", ["legacy"]);
       expect(useTagIndexStore.getState().getAllTags()).toEqual(["legacy"]);
 
       const { result } = renderHook(() => useEditorSession());
-      // User dropped the frontmatter; auto-save persists the new
-      // body.
       act(() => {
         result.current.handleEditorChange(
           "p1",

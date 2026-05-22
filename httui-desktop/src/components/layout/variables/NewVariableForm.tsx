@@ -1,10 +1,3 @@
-// Canvas §6 Variables — new-variable inline form.
-//
-// Single table-style row inserted above the variable list, inspired
-// by the legacy environments drawer footer: [KEY input] [VALUE input]
-// [lock toggle] [+ save] [× cancel]. Error message + visibility hint
-// surface below the row. Save dispatches the parsed payload; the
-// consumer wires the actual store write.
 
 import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
 import { useState } from "react";

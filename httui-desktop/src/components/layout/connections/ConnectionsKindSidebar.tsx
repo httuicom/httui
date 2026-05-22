@@ -1,13 +1,5 @@
-// Canvas §5 — left sidebar for the Connections refined page.
-// 220px wide, three sections:
-//   1. Kind filter list (9 rows, click → filter the list panel).
-//   2. POR AMBIENTE — env name + dot color + count.
-//   3. Hint card "Credenciais locais — Senhas vivem no keychain.
-//      Conexão é só nome + host."
-//
-// Pure presentational: takes counts maps + selection callbacks. The
-// per-vault counting + env-presence aggregation lives in the
-// consumer (ConnectionsPage) so this component stays test-light.
+// Left sidebar (220px) for the Connections page: kind filter, env summary, keychain hint.
+// Pure presentational — counts and aggregation live in the consumer.
 
 import { Box, Stack, Flex, Text } from "@chakra-ui/react";
 import { LuKey } from "react-icons/lu";
@@ -34,8 +26,7 @@ export interface EnvSummary {
 }
 
 export interface ConnectionsKindSidebarProps {
-  /** Total connection count per kind. Kinds with 0 still render —
-   * canvas spec shows the full menu. */
+  /** Count per kind; kinds with 0 still render. */
   countsByKind: Partial<Record<ConnectionKind, number>>;
   /** Currently-selected kind filter, or `null` for "all". */
   selectedKind: ConnectionKind | null;

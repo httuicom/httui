@@ -24,7 +24,6 @@ export function useStickyScroll(deps: unknown[]) {
     setShowJumpButton(false);
   }, []);
 
-  // Auto-scroll when deps change and user is at bottom
   useEffect(() => {
     if (isAtBottom.current) {
       scrollToBottom();
@@ -32,7 +31,6 @@ export function useStickyScroll(deps: unknown[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
-  // Attach scroll listener
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;

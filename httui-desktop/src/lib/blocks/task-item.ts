@@ -1,23 +1,11 @@
-// / M6 — checklist task shape and the flow-style
-// YAML round-trip helpers used by the editable checklist in the
-// DocHeader.
+// Checklist task shape and YAML round-trip helpers for the DocHeader.
 //
-// split: this used to live under the YAML key `preflight:`
-// which now belongs to the V6 pre-flight checks (block-list of typed
-// kinds — connection / env_var / branch / keychain / file_exists /
-// command). The free-form checklist moved to `tasks:` so the two
-// schemas stop colliding and the V6 builder UI can edit the typed
-// kinds without touching the user's todo list.
-//
-// The slice-1 frontmatter parser only supports single-line scalars and
-// flow-style lists, so the checklist is stored as a flow-list of
-// strings prefixed with `[ ]` / `[x]` markers (the same convention
-// markdown task lists use). Example:
+// Stored under `tasks:` as a flow-list of `"[ ] text"` / `"[x] text"` strings.
+// Slice-1 only supports flow-style lists:
 //
 //   tasks: ["[ ] Verify connection", "[x] Set keychain"]
 //
-// Pure functions: text in / text out. The DocHeader render +
-// `updateFrontmatterTasks` writer compose them.
+// Pure functions: text in / text out.
 
 export interface TaskItem {
   text: string;

@@ -115,8 +115,6 @@ describe("tagIndex store", () => {
     ]);
   });
 
-  // loadFromVault (vault-open bootstrap)
-
   it("loadFromVault populates the index from scan_vault_tags_cmd", async () => {
     mockTauriCommand("scan_vault_tags_cmd", () => [
       { path: "alpha.md", tags: ["payments", "debug"] },
@@ -188,9 +186,6 @@ describe("tagIndex store", () => {
   });
 
   it("loadFromVault batches into a single render via one set call", async () => {
-    // Subscribe to the store; assert the listener fires exactly once
-    // for a load that touches many files. Per-file setTagsForFile
-    // would dispatch N renders.
     let renderCount = 0;
     const unsub = useTagIndexStore.subscribe(() => {
       renderCount += 1;
@@ -217,8 +212,6 @@ describe("tagIndex store", () => {
       useTagIndexStore.getState().loadFromVault("/missing"),
     ).rejects.toThrow("vault not found");
   });
-
-  // refreshTagsForFile (per-save shortcut)
 
   it("refreshTagsForFile parses content and indexes the tags", () => {
     const content = "---\ntags: [payments, debug]\n---\nbody\n";

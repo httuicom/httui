@@ -28,7 +28,6 @@ export function ConfirmRunDialog({
 
   return (
     <Portal>
-      {/* scrim */}
       <Box
         position="fixed"
         top={0}
@@ -39,7 +38,6 @@ export function ConfirmRunDialog({
         zIndex={2000}
         onClick={onCancel}
       />
-      {/* card */}
       <Box
         position="fixed"
         top="50%"

@@ -1,15 +1,3 @@
-// Right-side run history panel — mount.
-//
-// Sibling toggle to `<OutlinePanel>` / `<SchemaPanel>`. Reads the
-// active runbook from the pane store, fetches the latest 50 runs
-// from `block_run_history` (via the new
-// `list_block_history_for_file` Tauri cmd), and renders
-// `<HistoryList>`. Click a row → fires onSelect; the consumer's
-// future "open past run" flow plugs in there (deferred — carry).
-//
-// Re-fetches when the active file changes. Exposes a manual Refresh
-// button so users can re-poll after running a block in another pane.
-
 import { useCallback, useEffect, useState } from "react";
 import { Box, HStack, IconButton, Spinner, Text } from "@chakra-ui/react";
 import { LuClock, LuRefreshCw, LuX } from "react-icons/lu";

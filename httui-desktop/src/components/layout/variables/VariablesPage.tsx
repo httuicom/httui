@@ -1,10 +1,3 @@
-// Canvas §6 Variables — page composition.
-//
-// Three-column layout 200/1fr/380. Owns scope selection + search
-// state locally. Slice 2 lights up the rows path: pass `rows` and the
-// page derives (scope filter + search match + name sort) and renders
-// `<VariableListRow>` for each. `rowsSlot` still wins when a consumer
-// wants full custom composition.
 
 import { Flex } from "@chakra-ui/react";
 import { useMemo, useState, type ReactNode } from "react";

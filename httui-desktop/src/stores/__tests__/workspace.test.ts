@@ -97,7 +97,6 @@ describe("workspaceStore", () => {
       });
 
       await useWorkspaceStore.getState().switchVault(VAULT);
-      // Wait one microtask for the fire-and-forget loadFromVault.
       await Promise.resolve();
       await Promise.resolve();
       expect(scanCalled).toBe(true);
@@ -203,7 +202,6 @@ describe("workspaceStore", () => {
       setupWorkspaceListeners();
       emitTauriEvent("fs-event", null);
 
-      // refreshFileTree is fire-and-forget — flush microtasks
       await Promise.resolve();
       await Promise.resolve();
 

@@ -1,19 +1,10 @@
-// File-scoped Tauri wrappers. Extracted from `commands.ts` (which was
-// approaching the 600-line size gate) — the per-vault file metadata
-// API is a coherent unit on its own: mtime + per-file workspace
-// settings (auto_capture today, more later).
-//
-// These wrappers stay pure `invoke()` shells. Coverage comes from the
-// consumer hooks (`useFileMtime`, `useFileAutoCapture`) which mock
-// the Tauri command names — the wrapper functions are exercised end-
-// to-end via those tests.
+// Per-vault file metadata wrappers: mtime + per-file workspace settings.
+// Coverage via consumer hooks (`useFileMtime`, `useFileAutoCapture`) that mock the Tauri command names.
 
 import { invoke } from "@tauri-apps/api/core";
 
 /** Last modification timestamp for a vault note in epoch milliseconds.
- * `null` if the file is absent or its mtime can't be read. Backed by
- * `httui_core::vault_config::merge::mtime_or_none`. Carry-over from
- * feeds the editor toolbar "edited Xm ago". */
+ * `null` if the file is absent or its mtime can't be read. */
 export function getFileMtime(
   vaultPath: string,
   filePath: string,
@@ -22,14 +13,9 @@ export function getFileMtime(
 }
 
 /** Per-file workspace settings persisted under
- * `[files."<file_path>"]` in `.httui/workspace.toml`. Carry-over from
- * backs the editor toolbar's auto-capture toggle.
- *
- * `docheader_compact` is optional on the wire because the Rust
- * struct `#[serde(skip_serializing_if = ...)]`s default-valued
- * booleans, so an entry without an explicit `false` flips its
- * field to `undefined` in JSON. Treat undefined as `false` at every
- * read site. */
+ * `[files."<file_path>"]` in `.httui/workspace.toml`.
+ * `docheader_compact` is optional on the wire (Rust skips default booleans);
+ * treat `undefined` as `false` at every read site. */
 export interface FileSettings {
   auto_capture: boolean;
   docheader_compact?: boolean;

@@ -1,25 +1,3 @@
-/**
- * DB block types — response shape post-redesign stage 2.
- *
- * The wire shape emitted by the Rust executor is `DbResponse`:
- *
- *   {
- *     results: DbResult[],        // one per SQL statement (len=1 today)
- *     messages: DbMessage[],      // NOTICE/WARNING/RAISE (empty today)
- *     plan?: unknown,             // populated when EXPLAIN is used
- *     stats: { elapsed_ms, rows_streamed? }
- *   }
- *
- * `DbResult` is a tagged union:
- *   - { kind: "select", columns, rows, has_more }
- *   - { kind: "mutation", rows_affected }
- *   - { kind: "error", message, line?, column? }
- *
- * Legacy shapes (pre-stage-2) are still produced by caches written before
- * this change; `normalizeDbResponse` lifts them into the new wrapper so
- * consumers only ever handle one shape.
- */
-
 export interface DbBlockData {
   connectionId: string;
   query: string;
@@ -84,8 +62,6 @@ export interface DbResponse {
   stats: DbStats;
 }
 
-// ───── Type guards ─────
-
 export function isSelectResult(
   result: DbResult,
 ): result is Extract<DbResult, { kind: "select" }> {
@@ -110,13 +86,11 @@ export function isDbResponse(value: unknown): value is DbResponse {
   return Array.isArray(obj.results) && typeof obj.stats === "object";
 }
 
-// ───── Legacy shapes (pre-stage-2) — kept only for cache/migration shim ─────
+// Legacy shapes kept only for cache/migration shim
 
 interface LegacyDbColumn {
   name: string;
-  /** Legacy wire name on pre-stage-2 cached responses. */
   type?: string;
-  /** Even older wire name on some backends. */
   type_name?: string;
 }
 
@@ -151,16 +125,9 @@ function isLegacyMutation(value: unknown): value is LegacyDbMutationResponse {
 }
 
 /**
- * Coerce any known DB response shape (new or legacy) into the new `DbResponse`.
- *
- * - New shape: returned with light defensive defaults for `messages`/`stats`.
- * - Legacy select: wrapped as `results: [{ kind: "select", ... }]`, elapsed=0.
- * - Legacy mutation: wrapped as `results: [{ kind: "mutation", ... }]`.
- * - Unknown/garbage: empty response (zero results, empty messages).
- *
- * Elapsed time is set to `0` for legacy wrappers because the original shape
- * didn't persist it; the source-of-truth for elapsed is the block's
- * cached result row (`duration_ms` column).
+ * Coerce any known DB response shape (new or legacy) into `DbResponse`.
+ * Elapsed is `0` for legacy wrappers — the cache row's `duration_ms` is the
+ * source of truth for elapsed when loading from an old cache entry.
  */
 export function normalizeDbResponse(raw: unknown): DbResponse {
   if (isDbResponse(raw)) {
@@ -195,11 +162,7 @@ export function normalizeDbResponse(raw: unknown): DbResponse {
   return { results: [], messages: [], stats: { elapsed_ms: 0 } };
 }
 
-/**
- * Returns the first select result in a DbResponse, or null if the first
- * result is a mutation, error, or absent. Convenience for the single-
- * statement path that dominates today.
- */
+/** Returns the first select result, or null if absent/non-select. */
 export function firstSelectResult(
   response: DbResponse,
 ): Extract<DbResult, { kind: "select" }> | null {

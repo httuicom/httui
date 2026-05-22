@@ -1,13 +1,3 @@
-// Canvas §6 Environments — single env card.
-//
-// Renders the summary + chips + active pill. Click anywhere on the
-// card body fires `onActivate(filename)`. The ⋮ menu in the top-right
-// surfaces row-level actions (Clone / Rename / Delete).
-//
-// Activation animations are pure-Chakra (no extra dep): the ACTIVE
-// pill mounts/unmounts via `<Presence>` with scale-in/scale-out, and
-// the card itself runs a one-shot pulse keyframe (border ring + bg
-// flash) the first render after `env.isActive` flips false → true.
 
 import {
   Box,
@@ -44,9 +34,8 @@ export function EnvironmentCard({
   const BodyComp = interactive ? chakra.button : chakra.div;
   const hasActions = !!(onClone || onRename || onDelete);
 
-  // Detect false → true transition on isActive to fire a one-shot
-  // pulse animation. Skip the initial mount so every card on first
-  // render does not pulse at once.
+  // Fire a one-shot pulse animation when isActive transitions false → true.
+  // Skip on initial mount so all cards don't pulse together.
   const wasActiveRef = useRef(env.isActive);
   const [pulse, setPulse] = useState(false);
   useEffect(() => {

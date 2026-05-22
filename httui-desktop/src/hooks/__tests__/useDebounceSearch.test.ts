@@ -74,7 +74,7 @@ describe("useDebounceSearch", () => {
     act(() => result.current.handleSearch("ab"));
     act(() => result.current.handleSearch("abc"));
 
-    expect(calls).toEqual([]); // still inside window
+    expect(calls).toEqual([]);
 
     await flush(200);
 
@@ -122,10 +122,7 @@ describe("useDebounceSearch", () => {
 
     const { result } = setup({ searchFn, debounceMs: 50 });
 
-    // Seed some results so we can confirm the reject clears them
     act(() => result.current.setSelectedIndex(0));
-    // simulate prior populated state via handleSearch + a successful run is hard
-    // here — easier: just confirm post-reject results are []
     act(() => result.current.handleSearch("x"));
     await flush(80);
 

@@ -1,10 +1,3 @@
-// Canvas §6 Environments — clone-from-env inline form.
-//
-// Name input + 4 checkboxes (`Copy variables` default ON, `Copy
-// connections-used pointers`, `Mark temporary`, `Mark personal` →
-// writes to `<name>.local.toml` instead of `<name>.toml`). The
-// consumer owns the actual file copy + write; this component only
-// dispatches the parsed payload.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useState } from "react";

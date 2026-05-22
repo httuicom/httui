@@ -73,7 +73,6 @@ vi.mock("../SplitView", () => ({
 
 beforeEach(() => {
   clearTauriMocks();
-  // Reset paneStore + settings to a known shape.
   usePaneStore.setState({
     activePaneId: "p1",
     editorContents: new Map([["a.md", "# hi\n"]]),
@@ -173,9 +172,6 @@ describe("PaneNode", () => {
   });
 
   it("forwards the file content from the editorContents map", () => {
-    // Indirect — DocHeaderedEditor mock would receive content as prop;
-    // assert the mount path opens the editor at all (the file content
-    // is in the editorContents Map keyed by filePath).
     renderWithProviders(
       <PaneNode layout={leafLayout()} path={[]} handleEditorChange={vi.fn()} />,
     );
@@ -227,11 +223,9 @@ describe("PaneNode", () => {
         handleEditorChange={handleEditorChange}
       />,
     );
-    // Pane click delegates to setActivePaneId.
     screen.getByTestId("tab-bar").click();
     expect(setActivePaneId).toHaveBeenCalledWith("p1");
 
-    // Conflict + change handlers thread through DocHeaderedEditor.
     screen.getByTestId("conflict-reload").click();
     expect(resolveConflict).toHaveBeenCalledWith("a.md", "reload", "/v");
     screen.getByTestId("conflict-keep").click();
@@ -271,7 +265,6 @@ describe("PaneNode", () => {
     renderWithProviders(
       <PaneNode layout={layout} path={[]} handleEditorChange={vi.fn()} />,
     );
-    // Wait for the readNote promise + setState to flush.
     await vi.waitFor(() => {
       expect(openFile).toHaveBeenCalledWith("legacy.md", "# md\n", "/v");
     });

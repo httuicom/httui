@@ -1,23 +1,12 @@
-// pure derivations for the DocHeader card.
-//
-// The actual frontmatter parser is the job; this module accepts
-// already-parsed `Frontmatter` plus the source pieces (firstHeading,
-// filePath) and answers questions the card UI asks: what's the title?
-// what does the breadcrumb look like? does the abstract need
-// fade-out?
-
 import type { TaskItem } from "@/lib/blocks/task-item";
 
 export interface DocHeaderFrontmatter {
   title?: string;
   abstract?: string;
   tags?: ReadonlyArray<string>;
-  /** / M6 — checklist task items (free-form todos).
-   *  The DocHeader Checklist subcomponent reads this to render its
-   * rows. Renamed from `preflight` — the legacy
-   *  `preflight:` YAML key is now reserved for typed pre-flight checks
-   *  (block-list of connection / env_var / branch / keychain /
-   *  file_exists / command kinds). */
+  /** Checklist task items (free-form todos). The `preflight:` YAML key
+   *  is reserved for typed pre-flight checks (connection / env_var /
+   *  branch / keychain / file_exists / command). */
   tasks?: ReadonlyArray<TaskItem>;
   /** user-visible parse error from the slice-1 YAML
    *  parser. The DocHeader card surfaces a "frontmatter invalid" badge

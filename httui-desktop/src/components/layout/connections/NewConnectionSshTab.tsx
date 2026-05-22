@@ -1,9 +1,5 @@
-// Canvas §5 — "SSH tunnel" tab for the Nova Conexão modal.
-//
-// SSH tunnelling itself is v1.x scope per `out-of-scope.md`. For v1
-// the tab just shows a "Coming soon" surface that explains the
-// workaround (paste a parsed URL with the host/port behind the
-// tunnel). Pure presentational; no state.
+// "SSH tunnel" tab — shows a "coming soon" surface with a workaround hint.
+// No state; pure presentational.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 

@@ -51,7 +51,6 @@ describe("useSessionPersistence", () => {
   beforeEach(() => {
     resetStores();
     clearTauriMocks();
-    // Default no-op mocks for fire-and-forget IPCs
     mockTauriCommand("start_watching", () => {});
     mockTauriCommand("rebuild_search_index", () => {});
     mockTauriCommand("set_config", () => {});
@@ -213,7 +212,6 @@ describe("useSessionPersistence", () => {
 
       renderHook(() => useSessionPersistence());
 
-      // Should not throw — wait one tick and assert default state
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -227,7 +225,6 @@ describe("useSessionPersistence", () => {
         throw new Error("no tauri");
       });
 
-      // Should not throw — hook just no-ops
       renderHook(() => useSessionPersistence());
 
       await act(async () => {
@@ -268,7 +265,6 @@ describe("useSessionPersistence", () => {
         expect(useWorkspaceStore.getState().vaultPath).toBe(VAULT);
       });
 
-      // Toggle settings — should persist
       act(() => {
         useSettingsStore.getState().setVimEnabled(true);
       });

@@ -1,10 +1,4 @@
-// Canvas §5 connection-kind metadata.
-//
-// Single source of truth for the 9 supported kinds: name, lucide
-// icon component, accent hue. Consumed by `<ConnectionKindIcon>`,
-// `<ConnectionKindFilter>` (sidebar), and the list-row icon column.
-//
-// Icons via react-icons/lu — feedback_no_emojis_use_icons.
+// Single source of truth for the 9 supported kinds: name, lucide icon, accent hue.
 
 import type { IconType } from "react-icons";
 import {
@@ -119,19 +113,16 @@ export const CONNECTION_KIND_ORDER: ReadonlyArray<ConnectionKind> = [
   "shell",
 ];
 
-/** Drivers that the V1 NewConnectionModal can actually create. Other
- * kinds surface a "Coming soon" empty state in the modal body and
- * hide the Form/Connection-string/SSH/SSL tabs. */
+/** Drivers the NewConnectionModal can create. Other kinds show a "Coming soon"
+ * empty state with tabs and Save hidden. */
 export const SUPPORTED_NEW_CONNECTION_KINDS: ReadonlyArray<ConnectionKind> = [
   "postgres",
   "mysql",
   "sqlite",
 ];
 
-/** Tab IDs available in the NewConnectionModal per kind. SQLite is
- * file-based so it skips connection-string / SSH tunnel / SSL. The
- * networked drivers ship the full set. Mirrors the modal contract;
- * keep in sync with `NEW_CONNECTION_TABS`. */
+/** Tab IDs available in the NewConnectionModal per kind. SQLite skips
+ * connection-string / SSH tunnel / SSL. Keep in sync with `NEW_CONNECTION_TABS`. */
 export type NewConnectionModalTab =
   | "form"
   | "connection-string"
@@ -159,8 +150,7 @@ export function kindColor(kind: ConnectionKind): string {
   return `oklch(${CONNECTION_KINDS[kind].hue})`;
 }
 
-/** Map the legacy `Connection.driver` (postgres / mysql / sqlite) to
- * the canvas-§5 `ConnectionKind`. */
+/** Map `Connection.driver` string to `ConnectionKind`. */
 export function kindFromDriver(driver: string): ConnectionKind | null {
   switch (driver) {
     case "postgres":

@@ -90,7 +90,6 @@ describe("ConnectionsList", () => {
       expect(screen.getByText("local-pg")).toBeInTheDocument(),
     );
 
-    // Wait until ping resolves.
     await waitFor(() =>
       expect(
         screen.getByTestId("sidebar-connection-c1-latency"),
@@ -226,7 +225,6 @@ describe("ConnectionsList", () => {
     expect(
       useConnectionSessionOverrideStore.getState().getOverride("c1"),
     ).toEqual({ host: "db.staging", port: 5599 });
-    // Chip on the sidebar row reflects the TEMPORARY state.
     expect(
       screen
         .getByTestId("sidebar-connection-c1")

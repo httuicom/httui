@@ -1,10 +1,3 @@
-// Canvas §6 Variables — detail panel.
-//
-// Slice 1 ships the empty-state container only. Slices 2/3/4 layer
-// the header / value-per-env / override / used-in-blocks sections
-// via the `children` slot — keeping this file size-honest.
-// Width comes from `MASTER_DETAIL_DETAIL_WIDTH` so the V5 page lines
-// up pixel-for-pixel with V4 Connections.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";

@@ -143,7 +143,7 @@ describe("useFileDocHeaderCompact", () => {
       try {
         await result.current.setCompact(true);
       } catch {
-        // Expected — re-thrown so the caller can react.
+        // expected
       }
     });
 

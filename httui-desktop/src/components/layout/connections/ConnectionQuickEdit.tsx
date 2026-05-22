@@ -1,13 +1,7 @@
-// Connection quick-edit popover body (carry).
-//
-// Mounted by ConnectionsList inside a Portal+Popover anchored to the
-// sidebar chip (NOT a Dialog — preserves CM6 focus). Surfaces, in
-// order: status badge → Rotate password → Temporary host:port
-// override → Test → Duplicate, plus Edit/Delete as footer actions.
-//
-// "Temporary host:port" is session-only: it writes to
-// `useConnectionSessionOverrideStore`, never to the vault record. The
-// override is applied per DB run in `executeDbStreamed`.
+// Connection quick-edit popover body.
+// NOT a Dialog — Portal+Popover preserves CM6 focus.
+// "Temporary host:port" is session-only: writes to `useConnectionSessionOverrideStore`,
+// never to the vault record. Override applied per DB run in `executeDbStreamed`.
 
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
@@ -118,7 +112,6 @@ export function ConnectionQuickEdit({
       minW="320px"
       p={3}
     >
-      {/* Status badge */}
       <Flex align="center" gap={2} mb={3}>
         <Box w={2} h={2} rounded="full" bg={dotColor} flexShrink={0} />
         <Text flex={1} fontFamily="mono" fontSize="12px" truncate>
@@ -132,7 +125,6 @@ export function ConnectionQuickEdit({
         {override && <TemporaryChip onClear={handleClearOverride} />}
       </Flex>
 
-      {/* Rotate password */}
       <Box mb={3}>
         <SectionLabel>Rotate password</SectionLabel>
         <HStack gap={2}>
@@ -164,7 +156,6 @@ export function ConnectionQuickEdit({
         )}
       </Box>
 
-      {/* Temporary host:port override */}
       <Box mb={3}>
         <SectionLabel>Temporary host:port</SectionLabel>
         <HStack gap={2}>
@@ -194,7 +185,6 @@ export function ConnectionQuickEdit({
         </Text>
       </Box>
 
-      {/* Test + Duplicate */}
       <HStack gap={2}>
         <Btn variant="ghost" data-testid="conn-quickedit-test" onClick={onTest}>
           <LuPlugZap size={13} />

@@ -1,10 +1,6 @@
-// Canvas §5 — "Connection string" tab for the Nova Conexão modal.
-//
-// User pastes a `postgres://…` / `mysql://…` URL; clicking "Preencher
-// formulário" dispatches `onApply({ kind, value, ssl })` so the
-// consumer can patch the form + ssl state and switch back to the
-// Form tab. Pure presentational with local state for the textarea
-// + last-error surface.
+// "Connection string" tab: user pastes a postgres:// or mysql:// URL; "Fill form"
+// dispatches onApply({ kind, value, ssl }) so the consumer can patch state and
+// switch back to the Form tab.
 
 import { useState } from "react";
 import { Box, Flex, Text, chakra } from "@chakra-ui/react";
@@ -26,12 +22,9 @@ export interface NewConnectionStringApplyArgs {
 }
 
 export interface NewConnectionStringTabProps {
-  /** Initial textarea value (e.g. when reopening with the last paste). */
   initial?: string;
-  /** Dispatched when the parsed result is applied to the form. */
   onApply: (args: NewConnectionStringApplyArgs) => void;
-  /** Kind currently selected — drives the placeholder and hint copy
-   * so MySQL doesn't show a `postgres://` example. */
+  /** Drives the placeholder example (MySQL vs Postgres). */
   kind?: ConnectionKind;
 }
 

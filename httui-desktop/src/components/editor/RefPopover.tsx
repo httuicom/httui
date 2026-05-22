@@ -1,13 +1,3 @@
-// Body of the inline `{{ref}}` quick popover.
-//
-// Visual contract: design-canvas §4.3 PopoverVarQuick — 10px radius,
-// layered shadow, uppercase section labels, the key echoed in the
-// same violet as the in-editor chip (continuity), per-env value in a
-// mono field, dashed session-override input. Mounted inside Chakra's
-// Popover (positioning/arrow owned by the host). Reuses V5
-// useSessionOverrideStore + TemporaryChip. Block-ref shaped keys
-// (with dots) get a read-only note.
-
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { LuChevronDown, LuChevronUp } from "react-icons/lu";
@@ -69,7 +59,6 @@ export function RefPopover({ state, vaultPath, onClose }: RefPopoverProps) {
       minW="320px"
       maxW="420px"
     >
-      {/* header */}
       <Flex
         align="center"
         gap={2}
@@ -123,7 +112,6 @@ export function RefPopover({ state, vaultPath, onClose }: RefPopoverProps) {
         )}
       </Box>
 
-      {/* footer */}
       <Flex
         align="center"
         justify="flex-end"

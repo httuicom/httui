@@ -1,13 +1,3 @@
-// Decides whether the empty-state should show the MVP-to-v1
-// migration banner. Combines the filesystem probe
-// (`detect_vault_migration` Tauri command) with the user-pref
-// dismissal flag from `useSettingsStore`.
-//
-// Carry-over Slice 1 shipped the dismissal
-// pref schema; this hook is slice 2's consumer surface. Slice 3
-// (AppShell mount) reads `shouldShowBanner` and renders
-// `<MigrationBanner>` accordingly.
-
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -57,8 +47,7 @@ export function useMigrationDetection(
       setCandidate(next);
     } catch {
       if (cancelledRef.current) return;
-      // A failed probe is "no banner" — don't surface a phantom
-      // migration prompt because of an FS hiccup.
+      // Failed probe = no banner; don't show phantom migration prompt on FS hiccup.
       setCandidate(null);
     }
   }, [vaultPath]);

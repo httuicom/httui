@@ -62,9 +62,6 @@ describe("paneStore — extended coverage", () => {
     clearTauriListeners();
   });
 
-  // ──────────────────────────────────────────────
-  // Pure helpers
-  // ──────────────────────────────────────────────
   describe("pure helpers", () => {
     it("findLeaf returns null for nonexistent id", () => {
       expect(findLeaf(mkLeaf("a"), "b")).toBeNull();
@@ -123,9 +120,6 @@ describe("paneStore — extended coverage", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // Diff tabs
-  // ──────────────────────────────────────────────
   describe("diff tabs", () => {
     const params = {
       filePath: "x.md",
@@ -178,9 +172,6 @@ describe("paneStore — extended coverage", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // Connections tab (V4)
-  // ──────────────────────────────────────────────
   describe("connections tab", () => {
     it("openConnectionsTab adds a singleton tab to the active pane", () => {
       usePaneStore.getState().openConnectionsTab();
@@ -223,22 +214,15 @@ describe("paneStore — extended coverage", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // Splits + tab close edge cases
-  // ──────────────────────────────────────────────
   describe("split / close edge cases", () => {
     it("closeTab on last tab in a split pane removes the pane and collapses", () => {
-      // Start: leaf p1 with one tab
       usePaneStore.getState().openFile("a.md", "x", VAULT);
-      // Split → creates p2 (active)
       usePaneStore.getState().splitVertical();
       const splitActive = usePaneStore.getState().activePaneId;
 
-      // Add a tab on the new pane and close it
       usePaneStore.getState().openFile("b.md", "y", VAULT);
       usePaneStore.getState().closeTab(splitActive, 0);
 
-      // Layout should collapse back to a single leaf
       const layout = usePaneStore.getState().layout;
       expect(layout.type).toBe("leaf");
     });
@@ -263,7 +247,6 @@ describe("paneStore — extended coverage", () => {
     it("resizeSplit walks a nested path", () => {
       usePaneStore.getState().splitVertical();
       usePaneStore.getState().splitHorizontal();
-      // Resize root split (path [])
       usePaneStore.getState().resizeSplit([], 0.3);
       const layout = usePaneStore.getState().layout as SplitPane;
       expect(layout.ratio).toBe(0.3);
@@ -281,9 +264,6 @@ describe("paneStore — extended coverage", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // Scroll positions
-  // ──────────────────────────────────────────────
   describe("scroll positions", () => {
     it("setScrollPosition / getScrollPosition roundtrip", () => {
       usePaneStore.getState().setScrollPosition("a.md", 250);
@@ -297,9 +277,6 @@ describe("paneStore — extended coverage", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // restoreLayout
-  // ──────────────────────────────────────────────
   describe("restoreLayout", () => {
     it("replaces layout and activePaneId", () => {
       const newLayout = mkLeaf("restored", [
@@ -320,9 +297,6 @@ describe("paneStore — extended coverage", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // Conflicts
-  // ──────────────────────────────────────────────
   describe("conflicts", () => {
     it("hasConflict reflects conflictFiles set", () => {
       expect(usePaneStore.getState().hasConflict("a.md")).toBe(false);
@@ -384,9 +358,6 @@ describe("paneStore — extended coverage", () => {
     });
   });
 
-  // ──────────────────────────────────────────────
-  // file-reloaded listener
-  // ──────────────────────────────────────────────
   describe("setupPaneListeners", () => {
     it("registers listener for file-reloaded", () => {
       setupPaneListeners();
@@ -395,7 +366,6 @@ describe("paneStore — extended coverage", () => {
     });
 
     it("file-reloaded sets conflict when file is open AND unsaved", () => {
-      // Open file and mark unsaved
       usePaneStore.getState().openFile("a.md", "x", VAULT);
       usePaneStore.getState().markUnsaved("p1", "a.md", true);
 

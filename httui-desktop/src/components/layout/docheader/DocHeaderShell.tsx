@@ -1,13 +1,3 @@
-// consumer-mount shell — composes the 4 DocHeader card
-// components shipped this loop into a single render surface.
-//
-// Pure presentational. The actual page consumer (PaneContainer /
-// MarkdownEditor wrapping for `.md` tabs) collects the data via
-// Tauri / stores and passes it through. This shell handles the
-// compact-mode gating logic (only H1 + meta strip visible in
-// compact mode) and the `onToggleCompact` flow that consumers wire
-// to the workspace.toml persistence.
-
 import { Box, Flex } from "@chakra-ui/react";
 
 import {
@@ -31,7 +21,6 @@ import type {
 } from "./docheader-meta";
 
 export interface DocHeaderShellProps {
-  // ── DocHeaderCard inputs ───────────────────────────────────────
   filePath: string;
   relativeFilePath?: string | null;
   frontmatter?: DocHeaderFrontmatter | null;
@@ -63,12 +52,9 @@ export interface DocHeaderShellProps {
   onAddTag?: (tag: string) => void;
   onRemoveTag?: (tag: string) => void;
   /** Checklist save callback. Receives the full new list on every
-   *  edit (toggle / text change / add / remove). The list is persisted
-   *  to the `tasks:` YAML key (renamed from `preflight:` in V6
-   * */
+   *  edit (toggle / text change / add / remove). Persisted to `tasks:` YAML key. */
   onChecklistSave?: (items: TaskItem[]) => void;
 
-  // ── Meta strip inputs ──────────────────────────────────────────
   author?: AuthorInfo | null;
   mtimeMs?: number | null;
   dirty?: boolean;
@@ -80,7 +66,6 @@ export interface DocHeaderShellProps {
   onSelectBranch?: () => void;
   onSelectLastRun?: () => void;
 
-  // ── Action row inputs ──────────────────────────────────────────
   onRunAll?: () => void;
   runAllBusy?: boolean;
   onShare?: () => void;
@@ -88,15 +73,13 @@ export interface DocHeaderShellProps {
   onArchive?: () => void;
   onDelete?: () => void;
 
-  // ── Pre-flight inputs ──────────────────────────────────────────
   preflightItems?: ReadonlyArray<PreflightPillItem>;
   preflightRechecking?: boolean;
   onPreflightFailureSelect?: (item: PreflightPillItem) => void;
   onPreflightRecheck?: () => void;
-  /** builder callbacks. When wired, the pill row
-   *  surfaces a `+ Add check` button and click-to-edit on existing
-   *  pills. The consumer mutates the frontmatter via the
-   *  `updateFrontmatterPreflightChecks` writer. */
+  /** When wired, the pill row surfaces a `+ Add check` button and
+   *  click-to-edit on existing pills. Consumer writes via
+   *  `updateFrontmatterPreflightChecks`. */
   onAddPreflightCheck?: (
     check: import("@/lib/blocks/preflight-checks").PreflightCheck,
   ) => void;
@@ -251,8 +234,7 @@ export function DocHeaderShell(props: DocHeaderShellProps) {
                   />
                 </Box>
               ) : (
-                // Reserve the column even when there's no checklist so
-                // the tag column stays right-aligned.
+                // Reserve the column so the tag column stays right-aligned.
                 <Box flex={1} />
               )}
               {showTags && (

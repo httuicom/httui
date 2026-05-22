@@ -1,7 +1,4 @@
-// Canvas §5 — Connection-kind glyph + accent color.
-//
-// Reads metadata from `connection-kinds.ts`. Used by the sidebar
-// filter rows and (slice 2) the list-row leftmost column.
+// Connection-kind glyph + accent color, sourced from `connection-kinds.ts`.
 
 import { Box } from "@chakra-ui/react";
 
@@ -13,8 +10,7 @@ import {
 
 interface ConnectionKindIconProps {
   kind: ConnectionKind;
-  /** Box size in pixels. Canvas spec: 18 in sidebar rows, 22 in
-   * list rows, 32 in modal header. */
+  /** Box size in pixels (18 sidebar, 22 list row, 32 modal header). */
   size?: number;
 }
 

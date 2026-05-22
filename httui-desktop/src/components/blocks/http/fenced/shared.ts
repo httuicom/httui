@@ -1,11 +1,3 @@
-/**
- * Shared types and constants for the HTTP fenced-block UI.
- *
- * Lives next to HttpFencedPanel.tsx so the sub-components extracted from it
- * (HttpToolbar, HttpStatusBar, etc.) can import without pulling the whole
- * panel module.
- */
-
 import type { HttpMethod } from "@/lib/blocks/http-fence";
 
 // Canonical union lives in blocks/execution-state; re-exported so the
@@ -30,8 +22,6 @@ export const MUTATION_METHODS: ReadonlySet<HttpMethod> = new Set([
   "PATCH",
   "DELETE",
 ]);
-
-// ─────────────────────── Display helpers ───────────────────────
 
 /** Pick a status-dot color from an HTTP status code (or gray when missing). */
 export function statusDotColor(code: number | null | undefined): string {

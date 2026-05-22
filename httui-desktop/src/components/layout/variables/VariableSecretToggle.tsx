@@ -1,11 +1,3 @@
-// Canvas §6 Variables — is_secret toggle.
-//
-// Controlled switch for the variable's `is_secret` flag. Demotion
-// (secret → public) goes through `confirmDemote` first — the parent
-// owns the actual confirmation UI (could be a modal, an inline
-// confirmation banner, or a no-op for tests). When `confirmDemote` is
-// undefined the toggle proceeds without asking; when it resolves false
-// the toggle is a no-op.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useState } from "react";

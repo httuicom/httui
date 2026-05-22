@@ -126,7 +126,6 @@ describe("NewVariablePopover", () => {
     expect(
       (await screen.findByTestId("new-variable-error")).textContent,
     ).toContain("keychain locked");
-    // Stays open so the user can retry.
     expect(useNewVariablePopoverStore.getState().open).toBe(true);
   });
 

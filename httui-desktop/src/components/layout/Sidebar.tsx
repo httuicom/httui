@@ -23,7 +23,6 @@ export function Sidebar({ width }: SidebarProps) {
       overflow="hidden"
       flexShrink={0}
     >
-      {/* Files section */}
       <Box flex={1} overflowY="auto">
         <HStack px={3} py={2} justify="space-between">
           <Text
@@ -76,12 +75,10 @@ export function Sidebar({ width }: SidebarProps) {
         )}
       </Box>
 
-      {/* Connections section */}
       <Box borderTopWidth="1px" borderColor="border">
         <ConnectionsList />
       </Box>
 
-      {/* Variables section */}
       <Box borderTopWidth="1px" borderColor="border">
         <VariablesPanel />
       </Box>

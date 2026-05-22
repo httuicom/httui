@@ -30,10 +30,7 @@ export function useFileSearch({
   const runQuery = (q: string): Promise<SearchResult[]> | null => {
     const parsed = parseQuickOpenQuery(q);
     if (parsed.kind === "tag" || parsed.kind === "tag-bool") {
-      // Tag mode is fully synchronous — pull straight from the index
-      // store without an IPC round-trip. The store is bootstrapped on
-      // vault-open (`useTagIndexStore.loadFromVault`) and kept fresh
-      // per-save by `useEditorSession`'s `refreshTagsForFile` call.
+      // Tag mode is synchronous — no IPC round-trip needed.
       const byTag = useTagIndexStore.getState().getFilesByTag;
       const paths = applyTagQuery(parsed, byTag);
       const results: SearchResult[] = paths.map((path) => ({

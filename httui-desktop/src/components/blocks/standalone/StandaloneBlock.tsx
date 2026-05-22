@@ -103,7 +103,7 @@ function createDiffHighlightField(changedLines: Set<number>, side: "a" | "b") {
       return builder.finish();
     },
     update(decos) {
-      return decos; // read-only doc, decorations don't change
+      return decos;
     },
     provide: (f) => EditorView.decorations.from(f),
   });

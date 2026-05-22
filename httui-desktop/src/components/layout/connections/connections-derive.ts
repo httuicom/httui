@@ -1,13 +1,5 @@
-// Pure derivation helpers for the Connections refined page.
-//
-// Takes a list of connections (Tauri `Connection` shape) plus a
-// row-level enrichment array (env / latency / uses) and produces:
-//   - `ListRowItem[]` for the list panel
-//   - `countsByKind` for the sidebar kind filter list
-//   - `EnvSummary[]` for the sidebar POR AMBIENTE section
-//   - `ListStatusCounts` for the list header
-//
-// Pure: no React, no Tauri. Tested in isolation.
+// Pure derivation helpers: connections + enrichment → list rows, kind counts,
+// env summaries, and status counts. No React, no Tauri.
 
 import type { Connection } from "@/lib/tauri/connections";
 
@@ -28,13 +20,10 @@ export interface ConnectionEnrichment {
   uses: number;
 }
 
-/** Slow threshold: above this latency the canvas-spec list paints
- * the dot yellow. Mirrors the StatusBar heuristic for consistency. */
+/** Latency above this threshold renders the dot yellow. */
 export const SLOW_LATENCY_MS = 200;
 
-/** Detect "production" by name (case-insensitive substring `prod`).
- * Used by the PROD chip in the list row + the env-summary status
- * intent. */
+/** True when the name contains a word-bounded `prod` (case-insensitive). */
 export function isProductionName(name: string): boolean {
   return /\bprod(uction)?\b/i.test(name);
 }
@@ -54,12 +43,11 @@ interface BuildArgs {
   enrichment?: ConnectionEnrichment[];
   /** Optional kind filter from the sidebar. `null` = "all". */
   kindFilter?: ConnectionKind | null;
-  /** Optional search query — case-insensitive substring across
-   * `name`, `host`, and `database_name`. */
+  /** Case-insensitive substring filter across name, host, database_name. */
   search?: string;
 }
 
-/** Build the canvas-spec list-row items from the raw connections. */
+/** Build list-row items from raw connections + enrichment. */
 export function buildListRows({
   connections,
   enrichment = [],
@@ -95,9 +83,7 @@ export function buildListRows({
     });
 }
 
-/** Per-kind count map for the sidebar filter list. Ordered by the
- * canvas display order; kinds with 0 still get a key so the
- * sidebar shows the full menu. */
+/** Per-kind count map; all kinds get a key (0 if absent) so the sidebar shows the full list. */
 export function countsByKind(
   connections: Connection[],
 ): Partial<Record<ConnectionKind, number>> {
@@ -111,9 +97,7 @@ export function countsByKind(
   return out;
 }
 
-/** Aggregate counts + status intent per environment for the
- * sidebar POR AMBIENTE section. Production envs (name matches
- * `isProductionName`) get the `warn` intent. */
+/** Aggregate counts + status intent per environment. Production names get `warn`. */
 export function envSummaries(enrichment: ConnectionEnrichment[]): EnvSummary[] {
   const counts = new Map<string, number>();
   for (const e of enrichment) {
@@ -129,9 +113,7 @@ export function envSummaries(enrichment: ConnectionEnrichment[]): EnvSummary[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Aggregate the list header status counts:
- *  total / ok / slow / down. Untested rows are counted toward total
- *  but not toward any of the three sub-buckets. */
+/** Aggregate total / ok / slow / down counts. Untested rows count toward total only. */
 export function listStatusCounts(rows: ListRowItem[]): ListStatusCounts {
   let ok = 0;
   let slow = 0;

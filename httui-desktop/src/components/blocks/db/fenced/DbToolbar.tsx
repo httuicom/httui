@@ -37,12 +37,6 @@ export function DbToolbar({
       minW={0}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {/* Identity row — [DB] alias / connection [RO|RW] [dialect-pill].
-          Text stays at 14/13px so it never competes with the SQL below;
-          the visual hierarchy (alias > connection > mode/dialect) comes
-          from colour + weight, not font size. The RO/RW pill is only
-          rendered when a connection is resolved — an un-set connection
-          would make the pill meaningless. */}
       <HStack gap={3} align="center" minW={0} flex="1" overflow="hidden">
         <Badge
           colorPalette="blue"
@@ -137,11 +131,6 @@ export function DbToolbar({
         </Badge>
       </HStack>
 
-      {/* Actions — icon-only ghost buttons matching the HTTP block pattern.
-          Order (left → right): Run/Cancel · EXPLAIN · Settings (spec §2.3).
-          Run is colour-only (green icon), cancel inherits red. The remaining
-          actions use the muted fg pair so they recede visually while the
-          query is idle. */}
       <HStack gap={0} flexShrink={0}>
         {running ? (
           <IconButton

@@ -1,16 +1,6 @@
-// Canvas §5 — Detail panel schema preview.
-//
-// Renders the connection's introspected schema as a collapsible
-// table tree, with a "Hot tables" section above (top-N by hit
-// count from `block_run_history`).
-//
-// Pure presentational: takes the already-loaded `ConnectionSchema`
-// and a `hotTables` array. Loader / refresh wiring lives in the
-// consumer (the page calls `useSchemaCacheStore.ensureLoaded` and
-// derives the hot list from a `block_run_history` query).
-//
-// PK/FK icons + per-table row counts are out of scope for this
-// slice — `SchemaEntry` doesn't carry that metadata yet (audit-031).
+// Detail panel schema preview: collapsible table tree with a "Hot tables" section
+// (top-N by hit count from `block_run_history`).
+// Pure presentational — loader/refresh wiring lives in the consumer.
 
 import { useState } from "react";
 import { Box, Flex, HStack, Stack, Text, chakra } from "@chakra-ui/react";
@@ -21,10 +11,8 @@ import type { ConnectionSchema, SchemaTable } from "@/stores/schemaCache";
 const TableHeader = chakra("button");
 
 export interface HotTableEntry {
-  /** Display label — typically `${schema}.${name}` for PG/MySQL,
-   * just `name` for SQLite. */
+  /** `${schema}.${name}` for PG/MySQL, just `name` for SQLite. */
   tableName: string;
-  /** Hit count from the `block_run_history` join. */
   hits: number;
 }
 
@@ -33,11 +21,10 @@ export interface ConnectionDetailSchemaPreviewProps {
   loading: boolean;
   error: string | null;
   hotTables: HotTableEntry[];
-  /** Click → force introspection bypassing the SQLite cache. */
+  /** Bypass the SQLite cache and force re-introspection. */
   onRefresh?: () => void;
 }
 
-/** Canvas spec: top 5 tables ordered by hit count. */
 export const HOT_TABLES_LIMIT = 5;
 
 export function ConnectionDetailSchemaPreview({

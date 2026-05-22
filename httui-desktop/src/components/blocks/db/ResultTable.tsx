@@ -104,13 +104,7 @@ function DetailValue({ value }: { value: CellValue }) {
 const ROW_HEIGHT = 32;
 const EXPANDED_OVERHEAD = 180;
 
-// CSS as a static constant — Emotion will not re-compute on every render.
-// Uses semantic Chakra tokens via `var(--chakra-colors-*)` so the table
-// adapts to light/dark themes without branching here.
-//
-// Design intent: match the mockup — generous row height (~42px), comfortable
-// horizontal padding (24px), subtle header tint, no zebra (uniform rows so
-// timestamps line up visually like a proper data grid).
+// Static CSS object — Emotion skips recomputation; Chakra tokens handle theming.
 const tableCss = {
   userSelect: "text",
   cursor: "text",
@@ -492,8 +486,6 @@ export function ResultTable({
         </Table.Root>
       </Box>
 
-      {/* Footer — stats only (count + duration). Infinite scroll via
-          handleScroll triggers load-more silently; no visible loading UI. */}
       {durationMs != null && (
         <Flex
           align="center"

@@ -21,7 +21,6 @@ describe("VariableDetailHeader", () => {
     expect(screen.getByTestId("variable-detail-header-key").textContent).toBe(
       "API_BASE",
     );
-    // Lucide renders the icon as an inline SVG inside the slot.
     expect(
       screen.getByTestId("variable-detail-header-glyph").querySelector("svg"),
     ).not.toBeNull();

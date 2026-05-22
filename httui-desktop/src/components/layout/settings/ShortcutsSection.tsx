@@ -10,7 +10,6 @@ const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
 const MOD = IS_MAC ? "Cmd" : "Ctrl";
 
 const SHORTCUTS: Shortcut[] = [
-  // Navigation
   {
     keys: [MOD, "P"],
     description: "Quick open — search files by name",
@@ -26,7 +25,6 @@ const SHORTCUTS: Shortcut[] = [
     description: "Switch to next tab in active pane",
     category: "Navigation",
   },
-  // Layout
   {
     keys: [MOD, "B"],
     description: "Toggle sidebar visibility",
@@ -44,7 +42,6 @@ const SHORTCUTS: Shortcut[] = [
   },
   { keys: [MOD, "W"], description: "Close active tab", category: "Layout" },
   { keys: [MOD, "L"], description: "Toggle chat panel", category: "Layout" },
-  // Editing
   {
     keys: [MOD, "S"],
     description: "Force save current file",

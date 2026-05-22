@@ -1,9 +1,3 @@
-// V10.1 — store-backed shim. Remotes are now polled by
-// `useGitStore` on the same 2s cadence as status (V10 had a manual
-// re-poll interval in GitPanelContainer; the store absorbs it so a
-// `git remote add` done outside the app still reflects). Public
-// shape unchanged for `useShareRepoUrl` + GitPanelContainer.
-
 import { useEffect } from "react";
 
 import { useGitStore } from "@/stores/git";

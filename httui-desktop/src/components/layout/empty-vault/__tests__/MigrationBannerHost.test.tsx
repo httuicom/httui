@@ -141,7 +141,6 @@ describe("MigrationBannerHost", () => {
     expect(screen.getByTestId("migration-success").textContent).toContain(
       "5 variable(s)",
     );
-    // After refresh the banner is gone
     expect(screen.queryByTestId("migration-banner")).toBeNull();
   });
 

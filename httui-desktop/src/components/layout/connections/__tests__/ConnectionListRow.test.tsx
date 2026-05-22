@@ -124,7 +124,6 @@ describe("ConnectionListRow", () => {
       />,
     );
     await userEvent.setup().click(screen.getByTestId("connection-row-c1-more"));
-    // Trigger click should not select the row.
     expect(onSelect).not.toHaveBeenCalled();
   });
 

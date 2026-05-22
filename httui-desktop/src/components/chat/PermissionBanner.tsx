@@ -54,13 +54,11 @@ export function PermissionBanner() {
   const [scope, setScope] = useState<PermissionScope>("once");
   const [originalContent, setOriginalContent] = useState<string | null>(null);
 
-  // Reset scope when a new permission request comes in
   useEffect(() => {
     if (pendingPermission) {
       setScope("once");
       setOriginalContent(null);
 
-      // Pre-fetch original content for update_note
       if (isUpdateNote(pendingPermission.toolName) && vaultPath) {
         const path = String(pendingPermission.toolInput.path ?? "");
         if (path) {
@@ -114,7 +112,6 @@ export function PermissionBanner() {
     });
   };
 
-  // Compact banner for update_note
   if (isNoteUpdate) {
     return (
       <Box
@@ -219,7 +216,6 @@ export function PermissionBanner() {
     );
   }
 
-  // Default banner for other tools
   return (
     <Box
       borderTop="1px solid"
@@ -294,7 +290,6 @@ export function PermissionBanner() {
         </Text>
       </Box>
 
-      {/* Scope selector */}
       <HStack gap={0} mt={1.5} mb={0.5}>
         {(["once", "session", "always"] as PermissionScope[]).map((s) => (
           <Box

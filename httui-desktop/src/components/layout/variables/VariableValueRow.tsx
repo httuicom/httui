@@ -1,14 +1,3 @@
-// Canvas §6 Variables — detail panel value row.
-//
-// One row per env. Two top-level modes: VIEW (display + Show/Hide for
-// secrets + Edit) and EDIT (input + Save/Cancel). Edit is gated to
-// values the user can already see — non-secret rows or
-// secret-revealed rows. When the parent passes `override`, the row
-// flips to OVERRIDE mode: the override value renders cleartext + the
-// TEMPORARY chip; reveal/edit are bypassed (clear the override first
-// to edit the underlying). The consumer plugs `fetchSecret` for
-// keychain resolution and `onCommit` to persist the edit
-// (`EnvironmentsStore::set_var` lands at the page mount).
 
 import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
 import { useState } from "react";
@@ -103,9 +92,7 @@ export function VariableValueRow({
   }
 
   function handleOverride() {
-    // Override never reveals the keychain value (it lives elsewhere
-    // and the override is its own ephemeral string). Start with the
-    // current cleartext when we already have it, otherwise blank.
+    // Override is ephemeral — start with revealed cleartext if available, otherwise blank.
     if (isSecret && reveal.kind === "revealed") {
       setDraft(reveal.value);
     } else if (!isSecret) {

@@ -1,10 +1,3 @@
-// Master-detail sidebar hint card (V5).
-//
-// The "Local credentials" / "Local secrets" hint shown at the bottom
-// of the Connections + Variables sidebars. Same layout, same tokens,
-// same icon-prefixed bold title — extracted so the visual stays
-// in lockstep across surfaces.
-
 import { Box, Flex, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import type { IconType } from "react-icons";

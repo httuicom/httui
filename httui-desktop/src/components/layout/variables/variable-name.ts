@@ -1,11 +1,6 @@
-// Canvas §6 Variables — name validation.
-//
-// Pure validator for the new-variable inline form. Rejects empty,
-// whitespace-only, name with internal whitespace, name containing `.`
-// (the dot is the reference path separator — `{{alias.foo.bar}}`),
-// and duplicates against the supplied existing names. Case-insensitive
-// duplicate check because env-files are usually written in upper-snake
-// and we don't want a near-collision (`API_BASE` vs `api_base`).
+// Pure validator for the new-variable form. Rejects whitespace, `.`
+// (dot is the `{{alias.foo.bar}}` path separator), and case-insensitive
+// duplicates (upper-snake names like API_BASE must not collide with api_base).
 
 export type NameValidationResult = { ok: true } | { ok: false; reason: string };
 

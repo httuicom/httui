@@ -1,13 +1,3 @@
-// V10 — Git panel shell with Status / Log / Audit tabs.
-//
-// Composes the carry sub-components (GitStatusHeader,
-// GitFileList, GitCommitForm, GitCommitDiffViewer, GitLogList,
-// GitAuditHeader) into a tabbed surface. Purely presentational and
-// controlled: the consumer (`GitPanelContainer`) owns data fetching,
-// the active tab, the commit-form state, and the dispatch callbacks.
-// Audit tab is "log, no action-type filters" per the V10 decision
-// (filters deferred to v1.x).
-
 import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
 import { Btn } from "@/components/atoms";
@@ -31,9 +21,6 @@ import { GitStatusHeader } from "./GitStatusHeader";
 import { GitSyncButtons, type SyncOp } from "./GitSyncButtons";
 import type { LogFilterState } from "./git-log-filter";
 
-// Audit tab dropped from v1 — without the action-type filters
-// (deferred to v1.x) it was identical to Log. It returns alongside
-// those filters. See out-of-scope-v1.md.
 export type GitPanelTab = "status" | "log";
 
 export const GIT_PANEL_TABS: ReadonlyArray<{

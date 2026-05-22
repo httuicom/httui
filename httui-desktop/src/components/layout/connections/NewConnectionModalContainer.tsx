@@ -1,7 +1,5 @@
-// wires <NewConnectionModal /> form state.
-//
-// Lifts kind + active tab + Postgres form value + SSL value, dispatches
-// the right child per tab, and submits createConnection on Save.
+// Wires <NewConnectionModal />: lifts kind, active tab, form value, and SSL value;
+// dispatches the right tab child; submits createConnection or updateConnection on Save.
 
 import { useEffect, useState } from "react";
 
@@ -35,12 +33,9 @@ import {
 interface NewConnectionModalContainerProps {
   open: boolean;
   onClose: () => void;
-  /** Called after a successful create / update so the parent can
-   * refresh the list. */
+  /** Called after a successful create/update so the parent can refresh. */
   onCreated: () => void;
-  /** When set, modal opens in "edit" mode pre-populated with this
-   * connection's fields. Save dispatches updateConnection instead
-   * of createConnection. */
+  /** When set, modal opens in edit mode pre-populated with this connection. */
   editing?: Connection | null;
 }
 
@@ -106,7 +101,6 @@ export function NewConnectionModalContainer({
 
   const isEdit = Boolean(editing);
 
-  // Hydrate form when entering edit mode (or when `editing` switches).
   useEffect(() => {
     if (!editing || !open) return;
     const drvKind: ConnectionKind =
@@ -122,7 +116,7 @@ export function NewConnectionModalContainer({
       port: editing.port !== null ? String(editing.port) : "",
       database: editing.database_name ?? "",
       username: editing.username ?? "",
-      password: "", // never echoed back from keychain — leave blank
+      password: "", // never echoed back from keychain
     });
     setSsl({
       mode: (editing.ssl_mode ?? "") as SslFormValue["mode"],
@@ -146,9 +140,7 @@ export function NewConnectionModalContainer({
     onClose();
   };
 
-  /** When the user picks a different kind, swap the kind defaults
-   * (port mostly) UNLESS they've started typing a name — preserves
-   * mid-edit state. */
+  // Swap kind defaults (port) unless the user already started typing a name.
   const handleKindChange = (next: ConnectionKind) => {
     setKind(next);
     if (form.name.trim().length === 0) {
@@ -160,10 +152,26 @@ export function NewConnectionModalContainer({
     if (!SUPPORTED_DRIVERS.has(kind)) return;
     if (form.name.trim().length === 0) return;
 
-    setError(null);
-    try {
-      if (isEdit && editing) {
-        await updateConnection(editing.id, buildUpdateInput(form, ssl));
+    if (isEdit && editing) {
+      // Password only sent when the user typed something; otherwise the keychain value stays.
+      const portNum = Number(form.port);
+      const update: UpdateConnectionInput = {
+        host: form.host.trim() || undefined,
+        port: Number.isFinite(portNum) && portNum > 0 ? portNum : undefined,
+        database_name: form.database.trim() || undefined,
+        username: form.username.trim() || undefined,
+        ssl_mode: ssl.mode || undefined,
+      };
+      if (form.password.length > 0) update.password = form.password;
+      await updateConnection(editing.id, update);
+    } else {
+      let input: CreateConnectionInput;
+      if (kind === "sqlite") {
+        input = {
+          name: form.name.trim(),
+          driver: "sqlite",
+          database_name: form.database.trim() || undefined,
+        };
       } else {
         await createConnection(buildCreateInput(kind, form, ssl));
       }

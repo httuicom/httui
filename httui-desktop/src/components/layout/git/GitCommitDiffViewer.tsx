@@ -1,17 +1,3 @@
-// commit diff inspector.
-//
-// Pure presentational. Receives the unified-diff text already fetched
-// by `gitDiff(vault, commitSha)` and renders it line-by-line in a
-// monospace block. Lines are colored:
-//   - additions (`+`) → accent
-//   - removals  (`-`) → error
-//   - headers (`@@`, `diff --git`, `index`, `+++`, `---`) → fg.3
-//   - everything else → fg
-//
-// A CM6-based viewer with proper diff syntax highlighting can land
-// later (consumer-side mount, sweep). For we keep
-// it simple — no editor instance to mount, no language pack to load.
-
 import { Box, Text } from "@chakra-ui/react";
 
 export interface GitCommitDiffViewerProps {

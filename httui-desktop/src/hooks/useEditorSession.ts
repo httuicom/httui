@@ -16,8 +16,7 @@ export function useEditorSession() {
     try {
       const { editorContents, openFile } = usePaneStore.getState();
       const cached = editorContents.get(filePath);
-      // Legacy TipTap sessions cached HTML — detect and force a fresh
-      // markdown read so the CM6 editor doesn't render an HTML string.
+      // Legacy TipTap sessions cached HTML; force a fresh read so CM6 doesn't render an HTML string.
       const needsRead = !cached || cached.trimStart().startsWith("<");
       if (needsRead) {
         const markdown = await readNote(vaultPath, filePath);
@@ -56,11 +55,8 @@ export function useEditorSession() {
             await writeNote(tabVaultPath, filePath, content);
             const store = usePaneStore.getState();
             store.markUnsaved(store.activePaneId, filePath, false);
-            // Reactive notification — `markUnsaved` mutates a Set in
-            // place (perf), so React doesn't see the dirty→clean
-            // transition. Consumers that need to react to "a save just
-            // landed" (e.g. `useFilePreflight` re-fetch) subscribe to
-            // `saveSignal` instead.
+            // `markUnsaved` mutates a Set in place (perf), so React doesn't see the dirty→clean
+            // transition. Consumers subscribe to `saveSignal` to react to a save landing.
             store.notifySaved();
             useTagIndexStore.getState().refreshTagsForFile(filePath, content);
           } catch (err) {
@@ -73,10 +69,7 @@ export function useEditorSession() {
   );
 
   const forceSave = useCallback(() => {
-    // Cancel any pending auto-save timer so we don't end up writing
-    // the same content twice (once now, once 1s later when the timer
-    // fires). The discrete callers — keyboard Cmd+S, DocHeader
-    // actions — own the save moment.
+    // Cancel the pending auto-save so the same content isn't written twice.
     if (autoSaveTimer.current) {
       clearTimeout(autoSaveTimer.current);
       autoSaveTimer.current = null;
@@ -100,9 +93,7 @@ export function useEditorSession() {
     }
   }, []);
 
-  // Register `forceSave` as the active-file saver so non-React code
-  // paths (DocHeader callbacks, etc.) can trigger an immediate write
-  // without prop-drilling through the component tree.
+  // Expose `forceSave` to non-React callers (e.g. DocHeader) without prop-drilling.
   useEffect(() => {
     setActiveFileSaver(forceSave);
     return () => setActiveFileSaver(null);

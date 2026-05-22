@@ -1,11 +1,4 @@
-// Canvas §5 — "Nova conexão" modal sidebar pick-kind.
-//
-// 220px column on the left of the modal. Header "Nova conexão" serif
-// 16 + sub "Escolha o tipo". Lists all 9 kinds from `connection-kinds.ts`
-// in canvas order; the active row gets `bg.3` background + accent left
-// border so the modal mirrors the page sidebar idiom without showing
-// counts (no existing-connection list inside the modal).
-//
+// Kind picker sidebar (220px) for the new-connection modal.
 // Pure presentational — selection lifted to the consumer.
 
 import { Box, Stack, Text, chakra } from "@chakra-ui/react";
@@ -22,9 +15,7 @@ const KindRowButton = chakra("button");
 export interface NewConnectionKindPickerProps {
   selectedKind: ConnectionKind;
   onSelectKind: (kind: ConnectionKind) => void;
-  /** When true (edit mode), the picker locks selection — driver is
-   * the natural key paired with name and can't change post-create.
-   * Non-selected rows render with reduced opacity and ignore clicks. */
+  /** Locks the picker in edit mode — driver can't change post-create. */
   disabled?: boolean;
   /** Header copy varies by mode. */
   mode?: "create" | "edit";

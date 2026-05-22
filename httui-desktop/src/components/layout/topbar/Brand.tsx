@@ -1,11 +1,3 @@
-// httui wordmark + 1×18 vertical divider — canvas §4.
-//
-// Uses the same logo assets as the marketing landing
-// (`httui-web/public/httui-{light,dark}-full.png`, 66×19). Theme-aware
-// via `useColorMode` so the dark variant kicks in when the workbench
-// switches modes. The PNG is rendered with a fixed height and `width
-// auto` so the aspect ratio stays clean.
-
 import { Box, HStack } from "@chakra-ui/react";
 
 import { useColorMode } from "@/components/ui/color-mode";

@@ -1,11 +1,3 @@
-// Input atom (design canvas §0).
-//
-// 24px tall, mono font, focus outline `--accent`. Wraps Chakra
-// `<Input>` with the canvas spec sizes and tags itself with
-// `data-atom="input"` for test/style hooks. Keeps the full Chakra
-// prop surface so consumers (search bars, env switcher overrides,
-// inline value cells) can use it as a drop-in.
-
 import { Input as ChakraInput, type InputProps } from "@chakra-ui/react";
 import { forwardRef } from "react";
 

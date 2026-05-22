@@ -1,12 +1,3 @@
-// pure log-filter helpers.
-//
-// Author filter is in-memory: the consumer keeps the full
-// `CommitInfo[]` and we just filter the array. Path filter goes
-// through the backend (`git_log(vault, limit, path)`) — there's no
-// in-memory equivalent here because `CommitInfo` doesn't carry the
-// touched paths. The `parsePathFilter` helper normalizes user input
-// (trims, drops trailing slashes, collapses internal whitespace).
-
 import type { CommitInfo } from "@/lib/tauri/git";
 
 /**
@@ -28,17 +19,13 @@ export function filterCommitsByAuthor(
 }
 
 /**
- * Normalize a path-filter query for handing to `git_log`. Returns
- * `null` for empty / whitespace input so the consumer can call
- * `git_log(vault, limit)` (no path filter) instead of
- * `git_log(vault, limit, "")`.
+ * Normalize a path-filter query for `git_log`. Returns `null` for empty input.
+ * Trailing slashes are stripped — git treats "src" and "src/" the same but
+ * the trailing-slash variant breaks pathspec interpretation in some edge cases.
  */
 export function parsePathFilter(query: string): string | null {
   const trimmed = query.trim();
   if (trimmed.length === 0) return null;
-  // Drop trailing slashes — git treats "src" and "src/" the same and
-  // the trailing-slash variant breaks pathspec interpretation in some
-  // edge cases.
   return trimmed.replace(/\/+$/u, "");
 }
 

@@ -198,11 +198,9 @@ export function HttpSettingsDrawer({
             />
           </Field.Root>
 
-          {/* ── Per-block flags (Onda 1) ── */}
           {PER_BLOCK_FLAGS.map(({ key, label, hint, defaultOn }) => {
             const value = settings[key];
-            // `historyDisabled` defaults OFF (i.e. checked=false), all others
-            // default ON. `value === undefined` means "use default".
+            // `undefined` means "use default"; historyDisabled defaults false, others true.
             const checked = value === undefined ? defaultOn : value;
             return (
               <Flex
@@ -293,7 +291,6 @@ export function HttpSettingsDrawer({
             </>
           )}
 
-          {/* ── Examples (Onda 3) ── */}
           <Text
             fontSize="xs"
             color="fg.muted"

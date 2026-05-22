@@ -1,16 +1,3 @@
-/**
- * Welcome screen rendered by AppShell when no vault is active.
- *
- * Lays out the canvas §3 surface: 260px workspace sidebar + centred
- * main column with three cards — Open / Clone / Create. The cards
- * are dumb; this screen owns the busy/error state and wires each
- * one to the workspace store + Tauri commands.
- *
- * Cenário 1 (V1): Open is fully functional. Clone and Create show
- * forms that surface "not implemented" errors inline. Cenários 2 e 3
- * complete those flows.
- */
-
 import { useCallback, useEffect, useState } from "react";
 import { Box, Flex, Heading, Stack, Text } from "@chakra-ui/react";
 
@@ -69,9 +56,7 @@ export function EmptyVaultScreen() {
 
   const handleClone = useCallback(
     async (url: string, parent: string | null) => {
-      // Clone errors render inline inside the card; only the busy
-      // flag is global. Re-throw so the card's local error state
-      // catches it without doubling up the screen-level banner.
+      // Errors render inline in the card; re-throw so the card catches them.
       setFlow({ busy: true, error: null });
       try {
         const outcome = await cloneVault(url, parent);
@@ -87,8 +72,7 @@ export function EmptyVaultScreen() {
 
   const handleCreate = useCallback(
     async (parentPath: string, name: string) => {
-      // Same inline-only error policy as Clone — re-throw so the
-      // card surfaces the message; only the busy flag is global.
+      // Errors render inline in the card; re-throw so the card catches them.
       setFlow({ busy: true, error: null });
       try {
         const outcome = await createVault(parentPath, name);
@@ -122,12 +106,8 @@ export function EmptyVaultScreen() {
     setFlow({ busy: false, error: null });
   }, [switchVault]);
 
-  // Paste-URL flow when the user pastes a clean
-  // http(s) URL while on the empty-vault screen, scaffold a vault and
-  // seed it with `runbooks/untitled.md` containing a runnable HTTP
-  // GET block for that URL. Non-URL pastes fall through to the OS
-  // default. Listens at document level so the user doesn't have to
-  // click anything first.
+  // Paste a bare http(s) URL on the empty-vault screen → scaffold a vault
+  // and seed it with a runnable GET block for that URL.
   const handleCreateWithUrl = useCallback(
     async (url: string) => {
       setFlow({ busy: true, error: null });

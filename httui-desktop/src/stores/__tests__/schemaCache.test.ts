@@ -86,7 +86,6 @@ describe("schemaCacheStore", () => {
         return [mkEntry("public", "t1", "c1")];
       });
 
-      // Fire two parallel calls before resolving
       const [a, b] = await Promise.all([
         useSchemaCacheStore.getState().ensureLoaded(CONN),
         useSchemaCacheStore.getState().ensureLoaded(CONN),

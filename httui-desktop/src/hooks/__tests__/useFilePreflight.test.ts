@@ -9,7 +9,6 @@ import type { EvaluatedPreflightItem } from "@/lib/tauri/preflight";
 describe("useFilePreflight", () => {
   beforeEach(() => {
     clearTauriMocks();
-    // Reset saveSignal so cross-test bumps don't leak.
     usePaneStore.setState({ saveSignal: 0 });
   });
 
@@ -193,8 +192,7 @@ describe("useFilePreflight", () => {
     expect(result.current.items[0]?.suggestion).toMatch(/payments-db/);
     expect(result.current.items[1]?.suggestion).toMatch(/API_TOKEN/);
     expect(result.current.items[2]?.suggestion).toMatch(/main/);
-    // Unknown kind: no suggestion (the future kind isn't actionable
-    // until the parser learns it).
+    // `unknown` kind has no suggestion until the parser learns it.
     expect(result.current.items[3]?.suggestion).toBeUndefined();
   });
 });

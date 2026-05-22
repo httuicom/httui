@@ -6,8 +6,6 @@ import type { ThemeConfig } from "@/lib/theme/config";
 import { DEFAULT_THEME } from "@/lib/theme/config";
 import { applyTheme } from "@/lib/theme/apply";
 
-// --- Types ---
-
 export interface AppSettings {
   autoSaveMs: number;
   editorFontSize: number;
@@ -30,31 +28,26 @@ const DEFAULTS: AppSettings = {
 export type ColorMode = "system" | "light" | "dark";
 
 interface SettingsState {
-  // Settings
   settingsOpen: boolean;
   settings: AppSettings;
   loaded: boolean;
   theme: ThemeConfig;
   colorMode: ColorMode;
 
-  // Editor settings
   vimEnabled: boolean;
   vimMode: string;
 
-  // Layout
   sidebarOpen: boolean;
   /** Git side-panel (VS-Code-style SCM column) open/closed. V10.1. */
   gitSidePanelOpen: boolean;
   /** Commit-message template (empty = built-in conditional default). */
   gitCommitTemplate: string;
 
-  // MVP-to-v1 migration banner
   mvpMigrationDismissed: boolean;
 
   /** Opt-in to pre-release auto-updates. */
   autoUpdateIncludePrereleases: boolean;
 
-  // Actions
   openSettings: () => void;
   closeSettings: () => void;
   updateSetting: <K extends keyof AppSettings>(
@@ -105,8 +98,6 @@ async function patchUiPrefs(
   };
   await setUserConfig(next);
 }
-
-// --- Store ---
 
 export const useSettingsStore = create<SettingsState>()(
   devtools(
@@ -234,12 +225,8 @@ export const useSettingsStore = create<SettingsState>()(
         const file = await getUserConfig();
         const ui = file.ui;
 
-        // Theme is persisted as JSON of the full ThemeConfig. The
-        // legacy migration writes a bare mode string
-        // since ThemeConfig has no `mode` field anymore (the v1
-        // theme is structural: accentColor, density, shadow, …),
-        // bare-string values fall through to DEFAULT_THEME and get
-        // overwritten on the next save.
+        // Theme is JSON of the full ThemeConfig; bare-string values
+        // (from an older migration) fall through to DEFAULT_THEME.
         let themeConfig = DEFAULT_THEME;
         const raw = ui.theme;
         if (raw) {

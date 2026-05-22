@@ -22,11 +22,9 @@ describe("DocHeaderChecklist", () => {
     expect(screen.getByTestId("docheader-checklist")).toBeInTheDocument();
     const rows = screen.getAllByTestId("docheader-checklist-row");
     expect(rows).toHaveLength(2);
-    // Read-only mode hides the × remove buttons.
     expect(
       screen.queryByTestId("docheader-checklist-remove"),
     ).not.toBeInTheDocument();
-    // The "+ Add check" affordance is editable-only.
     expect(
       screen.queryByTestId("docheader-checklist-add"),
     ).not.toBeInTheDocument();

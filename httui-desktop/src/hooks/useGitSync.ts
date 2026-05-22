@@ -1,19 +1,3 @@
-// one-click Sync.
-//
-// Orchestrates stage-all → commit → pull --ff-only → push as a
-// single button. Per-step state drives the progress feedback. Any
-// step that fails STOPS the flow and surfaces which step failed —
-// never a silent inconsistent state (a local commit that didn't
-// push still shows as "ahead" in the status header).
-//
-// No upstream → reuse the V10 set-upstream confirm: the flow pauses
-// before push, the panel renders the confirm, and confirm/cancel
-// resumes/aborts the push only (stage/commit/pull already done).
-//
-// Decisions (locked with the user 2026-05-16):
-//   stage-all (not just staged) · pull --ff-only (no merge commit) ·
-//   pull before push.
-
 import { useCallback, useState } from "react";
 
 import {

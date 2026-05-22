@@ -103,7 +103,6 @@ describe("DocHeaderAbstract", () => {
       ) as HTMLTextAreaElement;
       expect(input.tagName).toBe("TEXTAREA");
       expect(input.value).toBe("An abstract");
-      // Static text node is gone — the editable mode owns the slot.
       expect(
         screen.queryByTestId("docheader-abstract-text"),
       ).not.toBeInTheDocument();
@@ -154,7 +153,6 @@ describe("DocHeaderAbstract", () => {
       ) as HTMLTextAreaElement;
       await user.click(input);
       await user.keyboard("Hi{Enter}");
-      // Newline never makes it into the value.
       expect(input.value).toBe("Hi");
       vi.advanceTimersByTime(400);
       expect(onAbstractSave).toHaveBeenCalledWith("Hi");

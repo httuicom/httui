@@ -63,11 +63,8 @@ describe("findDocDbBlocks", () => {
   });
 
   it("does not match a db fence inside another open fence", () => {
-    // ```http opens a fence that "swallows" the inner ```db
-    // line. The implementation just waits for the next ``` close.
     const content = "```http\n```db-postgres connection=swallowed\nq\n```\n";
     const r = findDocDbBlocks(content);
-    // The outer http fence closes at the inner ```; nothing emitted.
     expect(r).toHaveLength(0);
   });
 });
