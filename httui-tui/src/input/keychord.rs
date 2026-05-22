@@ -1,40 +1,52 @@
 //! Keychord parsing — turns a human string like `"f2"`, `"ctrl+e"` or
-//! `"alt+shift+x"` into a [`KeyChord`] that can be matched against an
+//! `"shift+up"` into a [`KeyChord`] that can be matched against an
 //! incoming `crossterm` key event.
 //!
-//! Used by config-driven keybindings (`EditorConfig::toggle_mode_key`)
-//! so the default UX doesn't depend on a hard-coded chord — see
-//! tui-V03 / cenário 0, where `Ctrl+Shift+M` proved unreachable on a
+//! Used by config-driven keybindings (`EditorConfig` /
+//! `KeymapConfig`) so the default UX doesn't depend on hard-coded
+//! chords — see tui-V03, where `Ctrl+Shift+M` proved unreachable on a
 //! terminal without the kitty keyboard protocol.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-/// A parsed keychord: a key code plus the Ctrl / Alt modifier state.
+/// A parsed keychord: a key code plus the Ctrl / Alt / Shift state.
 ///
-/// `Shift` is intentionally NOT part of a chord. `Ctrl+Shift+<letter>`
-/// is unreliable across terminals (one modifier collapses), and
-/// `Shift` on a letter is already folded into its uppercase form — so
-/// [`KeyChord::matches`] compares letters case-insensitively and
-/// ignores `Shift` entirely.
+/// `Shift` is meaningful only for non-character keys (arrows, F-keys),
+/// where terminals report it reliably and it carries intent
+/// (`Shift+Up` = extend selection). On a *character* key, `Shift` is
+/// already folded into the letter's case and is too unreliable across
+/// terminals to gate on — so [`KeyChord::matches`] ignores `Shift` for
+/// `Char` codes and compares letters case-insensitively.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KeyChord {
     pub code: KeyCode,
     pub ctrl: bool,
     pub alt: bool,
+    pub shift: bool,
 }
 
 impl KeyChord {
     /// `true` when `key` is this chord. Letter codes compare
     /// case-insensitively; `Ctrl` and `Alt` must match exactly;
-    /// `Shift` is ignored.
+    /// `Shift` must match exactly for non-`Char` codes and is ignored
+    /// for `Char` codes.
     pub fn matches(&self, key: KeyEvent) -> bool {
         let code_ok = match (self.code, key.code) {
             (KeyCode::Char(a), KeyCode::Char(b)) => a.eq_ignore_ascii_case(&b),
             (a, b) => a == b,
         };
-        code_ok
-            && key.modifiers.contains(KeyModifiers::CONTROL) == self.ctrl
-            && key.modifiers.contains(KeyModifiers::ALT) == self.alt
+        if !code_ok {
+            return false;
+        }
+        if key.modifiers.contains(KeyModifiers::CONTROL) != self.ctrl
+            || key.modifiers.contains(KeyModifiers::ALT) != self.alt
+        {
+            return false;
+        }
+        match self.code {
+            KeyCode::Char(_) => true,
+            _ => key.modifiers.contains(KeyModifiers::SHIFT) == self.shift,
+        }
     }
 }
 
@@ -42,16 +54,18 @@ impl KeyChord {
 /// empty or malformed input so callers can fall back to a default.
 ///
 /// Grammar: modifier tokens joined to exactly one key token by `+`,
-/// e.g. `"ctrl+e"`, `"alt+shift+f4"`, `"f2"`. Case-insensitive,
+/// e.g. `"ctrl+e"`, `"shift+up"`, `"alt+f4"`, `"f2"`. Case-insensitive,
 /// whitespace around tokens is trimmed.
 ///
-/// - Modifiers: `ctrl`/`control`, `alt`/`opt`/`option`. `shift` is
-///   accepted but ignored (see [`KeyChord`]).
+/// - Modifiers: `ctrl`/`control`, `alt`/`opt`/`option`, `shift`.
 /// - Keys: `f1`..`f12`, a single character, or one of `enter`/
-///   `return`, `tab`, `esc`/`escape`, `space`, `backspace`.
+///   `return`, `tab`, `esc`/`escape`, `space`, `backspace`, the arrows
+///   `up`/`down`/`left`/`right`, `home`, `end`, `pageup`, `pagedown`,
+///   `delete`/`del`, `insert`.
 pub fn parse_key_chord(s: &str) -> Option<KeyChord> {
     let mut ctrl = false;
     let mut alt = false;
+    let mut shift = false;
     let mut code: Option<KeyCode> = None;
 
     for raw in s.split('+') {
@@ -62,7 +76,7 @@ pub fn parse_key_chord(s: &str) -> Option<KeyChord> {
         match part.as_str() {
             "ctrl" | "control" => ctrl = true,
             "alt" | "opt" | "option" => alt = true,
-            "shift" => {}
+            "shift" => shift = true,
             other => {
                 // A key token — exactly one is allowed per chord.
                 if code.is_some() {
@@ -77,6 +91,7 @@ pub fn parse_key_chord(s: &str) -> Option<KeyChord> {
         code: code?,
         ctrl,
         alt,
+        shift,
     })
 }
 
@@ -88,6 +103,16 @@ fn parse_key_code(token: &str) -> Option<KeyCode> {
         "esc" | "escape" => return Some(KeyCode::Esc),
         "space" => return Some(KeyCode::Char(' ')),
         "backspace" => return Some(KeyCode::Backspace),
+        "delete" | "del" => return Some(KeyCode::Delete),
+        "insert" => return Some(KeyCode::Insert),
+        "up" => return Some(KeyCode::Up),
+        "down" => return Some(KeyCode::Down),
+        "left" => return Some(KeyCode::Left),
+        "right" => return Some(KeyCode::Right),
+        "home" => return Some(KeyCode::Home),
+        "end" => return Some(KeyCode::End),
+        "pageup" => return Some(KeyCode::PageUp),
+        "pagedown" => return Some(KeyCode::PageDown),
         _ => {}
     }
     // F-keys: `f1`..`f12`. `strip_prefix` also matches the bare
@@ -114,32 +139,45 @@ mod tests {
         KeyEvent::new(code, mods)
     }
 
+    fn chord(code: KeyCode, ctrl: bool, alt: bool, shift: bool) -> KeyChord {
+        KeyChord {
+            code,
+            ctrl,
+            alt,
+            shift,
+        }
+    }
+
     #[test]
     fn parses_plain_f_key() {
-        let c = parse_key_chord("f2").unwrap();
-        assert_eq!(c, KeyChord { code: KeyCode::F(2), ctrl: false, alt: false });
+        assert_eq!(
+            parse_key_chord("f2").unwrap(),
+            chord(KeyCode::F(2), false, false, false)
+        );
     }
 
     #[test]
     fn parses_ctrl_letter() {
-        let c = parse_key_chord("ctrl+e").unwrap();
-        assert_eq!(c, KeyChord { code: KeyCode::Char('e'), ctrl: true, alt: false });
+        assert_eq!(
+            parse_key_chord("ctrl+e").unwrap(),
+            chord(KeyCode::Char('e'), true, false, false)
+        );
     }
 
     #[test]
     fn parses_modifier_aliases_and_alt() {
-        assert_eq!(parse_key_chord("control+e").unwrap().ctrl, true);
-        assert_eq!(parse_key_chord("alt+x").unwrap().alt, true);
-        assert_eq!(parse_key_chord("opt+x").unwrap().alt, true);
-        assert_eq!(parse_key_chord("option+x").unwrap().alt, true);
+        assert!(parse_key_chord("control+e").unwrap().ctrl);
+        assert!(parse_key_chord("alt+x").unwrap().alt);
+        assert!(parse_key_chord("opt+x").unwrap().alt);
+        assert!(parse_key_chord("option+x").unwrap().alt);
     }
 
     #[test]
-    fn shift_token_is_accepted_but_ignored() {
-        // `shift` parses fine but never lands in the chord.
+    fn parses_shift_token() {
+        let c = parse_key_chord("shift+up").unwrap();
+        assert_eq!(c, chord(KeyCode::Up, false, false, true));
         let c = parse_key_chord("ctrl+shift+m").unwrap();
-        assert_eq!(c, KeyChord { code: KeyCode::Char('m'), ctrl: true, alt: false });
-        assert_eq!(parse_key_chord("shift+f2").unwrap().code, KeyCode::F(2));
+        assert_eq!(c, chord(KeyCode::Char('m'), true, false, true));
     }
 
     #[test]
@@ -150,13 +188,33 @@ mod tests {
         assert_eq!(parse_key_chord("esc").unwrap().code, KeyCode::Esc);
         assert_eq!(parse_key_chord("escape").unwrap().code, KeyCode::Esc);
         assert_eq!(parse_key_chord("space").unwrap().code, KeyCode::Char(' '));
-        assert_eq!(parse_key_chord("backspace").unwrap().code, KeyCode::Backspace);
+        assert_eq!(
+            parse_key_chord("backspace").unwrap().code,
+            KeyCode::Backspace
+        );
+        assert_eq!(parse_key_chord("del").unwrap().code, KeyCode::Delete);
+        assert_eq!(parse_key_chord("delete").unwrap().code, KeyCode::Delete);
+        assert_eq!(parse_key_chord("insert").unwrap().code, KeyCode::Insert);
+    }
+
+    #[test]
+    fn parses_arrow_and_navigation_keys() {
+        assert_eq!(parse_key_chord("up").unwrap().code, KeyCode::Up);
+        assert_eq!(parse_key_chord("down").unwrap().code, KeyCode::Down);
+        assert_eq!(parse_key_chord("left").unwrap().code, KeyCode::Left);
+        assert_eq!(parse_key_chord("right").unwrap().code, KeyCode::Right);
+        assert_eq!(parse_key_chord("home").unwrap().code, KeyCode::Home);
+        assert_eq!(parse_key_chord("end").unwrap().code, KeyCode::End);
+        assert_eq!(parse_key_chord("pageup").unwrap().code, KeyCode::PageUp);
+        assert_eq!(parse_key_chord("pagedown").unwrap().code, KeyCode::PageDown);
     }
 
     #[test]
     fn is_case_insensitive_and_trims_whitespace() {
-        let c = parse_key_chord("  CTRL + F12 ").unwrap();
-        assert_eq!(c, KeyChord { code: KeyCode::F(12), ctrl: true, alt: false });
+        assert_eq!(
+            parse_key_chord("  CTRL + F12 ").unwrap(),
+            chord(KeyCode::F(12), true, false, false)
+        );
     }
 
     #[test]
@@ -183,11 +241,11 @@ mod tests {
     }
 
     #[test]
-    fn matches_ctrl_letter_case_folded() {
+    fn matches_ctrl_letter_case_folded_ignoring_shift() {
         let c = parse_key_chord("ctrl+e").unwrap();
         assert!(c.matches(ev(KeyCode::Char('e'), KeyModifiers::CONTROL)));
-        // Terminal may fold an accompanying Shift into uppercase —
-        // still a match (Shift is ignored).
+        // Terminal may fold an accompanying Shift into uppercase — for
+        // a Char code Shift is ignored, so this still matches.
         assert!(c.matches(ev(
             KeyCode::Char('E'),
             KeyModifiers::CONTROL | KeyModifiers::SHIFT
@@ -195,11 +253,29 @@ mod tests {
     }
 
     #[test]
+    fn shift_gates_non_char_keys_exactly() {
+        // `shift+up` must match Shift+Up and reject a bare Up.
+        let c = parse_key_chord("shift+up").unwrap();
+        assert!(c.matches(ev(KeyCode::Up, KeyModifiers::SHIFT)));
+        assert!(!c.matches(ev(KeyCode::Up, KeyModifiers::NONE)));
+        // ...and a bare `up` chord must reject Shift+Up.
+        let bare = parse_key_chord("up").unwrap();
+        assert!(bare.matches(ev(KeyCode::Up, KeyModifiers::NONE)));
+        assert!(!bare.matches(ev(KeyCode::Up, KeyModifiers::SHIFT)));
+    }
+
+    #[test]
     fn rejects_wrong_modifier_state() {
         let c = parse_key_chord("ctrl+e").unwrap();
-        assert!(!c.matches(ev(KeyCode::Char('e'), KeyModifiers::NONE)), "no ctrl");
         assert!(
-            !c.matches(ev(KeyCode::Char('e'), KeyModifiers::CONTROL | KeyModifiers::ALT)),
+            !c.matches(ev(KeyCode::Char('e'), KeyModifiers::NONE)),
+            "no ctrl"
+        );
+        assert!(
+            !c.matches(ev(
+                KeyCode::Char('e'),
+                KeyModifiers::CONTROL | KeyModifiers::ALT
+            )),
             "stray alt"
         );
     }
