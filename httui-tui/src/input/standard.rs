@@ -29,13 +29,13 @@ use crate::input::action::Action;
 /// Wired by the Standard branch of `crate::input::route::route`.
 pub fn resolve(key: KeyEvent) -> Option<Action> {
     // Leaf chord-to-action bindings live in the inspectable keymap
-    // table (Cenário 3 — single source). The cross-profile toggle
-    // (`Ctrl+Shift+M`) is intercepted by `route::route` BEFORE this
-    // function ever runs, but it also appears in the map so V9's UI
-    // can surface it; `lookup_standard` happens to find it too — no
-    // harm done, because if we ever reach here with the toggle chord
-    // (route lost the race) returning `Action::ToggleEditorMode`
-    // would still be the right semantic answer.
+    // table (Cenário 3 — single source). The cross-profile toggle is
+    // config-driven (`EditorConfig::toggle_mode_key`, default `f2`)
+    // and intercepted by `route::route` BEFORE this function ever
+    // runs. The map still carries a static `Ctrl+Shift+M` alias so
+    // V9's UI can surface a toggle binding; `lookup_standard` finding
+    // it too is harmless — returning `Action::ToggleEditorMode` is
+    // still the right semantic answer.
     if let Some(action) = crate::input::map::lookup_standard(key) {
         // tui-V2 vertical 2 / cenário 4: the data-driven map still
         // emits the generic `DeleteBackward` (shared with vim). Rewrite

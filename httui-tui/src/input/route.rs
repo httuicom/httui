@@ -14,22 +14,23 @@
 //!
 //! Introduced by tui-V1 / fase 2 p5.
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::App;
 use crate::config::EditorMode;
 
 /// Route one keystroke by the configured editor profile.
 pub fn route(app: &mut App, key: KeyEvent) {
-    // Hot toggle (Cenário 2 step 3 / Action::ToggleEditorMode):
-    // `Ctrl+Shift+M` flips `config.editor.mode` and resets transient
-    // input state in BOTH directions. Intercepted BEFORE the
-    // per-profile branch so the chord works regardless of the
-    // currently-active profile — `Vim::dispatch` would otherwise
-    // swallow it inside any modal state (e.g. Insert/Visual). Some
-    // terminals fold SHIFT+m to uppercase 'M'; others report lowercase
-    // 'm' with both modifiers set — accept both.
-    if is_toggle_editor_mode(key) {
+    // Hot toggle (Action::ToggleEditorMode): the configured chord
+    // (`EditorConfig::toggle_mode_key`, default `f2`) flips
+    // `config.editor.mode` and resets transient input state in BOTH
+    // directions. Intercepted BEFORE the per-profile branch so the
+    // chord works regardless of the currently-active profile —
+    // `Vim::dispatch` would otherwise swallow it inside any modal
+    // state (e.g. Insert/Visual). The default is an F-key, not
+    // `Ctrl+Shift+M`: that chord is unreachable on terminals without
+    // the kitty keyboard protocol (tui-V03 / cenário 0).
+    if is_toggle_editor_mode(&app.config.editor.toggle_mode_key, key) {
         toggle_editor_mode(app);
         return;
     }
@@ -43,12 +44,14 @@ pub fn route(app: &mut App, key: KeyEvent) {
     }
 }
 
-/// `true` when `key` is the cross-profile hot-toggle chord
-/// (`Ctrl+Shift+M`). Pure helper so route-tests can drive it without
-/// constructing an `App`.
-fn is_toggle_editor_mode(key: KeyEvent) -> bool {
-    let needs = KeyModifiers::CONTROL | KeyModifiers::SHIFT;
-    matches!(key.code, KeyCode::Char('m') | KeyCode::Char('M')) && key.modifiers.contains(needs)
+/// `true` when `key` is the configured vim↔standard toggle chord.
+/// A malformed config value parses to `None` → the toggle is simply
+/// unbound (the user fixes the string in `config.toml`) rather than
+/// panicking. Pure helper so route-tests can drive it directly.
+fn is_toggle_editor_mode(toggle_key: &str, key: KeyEvent) -> bool {
+    crate::input::keychord::parse_key_chord(toggle_key)
+        .map(|chord| chord.matches(key))
+        .unwrap_or(false)
 }
 
 /// Flip `config.editor.mode` and clear transient input state in BOTH
@@ -82,9 +85,10 @@ fn route_standard(app: &mut App, key: KeyEvent) {
     app.clear_status();
 
     // `Esc` while a query is running cancels it. fase 3 p3 moved
-    // this off `Ctrl+C` (which now decodes to `Copy` in the
-    // Standard profile) onto `Esc`. The vim path is untouched —
-    // it still cancels on `Ctrl+C` inside `dispatch` (Cenário 2
+    // query-cancel off `Ctrl+C` onto `Esc`; `Ctrl+C` in Standard is
+    // now contextual — copy an active selection, else quit the TUI
+    // (see the decode tail below). The vim path is untouched — it
+    // still cancels on `Ctrl+C` inside `dispatch` (Cenário 2
     // byte-identical). `Esc` without a running query stays a no-op
     // here: `standard::resolve` returns `None` for it, so the
     // decode tail below does nothing.
@@ -106,6 +110,19 @@ fn route_standard(app: &mut App, key: KeyEvent) {
     let Some(action) = crate::input::standard::resolve(key) else {
         return;
     };
+    use crate::input::action::Action;
+
+    // Ctrl+C is contextual in Standard mode: with an active selection
+    // it copies; with no selection it quits the TUI (Windows-Terminal
+    // style). `resolve` always decodes Ctrl+C to `Copy` — the pure
+    // decoder can't see selection state — so the no-selection → Quit
+    // rewrite lands here, where `app.standard` is reachable. This is
+    // Standard's only quit affordance (`:q` needs vim mode).
+    let action = if matches!(action, Action::Copy) && app.standard.anchor.is_none() {
+        Action::Quit
+    } else {
+        action
+    };
 
     // Auto-save edit-clock tap (tui-V01 / fase 5 p2). Set
     // `app.last_edit` for any action that *mutates* the buffer; the
@@ -116,7 +133,6 @@ fn route_standard(app: &mut App, key: KeyEvent) {
     // NOT reset the clock — otherwise just navigating after an edit
     // would push the debounce indefinitely. Ortogonal to
     // `edit_group`/`maybe_snapshot` (no shared state).
-    use crate::input::action::Action;
     if matches!(
         action,
         Action::InsertChar(_)
@@ -445,17 +461,20 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn standard_ctrl_c_no_longer_cancels_query() {
-        // Ctrl+C now decodes to Copy (no selection → no-op); it must
-        // NOT cancel the running query anymore (that's Esc's job).
+    async fn standard_ctrl_c_without_selection_quits_not_cancels() {
+        // Ctrl+C with no selection quits the TUI (contextual rewrite —
+        // Standard's only quit affordance). It must NOT cancel the
+        // running query — that's Esc's job.
         let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
         let rq = fake_running_query();
         let token = rq.cancel.clone();
         app.running_query = Some(rq);
+        assert!(app.standard.anchor.is_none(), "precondition: no selection");
         route(&mut app, ctrl(KeyCode::Char('c')));
+        assert!(app.should_quit, "Ctrl+C with no selection quits");
         assert!(
             !token.is_cancelled(),
-            "Ctrl+C must not cancel the query in Standard mode anymore"
+            "Ctrl+C must not cancel the query (Esc owns cancel)"
         );
     }
 
@@ -479,6 +498,10 @@ mod tests {
         assert!(
             app.standard.anchor.is_some(),
             "Copy keeps the selection alive"
+        );
+        assert!(
+            !app.should_quit,
+            "Ctrl+C with a selection copies — it must not quit"
         );
     }
 
@@ -750,64 +773,56 @@ mod tests {
     }
 
     // ---------------------------------------------------------------
-    // Hot toggle (Cenário 2 step 3 / Fase 6 p1) — Ctrl+Shift+M flips
-    // `config.editor.mode` from BOTH profiles, in EVERY mode, and
-    // resets transient input state in the receiving profile.
+    // Hot toggle — the configured chord (`EditorConfig::toggle_mode_key`,
+    // default `f2`) flips `config.editor.mode` from BOTH profiles, in
+    // EVERY mode, and resets transient input state in the receiving
+    // profile.
     // ---------------------------------------------------------------
 
-    // Note: the `ctrl_shift(KeyCode) -> KeyEvent` helper is defined
-    // earlier in this test module (Fase 3 selection tests) and reused
-    // here unchanged. Some terminals report `Ctrl+Shift+M` as
-    // `Char('m')` with both modifiers; others fold SHIFT into
-    // `Char('M')`. Both shapes must trigger the toggle.
+    // The chord grammar itself is covered by `crate::input::keychord`
+    // tests; here we only exercise the route helper's wiring and its
+    // malformed-config fallback. `app_with_note` builds the app from
+    // `Config::default()`, so the toggle key is `f2` in every test
+    // below.
 
     #[test]
-    fn is_toggle_chord_accepts_lowercase_m_with_ctrl_shift() {
-        // Pure helper test — no `App` needed. Covers the lowercase
-        // arm of the `Char('m') | Char('M')` match.
-        assert!(super::is_toggle_editor_mode(ctrl_shift(KeyCode::Char('m'))));
+    fn is_toggle_chord_matches_the_configured_f_key() {
+        assert!(super::is_toggle_editor_mode("f2", key(KeyCode::F(2))));
+        assert!(!super::is_toggle_editor_mode("f2", key(KeyCode::F(3))));
     }
 
     #[test]
-    fn is_toggle_chord_accepts_uppercase_m_with_ctrl_shift() {
-        // Some terminals fold SHIFT into uppercase — must still fire.
-        assert!(super::is_toggle_editor_mode(ctrl_shift(KeyCode::Char('M'))));
+    fn is_toggle_chord_matches_a_configured_ctrl_letter() {
+        assert!(super::is_toggle_editor_mode(
+            "ctrl+e",
+            ctrl(KeyCode::Char('e'))
+        ));
     }
 
     #[test]
-    fn is_toggle_chord_rejects_bare_ctrl_m() {
-        // Bare `Ctrl+M` is historically Enter — must NOT trigger the
-        // toggle. Only the SHIFT-augmented chord does.
-        assert!(!super::is_toggle_editor_mode(ctrl(KeyCode::Char('m'))));
+    fn is_toggle_chord_rejects_unrelated_key() {
+        assert!(!super::is_toggle_editor_mode("f2", ctrl(KeyCode::Char('s'))));
     }
 
     #[test]
-    fn is_toggle_chord_rejects_shift_m_without_ctrl() {
-        // Plain `Shift+M` is "type capital M" — must NOT toggle.
-        assert!(!super::is_toggle_editor_mode(KeyEvent::new(
-            KeyCode::Char('M'),
-            KeyModifiers::SHIFT,
-        )));
-    }
-
-    #[test]
-    fn is_toggle_chord_rejects_unrelated_chord() {
-        // Sanity: a wholly different chord (`Ctrl+S`) is not the
-        // toggle.
-        assert!(!super::is_toggle_editor_mode(ctrl(KeyCode::Char('s'))));
+    fn is_toggle_chord_unbound_when_config_is_malformed() {
+        // A garbage / empty config string parses to None → the toggle
+        // is simply unbound, never panics.
+        assert!(!super::is_toggle_editor_mode("", key(KeyCode::F(2))));
+        assert!(!super::is_toggle_editor_mode("nonsense", key(KeyCode::F(2))));
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn toggle_flips_standard_to_vim() {
         let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
-        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        route(&mut app, key(KeyCode::F(2)));
         assert_eq!(app.config.editor.mode, EditorMode::Vim);
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn toggle_flips_vim_to_standard() {
         let (mut app, _d, _v) = app_with_note(EditorMode::Vim).await;
-        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        route(&mut app, key(KeyCode::F(2)));
         assert_eq!(app.config.editor.mode, EditorMode::Standard);
     }
 
@@ -820,7 +835,7 @@ mod tests {
         route(&mut app, key(KeyCode::Char('i')));
         assert_eq!(app.vim.mode, crate::vim::mode::Mode::Insert);
         app.vim.pending_count = Some(7);
-        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        route(&mut app, key(KeyCode::F(2)));
         // Profile flipped AND vim state was reset.
         assert_eq!(app.config.editor.mode, EditorMode::Standard);
         assert_eq!(app.vim.mode, crate::vim::mode::Mode::Normal);
@@ -840,7 +855,7 @@ mod tests {
             app.standard.anchor.is_some(),
             "Shift+arrow should have seeded the Standard anchor"
         );
-        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        route(&mut app, key(KeyCode::F(2)));
         assert_eq!(app.config.editor.mode, EditorMode::Vim);
         assert!(
             app.standard.anchor.is_none(),
@@ -859,7 +874,7 @@ mod tests {
         route(&mut app, key(KeyCode::Char('i')));
         assert_eq!(app.vim.mode, crate::vim::mode::Mode::Insert);
         let before = app.document().unwrap().to_markdown();
-        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        route(&mut app, key(KeyCode::F(2)));
         let after = app.document().unwrap().to_markdown();
         assert_eq!(
             before, after,
@@ -878,7 +893,7 @@ mod tests {
         route(&mut app, key(KeyCode::Char('z')));
         let clock_before = app.last_edit;
         assert!(clock_before.is_some());
-        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        route(&mut app, key(KeyCode::F(2)));
         assert_eq!(
             app.last_edit, clock_before,
             "toggle must NOT reset the auto-save edit clock"
@@ -892,9 +907,9 @@ mod tests {
         // arrow after the round-trip must move the cursor (proves the
         // Standard route is alive) without re-seeding the anchor.
         let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
-        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        route(&mut app, key(KeyCode::F(2)));
         assert_eq!(app.config.editor.mode, EditorMode::Vim);
-        route(&mut app, ctrl_shift(KeyCode::Char('m')));
+        route(&mut app, key(KeyCode::F(2)));
         assert_eq!(app.config.editor.mode, EditorMode::Standard);
         assert!(app.standard.anchor.is_none());
         // Sanity: a typed char still inserts.

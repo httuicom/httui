@@ -72,10 +72,32 @@ pub enum EditorMode {
     Vim,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// Default chord for the vim↔standard toggle. An F-key so it works in
+/// every terminal regardless of the kitty keyboard protocol —
+/// `Ctrl+Shift+<letter>` collapses to a single modifier on terminals
+/// without it. Parsed by `crate::input::keychord::parse_key_chord`.
+fn default_toggle_mode_key() -> String {
+    "f2".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct EditorConfig {
     pub mode: EditorMode,
+    /// Keychord that toggles between vim and standard editing, e.g.
+    /// `"f2"`, `"f12"`, `"ctrl+e"`, `"alt+m"`. See `parse_key_chord`
+    /// for the accepted grammar.
+    #[serde(default = "default_toggle_mode_key")]
+    pub toggle_mode_key: String,
+}
+
+impl Default for EditorConfig {
+    fn default() -> Self {
+        Self {
+            mode: EditorMode::default(),
+            toggle_mode_key: default_toggle_mode_key(),
+        }
+    }
 }
 
 impl Default for Config {
