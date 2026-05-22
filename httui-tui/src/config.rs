@@ -1,4 +1,3 @@
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -136,26 +135,23 @@ impl Default for BlocksConfig {
     }
 }
 
-/// Path to the canonical config file under XDG.
+/// Path to the config file: `$HOME/.config/httui/config.toml`. Uses
+/// the unified data directory shared by every httui binary
+/// (`httui_core::paths::default_data_dir`) — NOT a Tauri/`ProjectDirs`
+/// namespace, so the TUI, desktop and MCP all converge on one dir.
 pub fn default_config_path() -> TuiResult<PathBuf> {
-    let dirs = ProjectDirs::from("com", "httui", "notes-tui")
-        .ok_or_else(|| TuiError::Config("could not resolve project dirs (no $HOME?)".into()))?;
-    Ok(dirs.config_dir().join("config.toml"))
+    let dir = httui_core::paths::default_data_dir()
+        .map_err(|e| TuiError::Config(format!("resolve config dir: {e}")))?;
+    Ok(dir.join("config.toml"))
 }
 
-/// Directory for the TUI's rolling log files, under XDG state (Linux)
-/// or data-local (macOS/Windows) — same `ProjectDirs` root as
+/// Directory for the TUI's rolling log files:
+/// `$HOME/.config/httui/logs` — under the same unified data dir as
 /// [`default_config_path`].
 pub fn log_dir() -> TuiResult<PathBuf> {
-    let dirs = ProjectDirs::from("com", "httui", "notes-tui")
-        .ok_or_else(|| TuiError::Config("could not resolve project dirs (no $HOME?)".into()))?;
-    // `state_dir` is Linux-only; on macOS/Windows fall back to data_local_dir.
-    let path = dirs
-        .state_dir()
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| dirs.data_local_dir().to_path_buf())
-        .join("logs");
-    Ok(path)
+    let dir = httui_core::paths::default_data_dir()
+        .map_err(|e| TuiError::Config(format!("resolve log dir: {e}")))?;
+    Ok(dir.join("logs"))
 }
 
 /// Load config from `path`, creating it with defaults on first run.
@@ -260,8 +256,8 @@ mod tests {
 
     #[test]
     fn log_dir_is_absolute_and_ends_in_logs() {
-        // ProjectDirs resolves against the test env's $HOME; assert only
-        // platform-stable invariants (no hardcoded XDG/macOS prefix).
+        // `default_data_dir` resolves against $HOME; assert only
+        // platform-stable invariants (no hardcoded prefix).
         let dir = log_dir().expect("log_dir resolves in a normal env");
         assert!(dir.is_absolute(), "log dir must be absolute: {dir:?}");
         assert!(dir.ends_with("logs"), "log dir must end in `logs`: {dir:?}");
@@ -269,12 +265,12 @@ mod tests {
 
     #[test]
     fn log_dir_shares_root_with_default_config_path() {
-        // Both derive from the same ProjectDirs("com","httui","notes-tui")
-        // root, so they sit under a common ancestor.
+        // Both derive from `httui_core::paths::default_data_dir()`
+        // (`$HOME/.config/httui`): config.toml sits directly in it and
+        // logs/ is a child — so the config file's parent equals the
+        // log dir's parent (the shared data dir).
         let log = log_dir().unwrap();
         let cfg = default_config_path().unwrap();
-        let cfg_root = cfg.parent().and_then(Path::parent);
-        let log_root = log.parent().and_then(Path::parent);
-        assert!(cfg_root.is_some() && log_root.is_some());
+        assert_eq!(cfg.parent(), log.parent());
     }
 }
