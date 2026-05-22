@@ -191,21 +191,38 @@ pub fn log_dir() -> TuiResult<PathBuf> {
     Ok(dir.join("logs"))
 }
 
+/// Serialize a `Config` to its canonical TOML form.
+fn render_config(cfg: &Config) -> TuiResult<String> {
+    toml::to_string_pretty(cfg).map_err(|e| TuiError::Config(format!("serialize config: {e}")))
+}
+
 /// Load config from `path`, creating it with defaults on first run.
+///
+/// On every load the file is re-written in canonical form: fields
+/// added since it was last saved (e.g. new `[keymap]` actions) appear
+/// with their defaults, so the user never has to consult docs to learn
+/// a binding name. The rewrite is best-effort — a write failure does
+/// not block startup, and it is skipped when the file is already
+/// canonical.
 pub fn load_or_init(path: &Path) -> TuiResult<Config> {
     if !path.exists() {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let cfg = Config::default();
-        let body = toml::to_string_pretty(&cfg)
-            .map_err(|e| TuiError::Config(format!("serialize defaults: {e}")))?;
-        std::fs::write(path, body)?;
+        std::fs::write(path, render_config(&cfg)?)?;
         return Ok(cfg);
     }
 
     let raw = std::fs::read_to_string(path)?;
-    toml::from_str(&raw).map_err(|e| TuiError::Config(format!("parse {path:?}: {e}")))
+    let cfg: Config =
+        toml::from_str(&raw).map_err(|e| TuiError::Config(format!("parse {path:?}: {e}")))?;
+    if let Ok(canonical) = render_config(&cfg) {
+        if canonical != raw {
+            let _ = std::fs::write(path, canonical);
+        }
+    }
+    Ok(cfg)
 }
 
 #[cfg(test)]
@@ -257,6 +274,23 @@ mod tests {
         let cfg = load_or_init(&path).unwrap();
         assert_eq!(cfg.theme, "dark");
         assert_eq!(cfg.sidebar_width, 50);
+    }
+
+    #[test]
+    fn load_or_init_backfills_missing_keymap() {
+        // A legacy config with no [keymap]: after load the file is
+        // rewritten with the full keymap, so the user sees and can
+        // edit every binding without consulting docs.
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("config.toml");
+        std::fs::write(&path, "theme = \"dark\"\n").unwrap();
+        let cfg = load_or_init(&path).unwrap();
+        assert_eq!(cfg.theme, "dark", "user value preserved");
+        let on_disk = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            on_disk.contains("[keymap]") && on_disk.contains("copy = "),
+            "load must rewrite the file with the full [keymap]:\n{on_disk}"
+        );
     }
 
     #[test]
