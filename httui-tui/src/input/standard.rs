@@ -131,8 +131,8 @@ mod tests {
         // Esc → handled specially by `route_standard` (query cancel).
         assert_eq!(resolve(&km(), k(KeyCode::Esc)), None);
         assert_eq!(resolve(&km(), k(KeyCode::Tab)), None);
-        // F-keys carry no default Standard binding.
-        assert_eq!(resolve(&km(), k(KeyCode::F(7))), None);
+        // F11 carries no default Standard binding (F1/F3-F10 do).
+        assert_eq!(resolve(&km(), k(KeyCode::F(11))), None);
     }
 
     // ───── tui-V2 vertical 2 / cenário 1 — `/` opens slash picker ─────

@@ -95,11 +95,44 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         spec("redo", "ctrl+y", Action::Redo),
         // Save.
         spec("save", "ctrl+s", Action::WriteFile),
-        // Block actions. `explain_block` defaults to `alt+x` rather
+        // Block execution. `explain_block` defaults to `alt+x` rather
         // than `ctrl+shift+x`: a chord matcher ignores Shift on letter
         // keys (Shift on a letter is unreliable across terminals), so
         // `ctrl+shift+x` would collide with `cut` (`ctrl+x`).
+        //
+        // Business actions below are vim-only in the modal engine
+        // (`g`-prefixed chords); `g` is a literal letter in Standard,
+        // so they get fresh F-key / Ctrl / Alt defaults here. F-keys
+        // for "open a panel" (discoverable, never collide with text),
+        // Ctrl/Alt for execution and navigation.
         spec("explain_block", "alt+x", Action::ExplainBlock),
+        spec("run_block", "f5", Action::RunBlock),
+        spec("rerun_last_block", "f6", Action::RerunLastBlock),
+        spec("jump_next_block", "alt+down", Action::JumpNextBlock),
+        spec("jump_prev_block", "alt+up", Action::JumpPrevBlock),
+        // Panels & pickers.
+        spec("open_help", "f1", Action::OpenHelp),
+        spec("open_tab_picker", "f3", Action::OpenTabPicker),
+        spec(
+            "open_environment_picker",
+            "f4",
+            Action::OpenEnvironmentPicker,
+        ),
+        spec("open_block_history", "f7", Action::OpenBlockHistory),
+        spec("open_export_picker", "f8", Action::OpenDbExportPicker),
+        spec("open_block_settings", "f9", Action::OpenDbSettingsModal),
+        spec(
+            "open_block_template_picker",
+            "f10",
+            Action::OpenBlockTemplatePicker,
+        ),
+        spec("quick_open", "ctrl+p", Action::EnterQuickOpen),
+        spec("content_search", "ctrl+f", Action::OpenContentSearch),
+        // Workspace.
+        spec("tree_toggle", "ctrl+b", Action::TreeToggle),
+        spec("tab_next", "ctrl+pagedown", Action::TabNext),
+        spec("tab_prev", "ctrl+pageup", Action::TabPrev),
+        spec("save_all", "ctrl+alt+s", Action::WriteAll),
     ]
 }
 
@@ -177,6 +210,28 @@ mod tests {
         assert_eq!(
             lookup(&keymap, ev(KeyCode::Up, KeyModifiers::SHIFT)),
             Some(Action::SelectExtend(Motion::Up)),
+        );
+    }
+
+    #[test]
+    fn lookup_finds_business_action_bindings() {
+        // The vim-only business actions get fresh Standard chords.
+        let keymap = resolve_standard_keymap(&KeymapConfig::default());
+        assert_eq!(
+            lookup(&keymap, ev(KeyCode::F(5), KeyModifiers::NONE)),
+            Some(Action::RunBlock),
+        );
+        assert_eq!(
+            lookup(&keymap, ev(KeyCode::Char('p'), KeyModifiers::CONTROL)),
+            Some(Action::EnterQuickOpen),
+        );
+        assert_eq!(
+            lookup(&keymap, ev(KeyCode::Char('b'), KeyModifiers::CONTROL)),
+            Some(Action::TreeToggle),
+        );
+        assert_eq!(
+            lookup(&keymap, ev(KeyCode::Down, KeyModifiers::ALT)),
+            Some(Action::JumpNextBlock),
         );
     }
 
