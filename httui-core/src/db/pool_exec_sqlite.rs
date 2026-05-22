@@ -1,7 +1,6 @@
 //! SQLite-specific execute helpers used by the `DatabasePool::execute_*`
 //! dispatchers.
 //!
-//! Extracted from `db::connections`.
 //! Owns SQLite SELECT pagination, mutation, value binding, and row →
 //! JSON conversion.
 
@@ -18,7 +17,6 @@ pub(super) async fn execute_select_sqlite(
     offset: u32,
     fetch_size: u32,
 ) -> Result<QueryResult, QueryErrorInfo> {
-    // Fetch one extra row to detect has_more
     let limit = (fetch_size + 1) as i64;
     let off = offset as i64;
     // EXPLAIN / PRAGMA / SHOW / DESCRIBE can't be subqueried, so run them
@@ -48,7 +46,7 @@ pub(super) async fn execute_select_sqlite(
     // output and never have "more".
     let has_more = paginated && rows.len() > fetch_size as usize;
     if has_more {
-        rows.pop(); // Remove the extra probe row
+        rows.pop();
     }
 
     let columns: Vec<ColumnInfo> = if let Some(first) = rows.first() {

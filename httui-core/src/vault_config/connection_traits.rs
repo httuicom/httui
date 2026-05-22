@@ -12,8 +12,6 @@
 //!
 //! Existing `match` arms across the codebase don't need touching —
 //! they all collapse to `connection.as_dyn().method()` calls.
-//!
-//! Extracted (OCP fix per `tech-debt.md`).
 
 use super::connections::{
     BigqueryConfig, CommonFields, Connection, GraphqlConfig, GrpcConfig, HttpConfig, MongoConfig,
@@ -74,8 +72,6 @@ pub trait DbConnection {
     /// path prefixes in error messages.
     fn validate_fields(&self, _connection_name: &str, _report: &mut Report) {}
 }
-
-// --- impl per variant ----------------------------------------------------
 
 impl DbConnection for PostgresConfig {
     fn driver(&self) -> &'static str {
@@ -263,8 +259,6 @@ impl DbConnection for ShellConfig {
         &self.common
     }
 }
-
-// --- enum dispatch -------------------------------------------------------
 
 impl Connection {
     /// Single-match dispatch from the enum into the trait. Replaces N

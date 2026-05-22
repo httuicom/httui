@@ -1,42 +1,18 @@
 //! Secret backends — abstraction layer over the OS keychain and
-//! upcoming alternatives (Touch ID, Stronghold, 1Password CLI, pass).
+//! alternatives (Touch ID, 1Password CLI, pass).
 //!
-//! The MVP path lives in [`crate::db::keychain`] and uses the OS
-//! keychain via the `keyring` crate. introduces this module
-//! as the boundary against which Epics 14–16 add new backends. For
-//! v1 every backend is local — there is no remote secret backend
-//! shipped with the desktop app.
+//! The primary path lives in [`crate::db::keychain`] and uses the OS
+//! keychain via the `keyring` crate. This module is the dispatch
+//! boundary: the resolver holds a `dyn SecretBackend` rather than
+//! importing each backend's module directly, allowing new backends to
+//! be added without touching callers.
 //!
-//! ## Why a trait instead of just calling functions
-//!
-//! The old shape — free `store_secret`, `get_secret`, `delete_secret`
-//! in `db::keychain` — couples every caller to "the OS keychain is
-//! the answer". Once we add Touch ID, Windows Hello
-//! and 1Password, the resolver needs to dispatch
-//! by reference type (`{{keychain:...}}` vs `{{1password:...}}` vs
-//! `{{pass:...}}`). The trait gives us a single object the resolver
-//! can hold without import-tangling each backend's module.
-//!
-//! ## What ships in this commit
-//!
-//! - [`SecretBackend`] trait — minimal `store/get/delete` surface.
-//! - [`Keychain`] — concrete impl that delegates to the existing
-//!   `db::keychain` free functions. The body of those functions is
-//!   not moved; this file is just the entry point that other
-//!   subsystems (and the future resolver) target.
-//! - [`parser`] submodule — pure ref-syntax parsing
-//!   (`{{backend:address}}`). Existing free helpers in
-//!   `db::keychain::resolve_secret_ref` and
-//!   `vault_config::validate::is_secret_ref` keep working as thin
-//!   wrappers.
+//! [`parser`] handles the ref-syntax (`{{backend:address}}`).
 
 pub mod parser;
 
-/// Errors a backend can return. Kept as a plain `String` for now —
-/// matches the existing `db::keychain` error type and keeps the
-/// boundary low-friction. Will tighten in the prompt-fix
-/// follow-up commit if we need to distinguish "user denied" from
-/// "system error".
+/// Errors a backend can return. Plain `String` — matches the existing
+/// `db::keychain` error type and keeps the boundary low-friction.
 pub type SecretError = String;
 pub type SecretResult<T> = Result<T, SecretError>;
 

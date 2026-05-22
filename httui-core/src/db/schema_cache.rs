@@ -5,7 +5,7 @@ use sqlx::Row;
 use super::connections::{DatabasePool, PoolManager};
 use super::schema_cache_remote::{introspect_mysql, introspect_postgres};
 
-// --- SQL queries (constants so tests can assert their shape) ---------------
+// SQL query constants — kept here so unit tests can assert their shape.
 
 /// Postgres / Aurora-Postgres / Redshift compatible introspection.
 /// Walks `information_schema.columns` and excludes catalog schemas

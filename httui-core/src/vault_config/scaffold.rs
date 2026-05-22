@@ -134,8 +134,6 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    // --- is_vault ----------------------------------------------------------
-
     #[test]
     fn empty_folder_is_not_a_vault() {
         let dir = TempDir::new().unwrap();
@@ -191,8 +189,6 @@ mod tests {
         std::fs::write(dir.path().join("Cargo.toml"), "x").unwrap();
         assert!(!is_vault(dir.path()));
     }
-
-    // --- scaffold_new_vault ------------------------------------------------
 
     #[test]
     fn scaffold_creates_full_structure() {

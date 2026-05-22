@@ -55,7 +55,7 @@ pub async fn init_db(app_data_dir: &Path) -> Result<SqlitePool, sqlx::Error> {
 
     run_migrations(&pool).await?;
 
-    // T33: Restrict file permissions on Unix (owner-only read/write)
+    // Restrict file permissions on Unix (owner-only read/write).
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -67,8 +67,7 @@ pub async fn init_db(app_data_dir: &Path) -> Result<SqlitePool, sqlx::Error> {
     Ok(pool)
 }
 
-// --- Internal DB query (read-only, for audit/settings UI) ---
-
+// Internal DB query — read-only, for audit/settings UI.
 const MAX_INTERNAL_FETCH_SIZE: u32 = 500;
 const MAX_INTERNAL_OFFSET: u32 = 100_000;
 
@@ -90,7 +89,6 @@ pub async fn query_internal_db(
     let trimmed = sql.trim_start();
     let upper = trimmed.to_uppercase();
 
-    // Enforce read-only
     let allowed = upper.starts_with("SELECT")
         || upper.starts_with("WITH")
         || upper.starts_with("EXPLAIN")
@@ -144,7 +142,6 @@ pub async fn query_internal_db(
 }
 
 async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    // Split migration file by statements and execute each
     for statement in MIGRATION_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -161,7 +158,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // Chat tables (CREATE IF NOT EXISTS — idempotent)
     for statement in MIGRATION_003_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -169,7 +165,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // Permission rules + messages.cache_read_tokens (idempotent: CREATE IF NOT EXISTS + ALTER may fail)
     for statement in MIGRATION_004_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -177,7 +172,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // T30: Query audit log (CREATE IF NOT EXISTS — idempotent)
     for statement in MIGRATION_005_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -185,7 +179,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // Stage 7: schema_cache.schema_name (ALTER may fail if column exists — ok)
     for statement in MIGRATION_006_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -193,7 +186,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // Stage 8: connections.is_readonly (ALTER may fail if column exists — ok)
     for statement in MIGRATION_007_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -201,7 +193,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // Stage 8: heal SQLite connections that had port coerced to 0 (idempotent)
     for statement in MIGRATION_008_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -209,7 +200,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // block run history (CREATE IF NOT EXISTS — idempotent)
     for statement in MIGRATION_009_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -217,7 +207,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // Onda 1: per-block settings (CREATE IF NOT EXISTS — idempotent)
     for statement in MIGRATION_010_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -225,7 +214,6 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // Onda 3: per-block pinned response examples (CREATE IF NOT EXISTS)
     for statement in MIGRATION_011_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -233,9 +221,7 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // block_run_history.plan (ALTER may fail
-    // when the column already exists — same idempotent pattern
-    // as 002 / 006 / 007 / 008).
+    // ALTER may fail when column already exists — same idempotent pattern as other ALTER migrations.
     for statement in MIGRATION_012_SQL.split(';') {
         let trimmed = statement.trim();
         if !trimmed.is_empty() {
@@ -243,12 +229,10 @@ async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         }
     }
 
-    // V4 fix: schema_cache.connection_id FK still pointed at the
-    // legacy SQLite `connections` table (now empty after).
-    // Migration recreates the table without the FK. Not idempotent
-    // at the SQL layer (DROP + RENAME), so guard at the Rust layer
-    // by inspecting pragma_foreign_key_list — only re-run while the
-    // FK is still present.
+    // Migration 013 recreates schema_cache without the connection_id FK.
+    // Not idempotent at the SQL layer (DROP + RENAME), so guard at the Rust
+    // layer by inspecting pragma_foreign_key_list — only re-run while the FK
+    // is still present.
     let fk_count: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM pragma_foreign_key_list('schema_cache')")
             .fetch_one(pool)
@@ -276,7 +260,6 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let pool = init_db(tmp.path()).await.unwrap();
 
-        // Verify tables exist by querying them
         let result = sqlx::query("SELECT COUNT(*) as count FROM app_config")
             .fetch_one(&pool)
             .await;
@@ -309,7 +292,6 @@ mod tests {
     async fn test_init_db_is_idempotent() {
         let tmp = TempDir::new().unwrap();
 
-        // Run twice — should not fail
         let pool1 = init_db(tmp.path()).await.unwrap();
         pool1.close().await;
 

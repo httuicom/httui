@@ -107,7 +107,6 @@ fn unique_suffix() -> String {
     format!("{nanos:x}-{pid:x}-{count:x}")
 }
 
-// Convenience: read a TOML file and deserialize into T.
 pub fn read_toml<T>(path: &Path) -> io::Result<T>
 where
     T: for<'de> serde::Deserialize<'de>,
@@ -116,7 +115,6 @@ where
     toml::from_str::<T>(&content).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 
-// Convenience: serialize T and atomically write to path.
 pub fn write_toml<T>(path: &Path, value: &T) -> io::Result<()>
 where
     T: serde::Serialize,
@@ -126,8 +124,6 @@ where
     write_atomic(path, &content)
 }
 
-// Quick existence check, useful before write to decide whether to
-// preserve mode.
 pub fn file_exists(path: &Path) -> bool {
     File::open(path).is_ok()
 }

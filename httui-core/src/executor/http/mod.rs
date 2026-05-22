@@ -702,8 +702,6 @@ impl Executor for HttpExecutor {
     }
 
     async fn execute(&self, params: serde_json::Value) -> Result<BlockResult, ExecutorError> {
-        // Backward-compatible path: call the cancel-aware impl with a never-
-        // cancelled token and convert the typed shape to BlockResult.
         let response = self
             .execute_with_cancel(params, CancellationToken::new())
             .await?;
@@ -917,8 +915,6 @@ mod tests {
         assert_eq!(result.data["status_code"], 200);
     }
 
-    // ───── Cancel-aware path ─────
-
     #[tokio::test]
     async fn test_execute_with_cancel_returns_typed_response() {
         let server = MockServer::start().await;
@@ -1061,8 +1057,6 @@ mod tests {
         assert_eq!(result.data["body"]["received"], "yes");
     }
 
-    // ─────────── Onda 1 — per-block flags (HttpParams extras) ───────────
-
     #[tokio::test]
     async fn http_params_accepts_new_flags() {
         // Just exercise the deserialization — the executor reads these via
@@ -1199,8 +1193,6 @@ mod tests {
         let result = executor.execute(params).await;
         assert!(result.is_ok(), "expected query to pass through verbatim");
     }
-
-    // ─────────── Onda 2 — interpret_body + multipart + binary ───────────
 
     #[test]
     fn interpret_body_text_for_json() {
@@ -1414,8 +1406,6 @@ mod tests {
         let err = result.unwrap_err().to_string();
         assert!(err.contains("Read body file"), "got: {err}");
     }
-
-    // ─────────── Onda 4 — streaming + ttfb + body cap ───────────
 
     /// Capture all chunks emitted on the callback. Returned `Arc<Mutex<Vec>>`
     /// is shared with the closure passed to `execute_streamed`.
@@ -1685,6 +1675,6 @@ mod tests {
         assert_eq!(response.status_code, 201);
         assert_eq!(response.body["ok"], true);
         assert_eq!(response.timing.total_ms, response.elapsed_ms);
-        assert!(response.timing.ttfb_ms.is_some(), "Onda 4 fills ttfb");
+        assert!(response.timing.ttfb_ms.is_some());
     }
 }

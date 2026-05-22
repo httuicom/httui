@@ -1,16 +1,10 @@
 //! Pre-flight checklist parsing + evaluation.
 //!
-//! Canvas §4 mocks a row of pills above the runbook body — one per
-//! item from the YAML frontmatter `preflight:` block-list. Each
-//! item declares one of six check kinds (connection / env_var /
-//! branch / keychain / file_exists / command); evaluates
-//! them against vault context.
-//!
-//! (this slice) ships only the parser. The parser reads
-//! the raw frontmatter region produced by `crate::frontmatter` —
-//! the slice-1 YAML parser keeps block-list children verbatim in
-//! `raw_yaml`, so this module owns the typed extraction for the
-//! `preflight:` section without touching the generic YAML parser.
+//! Each item in the YAML frontmatter `preflight:` block-list declares
+//! one of six check kinds (connection / env_var / branch / keychain /
+//! file_exists / command) evaluated against vault context. The parser
+//! reads the raw frontmatter region produced by `crate::frontmatter`
+//! and owns the typed extraction for the `preflight:` section.
 
 pub mod evaluator;
 pub mod io_evaluator;

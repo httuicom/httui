@@ -55,8 +55,6 @@ pub fn normalize_http_blocks(markdown: &str) -> String {
             continue;
         }
 
-        // Opening fence — emit it and consume body lines up to the next
-        // closing fence (or EOF).
         out.push(line.to_string());
         i += 1;
 
@@ -70,22 +68,17 @@ pub fn normalize_http_blocks(markdown: &str) -> String {
 
         match try_normalize_legacy(&body) {
             Some(canonical) => {
-                // Re-emit canonical body line-by-line; preserves the
-                // join-on-newline contract.
                 for nl in canonical.split('\n') {
                     out.push(nl.to_string());
                 }
             }
             None => {
-                // Not legacy → preserve original bytes. (split+push is a
-                // no-op on the body's internal newlines.)
                 for nl in &lines[body_start..body_end] {
                     out.push((*nl).to_string());
                 }
             }
         }
 
-        // Emit closing fence (if found) and advance past it.
         if i < lines.len() {
             out.push(lines[i].to_string());
             i += 1;
@@ -284,8 +277,6 @@ mod tests {
 
     #[test]
     fn rewrites_real_world_block_from_bug_report() {
-        // Mirrors the exact body shape from the user's screenshot — escapes the
-        // newline in `body` and uses `{{...}}` placeholders.
         let md = concat!(
             "```http alias=testd\n",
             "{\"body\":\"asdf=asdf\\nasdffdsa=asdf\",\"headers\":[{\"key\":\"Teste\",\"value\":\"{{BASE_URL}}\"},{\"key\":\"Content-Type\",\"value\":\"multipart/form-data\"}],\"method\":\"POST\",\"params\":[{\"key\":\"page\",\"value\":\"{{BASE_URL}}\"}],\"url\":\"https://httpbin.org/post\"}\n",

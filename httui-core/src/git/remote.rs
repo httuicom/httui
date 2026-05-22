@@ -36,7 +36,6 @@ fn parse_remote_list(raw: &str) -> Vec<Remote> {
         if name.is_empty() || rest.is_empty() {
             continue;
         }
-        // Strip the trailing "(fetch)" / "(push)" suffix.
         let url = rest
             .rsplit_once(' ')
             .map(|(u, _suffix)| u.trim().to_string())

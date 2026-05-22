@@ -7,8 +7,7 @@
 //! - `.httui/workspace.toml` — workspace defaults
 //! - `~/.config/httui/user.toml` — per-machine user prefs
 //!
-//! Plus `*.local.toml` overrides, handled by the merge layer (ADR 0004,
-//! built in a later epic).
+//! Plus `*.local.toml` overrides, handled by the merge layer (ADR 0004).
 
 pub mod atomic;
 pub mod connection_traits;

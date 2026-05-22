@@ -8,10 +8,6 @@
 //! become structured `Err(stderr)` values rather than panics, so the
 //! UI can surface them.
 //!
-//! Network ops (`pull` / `push`) are deliberately omitted from this
-//! foundation commit — they need progress reporting + auth flows
-//! that will land alongside the panel UI.
-
 pub mod checkout;
 pub mod clone;
 pub mod conflict;
@@ -35,24 +31,13 @@ pub use sync::{git_fetch, git_pull, git_push};
 use std::path::Path;
 use std::process::{Command, Output};
 
-/// Run `git -C <vault> <args...>` and capture stdout. Errors carry
-/// stderr verbatim so the UI can show what `git` actually said.
+/// Returns `true` when `git check-ignore --quiet -- <path>` reports
+/// the path is ignored (exit 0). Returns `false` for every other
+/// outcome: path not ignored (exit 1), path outside a git repo
+/// (exit 128), `git` not installed, IO failure, etc.
 ///
-/// Defensively clears the per-invocation `GIT_*` env vars that a
-/// parent `git` process (e.g. when this binary runs inside a git
-/// hook) injects to point children at the parent's index/work-tree
-/// — those would override `-C` and silently target the wrong repo.
-/// True when `git check-ignore --quiet -- <path>` reports the path
-/// is ignored (exit 0). Returns `false` for every other outcome:
-/// path not ignored (exit 1), path outside a git repo (exit 128),
-/// `git` not installed, IO failure, etc. Powers
-/// task 2 — the auto-discovery scanner uses this to skip e.g.
-/// `node_modules/<sub>/.env` without baking the noisy-dir list
-/// any deeper.
-///
-/// Best-effort: never returns `Err`. The caller should treat the
-/// `false` return as "we couldn't confirm it's ignored", not "it's
-/// definitely tracked".
+/// Best-effort: never returns `Err`. The caller should treat
+/// `false` as "couldn't confirm it's ignored", not "definitely tracked".
 pub fn is_path_gitignored<P: AsRef<Path>>(vault: P, path: &str) -> bool {
     let mut cmd = Command::new("git");
     cmd.arg("-C")
@@ -62,6 +47,11 @@ pub fn is_path_gitignored<P: AsRef<Path>>(vault: P, path: &str) -> bool {
     matches!(cmd.status(), Ok(s) if s.code() == Some(0))
 }
 
+/// Run `git -C <vault> <args...>` and capture stdout. Errors carry
+/// stderr verbatim so the UI can show what `git` actually said.
+/// Defensively clears per-invocation `GIT_*` env vars that a parent
+/// `git` process (e.g. inside a hook) injects — those would override
+/// `-C` and silently target the wrong repo.
 pub(crate) fn run_git<P: AsRef<Path>>(vault: P, args: &[&str]) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(vault.as_ref()).args(args);

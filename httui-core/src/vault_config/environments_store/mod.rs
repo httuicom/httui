@@ -23,12 +23,41 @@ use super::user::UserFile;
 use super::validate::{validate_env_file, Severity};
 use super::Version;
 
-mod dto;
+#[derive(Debug, Clone, Serialize)]
+pub struct EnvironmentPublic {
+    pub name: String,
+    pub description: Option<String>,
+    pub read_only: bool,
+    pub require_confirm: bool,
+    pub color: Option<String>,
+    pub var_count: usize,
+    pub secret_count: usize,
+    /// Canvas §6 `[meta].temporary`. Drives the
+    /// `temporary` chip in the Environments page.
+    pub temporary: bool,
+    /// Canvas §6 `[meta].connections_used` allowlist.
+    /// Empty list means "all connections".
+    pub connections_used: Vec<String>,
+}
 
-use dto::{env_to_public, is_valid_env_name};
-pub use dto::{EnvVariablePublic, EnvironmentPublic, SetVarInput};
+#[derive(Debug, Clone, Serialize)]
+pub struct EnvVariablePublic {
+    pub key: String,
+    /// Plaintext value when from `[vars]`; empty string when from
+    /// `[secrets]` (caller resolves on demand).
+    pub value: String,
+    pub is_secret: bool,
+}
 
-// --- Cache -------------------------------------------------------------------
+#[derive(Debug, Clone)]
+pub struct SetVarInput {
+    pub env_name: String,
+    pub key: String,
+    /// Raw value. For secret vars it's stored in the keychain and the
+    /// TOML keeps only a `{{keychain:...}}` reference.
+    pub value: String,
+    pub is_secret: bool,
+}
 
 /// Cache entry for one env file. Tracks both base and `.local`
 /// override mtimes per ADR 0004.
@@ -188,8 +217,8 @@ impl EnvironmentsStore {
 
     /// Read a single env's base file (no `.local` merge). Mutating
     /// paths use this so writes don't promote local overrides into
-    /// the committed base. See audit-003. Returns `None` when the
-    /// base file doesn't exist, even if a sibling `.local` does.
+    /// the committed base. Returns `None` when the base file doesn't
+    /// exist, even if a sibling `.local` does.
     async fn load_env_base_only(&self, name: &str) -> Result<Option<EnvFile>, String> {
         let path = self.env_file_path(name);
         if !path.exists() {
@@ -199,8 +228,6 @@ impl EnvironmentsStore {
             .map(Some)
             .map_err(|e| format!("read {}: {e}", path.display()))
     }
-
-    // --- env-level CRUD -------------------------------------------------
 
     pub async fn list_envs(&self) -> Result<Vec<EnvironmentPublic>, String> {
         let dir = self.envs_dir();
@@ -356,8 +383,6 @@ impl EnvironmentsStore {
         Ok(())
     }
 
-    // --- variable-level CRUD --------------------------------------------
-
     pub async fn list_vars(&self, env_name: &str) -> Result<Vec<EnvVariablePublic>, String> {
         let Some(file) = self.load_env(env_name).await? else {
             return Err(format!("environment '{env_name}' not found"));
@@ -452,9 +477,9 @@ impl EnvironmentsStore {
         if key.is_empty() {
             return Err("variable key is required".to_string());
         }
-        // Mutate base only (audit-003). Existence check uses the
-        // merged view above (load_env) implicitly: a local-only env
-        // has no base file, so the load_env_base_only error fires.
+        // Existence check uses the merged view above (load_env)
+        // implicitly: a local-only env has no base file, so the
+        // load_env_base_only error fires.
         let mut file = self
             .load_env_base_only(&env_name)
             .await?
@@ -502,7 +527,6 @@ impl EnvironmentsStore {
     }
 
     pub async fn delete_var(&self, env_name: &str, key: &str) -> Result<(), String> {
-        // Mutate base only (audit-003).
         let mut file = self
             .load_env_base_only(env_name)
             .await?
@@ -522,8 +546,6 @@ impl EnvironmentsStore {
         self.persist_env(env_name, file).await?;
         Ok(())
     }
-
-    // --- active-env tracking (per-machine) ------------------------------
 
     fn read_user_file(&self) -> Result<UserFile, String> {
         if !self.user_config_path.exists() {
@@ -916,7 +938,6 @@ mod tests {
         let env_name = unique_name("switch");
         store.create_env(&env_name).await.unwrap();
 
-        // Start as plain var
         store
             .set_var(SetVarInput {
                 env_name: env_name.clone(),

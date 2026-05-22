@@ -1,8 +1,8 @@
 //! Detect which forge a `git remote` URL points at.
 //!
-//! Used by the stories 02 + 03 to compose forge-specific URLs
-//! (`<origin>/blob/<sha>/<path>` for GitHub, `<origin>/-/blob/...`
-//! for GitLab) and the compare/PR URL. Pure parsing; no network.
+//! Used to compose forge-specific URLs (`<origin>/blob/<sha>/<path>`
+//! for GitHub, `<origin>/-/blob/...` for GitLab) and compare/PR URLs.
+//! Pure parsing; no network.
 //!
 //! Accepts both SSH (`git@github.com:owner/repo.git`) and HTTPS
 //! (`https://github.com/owner/repo.git`) shapes, with or without
@@ -13,7 +13,7 @@
 //! a URL whose host is unknown but whose path starts with at least
 //! two segments (`/owner/repo`) is treated as a self-hosted forge.
 //! Without out-of-band configuration we can't reliably know if a
-//! given private host is GitLab vs Gitea — Stories 02/03 fall back
+//! given private host is GitLab vs Gitea — the consumer falls back
 //! to "Manual: open <origin>" in that case.
 
 use serde::Serialize;
@@ -64,9 +64,7 @@ pub fn parse_remote_url(url: &str) -> Option<ParsedRemote> {
     {
         // <scheme>://[user@]host[:port]/owner/repo[.git]
         let (h, p) = stripped.split_once('/')?;
-        // Strip any `user@` prefix on the host.
         let h = h.split('@').next_back().unwrap_or(h);
-        // Strip `:port` if present.
         let h = h.split(':').next().unwrap_or(h);
         (h.to_string(), p.to_string())
     } else {

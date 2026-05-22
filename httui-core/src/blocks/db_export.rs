@@ -18,8 +18,6 @@
 use crate::db::connections::ColumnInfo;
 use serde_json::Value;
 
-// ─── CSV ────────────────────────────────────────────────────────────
-
 /// RFC 4180-ish CSV. Quotes any field containing CR, LF, comma, or
 /// double-quote; doubles internal quotes. `null` values become empty
 /// fields (NOT the literal string "null") so spreadsheets see a real
@@ -66,8 +64,6 @@ fn format_cell_csv(value: Option<&Value>) -> String {
     }
 }
 
-// ─── JSON ───────────────────────────────────────────────────────────
-
 /// Pretty-printed JSON array of row objects. Trailing newline included
 /// so writing the result to a file leaves a POSIX-friendly final byte.
 pub fn to_json(rows: &[Value]) -> String {
@@ -75,8 +71,6 @@ pub fn to_json(rows: &[Value]) -> String {
     s.push('\n');
     s
 }
-
-// ─── Markdown table ─────────────────────────────────────────────────
 
 /// GitHub-flavored Markdown table. Pipes and backslashes inside cells
 /// are escaped so the table stays syntactically valid; embedded
@@ -124,8 +118,6 @@ fn format_cell_md(value: Option<&Value>) -> String {
         Some(other) => other.to_string(),
     }
 }
-
-// ─── INSERT statements ─────────────────────────────────────────────
 
 /// Emit one `INSERT INTO <table> (cols) VALUES (...)` per row. Strings
 /// get SQL-quoted with single quotes (escaping internal `'` by
@@ -200,8 +192,6 @@ fn sql_literal(value: Option<&Value>) -> String {
         }
     }
 }
-
-// ─── Table-name inference ─────────────────────────────────────────
 
 /// Best-effort pull of a table name from a SQL query: first identifier
 /// after the first `FROM` keyword (case-insensitive). Used as the
@@ -282,8 +272,6 @@ fn strip_sql_comments(sql: &str) -> String {
     out
 }
 
-// ─── Convenience ─────────────────────────────────────────────────
-
 /// `true` when there's at least one column AND one row to serialize.
 /// Callers gate the export menu on this so an empty result set
 /// doesn't produce a header-only CSV / empty markdown table.
@@ -306,8 +294,6 @@ mod tests {
     fn cols(names: &[&str]) -> Vec<ColumnInfo> {
         names.iter().map(|n| col(n)).collect()
     }
-
-    // ─── CSV ─────
 
     #[test]
     fn csv_emits_header_then_rows() {
@@ -353,8 +339,6 @@ mod tests {
         assert!(csv.contains("\"{\"\"a\"\":1}\""), "got: {csv}");
     }
 
-    // ─── JSON ─────
-
     #[test]
     fn json_pretty_array_with_trailing_newline() {
         let rows = vec![json!({"id": 1})];
@@ -363,8 +347,6 @@ mod tests {
         assert!(s.ends_with("]\n"));
         assert!(s.contains("\"id\": 1"));
     }
-
-    // ─── Markdown ─────
 
     #[test]
     fn markdown_emits_header_separator_and_rows() {
@@ -393,8 +375,6 @@ mod tests {
         assert!(md.contains("line1 line2"));
         assert!(!md.contains("line1\nline2"));
     }
-
-    // ─── INSERT ─────
 
     #[test]
     fn inserts_basic_row() {
@@ -466,8 +446,6 @@ mod tests {
         assert!(sql.contains("(\"weird name\")"));
     }
 
-    // ─── infer_table_name ─────
-
     #[test]
     fn infer_simple_select() {
         assert_eq!(
@@ -524,8 +502,6 @@ mod tests {
         let sql = "SELECT fromage FROM foods";
         assert_eq!(infer_table_name(sql), Some("foods".into()));
     }
-
-    // ─── has_exportable_rows ─────
 
     #[test]
     fn empty_result_not_exportable() {

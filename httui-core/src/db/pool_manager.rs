@@ -1,11 +1,8 @@
 //! Pool lifecycle, TTL eviction, status emission.
 //!
-//! Extracted from `db::connections`.
-//! `connections.rs` was 2894 L mixing 7 concerns; this file owns the
-//! pool-management one. Holds an `Arc<dyn ConnectionLookup>` (file-
-//! backed in production via `vault_config::ConnectionsStore`,
-//! `SqliteLookup` in legacy tests) — no direct SQLite coupling for
-//! connection records.
+//! Holds an `Arc<dyn ConnectionLookup>` (file-backed in production via
+//! `vault_config::ConnectionsStore`, `SqliteLookup` in legacy tests) —
+//! no direct SQLite coupling for connection records.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -140,7 +137,7 @@ impl PoolManager {
         connection_id: &str,
         ov: Option<&HostPortOverride>,
     ) -> Result<Arc<DatabasePool>, String> {
-        // Check cache — write lock to update last_used on hit
+        // Write lock on cache hit to update last_used.
         {
             let mut pools = self.pools.write().await;
             if let Some(entry) = pools.get_mut(cache_key) {
@@ -149,7 +146,6 @@ impl PoolManager {
             }
         }
 
-        // Not cached — resolve connection and create pool
         let mut conn = self
             .lookup
             .lookup(connection_id)
@@ -257,12 +253,9 @@ impl PoolManager {
         let pool = create_pool(&conn).await?;
         pool.test().await?;
 
-        // The legacy `UPDATE connections SET last_tested_at` write is
-        // dropped: the file-backed schema doesn't carry that field, and
-        // the live status emitter (`emit_connection_status`) is the
-        // user-facing signal anyway. Reintroduce as a per-machine cache
-        // (e.g. `~/.config/httui/connection_status.toml`) if a UI need
-        // emerges — out of scope for v1 (audit-015 Phase 3 decision).
+        // The legacy `UPDATE connections SET last_tested_at` write was dropped:
+        // the file-backed schema doesn't carry that field and the live status
+        // emitter (`emit_connection_status`) is the user-facing signal.
 
         Ok(())
     }
@@ -362,7 +355,6 @@ mod tests {
     async fn app_pool_returns_borrow_of_inner_pool() {
         let app = memory_app_pool().await;
         let mgr = PoolManager::new_standalone(Arc::new(NoopLookup), app);
-        // Use it to run a query — proves we got a working pool back.
         let row: (i32,) = sqlx::query_as("SELECT 1")
             .fetch_one(mgr.app_pool())
             .await
@@ -518,8 +510,6 @@ mod tests {
             .unwrap();
         assert_eq!(count, 5, "old rows should be deleted, recent ones kept");
     }
-
-    // ───── host:port session override ────────────────────
 
     #[test]
     fn host_port_override_is_empty_only_when_both_none() {

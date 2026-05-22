@@ -8,7 +8,7 @@
 //! `editor_font_size`, `default_fetch_size`, `history_retention`,
 //! `vim_enabled`, `sidebar_open`). Session-state keys (`vaults`,
 //! `active_vault`, `pane_layout`, `active_pane_id`, `active_file`,
-//! `scroll_positions`) **stay in SQLite** per audit-001.
+//! `scroll_positions`) stay in SQLite.
 //!
 //! The migration is **idempotent**: rerunning on an already-populated
 //! vault is safe — duplicate-name failures from the underlying stores
@@ -160,18 +160,13 @@ pub async fn run_migration(
 }
 
 /// Migrate the seven UI prefs keys from `app_config` into the
-/// per-machine `user.toml [ui]` section. See audit-005 for the
-/// scope decision and the original audit
-/// for the per-key
-/// classification.
+/// per-machine `user.toml [ui]` section.
 async fn migrate_prefs(
     pool: &SqlitePool,
     user_config_path: &Path,
     dry_run: bool,
     report: &mut MigrationReport,
 ) -> Result<(), String> {
-    // Read each app_config row; missing rows just leave the
-    // corresponding UiPrefs field at its default.
     let mut prefs = UiPrefs::default();
     let mut count: usize = 0;
 
@@ -231,11 +226,8 @@ async fn get_pref(pool: &SqlitePool, key: &str) -> Result<Option<String>, String
         .map_err(|e| format!("read app_config[{key}]: {e}"))
 }
 
-/// MVP frontend serialised theme as a JSON object
-/// `{ mode, accent, ... }` per `stores/settings.ts`. We only
-/// migrate `mode` into the `theme` string; accent/etc. are
-/// per-machine UI niceties that the new `[ui]` section doesn't
-/// have room for yet — + will expand the schema if needed.
+/// Parse the MVP frontend theme value (JSON object `{ mode, accent, ... }`
+/// or bare string) and write `mode` into `out.theme`.
 /// Returns `true` when at least the `mode` field was extracted.
 fn apply_theme_json(raw: &str, out: &mut UiPrefs) -> bool {
     let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) else {
@@ -359,8 +351,6 @@ mod tests {
     use crate::db::init_db;
     use tempfile::TempDir;
 
-    // --- Detection tests -------------------------------------------------
-
     #[test]
     fn detect_returns_neither_for_empty_vault() {
         let tmp = TempDir::new().unwrap();
@@ -439,8 +429,6 @@ mod tests {
     fn legacy_db_file_constant_is_notes_db() {
         assert_eq!(LEGACY_DB_FILE, "notes.db");
     }
-
-    // --- Existing migration tests below ----------------------------------
 
     /// Setup helper: fresh SQLite + populated with one connection,
     /// one environment, two vars (one secret).
@@ -620,8 +608,6 @@ mod tests {
         let input = legacy_to_input(&c);
         assert!(input.port.is_none());
     }
-
-    // --- prefs migration -----------------------------------------------
 
     #[tokio::test]
     async fn migrate_prefs_round_trip() {

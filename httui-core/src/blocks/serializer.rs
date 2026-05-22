@@ -76,7 +76,6 @@ fn serialize_http_block(block: &ParsedBlock) -> String {
         .and_then(|v| v.as_str())
         .unwrap_or("");
 
-    // Build the request line: METHOD URL?key=value&key=value.
     let mut request_line = String::new();
     request_line.push_str(&method);
     request_line.push(' ');
@@ -90,7 +89,6 @@ fn serialize_http_block(block: &ParsedBlock) -> String {
         request_line.push_str(&query_string);
     }
 
-    // Headers: one per line, in insertion order.
     let mut header_lines = String::new();
     for h in headers {
         let key = h.get("key").and_then(|v| v.as_str()).unwrap_or("");
@@ -107,10 +105,6 @@ fn serialize_http_block(block: &ParsedBlock) -> String {
     let mut body_block = String::new();
     let trimmed_body = body.trim_end_matches('\n');
     if !trimmed_body.is_empty() {
-        // Blank separator before the body, mirroring the HTTP wire
-        // format. The body itself preserves whatever the user wrote
-        // — JSON, form-data, multipart, plain text — without
-        // re-encoding.
         body_block.push_str("\n\n");
         body_block.push_str(trimmed_body);
     }
@@ -233,8 +227,6 @@ mod tests {
         assert_eq!(s1, s2, "serialization must be idempotent");
     }
 
-    // ─── Roundtrip across all 3 block types ───
-
     #[test]
     fn roundtrip_http_simple() {
         let md = "```http alias=login\n{\"method\":\"POST\",\"url\":\"https://api.test.com/login\",\"params\":[],\"headers\":[],\"body\":\"\"}\n```\n";
@@ -277,8 +269,6 @@ mod tests {
         assert_idempotent(md);
     }
 
-    // ─── DB info-string canonical order ───
-
     #[test]
     fn db_info_string_emits_canonical_order() {
         let parsed = parse_blocks(
@@ -313,8 +303,6 @@ mod tests {
             "```db-postgres alias=u connection=x timeout=5000\nSELECT 1\n```"
         );
     }
-
-    // ─── HTTP canonical form (HTTP-message body) ───
 
     #[test]
     fn http_emits_request_line_with_method_and_url() {
@@ -381,8 +369,6 @@ mod tests {
         let reparsed = parse_blocks(&out);
         assert_eq!(reparsed.len(), 1);
     }
-
-    // ─── Forward-compat for unknown types ───
 
     #[test]
     fn unknown_block_type_serializes_as_json() {

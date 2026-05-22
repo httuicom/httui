@@ -36,14 +36,12 @@ pub fn parse_blocks(markdown: &str) -> Vec<ParsedBlock> {
         let line = lines[i];
         let trimmed = line.trim();
 
-        // Detect opening fence (``` with info string)
         if let Some(info) = strip_fence_open(trimmed) {
             let (block_type, attrs) = parse_info_string(info);
 
             if EXECUTABLE_TYPES.contains(&block_type.as_str()) {
                 let line_start = i;
 
-                // Collect body lines until closing fence
                 let mut body_lines = Vec::new();
                 i += 1;
                 while i < lines.len() {
@@ -615,8 +613,6 @@ not valid json
         assert!(blocks.is_empty());
     }
 
-    // ───── New DB fence format (raw SQL body) ─────
-
     #[test]
     fn test_parse_db_new_format_raw_sql() {
         let md = r#"```db-postgres alias=db1 connection=prod limit=100 timeout=30000 display=split
@@ -682,8 +678,6 @@ WHERE id > 10
         assert!(blocks[0].params.get("timeout_ms").is_none());
     }
 
-    // ───── Legacy JSON body format — must keep working ─────
-
     #[test]
     fn test_parse_db_legacy_format_still_works() {
         let md = r#"```db-postgres alias=users displayMode=split
@@ -713,8 +707,6 @@ WHERE id > 10
         assert_eq!(blocks[0].params["offset"], 10);
         assert_eq!(blocks[0].params["fetch_size"], 50);
     }
-
-    // ───── Heuristic edge cases ─────
 
     #[test]
     fn test_parse_db_json_without_query_field_is_treated_as_sql() {
@@ -749,8 +741,6 @@ WHERE id > 10
         assert_eq!(blocks[0].params["query"], "SELECT 1");
     }
 
-    // ───── Non-db blocks must not be affected ─────
-
     #[test]
     fn test_http_block_body_still_parsed_as_json() {
         let md = r#"```http alias=x
@@ -771,8 +761,6 @@ WHERE id > 10
         assert!(blocks[0].params.get("query").is_none());
         assert_eq!(blocks[0].params["url"], "");
     }
-
-    // ───── New HTTP fence format (HTTP message body) ─────
 
     #[test]
     fn test_parse_http_new_format_get_simple() {
@@ -905,8 +893,6 @@ Authorization: Bearer x
         assert_eq!(blocks[0].params["method"], "GET");
         assert_eq!(blocks[0].params["url"], "");
     }
-
-    // ───── Legacy HTTP JSON body — must keep working ─────
 
     #[test]
     fn test_parse_http_legacy_format_still_works() {

@@ -4,8 +4,6 @@ use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 
 /// Compute a block hash that includes content + environment + connection context.
-/// This ensures cache invalidation when environment or connection changes (T31),
-/// and moves hash computation server-side so frontend cannot spoof it (T35).
 pub fn compute_block_hash(
     content: &str,
     environment_id: Option<&str>,
@@ -87,8 +85,9 @@ pub async fn save_block_result(
     Ok(())
 }
 
-/// T38: Try to acquire an execution lock for a block.
-/// Returns true if lock was acquired (caller should execute), false if another execution is in progress.
+/// Try to acquire an execution lock for a block. Returns `true` if
+/// acquired (caller should execute), `false` if another execution is
+/// already in progress.
 pub async fn try_acquire_execution_lock(
     pool: &SqlitePool,
     file_path: &str,
@@ -107,7 +106,7 @@ pub async fn try_acquire_execution_lock(
     Ok(result.rows_affected() > 0)
 }
 
-/// T38: Release an execution lock after block execution completes.
+/// Release an execution lock after block execution completes.
 pub async fn release_execution_lock(
     pool: &SqlitePool,
     file_path: &str,
@@ -121,7 +120,7 @@ pub async fn release_execution_lock(
     Ok(())
 }
 
-/// T38: Clean up stale execution locks (older than 60 seconds — execution timed out or crashed).
+/// Clean up stale execution locks older than 60 seconds (timed out or crashed).
 pub async fn cleanup_stale_locks(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query(
         "DELETE FROM block_execution_locks WHERE locked_at < datetime('now', '-60 seconds')",

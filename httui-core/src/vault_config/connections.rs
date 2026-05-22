@@ -1,8 +1,8 @@
 //! `connections.toml` schema.
 //!
 //! See ADR 0001 for the full contract. Any string field MAY be a
-//! `{{...}}` reference (ADR 0002); the validator (epic-06 story-02)
-//! warns when sensitive-named fields hold literal values.
+//! `{{...}}` reference (ADR 0002); the validator warns when
+//! sensitive-named fields hold literal values.
 
 use std::collections::BTreeMap;
 

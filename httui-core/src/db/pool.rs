@@ -1,17 +1,10 @@
 //! `DatabasePool` enum + per-driver pool construction (Postgres /
 //! MySQL / SQLite).
 //!
-//! Extracted from `db::connections`. Owns the lifecycle pieces
-//! — enum definition, ping
-//! (`test`), `create_pool` factory, driver-specific
-//! `build_*_connect_options` helpers, path/name validation, pool
-//! config validation, and connection-error sanitization.
-//!
-//! The query-execution surface (`execute_query` / `execute_select` /
-//! `execute_mutation` dispatchers and the per-driver implementations)
-//! still lives in `db::connections` and will move out in a follow-up
-//! split (per-driver `pool_exec_*.rs`) — tracked in
-//! `tech-debt.md`.
+//! Owns the lifecycle pieces — enum definition, ping (`test`),
+//! `create_pool` factory, driver-specific `build_*_connect_options`
+//! helpers, path/name validation, pool config validation, and
+//! connection-error sanitization.
 
 use std::time::Duration;
 
@@ -26,8 +19,6 @@ use super::pool_exec_pg::{execute_mutation_pg, execute_select_pg};
 use super::pool_exec_sqlite::{execute_mutation_sqlite, execute_select_sqlite};
 use super::query_error::{QueryErrorInfo, QueryErrorLocation};
 use super::sql_scanner::{contains_multiple_statements, count_placeholders};
-
-// --- DTOs --------------------------------------------------------------------
 
 /// Row data as JSON-compatible values.
 pub type JsonRow = Vec<serde_json::Value>;
@@ -121,17 +112,14 @@ impl DatabasePool {
             location: QueryErrorLocation::default(),
         };
 
-        // T08: Reject multi-statement queries
         if contains_multiple_statements(sql) {
             return Err(plain_err(
                 "Multi-statement queries are not allowed".to_string(),
             ));
         }
 
-        // T23/T13: Reject non-primitive or out-of-range bind values
         validate_bind_values(bind_values).map_err(plain_err)?;
 
-        // T22: Validate bind count matches placeholder count
         let expected = count_placeholders(sql);
         if bind_values.len() != expected {
             return Err(plain_err(format!(
@@ -142,7 +130,6 @@ impl DatabasePool {
 
         let trimmed = sql.trim_start().to_uppercase();
 
-        // T09: Restrict EXPLAIN ANALYZE with mutation keywords
         if trimmed.starts_with("EXPLAIN")
             && (trimmed.contains("ANALYZE") || trimmed.contains("ANALYSE"))
         {
@@ -239,8 +226,6 @@ impl DatabasePool {
     }
 }
 
-// --- Pool creation ---
-
 fn build_pg_connect_options(conn: &Connection) -> Result<sqlx::postgres::PgConnectOptions, String> {
     use super::keychain::{conn_password_key, resolve_value, KEYCHAIN_SENTINEL};
     use sqlx::postgres::{PgConnectOptions, PgSslMode};
@@ -272,8 +257,6 @@ fn build_pg_connect_options(conn: &Connection) -> Result<sqlx::postgres::PgConne
         .password(&password)
         .ssl_mode(ssl_mode))
 }
-
-// --- Bind parameter validation (T13, T22, T23) ---
 
 pub(super) fn validate_bind_values(bind_values: &[serde_json::Value]) -> Result<(), String> {
     for (i, val) in bind_values.iter().enumerate() {
@@ -309,8 +292,6 @@ pub(super) fn is_subqueryable_select(sql: &str) -> bool {
     trimmed.starts_with("SELECT") || trimmed.starts_with("WITH")
 }
 
-// --- SQLite path validation (T03) ---
-
 pub(super) fn validate_sqlite_path(path: &str) -> Result<(), String> {
     if path == ":memory:" || path.starts_with(":memory:") {
         return Ok(());
@@ -324,8 +305,6 @@ pub(super) fn validate_sqlite_path(path: &str) -> Result<(), String> {
     }
     Ok(())
 }
-
-// --- MySQL database name validation (T02) ---
 
 pub(super) fn validate_mysql_database_name(name: &str) -> Result<(), String> {
     if name.contains('`') || name.contains(';') || name.contains('\0') || name.contains('\\') {

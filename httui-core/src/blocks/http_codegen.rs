@@ -101,16 +101,12 @@ fn read_body(params: &Value) -> String {
         .to_string()
 }
 
-// ─── shell single-quoting ───────────────────────────────────────────
-
 /// Wrap a value in POSIX-shell single quotes, escaping any internal
 /// single quotes by closing the quoted run, emitting an escaped quote,
 /// and reopening — the standard `'…'\''…'` trick.
 fn shell_single_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
 }
-
-// ─── cURL ───────────────────────────────────────────────────────────
 
 pub fn to_curl(params: &Value) -> String {
     let method = read_method(params);
@@ -126,8 +122,6 @@ pub fn to_curl(params: &Value) -> String {
     }
     lines.join(" \\\n")
 }
-
-// ─── fetch (JavaScript) ─────────────────────────────────────────────
 
 fn js_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
@@ -166,8 +160,6 @@ pub fn to_fetch(params: &Value) -> String {
     lines.push("});".into());
     lines.join("\n")
 }
-
-// ─── Python requests ────────────────────────────────────────────────
 
 fn py_string(s: &str) -> String {
     // Identical escape rules to `js_string` for the chars we care
@@ -213,8 +205,6 @@ pub fn to_python(params: &Value) -> String {
     lines.join("\n")
 }
 
-// ─── HTTPie ─────────────────────────────────────────────────────────
-
 pub fn to_httpie(params: &Value) -> String {
     let method = read_method(params);
     let url = params
@@ -244,12 +234,9 @@ pub fn to_httpie(params: &Value) -> String {
     tokens.join(" ")
 }
 
-// ─── .http file ─────────────────────────────────────────────────────
-
 /// Emit the canonical HTTP-message body the user can paste into a
 /// `.http` / `.rest` file (REST Client extension, JetBrains HTTP
-/// Client, etc). One request per file — multi-request files separated
-/// by `###` are out of scope for V1.
+/// Client, etc). One request per file.
 pub fn to_http_file(params: &Value) -> String {
     let method = read_method(params);
     let url = params
@@ -308,8 +295,6 @@ mod tests {
         })
     }
 
-    // ─── cURL ─────
-
     #[test]
     fn curl_emits_method_url_headers_body() {
         let curl = to_curl(&fixture());
@@ -348,8 +333,6 @@ mod tests {
         assert!(s.contains("'it'\\''s'"), "got: {s}");
     }
 
-    // ─── fetch ─────
-
     #[test]
     fn fetch_emits_method_headers_body() {
         let s = to_fetch(&fixture());
@@ -359,8 +342,6 @@ mod tests {
         assert!(s.contains("'Authorization': 'Bearer xyz',"));
         assert!(s.contains("body: '{\\'name\\':\\'alice\\'}',") || s.contains("body: "));
     }
-
-    // ─── Python ─────
 
     #[test]
     fn python_emits_imports_and_call() {
@@ -390,8 +371,6 @@ mod tests {
         assert!(!s.contains("data="));
     }
 
-    // ─── HTTPie ─────
-
     #[test]
     fn httpie_emits_request_items() {
         let s = to_httpie(&fixture());
@@ -403,8 +382,6 @@ mod tests {
         assert!(s.contains("'Authorization:Bearer xyz'"));
         assert!(s.contains("--raw="));
     }
-
-    // ─── .http file ─────
 
     #[test]
     fn http_file_emits_request_line_headers_body() {
@@ -431,8 +408,6 @@ mod tests {
         let s = to_http_file(&v);
         assert_eq!(s, "GET https://x\nX: 1\n");
     }
-
-    // ─── encoding sanity ─────
 
     #[test]
     fn query_encoding_percent_encodes_spaces_and_specials() {

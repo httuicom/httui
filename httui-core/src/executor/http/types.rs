@@ -1,33 +1,14 @@
 //! Response shape for the `http` block type.
-//!
-//! Stage 2 of the HTTP block redesign (see `docs/http-block-redesign.md`).
-//! This shape is prepared for the streamed/cancel-aware execution path —
-//! today the executor still buffers the body in memory and emits a single
-//! `HttpChunk::Complete` on the channel, mirroring the DB block's stage 3
-//! plumbing. Body chunking and a richer timing breakdown land in a later
-//! stage; the JSON shape is forward-compatible.
-//!
-//! Stability:
-//! - `HttpResponse` field set is final for V1.
-//! - `cookies` is captured from `Set-Cookie` response headers; the persistent
-//!   cookie jar (V2 in the spec) is not implemented here.
-//! - `timing` ships with `total_ms` only for now. Sub-fields (`dns_ms`,
-//!   `connect_ms`, `tls_ms`, `ttfb_ms`) are reserved and may appear in
-//!   later runs without breaking existing consumers (all are `Option`).
 
 use serde::{Deserialize, Serialize};
 
 /// Per-execution timing breakdown.
 ///
-/// V1 ships `total_ms` + `ttfb_ms` (split before/after `req.send()` returns
-/// headers). Sub-fields `dns_ms`/`connect_ms`/`tls_ms` stay `None` — they
-/// require swapping `reqwest` for `isahc`/libcurl, deferred to V2 (see
+/// Ships `total_ms` + `ttfb_ms`. Sub-fields `dns_ms`/`connect_ms`/`tls_ms`
+/// stay `None` — they require swapping `reqwest` for `isahc`/libcurl (see
 /// `docs/http-timing-isahc-future.md`). Consumers should treat missing
-/// fields as "unknown", not "zero".
-///
-/// `connection_reused` is always `false` in V1 — without a custom connector
-/// we can't tell pool-hits apart from cold connects with confidence. Lands
-/// in V2 alongside the isahc swap.
+/// fields as "unknown", not "zero". `connection_reused` is always `false`
+/// without a custom connector that can observe pool-hits.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TimingBreakdown {
     pub total_ms: u64,

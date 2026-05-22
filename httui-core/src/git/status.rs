@@ -64,7 +64,6 @@ fn parse_status(raw: &str) -> Result<GitStatus, String> {
                 }
             }
         } else if let Some(rest) = line.strip_prefix("? ") {
-            // Untracked file.
             out.changed.push(FileChange {
                 path: rest.to_string(),
                 status: "??".to_string(),
@@ -106,10 +105,9 @@ fn parse_status(raw: &str) -> Result<GitStatus, String> {
         } else if let Some(rest) = line.strip_prefix("u ") {
             // Unmerged (conflict) entry:
             // `<XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>`
-            // XY is e.g. `UU`/`AA`/`DD`/`AU`/`UD`. Without this arm a
-            // conflicted vault reads as "clean" and the V10 conflict
-            // banner never shows. Not staged + not untracked so the
-            // frontend's `labelFileStatus` maps it to "conflicted".
+            // XY is e.g. `UU`/`AA`/`DD`/`AU`/`UD`. Not staged + not
+            // untracked so the frontend's `labelFileStatus` maps it to
+            // "conflicted".
             let mut fields = rest.splitn(10, ' ');
             let xy = fields.next().unwrap_or("..");
             let path = fields.nth(8).unwrap_or("").to_string();

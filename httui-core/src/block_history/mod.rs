@@ -21,9 +21,7 @@ const DEFAULT_HISTORY_CAP: i64 = 10;
 const RETENTION_KEY: &str = "history_retention";
 
 /// Read the user-configured history retention from `app_config`, falling
-/// back to the default. Values <= 0 are treated as the default — to fully
-/// disable history the per-block `history_disabled` flag is the right
-/// switch (Onda 1).
+/// back to the default. Values <= 0 are treated as the default.
 async fn get_retention(pool: &SqlitePool) -> i64 {
     let row: Option<String> = sqlx::query_scalar("SELECT value FROM app_config WHERE key = ?")
         .bind(RETENTION_KEY)
@@ -64,7 +62,6 @@ pub async fn insert_history_entry(
     .execute(pool)
     .await?;
 
-    // Trim to the retention cap (user-configurable via app_config; default 10).
     let cap = get_retention(pool).await;
     sqlx::query(
         "DELETE FROM block_run_history
@@ -242,7 +239,6 @@ mod tests {
             .connect("sqlite::memory:")
             .await
             .unwrap();
-        // Apply the migration manually for tests.
         sqlx::query(
             "CREATE TABLE block_run_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -522,7 +518,6 @@ mod tests {
     #[tokio::test]
     async fn list_history_for_file_aggregates_across_aliases() {
         let pool = setup().await;
-        // Insert 2 entries for alpha + 1 for beta in the same file.
         let mut a = entry("GET", 200);
         a.block_alias = "alpha".into();
         insert_history_entry(&pool, a.clone()).await.unwrap();
@@ -530,7 +525,6 @@ mod tests {
         let mut b = entry("POST", 201);
         b.block_alias = "beta".into();
         insert_history_entry(&pool, b).await.unwrap();
-        // A row in a different file shouldn't surface.
         let mut other = entry("GET", 200);
         other.file_path = "/other.md".into();
         other.block_alias = "alpha".into();
@@ -566,7 +560,6 @@ mod tests {
                 .await
                 .unwrap();
         }
-        // limit <= 0 → effective fallback of 50; 3 inserted rows fit easily.
         let rows = list_history_for_file(&pool, "/notes/test.md", 0)
             .await
             .unwrap();
@@ -603,7 +596,6 @@ mod tests {
                 .await
                 .unwrap();
         }
-        // 2 rows fits the default cap (10) with room to spare.
         let rows = list_history(&pool, "/notes/test.md", "req1").await.unwrap();
         assert_eq!(rows.len(), 2);
 
@@ -620,7 +612,6 @@ mod tests {
                 .unwrap();
         }
         let rows = list_history(&pool, "/notes/test.md", "req1").await.unwrap();
-        // 4 inserted total, default cap is 10 — all 4 visible.
         assert_eq!(rows.len(), 4);
     }
 }

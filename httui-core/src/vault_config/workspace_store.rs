@@ -106,7 +106,7 @@ impl WorkspaceStore {
 
     /// Read **just** the base file (no `.local` merge). Used by
     /// mutating paths so writes don't promote local overrides into
-    /// the committed file. See audit-003 for the rationale.
+    /// the committed file.
     async fn load_base_only(&self) -> Result<WorkspaceFile, String> {
         let path = self.path();
         if !path.exists() {
@@ -115,8 +115,8 @@ impl WorkspaceStore {
         read_toml::<WorkspaceFile>(&path).map_err(|e| format!("read {}: {e}", path.display()))
     }
 
-    /// Force the next read to hit disk. Hooks into the file watcher
-    /// (epic 11) so external edits don't get masked by the cache.
+    /// Force the next read to hit disk so external edits don't get
+    /// masked by the cache.
     pub async fn invalidate_cache(&self) {
         let mut cache = self.cache.write().await;
         *cache = None;
@@ -163,7 +163,6 @@ impl WorkspaceStore {
         normalize(&mut defaults.git_remote);
         normalize(&mut defaults.git_branch);
         normalize(&mut defaults.display_name);
-        // Mutate the base file, not the merged view (audit-003).
         let mut file = self.load_base_only().await?;
         file.defaults = defaults;
         self.persist(file).await
@@ -179,7 +178,7 @@ impl WorkspaceStore {
     }
 
     /// Set the `auto_capture` flag for `file_path`. Mutates the **base**
-    /// file (audit-003) so local overrides survive the round-trip.
+    /// file so local overrides survive the round-trip.
     /// When the resulting `FileSettings` matches the default, the entry
     /// is removed from the map so workspace.toml stays minimal.
     pub async fn set_file_auto_capture(
@@ -203,8 +202,7 @@ impl WorkspaceStore {
 
     /// Set the `docheader_compact` flag for `file_path`. Same prune
     /// semantics as `set_file_auto_capture` — defaulted entries are
-    /// removed so workspace.toml stays minimal. Powers
-    /// the compact-mode persistence.
+    /// removed so workspace.toml stays minimal.
     pub async fn set_file_docheader_compact(
         &self,
         file_path: &str,
@@ -231,7 +229,7 @@ impl WorkspaceStore {
             return Ok(());
         }
         // Don't write the merged view to disk — the `.local` side
-        // would leak into the committed base (audit-003).
+        // would leak into the committed base.
         let file = self.load_base_only().await?;
         self.persist(file).await
     }
