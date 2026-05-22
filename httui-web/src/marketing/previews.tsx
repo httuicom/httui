@@ -22,10 +22,7 @@ import {
   LuZap,
 } from "react-icons/lu";
 
-// ─────────────────────────────────────────────────────────
-// WindowChrome — macOS-style traffic lights + title bar
-// Used in the Hero preview frame.
-// ─────────────────────────────────────────────────────────
+// WindowChrome — macOS-style traffic lights + title bar.
 export function WindowChrome({ title }: { title: string }) {
   return (
     <HStack
@@ -53,9 +50,7 @@ export function WindowChrome({ title }: { title: string }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// MethodPill — colored HTTP method badge
-// ─────────────────────────────────────────────────────────
+// MethodPill — colored HTTP method badge.
 export function MethodPill({
   method,
 }: {
@@ -87,12 +82,8 @@ export function MethodPill({
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// WorkbenchPreview — full 1480×940 mirror of design's
-// workbench.jsx. Top bar + 240/1fr/320 body + status bar.
-// Used in the Hero scaled to 0.811 — only the top portion
-// is visible inside the 1200×~410 frame, by design.
-// ─────────────────────────────────────────────────────────
+// WorkbenchPreview — 1480×940. Top bar + 240/1fr/320 body + status bar.
+// Scaled to 0.811 in Hero — only the top portion is visible by design.
 
 // Numbered section heading — accent circle + serif title + rule
 function NumberedSection({
@@ -299,9 +290,7 @@ export function WorkbenchPreview() {
       borderColor="border"
       overflow="hidden"
     >
-      {/* ═════════════════════════════════════════════════════
-          TOP BAR — spans 3 columns
-      ═════════════════════════════════════════════════════ */}
+      {/* TOP BAR — spans 3 columns */}
       <HStack
         gridColumn="1 / 4"
         gridRow="1"
@@ -435,9 +424,7 @@ export function WorkbenchPreview() {
         </HStack>
       </HStack>
 
-      {/* ═════════════════════════════════════════════════════
-          LEFT SIDEBAR — Files + Connections + Variables
-      ═════════════════════════════════════════════════════ */}
+      {/* LEFT SIDEBAR — Files + Connections + Variables */}
       <Flex
         gridColumn="1"
         gridRow="2"
@@ -622,9 +609,7 @@ export function WorkbenchPreview() {
         </Box>
       </Flex>
 
-      {/* ═════════════════════════════════════════════════════
-          CENTER — tabs + toolbar + DocHeader + section 1
-      ═════════════════════════════════════════════════════ */}
+      {/* CENTER — tabs + toolbar + DocHeader + section 1 */}
       <Flex gridColumn="2" gridRow="2" direction="column" minH="0" bg="bg">
         {/* Tab bar */}
         <HStack
@@ -1238,9 +1223,7 @@ export function WorkbenchPreview() {
         </Box>
       </Flex>
 
-      {/* ═════════════════════════════════════════════════════
-          RIGHT SIDEBAR — Outline / Schema / History / Comments
-      ═════════════════════════════════════════════════════ */}
+      {/* RIGHT SIDEBAR — Outline / Schema / History / Comments */}
       <Flex
         gridColumn="3"
         gridRow="2"
@@ -1525,9 +1508,7 @@ export function WorkbenchPreview() {
         </Box>
       </Flex>
 
-      {/* ═════════════════════════════════════════════════════
-          STATUS BAR — spans 3 columns
-      ═════════════════════════════════════════════════════ */}
+      {/* STATUS BAR — spans 3 columns */}
       <HStack
         gridColumn="1 / 4"
         gridRow="3"
@@ -1569,9 +1550,7 @@ export function WorkbenchPreview() {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// BlocksPreview — feature 1: markdown + HTTP + SQL chained
-// ─────────────────────────────────────────────────────────
+// BlocksPreview — feature 1: markdown + HTTP + SQL chained.
 export function BlocksPreview() {
   return (
     <Box
@@ -1754,9 +1733,7 @@ export function BlocksPreview() {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// SchemaPreview — feature 2: schema explorer + result
-// ─────────────────────────────────────────────────────────
+// SchemaPreview — feature 2: schema explorer + result.
 type TreeNode = {
   n: string;
   indent: number;
@@ -1962,9 +1939,7 @@ export function SchemaPreview() {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// GitDiffPreview — feature 3: git-native diff
-// ─────────────────────────────────────────────────────────
+// GitDiffPreview — feature 3: git-native diff.
 export function GitDiffPreview() {
   const lines: Array<[string, string, "ctx" | "del" | "add" | "hunk"]> = [
     ["@@", "-42,7 +42,11 @@  ## 3. Verify latency", "hunk"],

@@ -6,10 +6,8 @@ import {
 import type { ChatCommand, PermissionResponseCommand } from "../protocol.js";
 import { send, log } from "../protocol.js";
 
-// Active queries keyed by request_id, for interrupt support
 const activeQueries = new Map<string, Query>();
 
-// Pending permission requests keyed by permission_id
 const pendingPermissions = new Map<
   string,
   {
@@ -39,8 +37,7 @@ export async function handleChat(cmd: ChatCommand): Promise<void> {
       return;
     }
 
-    // When images are present, use SDKUserMessage format via async iterable
-    // so the API receives the image content blocks
+    // Images must be sent as SDKUserMessage (async iterable) so the API receives content blocks.
     let prompt:
       | string
       | AsyncIterable<import("@anthropic-ai/claude-agent-sdk").SDKUserMessage>;
@@ -71,13 +68,11 @@ export async function handleChat(cmd: ChatCommand): Promise<void> {
       prompt = textPrompt;
     }
 
-    // Build MCP server config for httui-mcp
     const mcpServers: Record<string, { command: string; args: string[] }> = {};
     const effectiveCwd = cwd || process.cwd();
     log("cwd:", cwd, "effectiveCwd:", effectiveCwd);
     {
       const path = await import("path");
-      // Try multiple locations for the httui-mcp binary
       const candidates = [
         path.resolve(process.cwd(), "target/debug/httui-mcp"),
         path.resolve(process.cwd(), "../target/debug/httui-mcp"),
@@ -89,7 +84,6 @@ export async function handleChat(cmd: ChatCommand): Promise<void> {
       const fs = await import("fs");
       const mcpBinary = candidates.find((p) => fs.existsSync(p));
       if (mcpBinary) {
-        // Resolve the app database path (matches Tauri's app_data_dir for identifier "com.notes.app")
         const os = await import("os");
         const home = os.homedir();
         const dbDir = path.join(
@@ -189,7 +183,7 @@ Only fall back to file system tools if the MCP tools cannot accomplish the task.
         if (event.type === "content_block_delta" && "delta" in event) {
           const delta = event.delta as { type: string; text?: string };
           if (delta.type === "text_delta" && delta.text) {
-            lastPartialText += delta.text;
+            lastPartialText += delta.text; // accumulated for partial persistence
             send({
               type: "text_delta",
               request_id,

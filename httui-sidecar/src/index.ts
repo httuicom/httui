@@ -25,7 +25,6 @@ rl.on("line", (line: string) => {
 
   switch (cmd.type) {
     case "chat":
-      // Fire and forget — streaming events emitted as they arrive
       handleChat(cmd).catch((err) => {
         log("Unhandled error in chat handler:", err);
       });
@@ -53,7 +52,6 @@ rl.on("close", () => {
   process.exit(0);
 });
 
-// Keep process alive
 process.on("SIGINT", () => {
   log("Received SIGINT, exiting");
   process.exit(0);

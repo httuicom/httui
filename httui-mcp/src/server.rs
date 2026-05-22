@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 
 use crate::tools;
 
-/// T07: Max execute_block calls per minute.
+/// Max execute_block calls per minute.
 const EXECUTE_RATE_LIMIT: usize = 30;
 const EXECUTE_RATE_WINDOW_SECS: u64 = 60;
 
@@ -21,7 +21,7 @@ pub struct NotesMcpServer {
     pub conn_manager: Arc<PoolManager>,
     pub registry: Arc<ExecutorRegistry>,
     pub vault_path: String,
-    /// T07: Timestamps of recent execute_block calls for rate limiting.
+    /// Timestamps of recent execute_block calls for rate limiting.
     execute_timestamps: Arc<Mutex<VecDeque<std::time::Instant>>>,
 }
 
@@ -41,13 +41,12 @@ impl NotesMcpServer {
         }
     }
 
-    /// T07: Check and record an execute_block call. Returns Err if rate limit exceeded.
+    /// Check and record an execute_block call. Returns `Err` if rate limit exceeded.
     async fn check_execute_rate_limit(&self) -> Result<(), String> {
         let mut timestamps = self.execute_timestamps.lock().await;
         let now = std::time::Instant::now();
         let window = std::time::Duration::from_secs(EXECUTE_RATE_WINDOW_SECS);
 
-        // Remove expired entries
         while timestamps
             .front()
             .is_some_and(|t| now.duration_since(*t) > window)
@@ -65,8 +64,6 @@ impl NotesMcpServer {
         Ok(())
     }
 }
-
-// --- Tool input types ---
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ListNotesInput {
@@ -150,8 +147,6 @@ pub struct TestConnectionInput {
     pub connection_id: String,
 }
 
-// --- Tool implementations ---
-
 #[tool_router]
 impl NotesMcpServer {
     #[tool(description = "List all notes in the vault. Returns file tree with paths and names.")]
@@ -190,7 +185,6 @@ impl NotesMcpServer {
         description = "Execute an executable block by its alias. Resolves dependencies and environment variables automatically."
     )]
     async fn execute_block(&self, Parameters(input): Parameters<ExecuteBlockInput>) -> String {
-        // T07: Rate limit execute_block calls
         if let Err(e) = self.check_execute_rate_limit().await {
             return serde_json::json!({"error": e}).to_string();
         }
