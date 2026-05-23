@@ -658,12 +658,6 @@ mod tests {
         assert!(contents.contains("[connections.stay]"));
     }
 
-    /// Local helper — the real page cursor lives in
-    /// `apply_move_connections_page_cursor` (`crate::input::apply::pickers`).
-    /// Re-exporting here keeps the seed test self-contained.
-    fn apply_move_connections_page_cursor_for_test(app: &mut App, delta: i32) {
-        crate::input::apply::pickers::apply_move_connections_page_cursor(app, delta);
-    }
 }
 
 pub(crate) fn apply_connection_form(app: &mut App, action: Action) {
