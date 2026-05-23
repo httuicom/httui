@@ -43,13 +43,37 @@ pub async fn run(
     // Wire the filesystem watcher now that the event sender exists.
     // `sync_file_watcher` reads the active pane's path and starts
     // watching — covers the initial document loaded by `App::new`.
-    app.file_watcher = Some(crate::fs_watch::FileWatcher::new(sender));
+    app.file_watcher = Some(crate::fs_watch::FileWatcher::new(sender.clone()));
     app.sync_file_watcher();
+    // V3 P6: separate watcher for the vault's connections.toml so
+    // external edits (git checkout, manual edit) flip the in-memory
+    // store + reload the Connections page if it's up. The active-doc
+    // watcher above is single-path and serves a different concern,
+    // so a dedicated instance is cleaner than overloading it.
+    app.connections_toml_watcher = Some(crate::fs_watch::FileWatcher::new(sender));
+    sync_connections_toml_watcher(&mut app);
 
     let result = main_loop(&mut terminal, &mut app, &mut events).await;
 
     let _ = terminal::teardown(&mut terminal);
     result
+}
+
+/// V3 P6: point the second watcher at `<vault>/connections.toml`
+/// if the file exists. If it doesn't exist yet (vault never had a
+/// db connection), watch the parent dir — the notify backend
+/// fires Create events for new files in that dir, so the first
+/// `n` from inside the page lights up the watcher retroactively.
+fn sync_connections_toml_watcher(app: &mut App) {
+    let toml_path = app.vault_path.join("connections.toml");
+    if let Some(w) = app.connections_toml_watcher.as_mut() {
+        if let Err(msg) = w.watch(&toml_path) {
+            app.set_status(
+                crate::app::StatusKind::Info,
+                format!("connections.toml watcher: {msg}"),
+            );
+        }
+    }
 }
 
 async fn main_loop(
@@ -153,7 +177,15 @@ fn handle_app_event(app: &mut App, ev: AppEvent) -> bool {
             crate::commands::search::handle_index_built(app, result);
         }
         AppEvent::FileChangedExternally { path } => {
-            handle_file_changed_externally(app, path);
+            // V3 P6: connections.toml of the active vault is watched
+            // separately from the editor's active doc. Detect it here
+            // and route to the conn handler — the rest of the handler
+            // chain assumes paths are markdown docs.
+            if path == app.vault_path.join("connections.toml") {
+                handle_connections_toml_changed(app);
+            } else {
+                handle_file_changed_externally(app, path);
+            }
         }
         AppEvent::Quit => {
             app.should_quit = true;
@@ -181,6 +213,27 @@ fn handle_app_event(app: &mut App, ev: AppEvent) -> bool {
 /// The event's `path` is checked against the active pane's path;
 /// stale events (user switched tabs after the write) are dropped
 /// rather than reloading the wrong file.
+/// V3 P6: external edit to `<vault>/connections.toml` (`git
+/// checkout`, manual edit, MCP write). Invalidates the store's
+/// in-memory cache so subsequent reads pick up the new file; if
+/// the Connections page is open, also rebuilds the snapshot in
+/// place. `refresh_connection_names` keeps block footers in sync.
+fn handle_connections_toml_changed(app: &mut App) {
+    use crate::app::StatusKind;
+    let store = app.connections_store.clone();
+    tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(store.invalidate_cache());
+    });
+    app.refresh_connection_names();
+    if matches!(app.modal, Some(crate::modal::Modal::Connections(_))) {
+        if let Err(msg) = crate::input::apply::pickers::open_connections_page(app) {
+            app.set_status(StatusKind::Error, msg);
+        } else {
+            app.set_status(StatusKind::Info, "connections.toml reloaded");
+        }
+    }
+}
+
 fn handle_file_changed_externally(app: &mut App, path: std::path::PathBuf) {
     let Some(pane) = app.active_pane() else {
         return;

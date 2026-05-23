@@ -140,6 +140,12 @@ pub struct App {
     /// whenever the active document changes (load, tab switch,
     /// `:e <path>`).
     pub file_watcher: Option<crate::fs_watch::FileWatcher>,
+    /// V3 P6 (2026-05-23): dedicated watcher for `<vault>/connections.toml`.
+    /// Fires `AppEvent::FileChangedExternally` when an external tool
+    /// rewrites the file (git checkout, manual edit, MCP); the event
+    /// handler invalidates `ConnectionsStore`'s cache and reloads the
+    /// page if it's open.
+    pub connections_toml_watcher: Option<crate::fs_watch::FileWatcher>,
     pub last_run_anchor: Option<LastRunAnchor>,
     pub standard: StandardState,
     pub last_edit: Option<Instant>,
@@ -184,6 +190,7 @@ impl App {
             db_result_tab: ResultPanelTab::default(),
             fence_edit: None,
             file_watcher: None,
+            connections_toml_watcher: None,
             last_run_anchor: None,
             standard: StandardState::default(),
             last_edit: None,
