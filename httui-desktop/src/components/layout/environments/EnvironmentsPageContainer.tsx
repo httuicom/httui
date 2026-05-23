@@ -1,7 +1,12 @@
-
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useConfigSyncedResource } from "@/hooks/useConfigSyncedResource";
-import { useCrossEnvVariables } from "@/hooks/useCrossEnvVariables";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { listen } from "@tauri-apps/api/event";
 
 import { useEnvironmentStore } from "@/stores/environment";
 import { type Environment } from "@/lib/tauri/commands";

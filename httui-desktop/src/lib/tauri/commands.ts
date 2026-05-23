@@ -22,7 +22,6 @@ export function setConfig(key: string, value: string): Promise<void> {
   return invoke<void>("set_config", { key, value });
 }
 
-
 /** `[defaults]` section of `<vault>/.httui/workspace.toml`. */
 export interface WorkspaceDefaults {
   environment?: string | null;

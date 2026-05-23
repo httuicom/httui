@@ -1,4 +1,3 @@
-
 import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 
 import type { VarUseEntry } from "@/lib/tauri/var-uses";
