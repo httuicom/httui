@@ -133,6 +133,7 @@ pub enum Action {
     VisualSelectTextObject(TextObject),
     /// `Esc` / a second `v` (or `V` in linewise) — leave visual.
     ExitVisual,
+    VisualPaste,
     /// `r` in normal mode with the cursor on a block segment — run
     /// the block. Other block types may delegate; for now only DB
     /// blocks have an executor wired up.

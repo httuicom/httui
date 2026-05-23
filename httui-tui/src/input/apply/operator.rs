@@ -202,6 +202,23 @@ pub(crate) fn sync_yank_to_clipboard(app: &mut App, op: Operator) {
 
 // ───────────── visual mode operators ─────────────
 
+pub(crate) fn apply_visual_paste(app: &mut App, recording: bool) {
+    let reg = resolve_paste_register(app);
+    if reg.is_empty() {
+        return;
+    }
+    apply_visual_operator(app, Operator::Delete, recording);
+    if let Some(doc) = app.document_mut() {
+        operator::paste(PastePos::Before, 1, doc, &reg);
+    }
+    if let Some(Cursor::InProse { segment_idx, .. }) = app.document().map(|d| d.cursor()) {
+        if let Some(doc) = app.document_mut() {
+            doc.reparse_prose_at(segment_idx);
+        }
+    }
+    app.refresh_viewport_for_cursor();
+}
+
 pub(crate) fn apply_visual_operator(app: &mut App, op: Operator, _recording: bool) {
     let Some(anchor) = app.vim.visual_anchor else {
         return;
@@ -555,6 +572,7 @@ pub(crate) fn apply_operator(app: &mut App, action: Action, recording: bool) {
             }
         }
         Action::VisualOperator(op) => apply_visual_operator(app, op, recording),
+        Action::VisualPaste => apply_visual_paste(app, recording),
         Action::VisualSelectTextObject(textobj) => {
             apply_visual_select_textobject(app, textobj);
         }

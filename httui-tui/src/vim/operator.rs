@@ -143,24 +143,62 @@ pub fn paste(pos: PastePos, count: usize, doc: &mut Document, reg: &Register) {
     if reg.is_empty() {
         return;
     }
-    let Cursor::InProse {
-        segment_idx,
-        offset,
-    } = doc.cursor()
-    else {
-        return;
-    };
-    if !matches!(doc.segments().get(segment_idx), Some(Segment::Prose(_))) {
-        return;
-    }
     let count = count.max(1);
     let body = reg.text.repeat(count);
 
-    if reg.linewise {
-        paste_linewise(pos, segment_idx, offset, &body, doc);
-    } else {
-        paste_charwise(pos, segment_idx, offset, &body, doc);
+    match doc.cursor() {
+        Cursor::InProse {
+            segment_idx,
+            offset,
+        } => {
+            if !matches!(doc.segments().get(segment_idx), Some(Segment::Prose(_))) {
+                return;
+            }
+            if reg.linewise {
+                paste_linewise(pos, segment_idx, offset, &body, doc);
+            } else {
+                paste_charwise(pos, segment_idx, offset, &body, doc);
+            }
+        }
+        Cursor::InBlock {
+            segment_idx,
+            offset,
+        } => {
+            paste_into_block(pos, segment_idx, offset, &body, doc);
+        }
+        Cursor::InBlockResult { .. } => {}
     }
+}
+
+fn paste_into_block(
+    pos: PastePos,
+    segment_idx: usize,
+    offset: usize,
+    body: &str,
+    doc: &mut Document,
+) {
+    let new_len;
+    let insert_at;
+    {
+        let Some(b) = doc.block_at_mut(segment_idx) else {
+            return;
+        };
+        let total = b.raw.len_chars();
+        insert_at = match pos {
+            PastePos::Before => offset.min(total),
+            PastePos::After => (offset + 1).min(total),
+        };
+        b.raw.insert(insert_at, body);
+        b.reparse_from_raw();
+        new_len = b.raw.len_chars();
+    }
+    let inserted = body.chars().count();
+    let new_offset = (insert_at + inserted.saturating_sub(1)).min(new_len.saturating_sub(1));
+    doc.set_cursor(Cursor::InBlock {
+        segment_idx,
+        offset: new_offset,
+    });
+    doc.mark_dirty();
 }
 
 // ───────────── range computation ─────────────

@@ -100,6 +100,7 @@ pub fn parse_visual(state: &mut VimState, key: KeyEvent) -> Action {
                 return Action::VisualOperator(Operator::Yank);
             }
             KeyCode::Char('o') => return Action::VisualSwap,
+            KeyCode::Char('p') | KeyCode::Char('P') => return Action::VisualPaste,
             // `a` / `i` start a text-object trigram. The next
             // keystroke is the target char (`{`, `"`, `w`, …); the
             // resolver at the top of `parse_visual` consumes it and

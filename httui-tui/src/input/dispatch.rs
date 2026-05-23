@@ -183,6 +183,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::ExitVisual
         | Action::VisualSwap
         | Action::VisualOperator(_)
+        | Action::VisualPaste
         | Action::VisualSelectTextObject(_)
         | Action::OperatorMotion(..)
         | Action::OperatorLinewise(..)
