@@ -1,8 +1,9 @@
-//! Fullscreen Connections page (V3, 2026-05-23). Master-detail
-//! layout listing every entry in `<vault>/connections.toml` with a
-//! detail pane for the highlighted row. Triggered by `gC` / `Alt+P`.
-//! P3 will add `n` (new) / `e` (edit); P4 adds `D` (delete) and
-//! `t` (test).
+//! Connections page (V3, 2026-05-23 + polish 2026-05-23). Master-
+//! detail popup listing every entry in `<vault>/connections.toml`.
+//! Polish pass aproxima a UX do desktop: chip colorido por driver,
+//! detail agrupado em sections, popup denso (não fullscreen).
+//! Triggered by `gC` / `Alt+P`. `n` opens the create form; `e`/`D`
+//! land in P3/P4.
 
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -14,11 +15,9 @@ use ratatui::{
 
 use crate::app::{ConnectionDetail, ConnectionsPageState};
 
-const SIDEBAR_PERCENT: u16 = 35;
-/// Percentage of the available editor area covered by the popup;
-/// the remaining border lets the editor underneath stay visible
-/// (matches the chrome of the other modals — Help, BlockHistory).
-const POPUP_PERCENT: u16 = 85;
+const POPUP_WIDTH: u16 = 64;
+const POPUP_HEIGHT: u16 = 20;
+const SIDEBAR_COLS: u16 = 22;
 
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionsPageState) {
     let area = centered_rect(editor_area);
@@ -37,15 +36,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionsPageState
         }
     }
 
-    let title = format!(
-        " Connections · {}/{} ",
-        if state.connections.is_empty() {
-            0
-        } else {
-            state.selected + 1
-        },
-        state.connections.len()
-    );
+    let title = format!(" Connections · {} ", state.connections.len());
     let outer = Block::default()
         .borders(Borders::ALL)
         .title(title)
@@ -54,18 +45,26 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionsPageState
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
-    // Split: sidebar (lista) | detail.
-    let columns = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(SIDEBAR_PERCENT),
-            Constraint::Min(0),
-        ])
+    // Vertical: body | hint footer.
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(1)])
         .split(inner);
 
-    render_sidebar(frame, columns[0], state, bg_style);
-    render_detail(frame, columns[1], state, bg_style);
-    render_hint(frame, area);
+    // Body: sidebar | divider | detail.
+    let body = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Length(SIDEBAR_COLS),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
+        .split(rows[0]);
+
+    render_sidebar(frame, body[0], state, bg_style);
+    render_divider(frame, body[1], bg_style);
+    render_detail(frame, body[2], state, bg_style);
+    render_hint(frame, rows[1], bg_style);
 }
 
 fn render_sidebar(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg: Style) {
@@ -73,12 +72,12 @@ fn render_sidebar(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, b
         let empty = Paragraph::new(vec![
             Line::from(""),
             Line::from(Span::styled(
-                "  no connections in this vault yet",
+                " no conns yet",
                 Style::default().fg(Color::DarkGray),
             )),
             Line::from(""),
             Line::from(Span::styled(
-                "  press n to create one",
+                " press n to add",
                 Style::default()
                     .fg(Color::LightYellow)
                     .add_modifier(Modifier::ITALIC),
@@ -94,11 +93,18 @@ fn render_sidebar(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, b
         .connections
         .iter()
         .map(|c| {
-            let driver_chip = format!(" [{}]", c.driver);
+            let (chip_label, chip_color) = driver_chip(&c.driver);
             let line = Line::from(vec![
-                Span::raw("  "),
+                Span::raw(" "),
+                Span::styled(
+                    format!(" {chip_label} "),
+                    Style::default()
+                        .bg(chip_color)
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" "),
                 Span::styled(c.name.clone(), Style::default().fg(Color::White)),
-                Span::styled(driver_chip, Style::default().fg(Color::DarkGray)),
             ]);
             ListItem::new(line)
         })
@@ -112,11 +118,21 @@ fn render_sidebar(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, b
                 .fg(Color::White)
                 .add_modifier(Modifier::BOLD),
         )
-        .highlight_symbol("▌ ");
+        .highlight_symbol("▌");
 
     let mut list_state = ListState::default();
     list_state.select(Some(state.selected));
     frame.render_stateful_widget(list, area, &mut list_state);
+}
+
+fn render_divider(frame: &mut Frame, area: Rect, _bg: Style) {
+    let buf = frame.buffer_mut();
+    for y in area.y..area.y.saturating_add(area.height) {
+        if let Some(cell) = buf.cell_mut((area.x, y)) {
+            cell.set_symbol("│");
+            cell.set_style(Style::default().fg(Color::DarkGray).bg(Color::Black));
+        }
+    }
 }
 
 fn render_detail(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg: Style) {
@@ -129,8 +145,6 @@ fn render_detail(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg
 
     let lines = detail_lines(detail);
     let para = Paragraph::new(lines).style(bg).wrap(Wrap { trim: false });
-    // Indent 2 cells from the divider so the column doesn't crowd
-    // the right edge of the sidebar.
     let inner = Rect {
         x: area.x.saturating_add(2),
         y: area.y,
@@ -140,43 +154,63 @@ fn render_detail(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg
     frame.render_widget(para, inner);
 }
 
+fn driver_chip(driver: &str) -> (&'static str, Color) {
+    match driver {
+        "postgres" => ("PG", Color::Cyan),
+        "mysql" => ("MY", Color::LightYellow),
+        "sqlite" => ("SL", Color::LightGreen),
+        _ => ("??", Color::DarkGray),
+    }
+}
+
 fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
     let label = |text: &str| {
         Span::styled(
-            format!("{text:<14}"),
+            format!("{text:<10}"),
             Style::default().fg(Color::DarkGray),
         )
     };
     let value = |text: String| Span::styled(text, Style::default().fg(Color::White));
     let none = || Span::styled("—", Style::default().fg(Color::DarkGray));
-
     let opt = |s: &Option<String>| -> Span<'static> {
-        s.as_ref()
-            .map(|v| value(v.clone()))
-            .unwrap_or_else(none)
+        s.as_ref().map(|v| value(v.clone())).unwrap_or_else(none)
     };
     let opt_port = |p: Option<u16>| -> Span<'static> {
         p.map(|v| value(v.to_string())).unwrap_or_else(none)
     };
+    let (chip_label, chip_color) = driver_chip(&c.driver);
 
     let mut lines = vec![
+        // Header row: name + driver chip.
         Line::from(vec![
-            Span::raw(""),
             Span::styled(
                 c.name.clone(),
                 Style::default()
                     .fg(Color::LightCyan)
                     .add_modifier(Modifier::BOLD),
             ),
+            Span::raw("  "),
+            Span::styled(
+                format!(" {chip_label} "),
+                Style::default()
+                    .bg(chip_color)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!(" {}", c.driver),
+                Style::default().fg(Color::DarkGray),
+            ),
         ]),
-        Line::from(Span::styled(
-            format!("{} connection", c.driver),
-            Style::default().fg(Color::DarkGray),
-        )),
         Line::from(""),
+        // Section: Connection.
+        section_header("Connection"),
         Line::from(vec![label("host"), opt(&c.host)]),
         Line::from(vec![label("port"), opt_port(c.port)]),
         Line::from(vec![label("database"), opt(&c.database_name)]),
+        Line::from(""),
+        // Section: Auth.
+        section_header("Auth"),
         Line::from(vec![label("username"), opt(&c.username)]),
         Line::from(vec![
             label("password"),
@@ -186,18 +220,27 @@ fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
                 none()
             },
         ]),
+        Line::from(""),
+        // Section: Options.
+        section_header("Options"),
         Line::from(vec![label("ssl_mode"), opt(&c.ssl_mode)]),
         Line::from(vec![
             label("readonly"),
-            value(if c.is_readonly { "yes".into() } else { "no".into() }),
+            if c.is_readonly {
+                Span::styled(
+                    "yes",
+                    Style::default()
+                        .fg(Color::LightYellow)
+                        .add_modifier(Modifier::BOLD),
+                )
+            } else {
+                Span::styled("no", Style::default().fg(Color::White))
+            },
         ]),
     ];
     if let Some(desc) = c.description.as_deref() {
         lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "description",
-            Style::default().fg(Color::DarkGray),
-        )));
+        lines.push(section_header("Description"));
         lines.push(Line::from(Span::styled(
             desc.to_string(),
             Style::default().fg(Color::White),
@@ -206,11 +249,18 @@ fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
     lines
 }
 
+fn section_header(title: &str) -> Line<'static> {
+    Line::from(vec![Span::styled(
+        format!("── {title} "),
+        Style::default()
+            .fg(Color::LightBlue)
+            .add_modifier(Modifier::BOLD),
+    )])
+}
+
 fn centered_rect(area: Rect) -> Rect {
-    let w = (area.width as u32 * POPUP_PERCENT as u32 / 100) as u16;
-    let h = (area.height as u32 * POPUP_PERCENT as u32 / 100) as u16;
-    let w = w.max(40);
-    let h = h.max(12);
+    let w = POPUP_WIDTH.min(area.width.saturating_sub(2));
+    let h = POPUP_HEIGHT.min(area.height.saturating_sub(2));
     let x = area.x + (area.width.saturating_sub(w)) / 2;
     let y = area.y + (area.height.saturating_sub(h)) / 2;
     Rect {
@@ -221,18 +271,8 @@ fn centered_rect(area: Rect) -> Rect {
     }
 }
 
-fn render_hint(frame: &mut Frame, area: Rect) {
-    // Render a single-line hint on the bottom border row, overwriting
-    // the bottom edge with the chord vocabulary.
-    if area.height < 2 {
-        return;
-    }
-    let hint = " j/k navigate · Esc close · n new (P3) · e edit (P3) · D delete (P4) ";
-    let hint_x = area
-        .x
-        .saturating_add(area.width.saturating_sub(hint.chars().count() as u16))
-        .saturating_sub(2);
-    let hint_y = area.y + area.height - 1;
+fn render_hint(frame: &mut Frame, area: Rect, _bg: Style) {
+    let hint = " j/k nav · n new · e edit · D del · Esc close ";
     let para = Paragraph::new(Span::styled(
         hint,
         Style::default()
@@ -240,11 +280,5 @@ fn render_hint(frame: &mut Frame, area: Rect) {
             .bg(Color::Black)
             .add_modifier(Modifier::ITALIC),
     ));
-    let hint_area = Rect {
-        x: hint_x,
-        y: hint_y,
-        width: hint.chars().count() as u16,
-        height: 1,
-    };
-    frame.render_widget(para, hint_area);
+    frame.render_widget(para, area);
 }

@@ -1,10 +1,15 @@
-//! V3 P3 (2026-05-23): create-connection form modal. Centered
-//! popup with 9 focusable fields: name / driver dial / host / port
-//! / database / username / password / readonly toggle /
-//! description. Submits via `Enter`, cancels via `Esc`.
+//! Connection form modal (V3 P3, polished 2026-05-23). Aproxima a
+//! UX do desktop:
+//! - Driver tabs no topo (PostgreSQL / MySQL / SQLite) com highlight
+//!   no selecionado e atalhos `space`/`←→` pra cyclar.
+//! - HOST + PORT na mesma linha (layout horizontal); USERNAME +
+//!   PASSWORD idem.
+//! - Connection-string preview no rodapé, calculada do estado em
+//!   tempo real.
+//! - Cancel / Create CTA explícitos abaixo do preview.
 
 use ratatui::{
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
@@ -13,14 +18,14 @@ use ratatui::{
 
 use crate::app::{ConnectionFormFocus, ConnectionFormState, DRIVER_OPTIONS};
 
-const POPUP_WIDTH: u16 = 60;
-const POPUP_HEIGHT: u16 = 24;
+const POPUP_WIDTH: u16 = 62;
+const POPUP_HEIGHT: u16 = 22;
 
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionFormState) {
     let popup = centered_rect(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
     let bg_style = Style::default().bg(Color::Black).fg(Color::White);
 
-    // Hard-fill so editor content underneath doesn't bleed through.
+    // Hard-fill so editor / Connections page underneath don't bleed.
     {
         let buf = frame.buffer_mut();
         for y in popup.y..popup.y.saturating_add(popup.height) {
@@ -41,144 +46,255 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionFormState)
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
+    // Vertical layout: name | driver tabs | host+port | database |
+    // user+pass | readonly | description | preview | error | footer.
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // name label
+            Constraint::Length(1), // name input
+            Constraint::Length(1), // blank
+            Constraint::Length(1), // driver tabs
+            Constraint::Length(1), // blank
+            Constraint::Length(1), // host/port labels
+            Constraint::Length(1), // host/port inputs
+            Constraint::Length(1), // blank
+            Constraint::Length(1), // database label
+            Constraint::Length(1), // database input
+            Constraint::Length(1), // blank
+            Constraint::Length(1), // user/pass labels
+            Constraint::Length(1), // user/pass inputs
+            Constraint::Length(1), // readonly
+            Constraint::Length(1), // description label
+            Constraint::Length(1), // description input
+            Constraint::Min(0),    // preview + error + footer
+        ])
+        .split(inner);
+
+    let pad = |area: Rect, indent: u16| Rect {
+        x: area.x.saturating_add(indent),
+        y: area.y,
+        width: area.width.saturating_sub(indent),
+        height: area.height,
+    };
+
+    let name_focused = matches!(state.focus, ConnectionFormFocus::Name);
+    frame.render_widget(label_widget("Name", name_focused), pad(rows[0], 2));
+    frame.render_widget(
+        input_widget(state.name.as_str(), name_focused, false, "(required)"),
+        pad(rows[1], 2),
+    );
+    frame.render_widget(driver_tabs(state), pad(rows[3], 2));
+
+    // Host + Port row (label + input pairs).
+    let host_focused = matches!(state.focus, ConnectionFormFocus::Host);
+    let port_focused = matches!(state.focus, ConnectionFormFocus::Port);
+    let lr = horizontal_split(pad(rows[5], 2), 3);
+    frame.render_widget(label_widget("Host", host_focused), lr.0);
+    frame.render_widget(label_widget("Port", port_focused), lr.1);
+    let lr = horizontal_split(pad(rows[6], 2), 3);
+    frame.render_widget(
+        input_widget(state.host.as_str(), host_focused, false, "localhost"),
+        lr.0,
+    );
+    frame.render_widget(
+        input_widget(state.port.as_str(), port_focused, false, "5432"),
+        lr.1,
+    );
+
+    let db_focused = matches!(state.focus, ConnectionFormFocus::Database);
+    frame.render_widget(label_widget("Database", db_focused), pad(rows[8], 2));
+    frame.render_widget(
+        input_widget(
+            state.database_name.as_str(),
+            db_focused,
+            false,
+            placeholder_for_database(state),
+        ),
+        pad(rows[9], 2),
+    );
+
+    let user_focused = matches!(state.focus, ConnectionFormFocus::Username);
+    let pass_focused = matches!(state.focus, ConnectionFormFocus::Password);
+    let lr = horizontal_split(pad(rows[11], 2), 3);
+    frame.render_widget(label_widget("Username", user_focused), lr.0);
+    frame.render_widget(label_widget("Password", pass_focused), lr.1);
+    let lr = horizontal_split(pad(rows[12], 2), 3);
+    frame.render_widget(
+        input_widget(state.username.as_str(), user_focused, false, ""),
+        lr.0,
+    );
+    frame.render_widget(
+        input_widget(state.password.as_str(), pass_focused, true, ""),
+        lr.1,
+    );
+
+    frame.render_widget(readonly_widget(state), pad(rows[13], 2));
+    let desc_focused = matches!(state.focus, ConnectionFormFocus::Description);
+    frame.render_widget(label_widget("Description", desc_focused), pad(rows[14], 2));
+    frame.render_widget(
+        input_widget(state.description.as_str(), desc_focused, false, ""),
+        pad(rows[15], 2),
+    );
+
+    // Bottom: connection-string preview + error + footer (cancel/create hint).
+    let bottom = rows[16];
     let mut lines: Vec<Line<'static>> = Vec::new();
-    lines.push(text_row(
-        "name",
-        state.name.as_str(),
-        matches!(state.focus, ConnectionFormFocus::Name),
-        false,
-    ));
-    lines.push(driver_row(state));
-    lines.push(text_row(
-        "host",
-        state.host.as_str(),
-        matches!(state.focus, ConnectionFormFocus::Host),
-        false,
-    ));
-    lines.push(text_row(
-        "port",
-        state.port.as_str(),
-        matches!(state.focus, ConnectionFormFocus::Port),
-        false,
-    ));
-    lines.push(text_row(
-        "database",
-        state.database_name.as_str(),
-        matches!(state.focus, ConnectionFormFocus::Database),
-        false,
-    ));
-    lines.push(text_row(
-        "username",
-        state.username.as_str(),
-        matches!(state.focus, ConnectionFormFocus::Username),
-        false,
-    ));
-    lines.push(text_row(
-        "password",
-        state.password.as_str(),
-        matches!(state.focus, ConnectionFormFocus::Password),
-        true,
-    ));
-    lines.push(toggle_row(state));
-    lines.push(text_row(
-        "description",
-        state.description.as_str(),
-        matches!(state.focus, ConnectionFormFocus::Description),
-        false,
-    ));
     lines.push(Line::from(""));
-    if let Some(err) = state.error.as_deref() {
-        lines.push(Line::from(Span::styled(
-            format!("  ✗ {err}"),
-            Style::default()
-                .fg(Color::LightRed)
-                .add_modifier(Modifier::BOLD),
-        )));
-        lines.push(Line::from(""));
-    }
     lines.push(Line::from(Span::styled(
-        "  Tab next · Shift-Tab prev · Enter save · Esc cancel",
+        format!("  {}", connection_string_preview(state)),
         Style::default()
             .fg(Color::DarkGray)
             .add_modifier(Modifier::ITALIC),
     )));
-
+    if let Some(err) = state.error.as_deref() {
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            format!("  error: {err}"),
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        )));
+    }
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::raw("  "),
+        Span::styled(
+            " Esc ",
+            Style::default()
+                .fg(Color::White)
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" cancel    ", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            " Enter ",
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::LightGreen)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" create", Style::default().fg(Color::White)),
+        Span::styled(
+            "      Tab/Shift-Tab next/prev",
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
+        ),
+    ]));
     let para = Paragraph::new(lines).style(bg_style).wrap(Wrap { trim: false });
-    frame.render_widget(para, inner);
+    frame.render_widget(para, bottom);
 }
 
-fn text_row(label: &str, value: &str, focused: bool, mask: bool) -> Line<'static> {
+fn label_widget(label: &str, focused: bool) -> Paragraph<'static> {
+    let style = if focused {
+        Style::default()
+            .fg(Color::LightYellow)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+    Paragraph::new(Line::from(Span::styled(label.to_string(), style)))
+}
+
+fn input_widget(
+    value: &str,
+    focused: bool,
+    mask: bool,
+    placeholder: &str,
+) -> Paragraph<'static> {
     let display: String = if mask && !value.is_empty() {
         "•".repeat(value.chars().count())
     } else {
         value.to_string()
     };
-    let marker = if focused { "▌ " } else { "  " };
-    let label_style = if focused {
+    let (text, style) = if display.is_empty() {
+        (
+            placeholder.to_string(),
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
+        )
+    } else {
+        (
+            display,
+            Style::default().fg(Color::White),
+        )
+    };
+    let bg = if focused {
+        Style::default().bg(Color::DarkGray)
+    } else {
         Style::default()
-            .fg(Color::LightYellow)
-            .add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(Color::DarkGray)
     };
-    let value_style = if focused {
-        Style::default()
-            .fg(Color::White)
-            .bg(Color::DarkGray)
-    } else {
-        Style::default().fg(Color::White)
-    };
-    let (val_text, val_style_final) = if display.is_empty() {
-        ("—".to_string(), Style::default().fg(Color::DarkGray))
-    } else {
-        (display, value_style)
-    };
-    Line::from(vec![
-        Span::raw(marker),
-        Span::styled(format!("{label:<13}"), label_style),
-        Span::styled(val_text, val_style_final),
-    ])
+    let cursor = if focused { "▍ " } else { "  " };
+    Paragraph::new(Line::from(vec![
+        Span::styled(
+            cursor,
+            if focused {
+                Style::default().fg(Color::LightYellow)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            },
+        ),
+        Span::styled(text, style.patch(bg)),
+    ]))
 }
 
-fn driver_row(state: &ConnectionFormState) -> Line<'static> {
+fn driver_tabs(state: &ConnectionFormState) -> Paragraph<'static> {
     let focused = matches!(state.focus, ConnectionFormFocus::Driver);
-    let marker = if focused { "▌ " } else { "  " };
-    let label_style = if focused {
-        Style::default()
-            .fg(Color::LightYellow)
-            .add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
-    let mut spans = vec![
-        Span::raw(marker),
-        Span::styled(format!("{:<13}", "driver"), label_style),
-    ];
-    for (i, name) in DRIVER_OPTIONS.iter().enumerate() {
+    let driver_label = |i: usize, name: &str| -> Span<'static> {
+        let pretty = match name {
+            "postgres" => "PostgreSQL",
+            "mysql" => "MySQL",
+            "sqlite" => "SQLite",
+            _ => name,
+        };
         if i == state.driver_idx {
-            spans.push(Span::styled(
-                format!("[{name}]"),
+            Span::styled(
+                format!(" {pretty} "),
                 Style::default()
                     .fg(Color::Black)
                     .bg(Color::LightYellow)
                     .add_modifier(Modifier::BOLD),
-            ));
+            )
         } else {
+            Span::styled(
+                format!(" {pretty} "),
+                Style::default().fg(Color::DarkGray),
+            )
+        }
+    };
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    if focused {
+        spans.push(Span::styled(
+            "▍ ",
+            Style::default().fg(Color::LightYellow),
+        ));
+    } else {
+        spans.push(Span::raw("  "));
+    }
+    for (i, name) in DRIVER_OPTIONS.iter().enumerate() {
+        spans.push(driver_label(i, name));
+        if i + 1 < DRIVER_OPTIONS.len() {
             spans.push(Span::styled(
-                format!(" {name} "),
+                "│",
                 Style::default().fg(Color::DarkGray),
             ));
         }
-        if i + 1 < DRIVER_OPTIONS.len() {
-            spans.push(Span::raw(" "));
-        }
     }
-    Line::from(spans)
+    if focused {
+        spans.push(Span::styled(
+            "   ←/→ or space",
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
+        ));
+    }
+    Paragraph::new(Line::from(spans))
 }
 
-fn toggle_row(state: &ConnectionFormState) -> Line<'static> {
+fn readonly_widget(state: &ConnectionFormState) -> Paragraph<'static> {
     let focused = matches!(state.focus, ConnectionFormFocus::Readonly);
-    let marker = if focused { "▌ " } else { "  " };
     let label_style = if focused {
         Style::default()
             .fg(Color::LightYellow)
@@ -191,27 +307,90 @@ fn toggle_row(state: &ConnectionFormState) -> Line<'static> {
             .fg(Color::Black)
             .bg(Color::LightYellow)
             .add_modifier(Modifier::BOLD)
+    } else if state.is_readonly {
+        Style::default()
+            .fg(Color::LightYellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::White)
     };
-    Line::from(vec![
-        Span::raw(marker),
-        Span::styled(format!("{:<13}", "readonly"), label_style),
+    let marker = if focused { "▍ " } else { "  " };
+    let chip_text = if state.is_readonly { " [x] read-only " } else { " [ ] read-only " };
+    Paragraph::new(Line::from(vec![
+        Span::styled(marker, Style::default().fg(if focused { Color::LightYellow } else { Color::DarkGray })),
+        Span::styled(chip_text, chip_style),
         Span::styled(
-            if state.is_readonly {
-                "[x] yes "
-            } else {
-                "[ ] no  "
-            },
-            chip_style,
+            "   (space toggles)",
+            label_style.add_modifier(Modifier::ITALIC),
         ),
-        Span::styled(
-            "  (space to toggle)",
-            Style::default()
-                .fg(Color::DarkGray)
-                .add_modifier(Modifier::ITALIC),
-        ),
-    ])
+    ]))
+}
+
+fn placeholder_for_database(state: &ConnectionFormState) -> &'static str {
+    match DRIVER_OPTIONS.get(state.driver_idx).copied().unwrap_or("") {
+        "sqlite" => "/path/to/file.db",
+        "postgres" => "mydb",
+        "mysql" => "mydb",
+        _ => "",
+    }
+}
+
+/// Real-time URL preview, mirroring the desktop's
+/// `postgres://user@host:port/database` line.
+fn connection_string_preview(state: &ConnectionFormState) -> String {
+    let driver = DRIVER_OPTIONS
+        .get(state.driver_idx)
+        .copied()
+        .unwrap_or("postgres");
+    if driver == "sqlite" {
+        let db = state.database_name.as_str().trim();
+        return format!(
+            "sqlite://{}",
+            if db.is_empty() { "<path>" } else { db }
+        );
+    }
+    let user = state.username.as_str().trim();
+    let host = state.host.as_str().trim();
+    let port = state.port.as_str().trim();
+    let db = state.database_name.as_str().trim();
+    let user_part = if user.is_empty() {
+        String::new()
+    } else {
+        format!("{user}@")
+    };
+    let host_part = if host.is_empty() {
+        "<host>".to_string()
+    } else {
+        host.to_string()
+    };
+    let port_part = if port.is_empty() {
+        String::new()
+    } else {
+        format!(":{port}")
+    };
+    let db_part = if db.is_empty() {
+        "<database>".to_string()
+    } else {
+        db.to_string()
+    };
+    format!("{driver}://{user_part}{host_part}{port_part}/{db_part}")
+}
+
+fn horizontal_split(area: Rect, gap: u16) -> (Rect, Rect) {
+    let half = area.width.saturating_sub(gap) / 2;
+    let left = Rect {
+        x: area.x,
+        y: area.y,
+        width: half,
+        height: area.height,
+    };
+    let right = Rect {
+        x: area.x.saturating_add(half + gap),
+        y: area.y,
+        width: area.width.saturating_sub(half + gap),
+        height: area.height,
+    };
+    (left, right)
 }
 
 fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
