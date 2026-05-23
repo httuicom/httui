@@ -242,6 +242,22 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::ConfirmTabPicker => {
             crate::input::apply::pickers::apply_pickers(app, action, recording)
         }
+        Action::OpenConnectionForm
+        | Action::CloseConnectionForm
+        | Action::ConnectionFormFocusNext
+        | Action::ConnectionFormFocusPrev
+        | Action::ConnectionFormChar(_)
+        | Action::ConnectionFormBackspace
+        | Action::ConnectionFormDelete
+        | Action::ConnectionFormCursorLeft
+        | Action::ConnectionFormCursorRight
+        | Action::ConnectionFormCursorHome
+        | Action::ConnectionFormCursorEnd
+        | Action::ConnectionFormCycleDriver(_)
+        | Action::ConnectionFormToggleReadonly
+        | Action::ConnectionFormSubmit => {
+            crate::input::apply::connection_form::apply_connection_form(app, action)
+        }
         Action::JumpNextBlock
         | Action::JumpPrevBlock
         | Action::RerunLastBlock

@@ -1,6 +1,7 @@
 use crate::app::{
-    BlockHistoryState, BlockTemplatePickerState, ConnectionPickerState, ConnectionsPageState,
-    DbConfirmRunState, DbExportPickerState, EnvironmentPickerState, TabPickerState,
+    BlockHistoryState, BlockTemplatePickerState, ConnectionFormState, ConnectionPickerState,
+    ConnectionsPageState, DbConfirmRunState, DbExportPickerState, EnvironmentPickerState,
+    TabPickerState,
 };
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -20,6 +21,9 @@ pub enum Modal {
     /// a create form (P3); `D` deletes the highlighted entry (P4);
     /// `e` edits (P3). Esc / Ctrl-C close.
     Connections(ConnectionsPageState),
+    /// V3 P3 (2026-05-23): create-connection form, opened by `n` on
+    /// the Connections page. Submits to `ConnectionsStore::create`.
+    ConnectionForm(ConnectionFormState),
 }
 
 #[derive(Debug)]
@@ -41,15 +45,80 @@ impl Modal {
             Modal::EnvironmentPicker(_) => environment_picker_handle_key(key),
             Modal::ConnectionPicker(_) => connection_picker_handle_key(key),
             Modal::Connections(_) => connections_page_handle_key(key),
+            Modal::ConnectionForm(s) => connection_form_handle_key(s, key),
         }
     }
 }
 
+/// V3 P3: form key handling. Tab/Shift-Tab/Up/Down cycle focus;
+/// Esc/Ctrl-C cancel; Enter submits; typing routes into the focused
+/// `LineEdit` (or toggles the driver/readonly fields).
+fn connection_form_handle_key(state: &ConnectionFormState, key: KeyEvent) -> ModalOutcome {
+    use crate::app::ConnectionFormFocus;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) => ModalOutcome::Emit(Action::CloseConnectionForm),
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::CloseConnectionForm)
+        }
+        (_, KeyCode::Enter) => ModalOutcome::Emit(Action::ConnectionFormSubmit),
+        (_, KeyCode::Tab) | (_, KeyCode::Down) => {
+            ModalOutcome::Emit(Action::ConnectionFormFocusNext)
+        }
+        (_, KeyCode::BackTab) | (_, KeyCode::Up) => {
+            ModalOutcome::Emit(Action::ConnectionFormFocusPrev)
+        }
+        // Driver field is a 3-option dial: arrows / space cycle.
+        (_, KeyCode::Char(' '))
+            if matches!(state.focus, ConnectionFormFocus::Driver) =>
+        {
+            ModalOutcome::Emit(Action::ConnectionFormCycleDriver(1))
+        }
+        (_, KeyCode::Left) if matches!(state.focus, ConnectionFormFocus::Driver) => {
+            ModalOutcome::Emit(Action::ConnectionFormCycleDriver(-1))
+        }
+        (_, KeyCode::Right) if matches!(state.focus, ConnectionFormFocus::Driver) => {
+            ModalOutcome::Emit(Action::ConnectionFormCycleDriver(1))
+        }
+        // Readonly toggle (space flips).
+        (_, KeyCode::Char(' '))
+            if matches!(state.focus, ConnectionFormFocus::Readonly) =>
+        {
+            ModalOutcome::Emit(Action::ConnectionFormToggleReadonly)
+        }
+        // LineEdit ops on the focused text field.
+        (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::ConnectionFormBackspace),
+        (_, KeyCode::Delete) => ModalOutcome::Emit(Action::ConnectionFormDelete),
+        (_, KeyCode::Left) => ModalOutcome::Emit(Action::ConnectionFormCursorLeft),
+        (_, KeyCode::Right) => ModalOutcome::Emit(Action::ConnectionFormCursorRight),
+        (_, KeyCode::Home) => ModalOutcome::Emit(Action::ConnectionFormCursorHome),
+        (_, KeyCode::End) => ModalOutcome::Emit(Action::ConnectionFormCursorEnd),
+        // Printable char (no CONTROL) → insert into focused input.
+        // Driver/Readonly are gated above; falling through here means
+        // any non-special key is a no-op for those two fields.
+        (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
+            if matches!(
+                state.focus,
+                ConnectionFormFocus::Driver | ConnectionFormFocus::Readonly
+            ) {
+                ModalOutcome::Continue
+            } else {
+                ModalOutcome::Emit(Action::ConnectionFormChar(c))
+            }
+        }
+        _ => ModalOutcome::Continue,
+    }
+}
+
 /// Connections page (`gC` / `Alt+P`). Vocab: navigate the list with
-/// `j`/`k`/arrows/`Ctrl+n`/`Ctrl+p`; `Esc`/`Ctrl+C` close. P3 will
-/// extend with `n` (new) / `e` (edit) / `D` (delete); for now any
-/// other key is a no-op.
+/// `j`/`k`/arrows/`Ctrl+n`/`Ctrl+p`; `n` opens the create form (P3);
+/// `Esc`/`Ctrl+C` close.
 fn connections_page_handle_key(key: KeyEvent) -> ModalOutcome {
+    if let (KeyModifiers::NONE, KeyCode::Char('n')) = (key.modifiers, key.code) {
+        return ModalOutcome::Emit(Action::OpenConnectionForm);
+    }
     match list_picker_key(key) {
         ListPickerKey::Up => ModalOutcome::Emit(Action::MoveConnectionsPageCursor(-1)),
         ListPickerKey::Down => ModalOutcome::Emit(Action::MoveConnectionsPageCursor(1)),

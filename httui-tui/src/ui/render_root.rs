@@ -13,10 +13,11 @@ use crate::pane::PaneNode;
 use crate::vim::mode::Mode;
 
 use super::{
-    anchor, block_history, block_template_picker, completion_popup, connection_picker,
-    connections_page, content_search, db_confirm_run, db_export_picker, db_row_detail,
-    db_settings_modal, environment_picker, fence_edit, help, http_response_detail, quickopen,
-    render_empty_state_inline, render_pane_tree, status, tab_picker, tabs, tree, VisualOverlay,
+    anchor, block_history, block_template_picker, completion_popup, connection_form,
+    connection_picker, connections_page, content_search, db_confirm_run, db_export_picker,
+    db_row_detail, db_settings_modal, environment_picker, fence_edit, help, http_response_detail,
+    quickopen, render_empty_state_inline, render_pane_tree, status, tab_picker, tabs, tree,
+    VisualOverlay,
 };
 
 pub fn render(frame: &mut Frame, app: &mut App) {
@@ -362,6 +363,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // the editor underneath.
     if let Some(crate::modal::Modal::Connections(state)) = app.modal.as_ref() {
         connections_page::render(frame, editor_area, state);
+    }
+
+    // V3 P3: create-connection form modal. Painted on top of the
+    // Connections page (which replaces itself when the form opens —
+    // single-modal stack for now). Centered popup ~60x24.
+    if let Some(crate::modal::Modal::ConnectionForm(state)) = app.modal.as_ref() {
+        connection_form::render(frame, editor_area, state);
     }
 }
 

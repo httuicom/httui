@@ -335,7 +335,35 @@ pub enum Action {
     /// `j` / `k` / arrows inside the Connections page — move the
     /// selection by `i32` (clamps at the ends).
     MoveConnectionsPageCursor(i32),
-    /// `g?` chord from normal mode — open the keymap help modal.
+    /// `n` in the Connections page — open the inline create form
+    /// modal (V3 P3, 2026-05-23). Submits via `store.create`; on
+    /// success the page list reloads and the new entry stays
+    /// selected.
+    OpenConnectionForm,
+    CloseConnectionForm,
+    /// Tab/Down → next; Shift-Tab/Up → prev. Wraps both directions.
+    ConnectionFormFocusNext,
+    ConnectionFormFocusPrev,
+    /// Insertion / editing into the focused `LineEdit`. The driver
+    /// field doesn't accept Char/Backspace/etc (handled by
+    /// `ConnectionFormCycleDriver` instead); the readonly field
+    /// accepts space-toggle via `ConnectionFormToggleReadonly`.
+    ConnectionFormChar(char),
+    ConnectionFormBackspace,
+    ConnectionFormDelete,
+    ConnectionFormCursorLeft,
+    ConnectionFormCursorRight,
+    ConnectionFormCursorHome,
+    ConnectionFormCursorEnd,
+    /// Space or right-arrow when the driver field is focused —
+    /// cycle postgres → mysql → sqlite → postgres. Backwards via
+    /// left-arrow.
+    ConnectionFormCycleDriver(i32),
+    /// Space when readonly is focused — flip the flag.
+    ConnectionFormToggleReadonly,
+    /// Enter — validate + `store.create`. Failure surfaces inline.
+    ConnectionFormSubmit,
+
     /// Read-only listing of the chord vocabulary grouped by section.
     /// Mnemonic: `g`-prefix family + `?` = "help".
     OpenHelp,

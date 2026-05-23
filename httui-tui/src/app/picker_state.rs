@@ -21,6 +21,75 @@ pub struct ConnectionPickerState {
     pub selected: usize,
 }
 
+/// V3 P3 (2026-05-23): inline create form. Opened by `n` inside
+/// the Connections page (`Modal::Connections`). Submits to
+/// `ConnectionsStore::create`; success closes the form and reloads
+/// the page. The driver/readonly/text fields share a flat `focus`
+/// cursor so Tab/Shift-Tab can cycle uniformly.
+#[derive(Debug, Default)]
+pub struct ConnectionFormState {
+    pub name: crate::vim::lineedit::LineEdit,
+    /// 0=postgres, 1=mysql, 2=sqlite. See `DRIVER_OPTIONS`.
+    pub driver_idx: usize,
+    pub host: crate::vim::lineedit::LineEdit,
+    pub port: crate::vim::lineedit::LineEdit,
+    pub database_name: crate::vim::lineedit::LineEdit,
+    pub username: crate::vim::lineedit::LineEdit,
+    pub password: crate::vim::lineedit::LineEdit,
+    pub description: crate::vim::lineedit::LineEdit,
+    pub is_readonly: bool,
+    pub focus: ConnectionFormFocus,
+    pub error: Option<String>,
+}
+
+impl ConnectionFormState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+/// Tab order — flat list so focus cycling is just modular increment.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectionFormFocus {
+    #[default]
+    Name,
+    Driver,
+    Host,
+    Port,
+    Database,
+    Username,
+    Password,
+    Readonly,
+    Description,
+}
+
+pub const DRIVER_OPTIONS: &[&str] = &["postgres", "mysql", "sqlite"];
+
+impl ConnectionFormFocus {
+    pub const ORDER: &'static [Self] = &[
+        Self::Name,
+        Self::Driver,
+        Self::Host,
+        Self::Port,
+        Self::Database,
+        Self::Username,
+        Self::Password,
+        Self::Readonly,
+        Self::Description,
+    ];
+
+    pub fn next(self) -> Self {
+        let idx = Self::ORDER.iter().position(|f| *f == self).unwrap_or(0);
+        Self::ORDER[(idx + 1) % Self::ORDER.len()]
+    }
+
+    pub fn prev(self) -> Self {
+        let idx = Self::ORDER.iter().position(|f| *f == self).unwrap_or(0);
+        let len = Self::ORDER.len();
+        Self::ORDER[(idx + len - 1) % len]
+    }
+}
+
 /// Open instance of the **Connections page** — the dedicated
 /// master-detail screen opened by `gC` / `Alt+P` (V3, 2026-05-23).
 /// Unlike `ConnectionPickerState` (anchored popup for swapping a
