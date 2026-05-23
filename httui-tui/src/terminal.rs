@@ -4,8 +4,8 @@
 // 2026-05-21 in docs-llm/tui-v2/io-coverage-debt.md (tui-V03).
 use crossterm::{
     event::{
-        DisableMouseCapture, EnableMouseCapture, KeyboardEnhancementFlags,
-        PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+        DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+        KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute,
     terminal::{
@@ -38,6 +38,7 @@ pub fn setup(mouse: bool) -> TuiResult<Tui> {
         execute!(stdout, EnterAlternateScreen)
             .map_err(|e| TuiError::Terminal(format!("enter alt screen: {e}")))?;
     }
+    let _ = execute!(stdout, EnableBracketedPaste);
     // Kitty keyboard protocol — when the terminal supports it, lets it
     // disambiguate `Ctrl+Shift+<key>` from `Ctrl+<key>`. Guarded by
     // the support probe: pushing it unconditionally regressed a
@@ -67,6 +68,7 @@ pub fn teardown(terminal: &mut Tui) -> TuiResult<()> {
     if KITTY_PUSHED.swap(false, Ordering::SeqCst) {
         let _ = execute!(terminal.backend_mut(), PopKeyboardEnhancementFlags);
     }
+    let _ = execute!(terminal.backend_mut(), DisableBracketedPaste);
     let _ = disable_raw_mode();
     let _ = execute!(
         terminal.backend_mut(),
@@ -84,6 +86,7 @@ pub fn restore_raw_stdout() {
     if KITTY_PUSHED.swap(false, Ordering::SeqCst) {
         let _ = execute!(io::stdout(), PopKeyboardEnhancementFlags);
     }
+    let _ = execute!(io::stdout(), DisableBracketedPaste);
     let _ = disable_raw_mode();
     let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
 }

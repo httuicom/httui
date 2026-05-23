@@ -122,6 +122,9 @@ fn handle_app_event(app: &mut App, ev: AppEvent) -> bool {
             // and stale watches on closed files stop firing.
             app.sync_file_watcher();
         }
+        AppEvent::Paste(text) => {
+            crate::input::apply::standard_sel::insert_text_at_caret(app, &text);
+        }
         AppEvent::Resize(_, _) => {}
         // Debounced auto-save (tui-V01 / fase 5 p3 — Cenário 4).
         // All decision logic + the write call live in the covered
@@ -421,6 +424,18 @@ mod tests {
         );
         assert!(cont, "Key is non-terminal");
         assert_ne!(app.vim.mode, before, "`i` should flip the vim mode");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn paste_event_inserts_text_at_caret() {
+        let (mut app, _d, _v) = app_fixture("abc\n").await;
+        let cont = handle_app_event(&mut app, AppEvent::Paste("X\nY".into()));
+        assert!(cont);
+        assert!(
+            app.document().unwrap().to_markdown().contains("X\nY"),
+            "multi-line paste preserved: {:?}",
+            app.document().unwrap().to_markdown()
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]

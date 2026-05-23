@@ -150,18 +150,21 @@ fn paste_system(app: &mut App, clip: &mut impl SystemClipboard) {
             return;
         }
     };
+    insert_text_at_caret(app, &text);
+}
+
+pub fn insert_text_at_caret(app: &mut App, text: &str) {
     if text.is_empty() {
         return;
     }
 
-    // Replace an active same-segment selection, else insert at caret.
     let range = app.standard.anchor.and_then(|a| selection_range(app, a));
 
     if let Some((seg, lo, hi)) = range {
         if let Some(doc) = app.document_mut() {
             doc.snapshot();
             doc.delete_range_in_segment(seg, lo, hi);
-            let n = doc.insert_text_in_segment(seg, lo, &text);
+            let n = doc.insert_text_in_segment(seg, lo, text);
             doc.set_cursor(Cursor::InProse {
                 segment_idx: seg,
                 offset: lo + n,
@@ -172,8 +175,6 @@ fn paste_system(app: &mut App, clip: &mut impl SystemClipboard) {
         return;
     }
 
-    // No selection — insert at the caret (prose only; block / result
-    // carets are a graceful no-op, matching the rest of fase 3).
     let Some(Cursor::InProse {
         segment_idx,
         offset,
@@ -183,7 +184,7 @@ fn paste_system(app: &mut App, clip: &mut impl SystemClipboard) {
     };
     if let Some(doc) = app.document_mut() {
         doc.snapshot();
-        let n = doc.insert_text_in_segment(segment_idx, offset, &text);
+        let n = doc.insert_text_in_segment(segment_idx, offset, text);
         doc.set_cursor(Cursor::InProse {
             segment_idx,
             offset: offset + n,
@@ -416,6 +417,33 @@ mod tests {
         let before = app.document().unwrap().to_markdown();
         let mut clip = FakeClipboard::default();
         apply_standard_sel(&mut app, Action::PasteSystem, &mut clip);
+        assert_eq!(app.document().unwrap().to_markdown(), before);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn insert_text_at_caret_preserves_newlines() {
+        let (mut app, _d, _v) = app_with("abc\n").await;
+        let (seg, _) = prose(&app);
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: seg,
+            offset: 1,
+        });
+        insert_text_at_caret(&mut app, "X\nY\nZ");
+        assert!(
+            app.document()
+                .unwrap()
+                .to_markdown()
+                .starts_with("aX\nY\nZbc"),
+            "multi-line paste preserves \\n: {:?}",
+            app.document().unwrap().to_markdown()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn insert_text_at_caret_empty_is_a_noop() {
+        let (mut app, _d, _v) = app_with("abc\n").await;
+        let before = app.document().unwrap().to_markdown();
+        insert_text_at_caret(&mut app, "");
         assert_eq!(app.document().unwrap().to_markdown(), before);
     }
 

@@ -18,6 +18,7 @@ use crate::error::TuiResult;
 #[allow(dead_code)] // Resize / Quit are wired but not yet consumed by the scaffold.
 pub enum AppEvent {
     Key(KeyEvent),
+    Paste(String),
     Resize(u16, u16),
     Tick,
     Quit,
@@ -167,6 +168,7 @@ fn map_crossterm_event(ev: CtEvent) -> Option<AppEvent> {
     match ev {
         CtEvent::Key(k) if k.kind == KeyEventKind::Release => None,
         CtEvent::Key(k) => Some(AppEvent::Key(k)),
+        CtEvent::Paste(s) => Some(AppEvent::Paste(s)),
         CtEvent::Resize(c, r) => Some(AppEvent::Resize(c, r)),
         _ => None,
     }
