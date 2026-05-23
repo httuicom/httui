@@ -15,8 +15,13 @@ use ratatui::{
 use crate::app::{ConnectionDetail, ConnectionsPageState};
 
 const SIDEBAR_PERCENT: u16 = 35;
+/// Percentage of the available editor area covered by the popup;
+/// the remaining border lets the editor underneath stay visible
+/// (matches the chrome of the other modals — Help, BlockHistory).
+const POPUP_PERCENT: u16 = 85;
 
-pub fn render(frame: &mut Frame, area: Rect, state: &ConnectionsPageState) {
+pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionsPageState) {
+    let area = centered_rect(editor_area);
     let bg_style = Style::default().bg(Color::Black).fg(Color::White);
 
     // Hard-fill so editor content underneath doesn't bleed through.
@@ -199,6 +204,21 @@ fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
         )));
     }
     lines
+}
+
+fn centered_rect(area: Rect) -> Rect {
+    let w = (area.width as u32 * POPUP_PERCENT as u32 / 100) as u16;
+    let h = (area.height as u32 * POPUP_PERCENT as u32 / 100) as u16;
+    let w = w.max(40);
+    let h = h.max(12);
+    let x = area.x + (area.width.saturating_sub(w)) / 2;
+    let y = area.y + (area.height.saturating_sub(h)) / 2;
+    Rect {
+        x,
+        y,
+        width: w,
+        height: h,
+    }
 }
 
 fn render_hint(frame: &mut Frame, area: Rect) {
