@@ -367,9 +367,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     // V3 P3: create-connection form modal. Painted on top of the
     // Connections page (which replaces itself when the form opens —
-    // single-modal stack for now). Centered popup ~60x24.
+    // single-modal stack for now). Centered popup ~62x22. The
+    // renderer returns the cursor position for the focused field
+    // so the terminal can place its native (blinking) cursor.
     if let Some(crate::modal::Modal::ConnectionForm(state)) = app.modal.as_ref() {
-        connection_form::render(frame, editor_area, state);
+        if let Some((cx, cy)) = connection_form::render(frame, editor_area, state) {
+            frame.set_cursor_position((cx, cy));
+        }
     }
 }
 

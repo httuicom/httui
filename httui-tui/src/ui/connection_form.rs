@@ -21,7 +21,16 @@ use crate::app::{ConnectionFormFocus, ConnectionFormState, DRIVER_OPTIONS};
 const POPUP_WIDTH: u16 = 62;
 const POPUP_HEIGHT: u16 = 22;
 
-pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionFormState) {
+/// Renders the form and returns the position of the terminal
+/// cursor for the focused field (or `None` when focus lands on
+/// the driver tabs / readonly toggle, which have no caret).
+/// `render_root` calls `frame.set_cursor_position` with the
+/// returned coord — the terminal then handles native blinking.
+pub fn render(
+    frame: &mut Frame,
+    editor_area: Rect,
+    state: &ConnectionFormState,
+) -> Option<(u16, u16)> {
     let popup = centered_rect(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
     let bg_style = Style::default().bg(Color::Black).fg(Color::White);
 
@@ -81,7 +90,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionFormState)
     let name_focused = matches!(state.focus, ConnectionFormFocus::Name);
     frame.render_widget(label_widget("Name", name_focused), pad(rows[0], 2));
     frame.render_widget(
-        input_widget(state.name.as_str(), name_focused, false, "(required)"),
+        input_widget(state.name.as_str(), false, "(required)"),
         pad(rows[1], 2),
     );
     frame.render_widget(driver_tabs(state), pad(rows[3], 2));
@@ -94,11 +103,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionFormState)
     frame.render_widget(label_widget("Port", port_focused), lr.1);
     let lr = horizontal_split(pad(rows[6], 2), 3);
     frame.render_widget(
-        input_widget(state.host.as_str(), host_focused, false, "localhost"),
+        input_widget(state.host.as_str(), false, "localhost"),
         lr.0,
     );
     frame.render_widget(
-        input_widget(state.port.as_str(), port_focused, false, "5432"),
+        input_widget(state.port.as_str(), false, "5432"),
         lr.1,
     );
 
@@ -107,7 +116,6 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionFormState)
     frame.render_widget(
         input_widget(
             state.database_name.as_str(),
-            db_focused,
             false,
             placeholder_for_database(state),
         ),
@@ -121,11 +129,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionFormState)
     frame.render_widget(label_widget("Password", pass_focused), lr.1);
     let lr = horizontal_split(pad(rows[12], 2), 3);
     frame.render_widget(
-        input_widget(state.username.as_str(), user_focused, false, ""),
+        input_widget(state.username.as_str(), false, ""),
         lr.0,
     );
     frame.render_widget(
-        input_widget(state.password.as_str(), pass_focused, true, ""),
+        input_widget(state.password.as_str(), true, ""),
         lr.1,
     );
 
@@ -133,7 +141,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionFormState)
     let desc_focused = matches!(state.focus, ConnectionFormFocus::Description);
     frame.render_widget(label_widget("Description", desc_focused), pad(rows[14], 2));
     frame.render_widget(
-        input_widget(state.description.as_str(), desc_focused, false, ""),
+        input_widget(state.description.as_str(), false, ""),
         pad(rows[15], 2),
     );
 
@@ -184,6 +192,38 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionFormState)
     ]));
     let para = Paragraph::new(lines).style(bg_style).wrap(Wrap { trim: false });
     frame.render_widget(para, bottom);
+
+    // Terminal cursor for the focused field. `render_root` calls
+    // `frame.set_cursor_position` with this; the terminal handles
+    // native blink. Cursor lives at the input row's column, offset
+    // by the prefix (2 cells) + the LineEdit's char-col.
+    let focused_input = match state.focus {
+        ConnectionFormFocus::Name => Some((pad(rows[1], 2), &state.name)),
+        ConnectionFormFocus::Host => {
+            let lr = horizontal_split(pad(rows[6], 2), 3);
+            Some((lr.0, &state.host))
+        }
+        ConnectionFormFocus::Port => {
+            let lr = horizontal_split(pad(rows[6], 2), 3);
+            Some((lr.1, &state.port))
+        }
+        ConnectionFormFocus::Database => Some((pad(rows[9], 2), &state.database_name)),
+        ConnectionFormFocus::Username => {
+            let lr = horizontal_split(pad(rows[12], 2), 3);
+            Some((lr.0, &state.username))
+        }
+        ConnectionFormFocus::Password => {
+            let lr = horizontal_split(pad(rows[12], 2), 3);
+            Some((lr.1, &state.password))
+        }
+        ConnectionFormFocus::Description => Some((pad(rows[15], 2), &state.description)),
+        ConnectionFormFocus::Driver | ConnectionFormFocus::Readonly => None,
+    };
+    focused_input.map(|(area, edit)| {
+        let col = (edit.cursor_col() as u16).saturating_add(2); // "  " prefix
+        let x = area.x.saturating_add(col).min(area.x + area.width.saturating_sub(1));
+        (x, area.y)
+    })
 }
 
 fn label_widget(label: &str, focused: bool) -> Paragraph<'static> {
@@ -197,12 +237,7 @@ fn label_widget(label: &str, focused: bool) -> Paragraph<'static> {
     Paragraph::new(Line::from(Span::styled(label.to_string(), style)))
 }
 
-fn input_widget(
-    value: &str,
-    focused: bool,
-    mask: bool,
-    placeholder: &str,
-) -> Paragraph<'static> {
+fn input_widget(value: &str, mask: bool, placeholder: &str) -> Paragraph<'static> {
     let display: String = if mask && !value.is_empty() {
         "•".repeat(value.chars().count())
     } else {
@@ -221,21 +256,11 @@ fn input_widget(
     // Focus is signaled by the cursor glyph + label highlight only —
     // no background tint on the input itself (kept the row visually
     // clean against the popup's black background).
-    let cursor = if focused { "▍ " } else { "  " };
-    let cursor_style = if focused {
-        // SLOW_BLINK = ANSI blink attr; supported by most modern
-        // terminals (kitty, alacritty, iTerm2, WezTerm). Falls back
-        // to static when the terminal lacks blink support — no harm.
-        Style::default()
-            .fg(Color::LightYellow)
-            .add_modifier(Modifier::SLOW_BLINK)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
-    Paragraph::new(Line::from(vec![
-        Span::styled(cursor, cursor_style),
-        Span::styled(text, style),
-    ]))
+    // Prefix is always two blank cells so the column where the
+    // terminal cursor lands is consistent across rows. The cursor
+    // itself comes from `frame.set_cursor_position` (returned by
+    // `render`); native terminal blink, no software glyph.
+    Paragraph::new(Line::from(vec![Span::raw("  "), Span::styled(text, style)]))
 }
 
 fn driver_tabs(state: &ConnectionFormState) -> Paragraph<'static> {
@@ -266,9 +291,7 @@ fn driver_tabs(state: &ConnectionFormState) -> Paragraph<'static> {
     if focused {
         spans.push(Span::styled(
             "▍ ",
-            Style::default()
-                .fg(Color::LightYellow)
-                .add_modifier(Modifier::SLOW_BLINK),
+            Style::default().fg(Color::LightYellow),
         ));
     } else {
         spans.push(Span::raw("  "));
@@ -316,9 +339,7 @@ fn readonly_widget(state: &ConnectionFormState) -> Paragraph<'static> {
     };
     let marker = if focused { "▍ " } else { "  " };
     let marker_style = if focused {
-        Style::default()
-            .fg(Color::LightYellow)
-            .add_modifier(Modifier::SLOW_BLINK)
+        Style::default().fg(Color::LightYellow)
     } else {
         Style::default().fg(Color::DarkGray)
     };
