@@ -110,11 +110,6 @@ pub struct App {
     /// body; cleared on Accept/Dismiss or when the prefix becomes
     /// empty.
     pub completion_popup: Option<CompletionPopupState>,
-    /// `Some` while the run-confirm modal is up. Set by
-    /// `apply_run_block` when it detects an unscoped destructive
-    /// query (UPDATE/DELETE without WHERE); the user answers `y`
-    /// to run anyway or `n`/Esc/Ctrl-C to cancel.
-    pub db_confirm_run: Option<DbConfirmRunState>,
     /// `Some` while the export-format picker is open. Mode flips to
     /// `Mode::DbExportPicker` so dispatch routes navigation/confirm
     /// keys to the picker. The popup renders independently of mode —
@@ -238,7 +233,6 @@ impl App {
             connection_picker: None,
             schema_cache: crate::schema::SchemaCache::new(),
             completion_popup: None,
-            db_confirm_run: None,
             db_export_picker: None,
             db_settings: None,
             block_history: None,

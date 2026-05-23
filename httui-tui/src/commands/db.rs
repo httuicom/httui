@@ -1030,11 +1030,13 @@ pub(crate) fn run_db_block_inner(
             .collect::<String>()
             .to_ascii_uppercase();
         let reason = format!("{kind} without WHERE will affect every row");
-        app.db_confirm_run = Some(crate::app::DbConfirmRunState {
-            segment_idx,
-            reason,
-        });
-        app.vim.mode = crate::vim::mode::Mode::DbConfirmRun;
+        app.modal = Some(crate::modal::Modal::DbConfirmRun(
+            crate::app::DbConfirmRunState {
+                segment_idx,
+                reason,
+            },
+        ));
+        app.vim.mode = crate::vim::mode::Mode::Modal;
         return;
     }
 

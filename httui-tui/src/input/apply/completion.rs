@@ -228,23 +228,27 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
 /// segment_idx comes from the modal state because the cursor may
 /// have moved while the modal was up.
 pub(crate) fn apply_confirm_db_run(app: &mut App) {
-    let Some(state) = app.db_confirm_run.take() else {
-        app.vim.enter_normal();
-        return;
+    let segment_idx = match app.modal.take() {
+        Some(crate::modal::Modal::DbConfirmRun(state)) => state.segment_idx,
+        other => {
+            app.modal = other;
+            app.vim.enter_normal();
+            return;
+        }
     };
     app.vim.enter_normal();
     crate::commands::db::run_db_block_inner(
         app,
-        state.segment_idx,
-        /* force_unscoped = */ true,
+        segment_idx,
+        true,
         None,
-        /* as_explain = */ false,
+        false,
     );
 }
 
-/// `n` / `Esc` / `Ctrl-C` — close the modal without running.
 pub(crate) fn apply_cancel_db_run(app: &mut App) {
-    if app.db_confirm_run.take().is_some() {
+    if matches!(app.modal, Some(crate::modal::Modal::DbConfirmRun(_))) {
+        app.modal = None;
         app.set_status(StatusKind::Info, "run cancelled");
     }
     app.vim.enter_normal();

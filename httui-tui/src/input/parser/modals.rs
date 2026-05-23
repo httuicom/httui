@@ -387,23 +387,3 @@ pub fn parse_block_history(key: KeyEvent) -> Action {
     }
 }
 
-/// Translate one key while the unscoped-destructive run-confirm
-/// modal is up. `y` (or `Enter`) commits to the run; `n`/`Esc`/
-/// `Ctrl-C` back out. Anything else is a no-op — fat-fingering a
-/// motion keystroke shouldn't accidentally execute a `DELETE`.
-pub fn parse_db_confirm_run(key: KeyEvent) -> Action {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-    match (modifiers, code) {
-        (_, KeyCode::Esc) => Action::CancelDbRun,
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => Action::CancelDbRun,
-        (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
-            Action::CancelDbRun
-        }
-        (KeyModifiers::NONE, KeyCode::Char('y'))
-        | (KeyModifiers::NONE, KeyCode::Char('Y'))
-        | (_, KeyCode::Enter) => Action::ConfirmDbRun,
-        _ => Action::Noop,
-    }
-}

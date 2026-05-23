@@ -117,6 +117,7 @@ impl FenceEditKind {
 /// State for the run-confirm modal. Carries the segment to re-run
 /// (the cursor may have moved in between) and the human reason
 /// shown to the user (e.g. "UPDATE without WHERE").
+#[derive(Debug)]
 pub struct DbConfirmRunState {
     pub segment_idx: usize,
     pub reason: String,

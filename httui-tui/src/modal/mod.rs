@@ -1,13 +1,14 @@
+use crate::app::DbConfirmRunState;
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 #[derive(Debug)]
 pub enum Modal {
     Help,
+    DbConfirmRun(DbConfirmRunState),
 }
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub enum ModalOutcome {
     Continue,
     Close,
@@ -18,6 +19,7 @@ impl Modal {
     pub fn handle_key(&mut self, key: KeyEvent) -> ModalOutcome {
         match self {
             Modal::Help => help_handle_key(key),
+            Modal::DbConfirmRun(_) => db_confirm_run_handle_key(key),
         }
     }
 }
@@ -30,6 +32,23 @@ fn help_handle_key(key: KeyEvent) -> ModalOutcome {
         (_, KeyCode::Esc) => ModalOutcome::Close,
         (KeyModifiers::CONTROL, KeyCode::Char('c')) => ModalOutcome::Close,
         (m, KeyCode::Char('q')) if !m.contains(KeyModifiers::CONTROL) => ModalOutcome::Close,
+        _ => ModalOutcome::Continue,
+    }
+}
+
+fn db_confirm_run_handle_key(key: KeyEvent) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) => ModalOutcome::Emit(Action::CancelDbRun),
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => ModalOutcome::Emit(Action::CancelDbRun),
+        (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
+            ModalOutcome::Emit(Action::CancelDbRun)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('y'))
+        | (KeyModifiers::NONE, KeyCode::Char('Y'))
+        | (_, KeyCode::Enter) => ModalOutcome::Emit(Action::ConfirmDbRun),
         _ => ModalOutcome::Continue,
     }
 }

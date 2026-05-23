@@ -43,10 +43,6 @@ pub enum Mode {
     /// dismiss. Renders independently of mode (popup is painted
     /// while `App.connection_picker` is `Some`).
     ConnectionPicker,
-    /// Confirm gate before running an unscoped destructive query
-    /// (UPDATE/DELETE without WHERE). `y` runs anyway, `n`/Esc/
-    /// Ctrl-C cancels. State lives on `App.db_confirm_run`.
-    DbConfirmRun,
     /// `gx` on a DB block with select rows opens the export-format
     /// picker. Up/Down (or `j`/`k`) navigate, Enter copies the
     /// serialized result to the clipboard, Esc/Ctrl-C dismisses.
@@ -111,7 +107,6 @@ impl Mode {
             Mode::DbRowDetail => "ROW",
             Mode::HttpResponseDetail => "RESP",
             Mode::ConnectionPicker => "CONN",
-            Mode::DbConfirmRun => "RUN?",
             Mode::DbExportPicker => "EXPORT",
             Mode::FenceEdit => "EDIT",
             Mode::DbSettings => "SET",
@@ -136,7 +131,6 @@ impl Mode {
             Mode::DbRowDetail => Color::LightBlue,
             Mode::HttpResponseDetail => Color::LightBlue,
             Mode::ConnectionPicker => Color::LightBlue,
-            Mode::DbConfirmRun => Color::LightRed,
             Mode::DbExportPicker => Color::LightBlue,
             Mode::FenceEdit => Color::LightYellow,
             Mode::DbSettings => Color::LightYellow,

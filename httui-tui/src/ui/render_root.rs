@@ -307,7 +307,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Run-confirm modal — painted last so it floats over everything
     // else (including a stuck completion popup, though both being up
     // simultaneously shouldn't happen in practice).
-    if let Some(state) = app.db_confirm_run.as_ref() {
+    if let Some(crate::modal::Modal::DbConfirmRun(state)) = app.modal.as_ref() {
         db_confirm_run::render(frame, editor_area, state);
     }
 
@@ -712,10 +712,10 @@ mod tests {
     async fn db_confirm_run_modal_paints() {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
-        app.db_confirm_run = Some(DbConfirmRunState {
+        app.modal = Some(crate::modal::Modal::DbConfirmRun(DbConfirmRunState {
             segment_idx: 0,
             reason: "UPDATE without WHERE".into(),
-        });
+        }));
         let (text, _c) = render(&mut app, 70, 14);
         assert!(
             text.contains("WHERE") || text.contains("UPDATE"),

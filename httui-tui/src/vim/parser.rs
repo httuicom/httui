@@ -68,7 +68,7 @@ pub use crate::input::parser::lineedit::{
 // and the in-file `mod tests` keep resolving them (tui-v2 vertical 1, fase 1 p3d).
 pub use crate::input::parser::modals::{
     parse_block_history, parse_block_template_picker, parse_connection_picker,
-    parse_content_search, parse_db_confirm_run, parse_db_export_picker, parse_db_row_detail,
+    parse_content_search, parse_db_export_picker, parse_db_row_detail,
     parse_db_settings_modal, parse_environment_picker, parse_http_response_detail,
     parse_tab_picker,
 };
