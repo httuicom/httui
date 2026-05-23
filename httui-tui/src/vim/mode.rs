@@ -60,10 +60,6 @@ pub enum Mode {
     /// chord-per-field (`gl`/`gw`) per the
     /// `project_tui_block_settings_modal.md` user-memory.
     DbSettings,
-    /// `gh` on an HTTP block — open the run-history modal. Read-only
-    /// view of the last N rows from `block_run_history` for the
-    /// current `(file_path, alias)`. j/k navigate, Esc closes.
-    BlockHistory,
     /// `<C-f>` — open the content-search modal. Per-keystroke FTS5
     /// query over `httui-core::search::search_index`. Up/Down (or
     /// Ctrl-n/p) navigate; Enter opens the picked file in a new tab.
@@ -110,7 +106,6 @@ impl Mode {
             Mode::DbExportPicker => "EXPORT",
             Mode::FenceEdit => "EDIT",
             Mode::DbSettings => "SET",
-            Mode::BlockHistory => "HIST",
             Mode::ContentSearch => "FIND",
             Mode::EnvironmentPicker => "ENV",
             Mode::BlockTemplatePicker => "NEW",
@@ -134,7 +129,6 @@ impl Mode {
             Mode::DbExportPicker => Color::LightBlue,
             Mode::FenceEdit => Color::LightYellow,
             Mode::DbSettings => Color::LightYellow,
-            Mode::BlockHistory => Color::LightBlue,
             Mode::ContentSearch => Color::LightGreen,
             Mode::EnvironmentPicker => Color::LightMagenta,
             Mode::BlockTemplatePicker => Color::LightGreen,

@@ -120,11 +120,6 @@ pub struct App {
     /// into the focused LineEdit. Renders independently of mode —
     /// any `Some` value paints it.
     pub db_settings: Option<DbSettingsState>,
-    /// `Some` while the block-history modal is open (`gh` chord on
-    /// an HTTP block). Mode flips to `Mode::BlockHistory`. The list
-    /// is read once at open-time — re-running the underlying block
-    /// while the modal is up doesn't refresh it.
-    pub block_history: Option<BlockHistoryState>,
     /// Name of the currently-active environment, if any. Cached on
     /// startup (and after a future env switch) so the status bar can
     /// render the chip without an async hop on every redraw. `None`
@@ -235,7 +230,6 @@ impl App {
             completion_popup: None,
             db_export_picker: None,
             db_settings: None,
-            block_history: None,
             active_env_name: None,
             content_search: None,
             content_search_index_built: false,

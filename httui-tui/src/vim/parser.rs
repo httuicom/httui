@@ -67,7 +67,7 @@ pub use crate::input::parser::lineedit::{
 // `crate::input::parser::modals`; re-exported so `vim::dispatch`
 // and the in-file `mod tests` keep resolving them (tui-v2 vertical 1, fase 1 p3d).
 pub use crate::input::parser::modals::{
-    parse_block_history, parse_block_template_picker, parse_connection_picker,
+    parse_block_template_picker, parse_connection_picker,
     parse_content_search, parse_db_export_picker, parse_db_row_detail,
     parse_db_settings_modal, parse_environment_picker, parse_http_response_detail,
     parse_tab_picker,
@@ -714,50 +714,6 @@ mod tests {
         assert_eq!(
             parse_normal(&mut s, key(KeyCode::Char('h'))),
             Action::OpenBlockHistory
-        );
-    }
-
-    #[test]
-    fn block_history_navigation_keys() {
-        use crossterm::event::{KeyEvent, KeyModifiers};
-        let mk = |mods, code| KeyEvent::new(code, mods);
-
-        // j/k + arrows + Ctrl-n/p navigate.
-        assert_eq!(
-            parse_block_history(mk(KeyModifiers::NONE, KeyCode::Char('j'))),
-            Action::MoveBlockHistoryCursor(1),
-        );
-        assert_eq!(
-            parse_block_history(mk(KeyModifiers::NONE, KeyCode::Char('k'))),
-            Action::MoveBlockHistoryCursor(-1),
-        );
-        assert_eq!(
-            parse_block_history(mk(KeyModifiers::CONTROL, KeyCode::Char('n'))),
-            Action::MoveBlockHistoryCursor(1),
-        );
-        assert_eq!(
-            parse_block_history(mk(KeyModifiers::CONTROL, KeyCode::Char('p'))),
-            Action::MoveBlockHistoryCursor(-1),
-        );
-        // Esc / Ctrl-C close.
-        assert_eq!(
-            parse_block_history(mk(KeyModifiers::NONE, KeyCode::Esc)),
-            Action::CloseBlockHistory,
-        );
-        assert_eq!(
-            parse_block_history(mk(KeyModifiers::CONTROL, KeyCode::Char('c'))),
-            Action::CloseBlockHistory,
-        );
-        // Enter is NOT bound — V1 modal is view-only. Anything
-        // unbound is a no-op so a stray keystroke can't leak
-        // through to the editor underneath.
-        assert_eq!(
-            parse_block_history(mk(KeyModifiers::NONE, KeyCode::Enter)),
-            Action::Noop,
-        );
-        assert_eq!(
-            parse_block_history(mk(KeyModifiers::NONE, KeyCode::Char('x'))),
-            Action::Noop,
         );
     }
 

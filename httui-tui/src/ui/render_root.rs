@@ -330,7 +330,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Block history modal — opened by `gh` over an HTTP block.
     // Read-only listing of the last N runs; same chrome as the
     // connection picker but wider (the timestamp column needs room).
-    if let Some(state) = app.block_history.as_ref() {
+    if let Some(crate::modal::Modal::BlockHistory(state)) = app.modal.as_ref() {
         let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         block_history::render(frame, editor_area, state, anchor);
     }
@@ -762,12 +762,12 @@ mod tests {
         let src = "```http alias=h\nGET https://x.com\n```\n";
         let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
         open_doc(&mut app, src);
-        app.block_history = Some(BlockHistoryState {
+        app.modal = Some(crate::modal::Modal::BlockHistory(BlockHistoryState {
             segment_idx: 0,
             title: "GET h".into(),
             entries: vec![],
             selected: 0,
-        });
+        }));
         let (text, _c) = render(&mut app, 70, 16);
         assert!(
             text.contains("GET h") || !text.trim().is_empty(),

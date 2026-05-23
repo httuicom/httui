@@ -416,24 +416,28 @@ pub fn open_block_history(app: &mut crate::app::App) -> Result<(), String> {
         format!("DB {}", block.alias.as_deref().unwrap_or(""))
     };
 
-    app.block_history = Some(crate::app::BlockHistoryState {
-        segment_idx,
-        title,
-        entries,
-        selected: 0,
-    });
-    app.vim.mode = crate::vim::mode::Mode::BlockHistory;
+    app.modal = Some(crate::modal::Modal::BlockHistory(
+        crate::app::BlockHistoryState {
+            segment_idx,
+            title,
+            entries,
+            selected: 0,
+        },
+    ));
+    app.vim.mode = crate::vim::mode::Mode::Modal;
     app.vim.reset_pending();
     Ok(())
 }
 
 pub fn close_block_history(app: &mut crate::app::App) {
-    app.block_history = None;
+    if matches!(app.modal, Some(crate::modal::Modal::BlockHistory(_))) {
+        app.modal = None;
+    }
     app.vim.enter_normal();
 }
 
 pub fn move_block_history_cursor(app: &mut crate::app::App, delta: i32) {
-    let Some(state) = app.block_history.as_mut() else {
+    let Some(crate::modal::Modal::BlockHistory(state)) = app.modal.as_mut() else {
         return;
     };
     if state.entries.is_empty() {

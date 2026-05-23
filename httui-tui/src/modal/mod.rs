@@ -1,4 +1,4 @@
-use crate::app::DbConfirmRunState;
+use crate::app::{BlockHistoryState, DbConfirmRunState};
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -6,6 +6,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 pub enum Modal {
     Help,
     DbConfirmRun(DbConfirmRunState),
+    BlockHistory(BlockHistoryState),
 }
 
 #[derive(Debug)]
@@ -20,7 +21,42 @@ impl Modal {
         match self {
             Modal::Help => help_handle_key(key),
             Modal::DbConfirmRun(_) => db_confirm_run_handle_key(key),
+            Modal::BlockHistory(_) => block_history_handle_key(key),
         }
+    }
+}
+
+fn block_history_handle_key(key: KeyEvent) -> ModalOutcome {
+    match list_picker_key(key) {
+        ListPickerKey::Up => ModalOutcome::Emit(Action::MoveBlockHistoryCursor(-1)),
+        ListPickerKey::Down => ModalOutcome::Emit(Action::MoveBlockHistoryCursor(1)),
+        ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseBlockHistory),
+        ListPickerKey::Confirm | ListPickerKey::Other => ModalOutcome::Continue,
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ListPickerKey {
+    Up,
+    Down,
+    Confirm,
+    Cancel,
+    Other,
+}
+
+fn list_picker_key(key: KeyEvent) -> ListPickerKey {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) => ListPickerKey::Cancel,
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => ListPickerKey::Cancel,
+        (_, KeyCode::Down) | (KeyModifiers::NONE, KeyCode::Char('j')) => ListPickerKey::Down,
+        (_, KeyCode::Up) | (KeyModifiers::NONE, KeyCode::Char('k')) => ListPickerKey::Up,
+        (KeyModifiers::CONTROL, KeyCode::Char('n')) => ListPickerKey::Down,
+        (KeyModifiers::CONTROL, KeyCode::Char('p')) => ListPickerKey::Up,
+        (_, KeyCode::Enter) => ListPickerKey::Confirm,
+        _ => ListPickerKey::Other,
     }
 }
 

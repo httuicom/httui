@@ -364,26 +364,4 @@ pub fn parse_content_search(key: KeyEvent) -> Action {
     }
 }
 
-/// Translate one key while the block-history modal is open. Same
-/// vocab as `parse_connection_picker` — vertical-only navigation
-/// and Esc/Ctrl-C to dismiss. There's no Enter/confirm: the modal
-/// is a read-only viewer (V1). Anything else is a no-op.
-pub fn parse_block_history(key: KeyEvent) -> Action {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-    match (modifiers, code) {
-        (_, KeyCode::Esc) => Action::CloseBlockHistory,
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => Action::CloseBlockHistory,
-        (_, KeyCode::Down) | (KeyModifiers::NONE, KeyCode::Char('j')) => {
-            Action::MoveBlockHistoryCursor(1)
-        }
-        (_, KeyCode::Up) | (KeyModifiers::NONE, KeyCode::Char('k')) => {
-            Action::MoveBlockHistoryCursor(-1)
-        }
-        (KeyModifiers::CONTROL, KeyCode::Char('n')) => Action::MoveBlockHistoryCursor(1),
-        (KeyModifiers::CONTROL, KeyCode::Char('p')) => Action::MoveBlockHistoryCursor(-1),
-        _ => Action::Noop,
-    }
-}
 
