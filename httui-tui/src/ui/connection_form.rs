@@ -222,15 +222,18 @@ fn input_widget(
     // no background tint on the input itself (kept the row visually
     // clean against the popup's black background).
     let cursor = if focused { "▍ " } else { "  " };
+    let cursor_style = if focused {
+        // SLOW_BLINK = ANSI blink attr; supported by most modern
+        // terminals (kitty, alacritty, iTerm2, WezTerm). Falls back
+        // to static when the terminal lacks blink support — no harm.
+        Style::default()
+            .fg(Color::LightYellow)
+            .add_modifier(Modifier::SLOW_BLINK)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
     Paragraph::new(Line::from(vec![
-        Span::styled(
-            cursor,
-            if focused {
-                Style::default().fg(Color::LightYellow)
-            } else {
-                Style::default().fg(Color::DarkGray)
-            },
-        ),
+        Span::styled(cursor, cursor_style),
         Span::styled(text, style),
     ]))
 }
@@ -263,7 +266,9 @@ fn driver_tabs(state: &ConnectionFormState) -> Paragraph<'static> {
     if focused {
         spans.push(Span::styled(
             "▍ ",
-            Style::default().fg(Color::LightYellow),
+            Style::default()
+                .fg(Color::LightYellow)
+                .add_modifier(Modifier::SLOW_BLINK),
         ));
     } else {
         spans.push(Span::raw("  "));
@@ -310,9 +315,16 @@ fn readonly_widget(state: &ConnectionFormState) -> Paragraph<'static> {
         Style::default().fg(Color::White)
     };
     let marker = if focused { "▍ " } else { "  " };
+    let marker_style = if focused {
+        Style::default()
+            .fg(Color::LightYellow)
+            .add_modifier(Modifier::SLOW_BLINK)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
     let chip_text = if state.is_readonly { " [x] read-only " } else { " [ ] read-only " };
     Paragraph::new(Line::from(vec![
-        Span::styled(marker, Style::default().fg(if focused { Color::LightYellow } else { Color::DarkGray })),
+        Span::styled(marker, marker_style),
         Span::styled(chip_text, chip_style),
         Span::styled(
             "   (space toggles)",
