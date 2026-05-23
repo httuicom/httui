@@ -1,6 +1,6 @@
 use crate::app::{
-    BlockHistoryState, BlockTemplatePickerState, DbConfirmRunState, DbExportPickerState,
-    EnvironmentPickerState, TabPickerState,
+    BlockHistoryState, BlockTemplatePickerState, ConnectionPickerState, DbConfirmRunState,
+    DbExportPickerState, EnvironmentPickerState, TabPickerState,
 };
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -14,6 +14,7 @@ pub enum Modal {
     TabPicker(TabPickerState),
     BlockTemplatePicker(BlockTemplatePickerState),
     EnvironmentPicker(EnvironmentPickerState),
+    ConnectionPicker(ConnectionPickerState),
 }
 
 #[derive(Debug)]
@@ -33,7 +34,26 @@ impl Modal {
             Modal::TabPicker(_) => tab_picker_handle_key(key),
             Modal::BlockTemplatePicker(_) => block_template_picker_handle_key(key),
             Modal::EnvironmentPicker(_) => environment_picker_handle_key(key),
+            Modal::ConnectionPicker(_) => connection_picker_handle_key(key),
         }
+    }
+}
+
+/// ConnectionPicker reusa o vocab `list_picker_key`, mas adiciona
+/// `Shift+D` para deletar a conexão highlighted (mantém o picker
+/// aberto com a lista recarregada).
+fn connection_picker_handle_key(key: KeyEvent) -> ModalOutcome {
+    if let (mods, KeyCode::Char('D')) = (key.modifiers, key.code) {
+        if !mods.contains(KeyModifiers::CONTROL) {
+            return ModalOutcome::Emit(Action::DeleteConnectionInPicker);
+        }
+    }
+    match list_picker_key(key) {
+        ListPickerKey::Up => ModalOutcome::Emit(Action::MoveConnectionPickerCursor(-1)),
+        ListPickerKey::Down => ModalOutcome::Emit(Action::MoveConnectionPickerCursor(1)),
+        ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseConnectionPicker),
+        ListPickerKey::Confirm => ModalOutcome::Emit(Action::ConfirmConnectionPicker),
+        ListPickerKey::Other => ModalOutcome::Continue,
     }
 }
 
@@ -180,6 +200,46 @@ mod tests {
         let mut m = Modal::Help;
         assert!(matches!(
             m.handle_key(k(KeyCode::Char('j'), KeyModifiers::NONE)),
+            ModalOutcome::Continue
+        ));
+    }
+
+    fn empty_conn_picker() -> Modal {
+        Modal::ConnectionPicker(ConnectionPickerState {
+            segment_idx: 0,
+            connections: Vec::new(),
+            selected: 0,
+        })
+    }
+
+    #[test]
+    fn connection_picker_capital_d_emits_delete() {
+        let mut m = empty_conn_picker();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('D'), KeyModifiers::SHIFT)),
+            ModalOutcome::Emit(Action::DeleteConnectionInPicker)
+        ));
+        let mut m = empty_conn_picker();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('D'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::DeleteConnectionInPicker)
+        ));
+    }
+
+    #[test]
+    fn connection_picker_lowercase_d_is_inert() {
+        let mut m = empty_conn_picker();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('d'), KeyModifiers::NONE)),
+            ModalOutcome::Continue
+        ));
+    }
+
+    #[test]
+    fn connection_picker_ctrl_d_does_not_delete() {
+        let mut m = empty_conn_picker();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('D'), KeyModifiers::CONTROL)),
             ModalOutcome::Continue
         ));
     }

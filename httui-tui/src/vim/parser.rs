@@ -67,7 +67,6 @@ pub use crate::input::parser::lineedit::{
 // `crate::input::parser::modals`; re-exported so `vim::dispatch`
 // and the in-file `mod tests` keep resolving them (tui-v2 vertical 1, fase 1 p3d).
 pub use crate::input::parser::modals::{
-    parse_connection_picker,
     parse_content_search, parse_db_row_detail,
     parse_db_settings_modal, parse_http_response_detail,
 };
@@ -571,35 +570,6 @@ mod tests {
         assert_eq!(
             parse_normal(&mut s, key(KeyCode::Char('a'))),
             Action::OpenFenceEditAlias
-        );
-    }
-
-    #[test]
-    fn connection_picker_capital_d_deletes() {
-        // Capital `D` triggers DeleteConnectionInPicker; lowercase
-        // `d` would conflict with vim's `dd` reflex (not bound here
-        // but easy to fat-finger) and is left as a no-op so the
-        // user has to type the explicit capital.
-        use crossterm::event::{KeyEvent, KeyModifiers};
-        let mk = |mods, code| KeyEvent::new(code, mods);
-        assert_eq!(
-            parse_connection_picker(mk(KeyModifiers::SHIFT, KeyCode::Char('D'))),
-            Action::DeleteConnectionInPicker,
-        );
-        assert_eq!(
-            parse_connection_picker(mk(KeyModifiers::NONE, KeyCode::Char('D'))),
-            Action::DeleteConnectionInPicker,
-        );
-        // Lowercase `d` MUST be a no-op — no accidental delete.
-        assert_eq!(
-            parse_connection_picker(mk(KeyModifiers::NONE, KeyCode::Char('d'))),
-            Action::Noop,
-        );
-        // Ctrl-D would compose with HalfPageDown semantics elsewhere
-        // — picker shouldn't surface delete on it.
-        assert_eq!(
-            parse_connection_picker(mk(KeyModifiers::CONTROL, KeyCode::Char('D'))),
-            Action::Noop,
         );
     }
 

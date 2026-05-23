@@ -162,11 +162,8 @@ pub fn parse_http_response_detail(state: &mut VimState, key: KeyEvent) -> Action
     }
 }
 
-/// Translate one key while the connection picker popup is open.
-/// Tiny vocab: vertical-only navigation (`j`/`k` and the arrows),
-/// `Enter` to apply, `Esc`/`Ctrl-C` to dismiss. Anything else is a
-/// no-op so a stray keystroke can't leak through to the editor.
-pub fn parse_connection_picker(key: KeyEvent) -> Action {
+#[allow(dead_code)]
+fn _parse_connection_picker_placeholder(key: KeyEvent) -> Action {
     let KeyEvent {
         code, modifiers, ..
     } = key;

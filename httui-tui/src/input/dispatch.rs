@@ -17,8 +17,7 @@ use crate::input::block_swap::{action_needs_block_swap, InBlockSwap};
 use crate::modal::ModalOutcome;
 use crate::vim::mode::Mode;
 use crate::vim::parser::{
-    parse_cmdline, parse_connection_picker,
-    parse_content_search, parse_db_row_detail,
+    parse_cmdline, parse_content_search, parse_db_row_detail,
     parse_db_settings_modal, parse_fence_edit,
     parse_http_response_detail, parse_insert, parse_normal, parse_quickopen, parse_search,
     parse_tree, parse_tree_prompt, parse_visual,
@@ -106,7 +105,6 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
         Mode::Visual | Mode::VisualLine => parse_visual(&mut app.vim, key),
         Mode::DbRowDetail => parse_db_row_detail(&mut app.vim, key),
         Mode::HttpResponseDetail => parse_http_response_detail(&mut app.vim, key),
-        Mode::ConnectionPicker => parse_connection_picker(key),
         Mode::FenceEdit => parse_fence_edit(key),
         Mode::DbSettings => parse_db_settings_modal(key),
         Mode::ContentSearch => parse_content_search(key),

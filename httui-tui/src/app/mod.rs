@@ -94,11 +94,6 @@ pub struct App {
     /// window; window only slides when the cursor would scroll
     /// off-screen). Updated by the renderer in `ui::blocks`.
     pub result_viewport_top: std::collections::HashMap<usize, u16>,
-    /// `Some` while the connection picker popup is open. Mode flips
-    /// to `Mode::ConnectionPicker` so dispatch routes keys to the
-    /// picker's parser. The popup renders independently of mode —
-    /// any `Some` value paints it.
-    pub connection_picker: Option<ConnectionPickerState>,
     /// In-memory introspection cache, fed by background tasks
     /// spawned from `ensure_schema_loaded`. Keyed by `connection_id`.
     /// The SQL completion engine (b) reads from here
@@ -177,7 +172,6 @@ impl App {
             event_sender: None,
             running_query: None,
             result_viewport_top: std::collections::HashMap::new(),
-            connection_picker: None,
             schema_cache: crate::schema::SchemaCache::new(),
             completion_popup: None,
             db_settings: None,

@@ -37,12 +37,6 @@ pub enum Mode {
     /// state struct receives every motion via `parse_normal`, so the
     /// editor's full vim vocabulary navigates the modal.
     HttpResponseDetail,
-    /// `:conn` on a DB block opens a small popup anchored to the
-    /// block to swap its connection without leaving the editor.
-    /// Up/Down (or `j`/`k`) navigate, Enter picks, Esc/Ctrl-C
-    /// dismiss. Renders independently of mode (popup is painted
-    /// while `App.connection_picker` is `Some`).
-    ConnectionPicker,
     /// Inline fence-edit prompt for one of the block's metadata
     /// fields (alias / limit / timeout). State lives on
     /// `App.fence_edit`; the prompt renders in the status bar like
@@ -75,7 +69,6 @@ impl Mode {
             Mode::VisualLine => "V-L",
             Mode::DbRowDetail => "ROW",
             Mode::HttpResponseDetail => "RESP",
-            Mode::ConnectionPicker => "CONN",
             Mode::FenceEdit => "EDIT",
             Mode::DbSettings => "SET",
             Mode::ContentSearch => "FIND",
@@ -94,7 +87,6 @@ impl Mode {
             Mode::Visual | Mode::VisualLine => Color::LightRed,
             Mode::DbRowDetail => Color::LightBlue,
             Mode::HttpResponseDetail => Color::LightBlue,
-            Mode::ConnectionPicker => Color::LightBlue,
             Mode::FenceEdit => Color::LightYellow,
             Mode::DbSettings => Color::LightYellow,
             Mode::ContentSearch => Color::LightGreen,

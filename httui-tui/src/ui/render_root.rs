@@ -98,12 +98,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::TreePrompt
             | Mode::DbRowDetail
             | Mode::HttpResponseDetail
-            | Mode::ConnectionPicker
             | Mode::ContentSearch
             | Mode::Modal
     ) || app.db_row_detail.is_some()
         || app.http_response_detail.is_some()
-        || app.connection_picker.is_some()
         || app.content_search.is_some()
         || app.modal.is_some();
 
@@ -274,7 +272,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // the row-detail modal: paints whenever its state is `Some`.
     // Compute the focused block's screen rect so the popup can
     // anchor right above it (or below if there's no headroom).
-    if let Some(state) = app.connection_picker.as_ref() {
+    if let Some(crate::modal::Modal::ConnectionPicker(state)) = app.modal.as_ref() {
         let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         connection_picker::render(frame, editor_area, state, anchor);
     }
@@ -651,7 +649,7 @@ mod tests {
             .iter()
             .position(|s| matches!(s, crate::buffer::Segment::Block(_)))
             .unwrap();
-        app.connection_picker = Some(ConnectionPickerState {
+        app.modal = Some(crate::modal::Modal::ConnectionPicker(ConnectionPickerState {
             segment_idx: seg,
             connections: vec![crate::app::ConnectionEntry {
                 id: "c1".into(),
@@ -659,7 +657,7 @@ mod tests {
                 kind: "postgres".into(),
             }],
             selected: 0,
-        });
+        }));
         let (text, _c) = render(&mut app, 70, 16);
         assert!(text.contains("Local PG"), "got: {text:?}");
     }

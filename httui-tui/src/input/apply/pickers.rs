@@ -74,23 +74,27 @@ pub(crate) fn open_connection_picker(app: &mut App) -> Result<(), String> {
         .position(|c| c.id == current || c.name == current)
         .unwrap_or(0);
 
-    app.connection_picker = Some(crate::app::ConnectionPickerState {
-        segment_idx,
-        connections,
-        selected,
-    });
-    app.vim.mode = Mode::ConnectionPicker;
+    app.modal = Some(crate::modal::Modal::ConnectionPicker(
+        crate::app::ConnectionPickerState {
+            segment_idx,
+            connections,
+            selected,
+        },
+    ));
+    app.vim.mode = Mode::Modal;
     app.vim.reset_pending();
     Ok(())
 }
 
 pub(crate) fn apply_close_connection_picker(app: &mut App) {
-    app.connection_picker = None;
+    if matches!(app.modal, Some(crate::modal::Modal::ConnectionPicker(_))) {
+        app.modal = None;
+    }
     app.vim.enter_normal();
 }
 
 pub(crate) fn apply_move_connection_picker_cursor(app: &mut App, delta: i32) {
-    let Some(state) = app.connection_picker.as_mut() else {
+    let Some(crate::modal::Modal::ConnectionPicker(state)) = app.modal.as_mut() else {
         return;
     };
     if state.connections.is_empty() {
@@ -108,9 +112,13 @@ pub(crate) fn apply_move_connection_picker_cursor(app: &mut App, delta: i32) {
 /// document is marked dirty via `snapshot()` so undo can restore
 /// the previous value.
 pub(crate) fn apply_confirm_connection_picker(app: &mut App) {
-    let Some(state) = app.connection_picker.take() else {
-        app.vim.enter_normal();
-        return;
+    let state = match app.modal.take() {
+        Some(crate::modal::Modal::ConnectionPicker(s)) => s,
+        other => {
+            app.modal = other;
+            app.vim.enter_normal();
+            return;
+        }
     };
     app.vim.enter_normal();
     let Some(picked) = state.connections.get(state.selected).cloned() else {
@@ -150,7 +158,7 @@ pub(crate) fn apply_confirm_connection_picker(app: &mut App) {
 /// connection error on next run, which is the right level of
 /// visibility (silent breakage would be worse).
 pub(crate) fn apply_delete_connection_in_picker(app: &mut App) {
-    let Some(state) = app.connection_picker.as_ref() else {
+    let Some(crate::modal::Modal::ConnectionPicker(state)) = app.modal.as_ref() else {
         return;
     };
     let Some(picked) = state.connections.get(state.selected).cloned() else {
@@ -196,7 +204,7 @@ pub(crate) fn apply_delete_connection_in_picker(app: &mut App) {
                 );
                 return;
             }
-            if let Some(state) = app.connection_picker.as_mut() {
+            if let Some(crate::modal::Modal::ConnectionPicker(state)) = app.modal.as_mut() {
                 state.selected = state.selected.min(entries.len().saturating_sub(1));
                 state.connections = entries;
             }
