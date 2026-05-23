@@ -52,8 +52,6 @@ pub(crate) use crate::input::apply::completion::{
 
 /// Top-level vim key dispatcher. The app's `handle_key` delegates here.
 pub fn dispatch(app: &mut App, key: KeyEvent) {
-    // Any keystroke clears the previous transient status message,
-    // matching vim's "press a key to dismiss" feel.
     app.clear_status();
 
     // `Ctrl-C` while a query is running cancels it — runs before

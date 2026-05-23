@@ -35,6 +35,13 @@ pub fn route(app: &mut App, key: KeyEvent) {
         return;
     }
 
+    if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {
+        if crate::input::keymap::is_universal_action(action) {
+            crate::input::dispatch::apply_action(app, action, false);
+            return;
+        }
+    }
+
     match app.config.editor.mode {
         // Literal passthrough — exactly the call the old
         // `handle_key` made. Vim behaviour stays byte-identical; we

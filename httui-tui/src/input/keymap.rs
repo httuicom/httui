@@ -167,6 +167,30 @@ pub fn lookup(keymap: &[(KeyChord, Action)], key: KeyEvent) -> Option<Action> {
         .map(|(_, action)| *action)
 }
 
+pub fn is_universal_action(action: Action) -> bool {
+    matches!(
+        action,
+        Action::RunBlock
+            | Action::RerunLastBlock
+            | Action::ExplainBlock
+            | Action::JumpNextBlock
+            | Action::JumpPrevBlock
+            | Action::OpenHelp
+            | Action::OpenTabPicker
+            | Action::OpenEnvironmentPicker
+            | Action::OpenBlockHistory
+            | Action::OpenDbExportPicker
+            | Action::OpenDbSettingsModal
+            | Action::OpenBlockTemplatePicker
+            | Action::EnterQuickOpen
+            | Action::OpenContentSearch
+            | Action::TreeToggle
+            | Action::TabNext
+            | Action::TabPrev
+            | Action::WriteAll
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
