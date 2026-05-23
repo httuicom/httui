@@ -142,21 +142,25 @@ pub(crate) fn apply_op_textobject(
     app.refresh_viewport_for_cursor();
 }
 
+fn resolve_paste_register(app: &App) -> crate::vim::register::Register {
+    let clip = crate::clipboard::get_text().unwrap_or_default();
+    if clip.is_empty() {
+        return app.vim.unnamed.clone();
+    }
+    if clip == app.vim.unnamed.text {
+        return app.vim.unnamed.clone();
+    }
+    crate::vim::register::Register {
+        text: clip,
+        linewise: false,
+    }
+}
+
 pub(crate) fn apply_paste(app: &mut App, pos: PastePos, count: usize, recording: bool) {
     if let Some(doc) = app.document_mut() {
         doc.snapshot();
     }
-    if app.vim.unnamed.text.is_empty() {
-        if let Ok(text) = crate::clipboard::get_text() {
-            if !text.is_empty() {
-                app.vim.unnamed = crate::vim::register::Register {
-                    text,
-                    linewise: false,
-                };
-            }
-        }
-    }
-    let reg = app.vim.unnamed.clone();
+    let reg = resolve_paste_register(app);
     if let Some(doc) = app.document_mut() {
         operator::paste(pos, count, doc, &reg);
     }
