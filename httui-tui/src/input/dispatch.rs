@@ -259,7 +259,8 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::ConnectionFormCursorEnd
         | Action::ConnectionFormCycleDriver(_)
         | Action::ConnectionFormToggleReadonly
-        | Action::ConnectionFormSubmit => {
+        | Action::ConnectionFormSubmit
+        | Action::TestSelectedConnection => {
             crate::input::apply::connection_form::apply_connection_form(app, action)
         }
         Action::JumpNextBlock

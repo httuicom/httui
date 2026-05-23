@@ -342,6 +342,35 @@ pub(crate) fn apply_confirm_connection_delete(app: &mut App) {
     }
 }
 
+/// V3 P4.3: `t` on the Connections page — open a pool for the
+/// highlighted entry and run the dialect's `test` query. Surface
+/// ok+latency or err on the status bar. No-op without an open page.
+pub(crate) fn apply_test_selected_connection(app: &mut App) {
+    let name = match app.modal.as_ref() {
+        Some(crate::modal::Modal::Connections(page)) => {
+            page.connections.get(page.selected).map(|c| c.name.clone())
+        }
+        _ => None,
+    };
+    let Some(name) = name else {
+        return;
+    };
+    app.set_status(StatusKind::Info, format!("testing {name}…"));
+    let pool_mgr = app.pool_manager.clone();
+    let started = std::time::Instant::now();
+    let result = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(pool_mgr.test_connection(&name))
+    });
+    let elapsed_ms = started.elapsed().as_millis();
+    match result {
+        Ok(()) => app.set_status(
+            StatusKind::Info,
+            format!("{name} · ok ({elapsed_ms}ms)"),
+        ),
+        Err(e) => app.set_status(StatusKind::Error, format!("{name} · {e}")),
+    }
+}
+
 /// n/Esc — close confirm and reopen the page unchanged.
 pub(crate) fn apply_cancel_connection_delete(app: &mut App) {
     if !matches!(
@@ -722,6 +751,51 @@ mod tests {
         assert!(app.modal.is_none());
     }
 
+    // ---------- V3 P4.3: test connection ----------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_selected_connection_noop_when_page_not_open() {
+        let (mut app, _d, _v) = app_fixture().await;
+        apply_test_selected_connection(&mut app);
+        // No modal, no panic — status may or may not change.
+        assert!(app.modal.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_selected_connection_sqlite_succeeds_and_reports_latency() {
+        let (mut app, _d, vault) = app_fixture().await;
+        // Seed a sqlite connection pointing at a tempfile that does
+        // exist; sqlite "ping" via SELECT 1 always succeeds.
+        let db_path = vault.path().join("ping.db");
+        // touch — sqlite create_pool opens with create_if_missing.
+        std::fs::write(&db_path, b"").unwrap();
+        use httui_core::vault_config::CreateConnectionInput;
+        app.connections_store
+            .create(CreateConnectionInput {
+                name: "ping-me".into(),
+                driver: "sqlite".into(),
+                host: None,
+                port: None,
+                database_name: Some(db_path.display().to_string()),
+                username: None,
+                password: None,
+                ssl_mode: None,
+                is_readonly: None,
+                description: None,
+            })
+            .await
+            .unwrap();
+        crate::input::apply::pickers::open_connections_page(&mut app).unwrap();
+        apply_test_selected_connection(&mut app);
+        let msg = app.status_message.as_ref().expect("status set");
+        assert_eq!(msg.kind, StatusKind::Info);
+        assert!(
+            msg.text.contains("ping-me · ok"),
+            "expected ok status, got: {:?}",
+            msg.text
+        );
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn submit_in_edit_mode_calls_update_not_create() {
         let (mut app, _d, vault) = app_fixture().await;
@@ -791,6 +865,7 @@ pub(crate) fn apply_connection_form(app: &mut App, action: Action) {
         Action::OpenConnectionDeleteConfirm => apply_open_connection_delete_confirm(app),
         Action::ConfirmConnectionDelete => apply_confirm_connection_delete(app),
         Action::CancelConnectionDelete => apply_cancel_connection_delete(app),
+        Action::TestSelectedConnection => apply_test_selected_connection(app),
         _ => unreachable!("apply_connection_form: variante fora do grupo"),
     }
 }

@@ -272,7 +272,7 @@ fn centered_rect(area: Rect) -> Rect {
 }
 
 fn render_hint(frame: &mut Frame, area: Rect, _bg: Style) {
-    let hint = " j/k nav · n new · e edit · D del · Esc close ";
+    let hint = " j/k nav · n new · e edit · t test · D del · Esc close ";
     let para = Paragraph::new(Span::styled(
         hint,
         Style::default()

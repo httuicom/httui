@@ -367,6 +367,11 @@ pub enum Action {
     /// pre-filled with the highlighted entry. Submit calls
     /// `store.update` instead of `store.create`.
     OpenConnectionEditForm,
+    /// V3 P4.3: `t` on the Connections page — try to open a pool
+    /// for the highlighted connection and execute the dialect's
+    /// "ping" query. Surfaces ok/err inline on the status bar
+    /// with latency.
+    TestSelectedConnection,
     /// V3 P4: `D` on the Connections page — open delete-confirm
     /// modal for the highlighted entry.
     OpenConnectionDeleteConfirm,
