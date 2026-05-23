@@ -13,12 +13,12 @@ use crate::vim::mode::Mode;
 
 // ───────────── connection picker popup ─────────────
 
-/// `gc` — open the connection picker popup anchored to the DB
-/// block at the cursor. Loads connections from `httui-core`
-/// synchronously (small SQLite read, runs on the dispatch thread)
-/// and seeds the picker state. Returns `Err(msg)` on validation
-/// failures (no DB block at cursor, no connections registered) so
-/// the caller can surface a status.
+/// `Ctrl+L` — open the connection picker popup anchored to the DB
+/// block at the cursor. Loads connections from
+/// `<vault>/connections.toml` via `ConnectionsStore`
+/// (V3 reordering 2026-05-23: was SQL, now reads the vault TOML so
+/// desktop ↔ TUI share the same source). Returns `Err(msg)` on
+/// validation failures so the caller can surface a status.
 pub(crate) fn open_connection_picker(app: &mut App) -> Result<(), String> {
     let segment_idx = match app.document().map(|d| d.cursor()) {
         Some(Cursor::InBlock { segment_idx, .. })
@@ -39,17 +39,18 @@ pub(crate) fn open_connection_picker(app: &mut App) -> Result<(), String> {
         ));
     }
 
-    let pool_mgr = app.pool_manager.clone();
+    let store = app.connections_store.clone();
     let raw = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(httui_core::db::connections::list_connections(
-            pool_mgr.app_pool(),
-        ))
+        tokio::runtime::Handle::current().block_on(store.list_public())
     });
+    // TOML uses the connection name as the row key, so id == name —
+    // ConnectionEntry's `id` field carries the lookup key callers
+    // (status bar, schema cache) already expect.
     let connections: Vec<crate::app::ConnectionEntry> = match raw {
         Ok(list) => list
             .into_iter()
             .map(|c| crate::app::ConnectionEntry {
-                id: c.id,
+                id: c.name.clone(),
                 name: c.name,
                 kind: c.driver,
             })
@@ -153,10 +154,10 @@ pub(crate) fn apply_confirm_connection_picker(app: &mut App) {
 }
 
 /// `D` in the connection picker — drop the highlighted connection
-/// from the registry. The picker stays open with the list reloaded;
-/// blocks that referenced the deleted id will surface a missing-
-/// connection error on next run, which is the right level of
-/// visibility (silent breakage would be worse).
+/// from `<vault>/connections.toml` via `ConnectionsStore` (V3
+/// reordering 2026-05-23: was SQL, now writes the vault TOML so
+/// desktop ↔ TUI stay in sync). Blocks that referenced the deleted
+/// name will surface a missing-connection error on next run.
 pub(crate) fn apply_delete_connection_in_picker(app: &mut App) {
     let Some(crate::modal::Modal::ConnectionPicker(state)) = app.modal.as_ref() else {
         return;
@@ -164,14 +165,10 @@ pub(crate) fn apply_delete_connection_in_picker(app: &mut App) {
     let Some(picked) = state.connections.get(state.selected).cloned() else {
         return;
     };
-    let pool_mgr = app.pool_manager.clone();
-    let id = picked.id.clone();
+    let store = app.connections_store.clone();
     let name = picked.name.clone();
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(httui_core::db::connections::delete_connection(
-            pool_mgr.app_pool(),
-            &id,
-        ))
+        tokio::runtime::Handle::current().block_on(store.delete(&name))
     });
     if let Err(e) = result {
         app.set_status(StatusKind::Error, format!("delete connection failed: {e}"));
@@ -182,16 +179,14 @@ pub(crate) fn apply_delete_connection_in_picker(app: &mut App) {
     // emptied the list, close the picker — there's nothing left to
     // pick.
     let raw = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(httui_core::db::connections::list_connections(
-            pool_mgr.app_pool(),
-        ))
+        tokio::runtime::Handle::current().block_on(store.list_public())
     });
     match raw {
         Ok(list) => {
             let entries: Vec<crate::app::ConnectionEntry> = list
                 .into_iter()
                 .map(|c| crate::app::ConnectionEntry {
-                    id: c.id,
+                    id: c.name.clone(),
                     name: c.name,
                     kind: c.driver,
                 })

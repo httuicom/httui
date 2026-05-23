@@ -5,8 +5,6 @@
 //! `pub(crate)` (were module-private free fns) and re-exported from
 //! `app/mod.rs` so the existing intra-`app` call sites keep resolving.
 
-use sqlx::SqlitePool;
-
 use crate::pane::{Pane, PaneNode, TabState};
 
 pub(crate) fn tab_has_dirty(tab: &TabState) -> bool {
@@ -39,19 +37,24 @@ pub(crate) fn for_each_leaf_mut(node: &mut PaneNode, f: &mut impl FnMut(&mut Pan
     }
 }
 
-/// Snapshot the connection table into a `id → name` map so renderers
-/// can stay sync. Falls back to an empty map on any error — the worst
-/// case is footers showing the raw `connection=…` value from the fence.
+/// Snapshot the vault's `connections.toml` into a `name → name` map
+/// (V3 reordering 2026-05-23: vault TOML is now the source of truth;
+/// the SQL `connections` table is no longer read here). The map shape
+/// is preserved (`HashMap<String, String>`) so call-sites that lookup
+/// by the block's `connection=` param keep working unchanged — TOML
+/// uses the name as the key, so `id == name`. Falls back to an empty
+/// map on any error.
 pub(crate) fn load_connection_names(
-    pool: &SqlitePool,
+    store: &httui_core::vault_config::ConnectionsStore,
 ) -> std::collections::HashMap<String, String> {
-    use httui_core::db::connections::list_connections;
-    let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(list_connections(pool))
-    });
-    result
+    tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(store.list_public()))
         .ok()
-        .map(|conns| conns.into_iter().map(|c| (c.id, c.name)).collect())
+        .map(|conns| {
+            conns
+                .into_iter()
+                .map(|c| (c.name.clone(), c.name))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -204,35 +207,41 @@ mod tests {
     // are `#[tokio::test(flavor = "multi_thread")]`.
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn load_connection_names_maps_id_to_name() {
-        use httui_core::db::init_db;
+    async fn load_connection_names_maps_name_to_name() {
+        use httui_core::vault_config::{ConnectionsStore, CreateConnectionInput};
         use tempfile::TempDir;
 
-        let data = TempDir::new().unwrap();
-        let pool = init_db(data.path()).await.unwrap();
-        sqlx::query(
-            "INSERT INTO connections (id, name, driver, host, port, database_name) \
-             VALUES (?, ?, 'postgres', 'localhost', 5432, 'db')",
-        )
-        .bind("conn-id")
-        .bind("prod-db")
-        .execute(&pool)
-        .await
-        .unwrap();
+        let vault = TempDir::new().unwrap();
+        let store = ConnectionsStore::new(vault.path());
+        store
+            .create(CreateConnectionInput {
+                name: "prod-db".into(),
+                driver: "postgres".into(),
+                host: Some("localhost".into()),
+                port: Some(5432),
+                database_name: Some("db".into()),
+                username: Some("user".into()),
+                password: None,
+                ssl_mode: None,
+                is_readonly: None,
+                description: None,
+            })
+            .await
+            .unwrap();
 
-        let names = load_connection_names(&pool);
-        assert_eq!(names.get("conn-id").map(String::as_str), Some("prod-db"));
+        let names = load_connection_names(&store);
+        assert_eq!(names.get("prod-db").map(String::as_str), Some("prod-db"));
         assert_eq!(names.len(), 1);
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn load_connection_names_empty_when_no_connections() {
-        use httui_core::db::init_db;
+        use httui_core::vault_config::ConnectionsStore;
         use tempfile::TempDir;
 
-        let data = TempDir::new().unwrap();
-        let pool = init_db(data.path()).await.unwrap();
-        // Fresh DB → no rows → empty map (not an error).
-        assert!(load_connection_names(&pool).is_empty());
+        let vault = TempDir::new().unwrap();
+        let store = ConnectionsStore::new(vault.path());
+        // Fresh vault → no connections.toml → empty map (not an error).
+        assert!(load_connection_names(&store).is_empty());
     }
 }

@@ -75,12 +75,13 @@ impl App {
         }
     }
 
-    /// Refresh the connection_id → name cache from SQLite. Call
-    /// after creating / renaming / deleting a connection so block
-    /// footers update without restarting the TUI.
-    #[allow(dead_code)] // wired up by the upcoming connection picker.
+    /// Refresh the connection name cache from the vault's
+    /// `connections.toml`. Call after creating / renaming / deleting
+    /// a connection so block footers update without restarting the
+    /// TUI.
+    #[allow(dead_code)] // wired up by the connection picker.
     pub fn refresh_connection_names(&mut self) {
-        self.connection_names = load_connection_names(self.pool_manager.app_pool());
+        self.connection_names = load_connection_names(&self.connections_store);
     }
 
     /// Re-resolve the active environment's display name from the
@@ -128,16 +129,23 @@ mod tests {
         (app, pool, data, vault)
     }
 
-    async fn seed_connection(pool: &SqlitePool, id: &str, name: &str) {
-        sqlx::query(
-            "INSERT INTO connections (id, name, driver, host, port, database_name) \
-             VALUES (?, ?, 'postgres', 'localhost', 5432, 'db')",
-        )
-        .bind(id)
-        .bind(name)
-        .execute(pool)
-        .await
-        .unwrap();
+    async fn seed_connection(app: &App, name: &str) {
+        use httui_core::vault_config::CreateConnectionInput;
+        app.connections_store
+            .create(CreateConnectionInput {
+                name: name.into(),
+                driver: "postgres".into(),
+                host: Some("localhost".into()),
+                port: Some(5432),
+                database_name: Some("db".into()),
+                username: Some("user".into()),
+                password: None,
+                ssl_mode: None,
+                is_readonly: None,
+                description: None,
+            })
+            .await
+            .unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -224,14 +232,14 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn refresh_connection_names_reloads_from_sqlite() {
-        let (mut app, pool, _d, _v) = app_fixture().await;
+    async fn refresh_connection_names_reloads_from_vault_toml() {
+        let (mut app, _pool, _d, _v) = app_fixture().await;
         // Empty at startup (no connections seeded yet).
         assert!(app.connection_names.is_empty());
-        seed_connection(&pool, "id-1", "prod-db").await;
+        seed_connection(&app, "prod-db").await;
         app.refresh_connection_names();
         assert_eq!(
-            app.connection_names.get("id-1").map(String::as_str),
+            app.connection_names.get("prod-db").map(String::as_str),
             Some("prod-db")
         );
     }

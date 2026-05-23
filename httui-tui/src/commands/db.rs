@@ -709,26 +709,24 @@ pub async fn load_active_env_vars(
     Some(vars.into_iter().map(|v| (v.key, v.value)).collect())
 }
 
-/// Resolve a fence's `connection=` value to a real connection UUID.
-/// First tries it as a UUID (most blocks reference connections by id);
-/// falls back to a case-sensitive name lookup so a user can write
-/// `connection=Notes` if that's the human label they remember.
+/// Resolve a fence's `connection=` value to the connection key the
+/// pool manager / executor expect. V3 reordering 2026-05-23: the
+/// `ConnectionsStore` keys connections by name (TOML row key), so
+/// "id" and "name" are the same string. A successful lookup just
+/// returns the name back; the only job left is producing a clear
+/// "not found" when the block references something that's not in the
+/// vault's `connections.toml`.
 pub async fn resolve_connection_id(
-    app_pool: &sqlx::SqlitePool,
+    store: &httui_core::vault_config::ConnectionsStore,
     key: &str,
 ) -> Result<String, String> {
-    use httui_core::db::connections::{get_connection, list_connections};
-    if let Some(c) = get_connection(app_pool, key)
+    if store
+        .get(key)
         .await
         .map_err(|e| format!("connection lookup failed: {e}"))?
+        .is_some()
     {
-        return Ok(c.id);
-    }
-    let all = list_connections(app_pool)
-        .await
-        .map_err(|e| format!("connection lookup failed: {e}"))?;
-    if let Some(c) = all.iter().find(|c| c.name == key) {
-        return Ok(c.id.clone());
+        return Ok(key.to_string());
     }
     Err(format!("Connection '{key}' not found"))
 }
@@ -963,12 +961,10 @@ pub(crate) fn run_db_block_inner(
     // connection has no override either.
     let timeout_ms = block.params.get("timeout_ms").and_then(|v| v.as_u64());
 
-    let pool_mgr = app.pool_manager.clone();
+    let store = app.connections_store.clone();
     let resolved = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(resolve_connection_id(
-            pool_mgr.app_pool(),
-            &connection_id_raw,
-        ))
+        tokio::runtime::Handle::current()
+            .block_on(resolve_connection_id(&store, &connection_id_raw))
     });
     let connection_id = match resolved {
         Ok(id) => id,
@@ -992,11 +988,9 @@ pub(crate) fn run_db_block_inner(
     // dispatch thread; small SQLite read). Skipped for EXPLAIN —
     // the wrapped query is a read by definition.
     if !as_explain {
+        let store = app.connections_store.clone();
         let conn_meta = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(httui_core::db::connections::get_connection(
-                app.pool_manager.app_pool(),
-                &connection_id,
-            ))
+            tokio::runtime::Handle::current().block_on(store.get(&connection_id))
         });
         let is_readonly_conn = matches!(
             &conn_meta,
@@ -1513,12 +1507,10 @@ pub(crate) fn load_more_db_block(app: &mut App, segment_idx: usize) -> Result<()
         Some(d) => resolve_block_refs(d.segments(), segment_idx, &raw_query, &env_vars)?,
         None => (raw_query.clone(), Vec::new()),
     };
-    let pool_mgr = app.pool_manager.clone();
+    let store = app.connections_store.clone();
     let connection_id = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(resolve_connection_id(
-            pool_mgr.app_pool(),
-            &connection_id_raw,
-        ))
+        tokio::runtime::Handle::current()
+            .block_on(resolve_connection_id(&store, &connection_id_raw))
     })?;
 
     let token = CancellationToken::new();

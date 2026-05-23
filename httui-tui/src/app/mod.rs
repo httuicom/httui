@@ -146,6 +146,7 @@ pub struct App {
     pub standard_keymap: Vec<(crate::input::keychord::KeyChord, crate::input::action::Action)>,
     pub config_path: Option<PathBuf>,
     pub modal: Option<crate::modal::Modal>,
+    pub connections_store: Arc<httui_core::vault_config::ConnectionsStore>,
 }
 
 impl App {
@@ -153,9 +154,11 @@ impl App {
         // Lookup pulls connection records from the vault's
         // `connections.toml`;
         // legacy SQLite-only lookup is no longer used.
-        let conn_lookup = httui_core::vault_config::ConnectionsStore::new(resolved.vault.clone());
-        let pool_manager = Arc::new(PoolManager::new_standalone(conn_lookup, app_pool));
-        let connection_names = load_connection_names(pool_manager.app_pool());
+        let connections_store =
+            httui_core::vault_config::ConnectionsStore::new(resolved.vault.clone());
+        let pool_manager =
+            Arc::new(PoolManager::new_standalone(connections_store.clone(), app_pool));
+        let connection_names = load_connection_names(&connections_store);
         let standard_keymap = crate::input::keymap::resolve_standard_keymap(&config.keymap);
         let mut app = Self {
             config,
@@ -187,6 +190,7 @@ impl App {
             standard_keymap,
             config_path: None,
             modal: None,
+            connections_store,
         };
         app.load_initial_document();
         app.refresh_active_env_name();
