@@ -213,6 +213,7 @@ pub struct App {
     /// engine is unaffected. Introduced by tui-V03 (config-driven
     /// keymap).
     pub standard_keymap: Vec<(crate::input::keychord::KeyChord, crate::input::action::Action)>,
+    pub config_path: Option<PathBuf>,
 }
 
 impl App {
@@ -260,6 +261,7 @@ impl App {
             standard: StandardState::default(),
             last_edit: None,
             standard_keymap,
+            config_path: None,
         };
         app.load_initial_document();
         app.refresh_active_env_name();

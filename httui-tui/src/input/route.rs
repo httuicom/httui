@@ -75,6 +75,11 @@ fn toggle_editor_mode(app: &mut App) {
     };
     app.vim.enter_normal();
     app.standard = crate::app::StandardState::default();
+    if let Some(path) = app.config_path.as_ref() {
+        if let Err(e) = crate::config::save_config(path, &app.config) {
+            tracing::warn!("persist editor mode toggle failed: {e}");
+        }
+    }
 }
 
 /// Standard-mode path: minimal pre-filters mirrored from the top of
@@ -910,6 +915,29 @@ mod tests {
             app.last_edit, clock_before,
             "toggle must NOT reset the auto-save edit clock"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_persists_mode_to_config_file() {
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        let cfg_dir = TempDir::new().unwrap();
+        let cfg_path = cfg_dir.path().join("config.toml");
+        crate::config::save_config(&cfg_path, &app.config).unwrap();
+        app.config_path = Some(cfg_path.clone());
+        route(&mut app, alt(KeyCode::Char('m')));
+        let on_disk: Config = toml::from_str(&std::fs::read_to_string(&cfg_path).unwrap()).unwrap();
+        assert_eq!(on_disk.editor.mode, EditorMode::Vim);
+        route(&mut app, alt(KeyCode::Char('m')));
+        let on_disk: Config = toml::from_str(&std::fs::read_to_string(&cfg_path).unwrap()).unwrap();
+        assert_eq!(on_disk.editor.mode, EditorMode::Standard);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_without_config_path_is_silent() {
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        assert!(app.config_path.is_none());
+        route(&mut app, alt(KeyCode::Char('m')));
+        assert_eq!(app.config.editor.mode, EditorMode::Vim);
     }
 
     #[tokio::test(flavor = "multi_thread")]

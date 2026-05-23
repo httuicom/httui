@@ -239,6 +239,14 @@ pub(crate) fn migrate_legacy_keymap(cfg: &mut Config) {
     }
 }
 
+pub fn save_config(path: &Path, cfg: &Config) -> TuiResult<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, render_config(cfg)?)?;
+    Ok(())
+}
+
 /// Load config from `path`, creating it with defaults on first run.
 ///
 /// On every load the file is re-written in canonical form: fields

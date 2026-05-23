@@ -6,6 +6,7 @@
 //! loop reaches it via `super::handle_key`. `run` is re-exported from
 //! `app/mod.rs` so `crate::app::run` keeps resolving for `main.rs`.
 
+use std::path::PathBuf;
 use std::time::Duration;
 
 use sqlx::SqlitePool;
@@ -21,13 +22,19 @@ use crate::vault::ResolvedVault;
 
 use super::{handle_key, App};
 
-pub async fn run(config: Config, resolved: ResolvedVault, app_pool: SqlitePool) -> TuiResult<()> {
+pub async fn run(
+    config: Config,
+    config_path: PathBuf,
+    resolved: ResolvedVault,
+    app_pool: SqlitePool,
+) -> TuiResult<()> {
     info!(vault = %resolved.vault.display(), "starting notes-tui");
 
     terminal::install_panic_hook();
     let mut terminal = terminal::setup(config.mouse_enabled)?;
     let mut events = EventLoop::start(Duration::from_millis(250))?;
     let mut app = App::new(config, resolved, app_pool);
+    app.config_path = Some(config_path);
     // Spawned async tasks (currently the DB executor in
     // `vim::dispatch`) push their results back through this sender;
     // the main loop folds them into the app via `AppEvent` matches.

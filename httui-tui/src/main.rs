@@ -60,7 +60,7 @@ async fn run(cli: Cli) -> TuiResult<()> {
 
     let resolved = vault::resolve(&pool).await?;
 
-    app::run(cfg, resolved, pool).await
+    app::run(cfg, config_path, resolved, pool).await
 }
 
 /// Set up `tracing` to write to a rolling log file under the user's XDG
