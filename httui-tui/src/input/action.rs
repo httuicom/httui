@@ -324,6 +324,17 @@ pub enum Action {
     /// for the highlighted entry, refresh the cached display name,
     /// and close the popup.
     ConfirmEnvironmentPicker,
+    /// `gC` (vim) / `Alt+P` (universal) — open the Connections
+    /// management page (V3, 2026-05-23). Fullscreen modal listing
+    /// every entry from `<vault>/connections.toml` with a detail
+    /// pane for the highlighted row. Distinct from `Ctrl+L` which
+    /// opens a popup anchored to a DB block to swap its connection.
+    OpenConnectionsPage,
+    /// `Esc` / `Ctrl-C` inside the Connections page — close.
+    CloseConnectionsPage,
+    /// `j` / `k` / arrows inside the Connections page — move the
+    /// selection by `i32` (clamps at the ends).
+    MoveConnectionsPageCursor(i32),
     /// `g?` chord from normal mode — open the keymap help modal.
     /// Read-only listing of the chord vocabulary grouped by section.
     /// Mnemonic: `g`-prefix family + `?` = "help".

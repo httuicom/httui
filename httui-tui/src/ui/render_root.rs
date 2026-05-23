@@ -14,8 +14,8 @@ use crate::vim::mode::Mode;
 
 use super::{
     anchor, block_history, block_template_picker, completion_popup, connection_picker,
-    content_search, db_confirm_run, db_export_picker, db_row_detail, db_settings_modal,
-    environment_picker, fence_edit, help, http_response_detail, quickopen,
+    connections_page, content_search, db_confirm_run, db_export_picker, db_row_detail,
+    db_settings_modal, environment_picker, fence_edit, help, http_response_detail, quickopen,
     render_empty_state_inline, render_pane_tree, status, tab_picker, tabs, tree, VisualOverlay,
 };
 
@@ -354,6 +354,14 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // other modal (none of the others share the gb chord).
     if let Some(crate::modal::Modal::TabPicker(state)) = app.modal.as_ref() {
         tab_picker::render(frame, editor_area, state, app.tabs.active);
+    }
+
+    // Connections page — opened by `gC` / `Alt+P` (V3). Fullscreen
+    // master-detail; takes the whole editor area. Painted last so it
+    // sits above every other surface — leaving via `Esc` restores
+    // the editor underneath.
+    if let Some(crate::modal::Modal::Connections(state)) = app.modal.as_ref() {
+        connections_page::render(frame, editor_area, state);
     }
 }
 

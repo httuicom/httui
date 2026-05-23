@@ -217,6 +217,67 @@ pub(crate) fn apply_delete_connection_in_picker(app: &mut App) {
     }
 }
 
+// ───────────── connections page (gC / Alt+P) ─────────────
+
+/// V3 (2026-05-23): open the fullscreen Connections page. Loads
+/// every entry from `<vault>/connections.toml` via `ConnectionsStore`
+/// and seeds the state. `Err(msg)` bubbles up to the status bar; an
+/// empty `connections.toml` is **not** an error — the page opens with
+/// an empty list and a "press N to create" hint so the user can seed
+/// the first entry from inside the TUI.
+pub(crate) fn open_connections_page(app: &mut App) -> Result<(), String> {
+    let store = app.connections_store.clone();
+    let entries = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(store.list_public())
+    })
+    .map_err(|e| format!("connection list failed: {e}"))?;
+    let connections: Vec<crate::app::ConnectionDetail> = entries
+        .into_iter()
+        .map(|c| crate::app::ConnectionDetail {
+            name: c.name,
+            driver: c.driver,
+            host: c.host,
+            port: c.port,
+            database_name: c.database_name,
+            username: c.username,
+            has_password: c.has_password,
+            ssl_mode: c.ssl_mode,
+            is_readonly: c.is_readonly,
+            description: c.description,
+        })
+        .collect();
+    app.modal = Some(crate::modal::Modal::Connections(
+        crate::app::ConnectionsPageState {
+            connections,
+            selected: 0,
+        },
+    ));
+    app.vim.mode = Mode::Modal;
+    app.vim.reset_pending();
+    Ok(())
+}
+
+pub(crate) fn apply_close_connections_page(app: &mut App) {
+    if matches!(app.modal, Some(crate::modal::Modal::Connections(_))) {
+        app.modal = None;
+    }
+    app.vim.enter_normal();
+}
+
+pub(crate) fn apply_move_connections_page_cursor(app: &mut App, delta: i32) {
+    let Some(crate::modal::Modal::Connections(state)) = app.modal.as_mut() else {
+        return;
+    };
+    if state.connections.is_empty() {
+        return;
+    }
+    let last = state.connections.len() as i64 - 1;
+    let next = (state.selected as i64)
+        .saturating_add(delta as i64)
+        .clamp(0, last);
+    state.selected = next as usize;
+}
+
 // ───────────── tab picker (gb) ─────────────
 
 /// `gb` — snapshot every tab's focused-leaf path + dirty flag and
@@ -553,6 +614,15 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
             apply_move_environment_picker_cursor(app, delta)
         }
         Action::ConfirmEnvironmentPicker => apply_confirm_environment_picker(app),
+        Action::OpenConnectionsPage => {
+            if let Err(msg) = open_connections_page(app) {
+                app.set_status(StatusKind::Error, msg);
+            }
+        }
+        Action::CloseConnectionsPage => apply_close_connections_page(app),
+        Action::MoveConnectionsPageCursor(delta) => {
+            apply_move_connections_page_cursor(app, delta)
+        }
         Action::OpenBlockTemplatePicker => {
             app.modal = Some(crate::modal::Modal::BlockTemplatePicker(
                 crate::app::BlockTemplatePickerState::new(),

@@ -21,6 +21,36 @@ pub struct ConnectionPickerState {
     pub selected: usize,
 }
 
+/// Open instance of the **Connections page** — the dedicated
+/// master-detail screen opened by `gC` / `Alt+P` (V3, 2026-05-23).
+/// Unlike `ConnectionPickerState` (anchored popup for swapping a
+/// block's connection), this is a fullscreen modal listing every
+/// connection in `<vault>/connections.toml` with a detail panel for
+/// the highlighted row. `connections` is a snapshot at open-time;
+/// callers invoke `reload()` after mutating the store.
+#[derive(Debug)]
+pub struct ConnectionsPageState {
+    pub connections: Vec<ConnectionDetail>,
+    pub selected: usize,
+}
+
+/// Full detail of one connection — superset of `ConnectionEntry`
+/// (which carries only the picker's needs). The Connections page
+/// shows every public field in the right pane.
+#[derive(Debug, Clone)]
+pub struct ConnectionDetail {
+    pub name: String,
+    pub driver: String,
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub database_name: Option<String>,
+    pub username: Option<String>,
+    pub has_password: bool,
+    pub ssl_mode: Option<String>,
+    pub is_readonly: bool,
+    pub description: Option<String>,
+}
+
 /// Lightweight snapshot of one connection — the picker only needs
 /// the id (to write back to the fence) and the human label (to
 /// show in the list). Cloned out of `httui-core`'s registry at

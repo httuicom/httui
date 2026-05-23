@@ -444,6 +444,12 @@ pub fn vim_entries() -> Vec<Entry> {
         ),
         vim_doc(
             Scope::Normal,
+            "gC",
+            Action::OpenConnectionsPage,
+            "Open Connections page",
+        ),
+        vim_doc(
+            Scope::Normal,
             "gN",
             Action::OpenBlockTemplatePicker,
             "Open block-template picker",

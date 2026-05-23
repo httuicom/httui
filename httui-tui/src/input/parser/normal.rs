@@ -247,6 +247,15 @@ pub fn parse_normal(state: &mut VimState, key: KeyEvent) -> Action {
             state.take_count();
             return Action::OpenEnvironmentPicker;
         }
+        // `gC` — open the Connections page (V3, 2026-05-23). Capital
+        // C to dodge `gc` (taken by the comment-toggle motion in
+        // standard vim, free here but reserved for future
+        // ergonomics). Fullscreen modal listing every entry from
+        // `<vault>/connections.toml`.
+        if let KeyCode::Char('C') = code {
+            state.take_count();
+            return Action::OpenConnectionsPage;
+        }
         // `g?` — open the keymap help modal. Bare `?` is taken by
         // search-backwards, so the help lookup lives behind the
         // `g` prefix family.

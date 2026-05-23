@@ -1,6 +1,6 @@
 use crate::app::{
-    BlockHistoryState, BlockTemplatePickerState, ConnectionPickerState, DbConfirmRunState,
-    DbExportPickerState, EnvironmentPickerState, TabPickerState,
+    BlockHistoryState, BlockTemplatePickerState, ConnectionPickerState, ConnectionsPageState,
+    DbConfirmRunState, DbExportPickerState, EnvironmentPickerState, TabPickerState,
 };
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -15,6 +15,11 @@ pub enum Modal {
     BlockTemplatePicker(BlockTemplatePickerState),
     EnvironmentPicker(EnvironmentPickerState),
     ConnectionPicker(ConnectionPickerState),
+    /// V3 (2026-05-23): fullscreen Connections page. Master-detail
+    /// list of every entry in `<vault>/connections.toml`. `n` opens
+    /// a create form (P3); `D` deletes the highlighted entry (P4);
+    /// `e` edits (P3). Esc / Ctrl-C close.
+    Connections(ConnectionsPageState),
 }
 
 #[derive(Debug)]
@@ -35,7 +40,21 @@ impl Modal {
             Modal::BlockTemplatePicker(_) => block_template_picker_handle_key(key),
             Modal::EnvironmentPicker(_) => environment_picker_handle_key(key),
             Modal::ConnectionPicker(_) => connection_picker_handle_key(key),
+            Modal::Connections(_) => connections_page_handle_key(key),
         }
+    }
+}
+
+/// Connections page (`gC` / `Alt+P`). Vocab: navigate the list with
+/// `j`/`k`/arrows/`Ctrl+n`/`Ctrl+p`; `Esc`/`Ctrl+C` close. P3 will
+/// extend with `n` (new) / `e` (edit) / `D` (delete); for now any
+/// other key is a no-op.
+fn connections_page_handle_key(key: KeyEvent) -> ModalOutcome {
+    match list_picker_key(key) {
+        ListPickerKey::Up => ModalOutcome::Emit(Action::MoveConnectionsPageCursor(-1)),
+        ListPickerKey::Down => ModalOutcome::Emit(Action::MoveConnectionsPageCursor(1)),
+        ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseConnectionsPage),
+        ListPickerKey::Confirm | ListPickerKey::Other => ModalOutcome::Continue,
     }
 }
 
