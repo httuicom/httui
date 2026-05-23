@@ -27,8 +27,7 @@ pub fn apply_run_http_block(app: &mut App, segment_idx: usize) {
     // couple of SQLite reads), so we keep them on the dispatch
     // thread.
     let env_vars = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(load_active_env_vars(app.pool_manager.app_pool()))
+        tokio::runtime::Handle::current().block_on(load_active_env_vars(&app.environments_store))
     })
     .unwrap_or_default();
 
@@ -313,7 +312,7 @@ pub fn copy_as_curl(app: &mut crate::app::App) {
     // soft — surface it via the status line, don't crash.
     let env_vars = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(crate::commands::db::load_active_env_vars(
-            app.pool_manager.app_pool(),
+            &app.environments_store,
         ))
     })
     .unwrap_or_default();

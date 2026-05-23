@@ -106,7 +106,7 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
         let env_vars: std::collections::HashMap<String, String> =
             tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current()
-                    .block_on(load_active_env_vars(app.pool_manager.app_pool()))
+                    .block_on(load_active_env_vars(&app.environments_store))
             })
             .unwrap_or_default();
         let segments_snapshot: Vec<crate::buffer::Segment> = app

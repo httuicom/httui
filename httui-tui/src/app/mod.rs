@@ -153,6 +153,11 @@ pub struct App {
     pub config_path: Option<PathBuf>,
     pub modal: Option<crate::modal::Modal>,
     pub connections_store: Arc<httui_core::vault_config::ConnectionsStore>,
+    /// V4 P1 (2026-05-23): file-backed environments store. Reads
+    /// `<vault>/envs/*.toml`; the active env id lives in the
+    /// per-machine `user.toml` so the same vault can be opened
+    /// from desktop/TUI side-by-side with separate "current env".
+    pub environments_store: Arc<httui_core::vault_config::EnvironmentsStore>,
 }
 
 impl App {
@@ -165,6 +170,15 @@ impl App {
         let pool_manager =
             Arc::new(PoolManager::new_standalone(connections_store.clone(), app_pool));
         let connection_names = load_connection_names(&connections_store);
+        // V4 P1: file-backed envs store. Falls back to the vault's
+        // own `user.toml` if the global config path can't be
+        // resolved (HOME unset, sandbox test). Side-effect: tests
+        // get a per-temp-dir user.toml automatically.
+        let user_config_path =
+            httui_core::vault_config::user_store::default_user_config_path()
+                .unwrap_or_else(|_| resolved.vault.join("user.toml"));
+        let environments_store =
+            httui_core::vault_config::EnvironmentsStore::new(resolved.vault.clone(), user_config_path);
         let standard_keymap = crate::input::keymap::resolve_standard_keymap(&config.keymap);
         let mut app = Self {
             config,
@@ -198,6 +212,7 @@ impl App {
             config_path: None,
             modal: None,
             connections_store,
+            environments_store,
         };
         app.load_initial_document();
         app.refresh_active_env_name();

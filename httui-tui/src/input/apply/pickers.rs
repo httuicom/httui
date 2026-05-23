@@ -524,39 +524,41 @@ pub(crate) fn apply_confirm_block_template_picker(app: &mut App) {
 
 // ───────────── environment picker (gE) ─────────────
 
-/// `gE` — pull every row from the `environments` table, snapshot the
-/// active id (so the renderer can flag it), pre-select the active
-/// row, and flip mode. Errors bubble up as a status hint.
+/// `gE` — list envs from `<vault>/envs/*.toml` via `EnvironmentsStore`
+/// (V4 P1, 2026-05-23: was SQL, now reads the vault TOML so
+/// desktop ↔ TUI share the same source). Pre-selects the active env
+/// so Enter is a no-op confirm.
 pub(crate) fn open_environment_picker(app: &mut App) -> Result<(), String> {
-    let pool = app.pool_manager.app_pool().clone();
+    let store = app.environments_store.clone();
     let (entries, active_id) = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(async {
-            let envs = httui_core::db::environments::list_environments(&pool)
+            let envs = store
+                .list_envs()
                 .await
                 .map_err(|e| format!("env list failed: {e}"))?;
-            // `get_active_environment_id` returns `Option<String>`
-            // (no error path — it swallows DB failures and just
-            // reports "no active env"). That's fine here: the
-            // picker still opens, just without a pre-selected row.
-            let active = httui_core::db::environments::get_active_environment_id(&pool).await;
+            // `active_env()` returns `Result<Option<String>>`. Swallow
+            // any read error so the picker still opens — falls back
+            // to first entry pre-selected.
+            let active = store.active_env().await.ok().flatten();
             Ok::<_, String>((envs, active))
         })
     })?;
     if entries.is_empty() {
         return Err("no environments registered yet".into());
     }
+    // TOML keys envs by name so `id == name`. Preserves the legacy
+    // EnvironmentEntry shape so the renderer and confirm path keep
+    // working unchanged.
     let entries: Vec<crate::app::EnvironmentEntry> = entries
         .into_iter()
         .map(|e| crate::app::EnvironmentEntry {
-            id: e.id,
+            id: e.name.clone(),
             name: e.name,
         })
         .collect();
-    // Pre-select the active env so Enter is a no-op confirm. Falls
-    // back to the first entry when nothing is active.
     let selected = active_id
         .as_deref()
-        .and_then(|id| entries.iter().position(|e| e.id == id))
+        .and_then(|n| entries.iter().position(|e| e.id == n))
         .unwrap_or(0);
 
     app.modal = Some(crate::modal::Modal::EnvironmentPicker(
@@ -613,12 +615,10 @@ pub(crate) fn apply_confirm_environment_picker(app: &mut App) {
         // SQLite write. The display name is current.
         return;
     }
-    let pool = app.pool_manager.app_pool().clone();
-    let id = picked.id.clone();
+    let store = app.environments_store.clone();
+    let name = picked.name.clone();
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(
-            httui_core::db::environments::set_active_environment(&pool, Some(&id)),
-        )
+        tokio::runtime::Handle::current().block_on(store.set_active_env(Some(&name)))
     });
     if let Err(e) = result {
         app.set_status(StatusKind::Error, format!("set active env failed: {e}"));

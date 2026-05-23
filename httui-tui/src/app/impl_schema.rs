@@ -90,16 +90,14 @@ impl App {
     /// after a hypothetical env-switch so the status bar chip
     /// updates without a TUI restart. Today no UI mutates the
     /// active env, so this only runs at startup.
+    /// V4 P1 (2026-05-23): now reads `<vault>/envs/` + `user.toml`
+    /// via `EnvironmentsStore`. The TOML store keys envs by name so
+    /// the previous id-to-name lookup collapses into a single read.
     pub fn refresh_active_env_name(&mut self) {
-        let pool = self.pool_manager.app_pool().clone();
+        let store = self.environments_store.clone();
         self.active_env_name = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async move {
-                let id = httui_core::db::environments::get_active_environment_id(&pool).await?;
-                let envs = httui_core::db::environments::list_environments(&pool)
-                    .await
-                    .ok()?;
-                envs.into_iter().find(|e| e.id == id).map(|e| e.name)
-            })
+            tokio::runtime::Handle::current()
+                .block_on(async move { store.active_env().await.ok().flatten() })
         });
     }
 }
@@ -246,13 +244,15 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn refresh_active_env_name_resolves_active_environment() {
-        let (mut app, pool, _d, _v) = app_fixture().await;
+        let (mut app, _pool, _d, _v) = app_fixture().await;
         // No active env at startup.
         assert_eq!(app.active_env_name, None);
-        let env = httui_core::db::environments::create_environment(&pool, "staging".into())
+        app.environments_store
+            .create_env("staging")
             .await
             .unwrap();
-        httui_core::db::environments::set_active_environment(&pool, Some(&env.id))
+        app.environments_store
+            .set_active_env(Some("staging"))
             .await
             .unwrap();
         app.refresh_active_env_name();

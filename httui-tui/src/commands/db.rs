@@ -696,16 +696,15 @@ fn value_for_bind(v: &serde_json::Value) -> Result<serde_json::Value, String> {
 // ───────────── env vars / connection lookups ─────────────
 
 /// Load the active environment's variables into a `key → value` map.
-/// Secrets are already keychain-resolved by `list_env_variables`.
-/// Returns `None` when there's no active environment, the lookup
-/// fails, or the active env has no variables — callers fall back to
-/// an empty map and surface a clearer error from the resolver.
+/// V4 P1 (2026-05-23): now reads `<vault>/envs/*.toml` via
+/// `EnvironmentsStore`. Secrets are keychain-resolved by `list_vars`.
+/// Returns `None` when there's no active env, the lookup fails, or
+/// the env has no vars — callers fall back to an empty map.
 pub async fn load_active_env_vars(
-    pool: &sqlx::SqlitePool,
+    store: &httui_core::vault_config::EnvironmentsStore,
 ) -> Option<std::collections::HashMap<String, String>> {
-    use httui_core::db::environments::{get_active_environment_id, list_env_variables};
-    let env_id = get_active_environment_id(pool).await?;
-    let vars = list_env_variables(pool, &env_id).await.ok()?;
+    let env_name = store.active_env().await.ok().flatten()?;
+    let vars = store.list_vars(&env_name).await.ok()?;
     Some(vars.into_iter().map(|v| (v.key, v.value)).collect())
 }
 
@@ -930,7 +929,7 @@ pub(crate) fn run_db_block_inner(
     // surface the error and bail.
     let env_vars: std::collections::HashMap<String, String> = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current()
-            .block_on(load_active_env_vars(app.pool_manager.app_pool()))
+            .block_on(load_active_env_vars(&app.environments_store))
     })
     .unwrap_or_default();
     let resolved = match app.document() {
@@ -1500,7 +1499,7 @@ pub(crate) fn load_more_db_block(app: &mut App, segment_idx: usize) -> Result<()
 
     let env_vars: std::collections::HashMap<String, String> = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current()
-            .block_on(load_active_env_vars(app.pool_manager.app_pool()))
+            .block_on(load_active_env_vars(&app.environments_store))
     })
     .unwrap_or_default();
     let (query, bind_values) = match app.document() {
@@ -1750,7 +1749,7 @@ pub fn confirm_export_picker(app: &mut App) {
             // means the cURL command fails when run.
             let env_vars = tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current()
-                    .block_on(load_active_env_vars(app.pool_manager.app_pool()))
+                    .block_on(load_active_env_vars(&app.environments_store))
             })
             .unwrap_or_default();
             let segments_snapshot: Vec<Segment> = app
