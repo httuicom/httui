@@ -243,6 +243,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
             crate::input::apply::pickers::apply_pickers(app, action, recording)
         }
         Action::OpenConnectionForm
+        | Action::OpenConnectionEditForm
         | Action::CloseConnectionForm
         | Action::OpenConnectionDeleteConfirm
         | Action::ConfirmConnectionDelete

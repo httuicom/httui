@@ -125,6 +125,9 @@ fn connections_page_handle_key(key: KeyEvent) -> ModalOutcome {
         (KeyModifiers::NONE, KeyCode::Char('n')) => {
             return ModalOutcome::Emit(Action::OpenConnectionForm);
         }
+        (KeyModifiers::NONE, KeyCode::Char('e')) => {
+            return ModalOutcome::Emit(Action::OpenConnectionEditForm);
+        }
         // Capital D — matches the picker's destructive chord style
         // (lowercase 'd' would conflict with vim's `dd` reflex).
         (mods, KeyCode::Char('D')) if !mods.contains(KeyModifiers::CONTROL) => {

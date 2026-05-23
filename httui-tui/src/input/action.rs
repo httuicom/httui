@@ -363,6 +363,10 @@ pub enum Action {
     ConnectionFormToggleReadonly,
     /// Enter — validate + `store.create`. Failure surfaces inline.
     ConnectionFormSubmit,
+    /// V3 P4.2: `e` on the Connections page — open the form
+    /// pre-filled with the highlighted entry. Submit calls
+    /// `store.update` instead of `store.create`.
+    OpenConnectionEditForm,
     /// V3 P4: `D` on the Connections page — open delete-confirm
     /// modal for the highlighted entry.
     OpenConnectionDeleteConfirm,

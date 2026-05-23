@@ -47,9 +47,13 @@ pub fn render(
         }
     }
 
+    let title = match state.editing.as_deref() {
+        Some(name) => format!(" Edit connection · {name} "),
+        None => " New connection ".to_string(),
+    };
     let outer = Block::default()
         .borders(Borders::ALL)
-        .title(" New connection ")
+        .title(title)
         .style(bg_style)
         .border_style(Style::default().fg(Color::LightYellow).bg(Color::Black));
     let inner = outer.inner(popup);

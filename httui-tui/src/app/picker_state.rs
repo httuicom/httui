@@ -40,11 +40,62 @@ pub struct ConnectionFormState {
     pub is_readonly: bool,
     pub focus: ConnectionFormFocus,
     pub error: Option<String>,
+    /// V3 P4.2 (2026-05-23): mode flag.
+    /// `None` → create (calls `store.create`).
+    /// `Some(name)` → edit the named entry (calls `store.update`).
+    /// Used by the renderer to title the popup and by the submit
+    /// handler to pick the right store action.
+    pub editing: Option<String>,
 }
 
 impl ConnectionFormState {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// V3 P4.2: build a pre-filled form for editing `detail`. The
+    /// password field stays empty — `None` on submit means "keep
+    /// existing" (per `UpdateConnectionInput` semantics), matching
+    /// the desktop's behavior of not exposing the keychain value.
+    pub fn for_edit(detail: &ConnectionDetail) -> Self {
+        use crate::vim::lineedit::LineEdit;
+        let driver_idx = DRIVER_OPTIONS
+            .iter()
+            .position(|d| *d == detail.driver)
+            .unwrap_or(0);
+        Self {
+            name: LineEdit::from_str(detail.name.clone()),
+            driver_idx,
+            host: detail
+                .host
+                .as_ref()
+                .map(LineEdit::from_str)
+                .unwrap_or_default(),
+            port: detail
+                .port
+                .map(|p| LineEdit::from_str(p.to_string()))
+                .unwrap_or_default(),
+            database_name: detail
+                .database_name
+                .as_ref()
+                .map(LineEdit::from_str)
+                .unwrap_or_default(),
+            username: detail
+                .username
+                .as_ref()
+                .map(LineEdit::from_str)
+                .unwrap_or_default(),
+            password: LineEdit::new(),
+            description: detail
+                .description
+                .as_ref()
+                .map(LineEdit::from_str)
+                .unwrap_or_default(),
+            is_readonly: detail.is_readonly,
+            focus: ConnectionFormFocus::Name,
+            error: None,
+            editing: Some(detail.name.clone()),
+        }
     }
 }
 

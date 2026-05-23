@@ -17,6 +17,25 @@ pub(crate) fn apply_open_connection_form(app: &mut App) {
     app.vim.reset_pending();
 }
 
+/// V3 P4.2: open the form pre-filled with the highlighted entry on
+/// the Connections page. No-op if the page isn't open or the list
+/// is empty. Sets `editing=Some(name)` so `apply_form_submit` routes
+/// to `store.update`.
+pub(crate) fn apply_open_connection_edit_form(app: &mut App) {
+    let detail = match app.modal.as_ref() {
+        Some(crate::modal::Modal::Connections(page)) => page.connections.get(page.selected).cloned(),
+        _ => None,
+    };
+    let Some(detail) = detail else {
+        return;
+    };
+    app.modal = Some(crate::modal::Modal::ConnectionForm(
+        ConnectionFormState::for_edit(&detail),
+    ));
+    app.vim.mode = Mode::Modal;
+    app.vim.reset_pending();
+}
+
 /// Close the form. If the Connections page is still in `app.modal`
 /// underneath conceptually, V3 P3 doesn't stack modals — the form
 /// fully replaces the page. Closing returns to Normal mode so the
@@ -111,7 +130,7 @@ pub(crate) fn apply_form_toggle_readonly(app: &mut App) {
 /// the form. On failure: stash the message in `state.error` so the
 /// render loop paints it.
 pub(crate) fn apply_form_submit(app: &mut App) {
-    use httui_core::vault_config::CreateConnectionInput;
+    use httui_core::vault_config::{CreateConnectionInput, UpdateConnectionInput};
 
     let Some(state) = form_state_ref(app) else {
         return;
@@ -134,6 +153,7 @@ pub(crate) fn apply_form_submit(app: &mut App) {
     let password = trimmed_opt(&state.password);
     let description = trimmed_opt(&state.description);
     let is_readonly = Some(state.is_readonly);
+    let editing = state.editing.clone();
 
     if !state.port.as_str().trim().is_empty() && port.is_none() {
         set_form_error(app, "port must be a number (1-65535)");
@@ -141,34 +161,71 @@ pub(crate) fn apply_form_submit(app: &mut App) {
     }
 
     let store = app.connections_store.clone();
-    let input = CreateConnectionInput {
-        name: name.clone(),
-        driver,
-        host,
-        port,
-        database_name,
-        username,
-        password,
-        ssl_mode: None,
-        is_readonly,
-        description,
+
+    let (result, verb): (Result<(), String>, &'static str) = if let Some(original_name) = editing {
+        // V3 P4.2: edit mode. `UpdateConnectionInput` semantics:
+        //   password: None → keep existing keychain entry
+        //                    (we intentionally never pre-fill the
+        //                    field, so an unchanged form keeps the
+        //                    secret intact).
+        //   password: Some(non-empty) → rewrite keychain entry.
+        // Renaming (name field changed) is out of scope here — the
+        // store has no rename op; would need delete+create. For V1
+        // we just write under the original name and ignore the new
+        // value, surfacing a status hint.
+        if original_name != name {
+            app.set_status(
+                StatusKind::Info,
+                format!(
+                    "rename ({original_name} → {name}) not supported in v1; \
+                     edited under original name"
+                ),
+            );
+        }
+        let input = UpdateConnectionInput {
+            driver: Some(driver),
+            host,
+            port,
+            database_name,
+            username,
+            password,
+            ssl_mode: None,
+            is_readonly,
+            description,
+        };
+        let r = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(store.update(&original_name, input))
+        })
+        .map(|_| ());
+        (r, "updated")
+    } else {
+        let input = CreateConnectionInput {
+            name: name.clone(),
+            driver,
+            host,
+            port,
+            database_name,
+            username,
+            password,
+            ssl_mode: None,
+            is_readonly,
+            description,
+        };
+        let r = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(store.create(input))
+        })
+        .map(|_| ());
+        (r, "created")
     };
 
-    let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(store.create(input))
-    });
-
     match result {
-        Ok(_) => {
+        Ok(()) => {
             apply_close_connection_form(app);
-            // Reopen the Connections page so the new entry is visible
-            // immediately. `open_connections_page` reloads from the
-            // store; cheap and idempotent.
             if let Err(msg) = crate::input::apply::pickers::open_connections_page(app) {
                 app.set_status(StatusKind::Error, msg);
             }
             app.refresh_connection_names();
-            app.set_status(StatusKind::Info, format!("created connection \"{name}\""));
+            app.set_status(StatusKind::Info, format!("{verb} connection \"{name}\""));
         }
         Err(e) => set_form_error(app, &e),
     }
@@ -639,6 +696,60 @@ mod tests {
         }
     }
 
+    // ---------- V3 P4.2: edit form ----------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_edit_form_prefills_state_with_selected_entry() {
+        let (mut app, _d, _v) = app_fixture().await;
+        seed_one(&app, "to-edit").await;
+        crate::input::apply::pickers::open_connections_page(&mut app).unwrap();
+        apply_open_connection_edit_form(&mut app);
+        match &app.modal {
+            Some(crate::modal::Modal::ConnectionForm(state)) => {
+                assert_eq!(state.name.as_str(), "to-edit");
+                assert_eq!(state.editing.as_deref(), Some("to-edit"));
+                assert_eq!(state.driver_idx, 2); // sqlite
+                assert_eq!(state.database_name.as_str(), "/tmp/x.db");
+            }
+            other => panic!("expected ConnectionForm, got {other:?}"),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_edit_form_noop_when_page_not_open() {
+        let (mut app, _d, _v) = app_fixture().await;
+        apply_open_connection_edit_form(&mut app);
+        assert!(app.modal.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn submit_in_edit_mode_calls_update_not_create() {
+        let (mut app, _d, vault) = app_fixture().await;
+        seed_one(&app, "edit-me").await;
+        crate::input::apply::pickers::open_connections_page(&mut app).unwrap();
+        apply_open_connection_edit_form(&mut app);
+        // Navigate to Description and append a marker so we can prove
+        // the row was overwritten with the new value.
+        for _ in 0..8 {
+            apply_form_focus_next(&mut app);
+        } // Name → Driver → Host → Port → Database → Username → Password → Readonly → Description
+        for c in "edited".chars() {
+            apply_form_char(&mut app, c);
+        }
+        apply_form_submit(&mut app);
+        // Modal back to page; entry updated.
+        match &app.modal {
+            Some(crate::modal::Modal::Connections(page)) => {
+                let entry = &page.connections[0];
+                assert_eq!(entry.name, "edit-me");
+                assert_eq!(entry.description.as_deref(), Some("edited"));
+            }
+            other => panic!("expected Connections, got {other:?}"),
+        }
+        let contents = std::fs::read_to_string(vault.path().join("connections.toml")).unwrap();
+        assert!(contents.contains("description = \"edited\""));
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn cancel_delete_reopens_page_unchanged() {
         let (mut app, _d, vault) = app_fixture().await;
@@ -663,6 +774,7 @@ mod tests {
 pub(crate) fn apply_connection_form(app: &mut App, action: Action) {
     match action {
         Action::OpenConnectionForm => apply_open_connection_form(app),
+        Action::OpenConnectionEditForm => apply_open_connection_edit_form(app),
         Action::CloseConnectionForm => apply_close_connection_form(app),
         Action::ConnectionFormFocusNext => apply_form_focus_next(app),
         Action::ConnectionFormFocusPrev => apply_form_focus_prev(app),
