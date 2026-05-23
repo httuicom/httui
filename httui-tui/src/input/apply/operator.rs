@@ -531,12 +531,12 @@ pub(crate) fn apply_visual_select_textobject(app: &mut App, textobj: TextObject)
 /// keeps flowing through `parse_db_row_detail`. Otherwise the
 /// editor's normal mode is the natural exit.
 pub(crate) fn return_from_visual(app: &mut App) {
-    if app.db_row_detail.is_some() {
-        app.vim.mode = Mode::DbRowDetail;
-        app.vim.visual_anchor = None;
-        app.vim.reset_pending();
-    } else {
-        app.vim.enter_normal();
+    let origin = app.vim.visual_origin_mode.take();
+    app.vim.enter_normal();
+    if let Some(mode) = origin {
+        if mode != Mode::Normal {
+            app.vim.mode = mode;
+        }
     }
 }
 

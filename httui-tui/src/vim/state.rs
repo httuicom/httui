@@ -73,6 +73,7 @@ pub struct VimState {
     /// fixed end of the selection. The moving end is the document
     /// cursor itself. `None` outside visual modes.
     pub visual_anchor: Option<Cursor>,
+    pub visual_origin_mode: Option<Mode>,
     /// Anchor + linewise flag of the last visual selection that was
     /// dismissed (Esc / operator completion / mode flip). Read by
     /// the `gv` chord to restore visual mode at that anchor.
@@ -116,6 +117,7 @@ impl VimState {
             pending_window: false,
             pending_z: false,
             visual_anchor: None,
+            visual_origin_mode: None,
             last_visual: None,
         }
     }
@@ -155,6 +157,7 @@ impl VimState {
 
     /// Enter charwise visual mode anchored at `at`.
     pub fn enter_visual(&mut self, at: Cursor) {
+        self.visual_origin_mode = Some(self.mode);
         self.mode = Mode::Visual;
         self.reset_pending();
         self.visual_anchor = Some(at);
@@ -162,6 +165,7 @@ impl VimState {
 
     /// Enter linewise visual mode anchored at `at`.
     pub fn enter_visual_line(&mut self, at: Cursor) {
+        self.visual_origin_mode = Some(self.mode);
         self.mode = Mode::VisualLine;
         self.reset_pending();
         self.visual_anchor = Some(at);
@@ -259,6 +263,34 @@ mod tests {
         assert_eq!(s.pending_count, None);
         // Sem count pendente, default = 1
         assert_eq!(s.take_count(), 1);
+    }
+
+    #[test]
+    fn enter_visual_captures_origin_mode() {
+        let cur = Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        };
+        for origin in [Mode::Normal, Mode::HttpResponseDetail, Mode::DbRowDetail] {
+            let mut s = VimState::new();
+            s.mode = origin;
+            s.enter_visual(cur);
+            assert_eq!(s.visual_origin_mode, Some(origin));
+            assert_eq!(s.mode, Mode::Visual);
+        }
+    }
+
+    #[test]
+    fn enter_visual_line_captures_origin_mode() {
+        let cur = Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        };
+        let mut s = VimState::new();
+        s.mode = Mode::HttpResponseDetail;
+        s.enter_visual_line(cur);
+        assert_eq!(s.visual_origin_mode, Some(Mode::HttpResponseDetail));
+        assert_eq!(s.mode, Mode::VisualLine);
     }
 
     #[test]
