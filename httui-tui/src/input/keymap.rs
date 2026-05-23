@@ -102,28 +102,35 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         //
         // Business actions below are vim-only in the modal engine
         // (`g`-prefixed chords); `g` is a literal letter in Standard,
-        // so they get fresh F-key / Ctrl / Alt defaults here. F-keys
-        // for "open a panel" (discoverable, never collide with text),
-        // Ctrl/Alt for execution and navigation.
+        // so they get fresh `Alt+letter` defaults here. F-keys were
+        // tried first (tui-V03 keymap fase 2) but rejected on UX
+        // grounds — distant from the home row. Alt+letter slots avoid
+        // the edit-op collisions of Ctrl+letter and remain reachable
+        // in terminals without the kitty keyboard protocol.
+        //
+        // `rerun_last_block` lands on `alt+.` rather than the obvious
+        // `alt+shift+r`: the chord matcher ignores `Shift` on `Char`
+        // codes (Shift on a letter is unreliable across terminals), so
+        // `alt+shift+r` would collide with `alt+r` (run).
         spec("explain_block", "alt+x", Action::ExplainBlock),
-        spec("run_block", "f5", Action::RunBlock),
-        spec("rerun_last_block", "f6", Action::RerunLastBlock),
+        spec("run_block", "alt+r", Action::RunBlock),
+        spec("rerun_last_block", "alt+.", Action::RerunLastBlock),
         spec("jump_next_block", "alt+down", Action::JumpNextBlock),
         spec("jump_prev_block", "alt+up", Action::JumpPrevBlock),
         // Panels & pickers.
-        spec("open_help", "f1", Action::OpenHelp),
-        spec("open_tab_picker", "f3", Action::OpenTabPicker),
+        spec("open_help", "alt+?", Action::OpenHelp),
+        spec("open_tab_picker", "alt+t", Action::OpenTabPicker),
         spec(
             "open_environment_picker",
-            "f4",
+            "alt+e",
             Action::OpenEnvironmentPicker,
         ),
-        spec("open_block_history", "f7", Action::OpenBlockHistory),
-        spec("open_export_picker", "f8", Action::OpenDbExportPicker),
-        spec("open_block_settings", "f9", Action::OpenDbSettingsModal),
+        spec("open_block_history", "alt+h", Action::OpenBlockHistory),
+        spec("open_export_picker", "alt+g", Action::OpenDbExportPicker),
+        spec("open_block_settings", "alt+,", Action::OpenDbSettingsModal),
         spec(
             "open_block_template_picker",
-            "f10",
+            "alt+n",
             Action::OpenBlockTemplatePicker,
         ),
         spec("quick_open", "ctrl+p", Action::EnterQuickOpen),
@@ -218,7 +225,7 @@ mod tests {
         // The vim-only business actions get fresh Standard chords.
         let keymap = resolve_standard_keymap(&KeymapConfig::default());
         assert_eq!(
-            lookup(&keymap, ev(KeyCode::F(5), KeyModifiers::NONE)),
+            lookup(&keymap, ev(KeyCode::Char('r'), KeyModifiers::ALT)),
             Some(Action::RunBlock),
         );
         assert_eq!(

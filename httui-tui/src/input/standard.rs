@@ -131,7 +131,8 @@ mod tests {
         // Esc → handled specially by `route_standard` (query cancel).
         assert_eq!(resolve(&km(), k(KeyCode::Esc)), None);
         assert_eq!(resolve(&km(), k(KeyCode::Tab)), None);
-        // F11 carries no default Standard binding (F1/F3-F10 do).
+        // F11 carries no default Standard binding (the runtime defaults
+        // are `Alt+letter`, not F-keys).
         assert_eq!(resolve(&km(), k(KeyCode::F(11))), None);
     }
 

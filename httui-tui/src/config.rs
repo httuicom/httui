@@ -72,12 +72,14 @@ pub enum EditorMode {
     Vim,
 }
 
-/// Default chord for the vim↔standard toggle. An F-key so it works in
-/// every terminal regardless of the kitty keyboard protocol —
-/// `Ctrl+Shift+<letter>` collapses to a single modifier on terminals
-/// without it. Parsed by `crate::input::keychord::parse_key_chord`.
+/// Default chord for the vim↔standard toggle. `Alt+M` ("M for mode")
+/// — reachable in every terminal with Option-as-Meta enabled. The
+/// earlier `F2` default (tui-V03 input fix) was rejected on UX
+/// grounds; `Ctrl+Shift+<letter>` and `Ctrl+Enter` still collapse on
+/// terminals without the kitty keyboard protocol, so those remain
+/// off-limits. Parsed by `crate::input::keychord::parse_key_chord`.
 fn default_toggle_mode_key() -> String {
-    "f2".to_string()
+    "alt+m".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,7 +106,7 @@ impl Default for EditorConfig {
 /// profile. Keys are action names (the `name` field of
 /// `crate::input::keymap::standard_actions`); values are chord strings
 /// in the `crate::input::keychord` grammar (`"ctrl+c"`, `"shift+up"`,
-/// `"f5"`, …).
+/// `"alt+r"`, …).
 ///
 /// An action absent from the map uses its built-in default, so a
 /// hand-edited partial `[keymap]` never disables the rest. The
@@ -119,6 +121,13 @@ impl KeymapConfig {
     /// one. `None` means "use the built-in default".
     pub fn chord_for(&self, action_name: &str) -> Option<&str> {
         self.0.get(action_name).map(String::as_str)
+    }
+
+    /// Overwrite (or insert) the chord for `action_name`. Used by the
+    /// legacy-default migration in `load_or_init` — production code
+    /// should otherwise treat the map as read-only after parsing.
+    pub fn set(&mut self, action_name: &str, chord: String) {
+        self.0.insert(action_name.to_string(), chord);
     }
 }
 
@@ -196,6 +205,40 @@ fn render_config(cfg: &Config) -> TuiResult<String> {
     toml::to_string_pretty(cfg).map_err(|e| TuiError::Config(format!("serialize config: {e}")))
 }
 
+/// Legacy F-key defaults from tui-V03 keymap fase 2 + the initial input
+/// fix. When upgrading past fase 4, any user whose `[keymap]` still
+/// carries the exact old default gets bumped to the new `Alt+letter`
+/// default in place — the canonical rewrite in `load_or_init` then
+/// persists the migration. Custom values (anything other than the
+/// listed legacy default) are untouched.
+const LEGACY_KEYMAP_DEFAULTS: &[(&str, &str, &str)] = &[
+    ("run_block", "f5", "alt+r"),
+    ("rerun_last_block", "f6", "alt+."),
+    ("open_help", "f1", "alt+?"),
+    ("open_tab_picker", "f3", "alt+t"),
+    ("open_environment_picker", "f4", "alt+e"),
+    ("open_block_history", "f7", "alt+h"),
+    ("open_export_picker", "f8", "alt+g"),
+    ("open_block_settings", "f9", "alt+,"),
+    ("open_block_template_picker", "f10", "alt+n"),
+];
+
+const LEGACY_TOGGLE_MODE_KEY: &str = "f2";
+
+/// Migrate legacy F-key defaults to the new `Alt+letter` chords.
+/// Idempotent: only rewrites entries whose value matches the OLD
+/// default verbatim, so a user-customised chord is preserved.
+pub(crate) fn migrate_legacy_keymap(cfg: &mut Config) {
+    for (name, old, new) in LEGACY_KEYMAP_DEFAULTS {
+        if cfg.keymap.chord_for(name) == Some(*old) {
+            cfg.keymap.set(name, (*new).to_string());
+        }
+    }
+    if cfg.editor.toggle_mode_key == LEGACY_TOGGLE_MODE_KEY {
+        cfg.editor.toggle_mode_key = default_toggle_mode_key();
+    }
+}
+
 /// Load config from `path`, creating it with defaults on first run.
 ///
 /// On every load the file is re-written in canonical form: fields
@@ -204,6 +247,10 @@ fn render_config(cfg: &Config) -> TuiResult<String> {
 /// a binding name. The rewrite is best-effort — a write failure does
 /// not block startup, and it is skipped when the file is already
 /// canonical.
+///
+/// `migrate_legacy_keymap` runs between parse and rewrite so legacy
+/// F-key defaults inherited from earlier tui-V03 builds are bumped to
+/// their new `Alt+letter` equivalents in place.
 pub fn load_or_init(path: &Path) -> TuiResult<Config> {
     if !path.exists() {
         if let Some(parent) = path.parent() {
@@ -215,8 +262,9 @@ pub fn load_or_init(path: &Path) -> TuiResult<Config> {
     }
 
     let raw = std::fs::read_to_string(path)?;
-    let cfg: Config =
+    let mut cfg: Config =
         toml::from_str(&raw).map_err(|e| TuiError::Config(format!("parse {path:?}: {e}")))?;
+    migrate_legacy_keymap(&mut cfg);
     if let Ok(canonical) = render_config(&cfg) {
         if canonical != raw {
             let _ = std::fs::write(path, canonical);
@@ -343,5 +391,90 @@ mod tests {
         let log = log_dir().unwrap();
         let cfg = default_config_path().unwrap();
         assert_eq!(cfg.parent(), log.parent());
+    }
+
+    #[test]
+    fn migrate_rewrites_legacy_fkey_defaults() {
+        // A user upgrading from tui-V03 fase 2 has `run_block = "f5"`
+        // (and friends) in their config. After migration each entry
+        // points at its new `Alt+letter` chord.
+        let mut cfg = Config::default();
+        for (name, old, _) in LEGACY_KEYMAP_DEFAULTS {
+            cfg.keymap.set(name, (*old).to_string());
+        }
+        cfg.editor.toggle_mode_key = LEGACY_TOGGLE_MODE_KEY.to_string();
+        migrate_legacy_keymap(&mut cfg);
+        for (name, _, new) in LEGACY_KEYMAP_DEFAULTS {
+            assert_eq!(
+                cfg.keymap.chord_for(name),
+                Some(*new),
+                "{name} should migrate to {new}"
+            );
+        }
+        assert_eq!(cfg.editor.toggle_mode_key, default_toggle_mode_key());
+    }
+
+    #[test]
+    fn migrate_preserves_user_customizations() {
+        // Anything not equal to the OLD default is the user's choice;
+        // migration must leave it alone — including a chord the user
+        // happened to set to a different F-key.
+        let mut cfg = Config::default();
+        cfg.keymap.set("run_block", "ctrl+r".to_string());
+        cfg.keymap.set("open_help", "f11".to_string()); // not the old default (f1)
+        cfg.editor.toggle_mode_key = "ctrl+e".to_string();
+        migrate_legacy_keymap(&mut cfg);
+        assert_eq!(cfg.keymap.chord_for("run_block"), Some("ctrl+r"));
+        assert_eq!(cfg.keymap.chord_for("open_help"), Some("f11"));
+        assert_eq!(cfg.editor.toggle_mode_key, "ctrl+e");
+    }
+
+    #[test]
+    fn migrate_is_idempotent() {
+        // Running the migration twice produces the same Config as
+        // running it once — important because `load_or_init` runs it on
+        // every load.
+        let mut cfg = Config::default();
+        for (name, old, _) in LEGACY_KEYMAP_DEFAULTS {
+            cfg.keymap.set(name, (*old).to_string());
+        }
+        cfg.editor.toggle_mode_key = LEGACY_TOGGLE_MODE_KEY.to_string();
+        migrate_legacy_keymap(&mut cfg);
+        let after_first = cfg.clone();
+        migrate_legacy_keymap(&mut cfg);
+        for (name, _, _) in LEGACY_KEYMAP_DEFAULTS {
+            assert_eq!(
+                cfg.keymap.chord_for(name),
+                after_first.keymap.chord_for(name)
+            );
+        }
+        assert_eq!(cfg.editor.toggle_mode_key, after_first.editor.toggle_mode_key);
+    }
+
+    #[test]
+    fn load_or_init_migrates_legacy_fkey_on_disk() {
+        // End-to-end: a config.toml on disk with `toggle_mode_key = "f2"`
+        // and `run_block = "f5"` is rewritten to the Alt+letter forms
+        // after load. The user never has to edit the file by hand.
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("config.toml");
+        std::fs::write(
+            &path,
+            "[editor]\n\
+             mode = \"standard\"\n\
+             toggle_mode_key = \"f2\"\n\
+             \n\
+             [keymap]\n\
+             run_block = \"f5\"\n",
+        )
+        .unwrap();
+        let cfg = load_or_init(&path).unwrap();
+        assert_eq!(cfg.editor.toggle_mode_key, "alt+m");
+        assert_eq!(cfg.keymap.chord_for("run_block"), Some("alt+r"));
+        let on_disk = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            on_disk.contains("toggle_mode_key = \"alt+m\"") && on_disk.contains("run_block = \"alt+r\""),
+            "load must persist the migrated chords:\n{on_disk}"
+        );
     }
 }

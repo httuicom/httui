@@ -218,6 +218,10 @@ mod tests {
         KeyEvent::new(code, KeyModifiers::CONTROL)
     }
 
+    fn alt(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::ALT)
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn vim_branch_is_a_literal_passthrough_to_dispatch() {
         // Route with mode=Vim must do exactly what calling
@@ -771,11 +775,24 @@ mod tests {
     // The chord grammar itself is covered by `crate::input::keychord`
     // tests; here we only exercise the route helper's wiring and its
     // malformed-config fallback. `app_with_note` builds the app from
-    // `Config::default()`, so the toggle key is `f2` in every test
-    // below.
+    // `Config::default()`, so the toggle key is `alt+m` in every test
+    // below — the runtime default since tui-V03 keymap fase 4 (the
+    // earlier `f2` was rejected on UX grounds).
 
     #[test]
-    fn is_toggle_chord_matches_the_configured_f_key() {
+    fn is_toggle_chord_matches_the_configured_chord() {
+        // The configured-chord parameter is what the function honours —
+        // pass a chord string and verify it matches its own key event.
+        // Use the runtime default (`alt+m`) plus a legacy `f2` to prove
+        // both still parse correctly.
+        assert!(super::is_toggle_editor_mode(
+            "alt+m",
+            alt(KeyCode::Char('m'))
+        ));
+        assert!(!super::is_toggle_editor_mode(
+            "alt+m",
+            alt(KeyCode::Char('n'))
+        ));
         assert!(super::is_toggle_editor_mode("f2", key(KeyCode::F(2))));
         assert!(!super::is_toggle_editor_mode("f2", key(KeyCode::F(3))));
     }
@@ -790,28 +807,34 @@ mod tests {
 
     #[test]
     fn is_toggle_chord_rejects_unrelated_key() {
-        assert!(!super::is_toggle_editor_mode("f2", ctrl(KeyCode::Char('s'))));
+        assert!(!super::is_toggle_editor_mode(
+            "alt+m",
+            ctrl(KeyCode::Char('s'))
+        ));
     }
 
     #[test]
     fn is_toggle_chord_unbound_when_config_is_malformed() {
         // A garbage / empty config string parses to None → the toggle
         // is simply unbound, never panics.
-        assert!(!super::is_toggle_editor_mode("", key(KeyCode::F(2))));
-        assert!(!super::is_toggle_editor_mode("nonsense", key(KeyCode::F(2))));
+        assert!(!super::is_toggle_editor_mode("", alt(KeyCode::Char('m'))));
+        assert!(!super::is_toggle_editor_mode(
+            "nonsense",
+            alt(KeyCode::Char('m'))
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn toggle_flips_standard_to_vim() {
         let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
-        route(&mut app, key(KeyCode::F(2)));
+        route(&mut app, alt(KeyCode::Char('m')));
         assert_eq!(app.config.editor.mode, EditorMode::Vim);
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn toggle_flips_vim_to_standard() {
         let (mut app, _d, _v) = app_with_note(EditorMode::Vim).await;
-        route(&mut app, key(KeyCode::F(2)));
+        route(&mut app, alt(KeyCode::Char('m')));
         assert_eq!(app.config.editor.mode, EditorMode::Standard);
     }
 
@@ -824,7 +847,7 @@ mod tests {
         route(&mut app, key(KeyCode::Char('i')));
         assert_eq!(app.vim.mode, crate::vim::mode::Mode::Insert);
         app.vim.pending_count = Some(7);
-        route(&mut app, key(KeyCode::F(2)));
+        route(&mut app, alt(KeyCode::Char('m')));
         // Profile flipped AND vim state was reset.
         assert_eq!(app.config.editor.mode, EditorMode::Standard);
         assert_eq!(app.vim.mode, crate::vim::mode::Mode::Normal);
@@ -844,7 +867,7 @@ mod tests {
             app.standard.anchor.is_some(),
             "Shift+arrow should have seeded the Standard anchor"
         );
-        route(&mut app, key(KeyCode::F(2)));
+        route(&mut app, alt(KeyCode::Char('m')));
         assert_eq!(app.config.editor.mode, EditorMode::Vim);
         assert!(
             app.standard.anchor.is_none(),
@@ -863,7 +886,7 @@ mod tests {
         route(&mut app, key(KeyCode::Char('i')));
         assert_eq!(app.vim.mode, crate::vim::mode::Mode::Insert);
         let before = app.document().unwrap().to_markdown();
-        route(&mut app, key(KeyCode::F(2)));
+        route(&mut app, alt(KeyCode::Char('m')));
         let after = app.document().unwrap().to_markdown();
         assert_eq!(
             before, after,
@@ -882,7 +905,7 @@ mod tests {
         route(&mut app, key(KeyCode::Char('z')));
         let clock_before = app.last_edit;
         assert!(clock_before.is_some());
-        route(&mut app, key(KeyCode::F(2)));
+        route(&mut app, alt(KeyCode::Char('m')));
         assert_eq!(
             app.last_edit, clock_before,
             "toggle must NOT reset the auto-save edit clock"
@@ -896,9 +919,9 @@ mod tests {
         // arrow after the round-trip must move the cursor (proves the
         // Standard route is alive) without re-seeding the anchor.
         let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
-        route(&mut app, key(KeyCode::F(2)));
+        route(&mut app, alt(KeyCode::Char('m')));
         assert_eq!(app.config.editor.mode, EditorMode::Vim);
-        route(&mut app, key(KeyCode::F(2)));
+        route(&mut app, alt(KeyCode::Char('m')));
         assert_eq!(app.config.editor.mode, EditorMode::Standard);
         assert!(app.standard.anchor.is_none());
         // Sanity: a typed char still inserts.
