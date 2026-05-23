@@ -146,6 +146,16 @@ pub(crate) fn apply_paste(app: &mut App, pos: PastePos, count: usize, recording:
     if let Some(doc) = app.document_mut() {
         doc.snapshot();
     }
+    if app.vim.unnamed.text.is_empty() {
+        if let Ok(text) = crate::clipboard::get_text() {
+            if !text.is_empty() {
+                app.vim.unnamed = crate::vim::register::Register {
+                    text,
+                    linewise: false,
+                };
+            }
+        }
+    }
     let reg = app.vim.unnamed.clone();
     if let Some(doc) = app.document_mut() {
         operator::paste(pos, count, doc, &reg);
