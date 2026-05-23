@@ -141,6 +141,12 @@ impl ConnectionFormFocus {
     }
 }
 
+/// V3 P5.1 (2026-05-23): vault grep snapshot for "this connection
+/// is referenced by:" displayed in the page's detail pane.
+/// Re-exports the core type so both state and renderer live on a
+/// single import surface.
+pub use httui_core::connection_uses::ConnectionUse;
+
 /// Open instance of the **Connections page** — the dedicated
 /// master-detail screen opened by `gC` / `Alt+P` (V3, 2026-05-23).
 /// Unlike `ConnectionPickerState` (anchored popup for swapping a
@@ -148,10 +154,14 @@ impl ConnectionFormFocus {
 /// connection in `<vault>/connections.toml` with a detail panel for
 /// the highlighted row. `connections` is a snapshot at open-time;
 /// callers invoke `reload()` after mutating the store.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ConnectionsPageState {
     pub connections: Vec<ConnectionDetail>,
     pub selected: usize,
+    /// V3 P5.1 (2026-05-23): vault-grep snapshot for `connections[selected]`
+    /// — `nota.md:line` rows for fences referencing the highlighted
+    /// connection by name. Refreshed on open + on cursor move.
+    pub uses: Vec<ConnectionUse>,
 }
 
 /// Full detail of one connection — superset of `ConnectionEntry`

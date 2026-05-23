@@ -246,15 +246,35 @@ pub(crate) fn open_connections_page(app: &mut App) -> Result<(), String> {
             description: c.description,
         })
         .collect();
+    let vault_root = app.vault_path.clone();
+    let uses = connections
+        .first()
+        .map(|c| httui_core::connection_uses::find_connection_uses(&vault_root, &c.name))
+        .unwrap_or_default();
     app.modal = Some(crate::modal::Modal::Connections(
         crate::app::ConnectionsPageState {
             connections,
             selected: 0,
+            uses,
         },
     ));
     app.vim.mode = Mode::Modal;
     app.vim.reset_pending();
     Ok(())
+}
+
+/// V3 P5.1: recompute `state.uses` for the currently-selected entry.
+/// Called by the cursor-move applier so the detail pane stays in sync
+/// without rebuilding the whole snapshot.
+fn refresh_uses_for_selected(app: &mut App) {
+    let vault_root = app.vault_path.clone();
+    if let Some(crate::modal::Modal::Connections(state)) = app.modal.as_mut() {
+        state.uses = state
+            .connections
+            .get(state.selected)
+            .map(|c| httui_core::connection_uses::find_connection_uses(&vault_root, &c.name))
+            .unwrap_or_default();
+    }
 }
 
 pub(crate) fn apply_close_connections_page(app: &mut App) {
@@ -271,11 +291,17 @@ pub(crate) fn apply_move_connections_page_cursor(app: &mut App, delta: i32) {
     if state.connections.is_empty() {
         return;
     }
+    let previous = state.selected;
     let last = state.connections.len() as i64 - 1;
     let next = (state.selected as i64)
         .saturating_add(delta as i64)
         .clamp(0, last);
     state.selected = next as usize;
+    // V3 P5.1: refresh "used in" snapshot only when the selection
+    // actually changed (j past the end / k past the start are no-ops).
+    if state.selected != previous {
+        refresh_uses_for_selected(app);
+    }
 }
 
 // ───────────── tab picker (gb) ─────────────

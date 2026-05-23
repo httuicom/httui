@@ -16,7 +16,10 @@ use ratatui::{
 use crate::app::{ConnectionDetail, ConnectionsPageState};
 
 const POPUP_WIDTH: u16 = 64;
-const POPUP_HEIGHT: u16 = 20;
+/// Tall enough for the full detail pane (header + Connection + Auth +
+/// Options + Description + Used in up to 6 refs) without clipping
+/// on a default 24-row terminal it still leaves a margin around it.
+const POPUP_HEIGHT: u16 = 28;
 const SIDEBAR_COLS: u16 = 22;
 
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionsPageState) {
@@ -143,7 +146,10 @@ fn render_detail(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg
         return;
     };
 
-    let lines = detail_lines(detail);
+    let mut lines = detail_lines(detail);
+    // V3 P5.1: append the "Used in" section showing vault-grep
+    // results for this connection name.
+    lines.extend(used_in_lines(&state.uses));
     let para = Paragraph::new(lines).style(bg).wrap(Wrap { trim: false });
     let inner = Rect {
         x: area.x.saturating_add(2),
@@ -152,6 +158,46 @@ fn render_detail(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg
         height: area.height,
     };
     frame.render_widget(para, inner);
+}
+
+fn used_in_lines(uses: &[crate::app::ConnectionUse]) -> Vec<Line<'static>> {
+    let mut lines = vec![
+        Line::from(""),
+        section_header(&format!("Used in {}", uses.len())),
+    ];
+    if uses.is_empty() {
+        lines.push(Line::from(Span::styled(
+            "(no references in this vault)",
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
+        )));
+    } else {
+        // Cap at 6 rows so the section doesn't push everything below
+        // off-screen on a 20-row popup. Surplus surfaces as a "+N more".
+        const MAX_ROWS: usize = 6;
+        for u in uses.iter().take(MAX_ROWS) {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    u.file.clone(),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled(
+                    format!(":{}", u.line),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]));
+        }
+        if uses.len() > MAX_ROWS {
+            lines.push(Line::from(Span::styled(
+                format!("+{} more", uses.len() - MAX_ROWS),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )));
+        }
+    }
+    lines
 }
 
 fn driver_chip(driver: &str) -> (&'static str, Color) {
@@ -329,6 +375,7 @@ mod tests {
         let state = ConnectionsPageState {
             connections: Vec::new(),
             selected: 0,
+            ..Default::default()
         };
         let text = render_page(&state, 80, 24);
         assert!(text.contains("Connections · 0"));
@@ -344,6 +391,7 @@ mod tests {
                 detail("old-htui", "postgres"),
             ],
             selected: 0,
+            ..Default::default()
         };
         let text = render_page(&state, 80, 24);
         assert!(text.contains("Connections · 2"));
@@ -359,6 +407,7 @@ mod tests {
         let state = ConnectionsPageState {
             connections: vec![detail("Test", "sqlite")],
             selected: 0,
+            ..Default::default()
         };
         let text = render_page(&state, 80, 24);
         assert!(text.contains("Connection"));
@@ -378,6 +427,7 @@ mod tests {
         let state = ConnectionsPageState {
             connections: vec![d],
             selected: 0,
+            ..Default::default()
         };
         let text = render_page(&state, 80, 24);
         assert!(text.contains("Description"));
@@ -389,6 +439,7 @@ mod tests {
         let state = ConnectionsPageState {
             connections: vec![detail("Test", "sqlite")],
             selected: 0,
+            ..Default::default()
         };
         let text = render_page(&state, 80, 24);
         assert!(!text.contains("Description"));
@@ -401,6 +452,7 @@ mod tests {
         let state = ConnectionsPageState {
             connections: vec![d],
             selected: 0,
+            ..Default::default()
         };
         let text = render_page(&state, 80, 24);
         assert!(text.contains("yes"));
@@ -411,6 +463,7 @@ mod tests {
         let state = ConnectionsPageState {
             connections: vec![detail("Test", "sqlite")],
             selected: 0,
+            ..Default::default()
         };
         let text = render_page(&state, 80, 24);
         assert!(text.contains("j/k nav"));
@@ -428,7 +481,64 @@ mod tests {
         let state = ConnectionsPageState {
             connections: vec![detail("a", "sqlite")],
             selected: 0,
+            ..Default::default()
         };
         let _ = render_page(&state, 30, 10);
+    }
+
+    #[test]
+    fn render_used_in_shows_no_references_when_empty() {
+        let state = ConnectionsPageState {
+            connections: vec![detail("a", "sqlite")],
+            selected: 0,
+            uses: Vec::new(),
+        };
+        let text = render_page(&state, 80, 30);
+        assert!(text.contains("Used in 0"));
+        assert!(text.contains("(no references in this vault)"));
+    }
+
+    #[test]
+    fn render_used_in_lists_file_line_refs() {
+        let state = ConnectionsPageState {
+            connections: vec![detail("Test", "sqlite")],
+            selected: 0,
+            uses: vec![
+                crate::app::ConnectionUse {
+                    file: "runbooks/users.md".into(),
+                    line: 12,
+                },
+                crate::app::ConnectionUse {
+                    file: "scratch.md".into(),
+                    line: 3,
+                },
+            ],
+        };
+        let text = render_page(&state, 80, 30);
+        assert!(text.contains("Used in 2"));
+        assert!(text.contains("runbooks/users.md"));
+        assert!(text.contains(":12"));
+        assert!(text.contains("scratch.md"));
+        assert!(text.contains(":3"));
+    }
+
+    #[test]
+    fn render_used_in_caps_long_lists_with_more_marker() {
+        let uses: Vec<_> = (1..=10)
+            .map(|i| crate::app::ConnectionUse {
+                file: format!("note-{i}.md"),
+                line: i as u32,
+            })
+            .collect();
+        let state = ConnectionsPageState {
+            connections: vec![detail("a", "sqlite")],
+            selected: 0,
+            uses,
+        };
+        let text = render_page(&state, 80, 40);
+        assert!(text.contains("Used in 10"));
+        assert!(text.contains("note-1.md"));
+        assert!(text.contains("note-6.md"));
+        assert!(text.contains("+4 more"));
     }
 }
