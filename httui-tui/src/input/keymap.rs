@@ -166,11 +166,58 @@ pub fn resolve_standard_keymap(cfg: &KeymapConfig) -> Vec<(KeyChord, Action)> {
 
 /// Decode `key` against a resolved keymap. First match wins —
 /// [`resolve_standard_keymap`] preserves [`standard_actions`] order.
+///
+/// macOS Option-key compat: when `Use Option as Meta key` is OFF
+/// (Terminal/iTerm2 default), `Option+letter` emits the Unicode
+/// composed glyph instead of `Alt+letter`. We unmap a few of those
+/// glyphs back to the equivalent Alt chord so the user doesn't have
+/// to learn a different binding per terminal.
 pub fn lookup(keymap: &[(KeyChord, Action)], key: KeyEvent) -> Option<Action> {
+    let key = unmap_macos_option(key);
     keymap
         .iter()
         .find(|(chord, _)| chord.matches(key))
         .map(|(_, action)| *action)
+}
+
+fn unmap_macos_option(key: KeyEvent) -> KeyEvent {
+    use crossterm::event::KeyCode;
+    let KeyEvent { code, modifiers, .. } = key;
+    if modifiers.contains(crossterm::event::KeyModifiers::ALT) {
+        // Already saw Alt set — terminal IS sending Meta. Pass through.
+        return key;
+    }
+    let mapped_char = match code {
+        KeyCode::Char(c) => macos_option_to_ascii(c),
+        _ => None,
+    };
+    if let Some(c) = mapped_char {
+        KeyEvent::new(KeyCode::Char(c), modifiers | crossterm::event::KeyModifiers::ALT)
+    } else {
+        key
+    }
+}
+
+/// Maps the Unicode glyph that macOS emits for Option+letter (default
+/// keyboard, no "Use Option as Meta key") back to the underlying
+/// letter. Only covers letters bound to actions in `standard_actions`
+/// — adding more is a one-liner.
+fn macos_option_to_ascii(c: char) -> Option<char> {
+    Some(match c {
+        '√' => 'v', // Option+v
+        '®' => 'r', // Option+r
+        '†' => 't', // Option+t
+        '˙' => 'h', // Option+h
+        '©' => 'g', // Option+g
+        '≤' => ',', // Option+,
+        '˜' => 'n', // Option+n
+        'π' => 'p', // Option+p
+        '´' => 'e', // Option+e (dead-key fallback)
+        '¿' => '?', // Option+? — often Shift-1 variant
+        '≈' => 'x', // Option+x
+        '…' => '.', // Option+.
+        _ => return None,
+    })
 }
 
 pub fn is_universal_action(action: Action) -> bool {
