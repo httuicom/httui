@@ -1,4 +1,4 @@
-use crate::app::{BlockHistoryState, DbConfirmRunState, DbExportPickerState};
+use crate::app::{BlockHistoryState, DbConfirmRunState, DbExportPickerState, TabPickerState};
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -8,6 +8,7 @@ pub enum Modal {
     DbConfirmRun(DbConfirmRunState),
     BlockHistory(BlockHistoryState),
     DbExportPicker(DbExportPickerState),
+    TabPicker(TabPickerState),
 }
 
 #[derive(Debug)]
@@ -24,7 +25,18 @@ impl Modal {
             Modal::DbConfirmRun(_) => db_confirm_run_handle_key(key),
             Modal::BlockHistory(_) => block_history_handle_key(key),
             Modal::DbExportPicker(_) => db_export_picker_handle_key(key),
+            Modal::TabPicker(_) => tab_picker_handle_key(key),
         }
+    }
+}
+
+fn tab_picker_handle_key(key: KeyEvent) -> ModalOutcome {
+    match list_picker_key(key) {
+        ListPickerKey::Up => ModalOutcome::Emit(Action::MoveTabPickerCursor(-1)),
+        ListPickerKey::Down => ModalOutcome::Emit(Action::MoveTabPickerCursor(1)),
+        ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseTabPicker),
+        ListPickerKey::Confirm => ModalOutcome::Emit(Action::ConfirmTabPicker),
+        ListPickerKey::Other => ModalOutcome::Continue,
     }
 }
 

@@ -242,16 +242,18 @@ pub(crate) fn apply_open_tab_picker(app: &mut App) {
             crate::app::TabPickerEntry { idx, label, dirty }
         })
         .collect();
-    app.tab_picker = Some(crate::app::TabPickerState {
-        entries,
-        selected: active,
-    });
-    app.vim.mode = Mode::TabPicker;
+    app.modal = Some(crate::modal::Modal::TabPicker(
+        crate::app::TabPickerState {
+            entries,
+            selected: active,
+        },
+    ));
+    app.vim.mode = Mode::Modal;
     app.vim.reset_pending();
 }
 
 pub(crate) fn apply_move_tab_picker_cursor(app: &mut App, delta: i32) {
-    let Some(state) = app.tab_picker.as_mut() else {
+    let Some(crate::modal::Modal::TabPicker(state)) = app.modal.as_mut() else {
         return;
     };
     if state.entries.is_empty() {
@@ -268,9 +270,13 @@ pub(crate) fn apply_move_tab_picker_cursor(app: &mut App, delta: i32) {
 /// index and dismiss. The `sync_file_watcher` call after every
 /// keystroke (in the main loop) catches the new file in lockstep.
 pub(crate) fn apply_confirm_tab_picker(app: &mut App) {
-    let Some(state) = app.tab_picker.take() else {
-        app.vim.enter_normal();
-        return;
+    let state = match app.modal.take() {
+        Some(crate::modal::Modal::TabPicker(s)) => s,
+        other => {
+            app.modal = other;
+            app.vim.enter_normal();
+            return;
+        }
     };
     app.vim.enter_normal();
     let Some(picked) = state.entries.get(state.selected) else {
@@ -547,7 +553,9 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         Action::ConfirmBlockTemplatePicker => apply_confirm_block_template_picker(app),
         Action::OpenTabPicker => apply_open_tab_picker(app),
         Action::CloseTabPicker => {
-            app.tab_picker = None;
+            if matches!(app.modal, Some(crate::modal::Modal::TabPicker(_))) {
+                app.modal = None;
+            }
             app.vim.enter_normal();
         }
         Action::MoveTabPickerCursor(delta) => apply_move_tab_picker_cursor(app, delta),

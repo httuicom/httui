@@ -193,28 +193,6 @@ pub fn parse_connection_picker(key: KeyEvent) -> Action {
     }
 }
 
-/// Translate one key while the tab picker is open. Same vocab as
-/// the env / template pickers: vertical navigation, Enter, Esc.
-pub fn parse_tab_picker(key: KeyEvent) -> Action {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-    match (modifiers, code) {
-        (_, KeyCode::Esc) => Action::CloseTabPicker,
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => Action::CloseTabPicker,
-        (_, KeyCode::Enter) => Action::ConfirmTabPicker,
-        (_, KeyCode::Down) | (KeyModifiers::NONE, KeyCode::Char('j')) => {
-            Action::MoveTabPickerCursor(1)
-        }
-        (_, KeyCode::Up) | (KeyModifiers::NONE, KeyCode::Char('k')) => {
-            Action::MoveTabPickerCursor(-1)
-        }
-        (KeyModifiers::CONTROL, KeyCode::Char('n')) => Action::MoveTabPickerCursor(1),
-        (KeyModifiers::CONTROL, KeyCode::Char('p')) => Action::MoveTabPickerCursor(-1),
-        _ => Action::Noop,
-    }
-}
-
 /// Translate one key while the block-template picker is open.
 /// Same vocab as `parse_environment_picker`: vertical-only
 /// navigation and Enter/Esc. No `D` (templates aren't deletable —

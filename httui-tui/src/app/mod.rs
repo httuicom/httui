@@ -157,40 +157,9 @@ pub struct App {
     /// static `&'static [BlockTemplate]` so the state only carries
     /// the selection cursor.
     pub block_template_picker: Option<BlockTemplatePickerState>,
-    /// `Some` while the tab picker is open (`gb`). Mode flips to
-    /// `Mode::TabPicker`. Snapshot of every tab's focused-leaf path and
-    /// dirty flag is computed at open-time so the picker survives
-    /// unrelated edits while it's up.
-    pub tab_picker: Option<TabPickerState>,
-    /// Coordinates of the most-recently run block, used by the
-    /// `gr` chord to rerun without navigating back to the source.
-    /// Recorded by `apply_run_block` (and the HTTP equivalent) at
-    /// the moment the run is dispatched, so cancelled / failed runs
-    /// still set the anchor — `gr` is "rerun whatever I just tried".
-    /// `None` until the user has run at least one block this
-    /// session.
     pub last_run_anchor: Option<LastRunAnchor>,
-    /// Standard-mode (non-modal) selection anchor. Only meaningful
-    /// when `config.editor.mode == EditorMode::Standard`; the vim
-    /// path never reads or writes it (Cenário 2 stays byte-identical).
-    /// Introduced by tui-V1 / fase 3 p0.
     pub standard: StandardState,
-    /// Wall-clock timestamp of the most recent textual edit in the
-    /// active document — set by `input::route::route_standard` after
-    /// any mutating action (InsertChar / InsertNewline /
-    /// DeleteBackward / DeleteForward / Cut / PasteSystem). Read by
-    /// the `Tick` branch in `event_loop` to decide when the auto-save
-    /// debounce has elapsed. `None` means "no edit since the last
-    /// auto-save (or app start)" — both gate the debounce check.
-    /// Lives here rather than in `StandardState` because that struct
-    /// is pure `Copy`/`Eq` data; `Instant` would break it.
-    /// Introduced by tui-V01 / fase 5 p2 (auto-save).
     pub last_edit: Option<Instant>,
-    /// Resolved Standard-mode keymap: chord→Action pairs built from
-    /// `config.keymap` at startup. `input::route::route_standard`
-    /// decodes Standard keystrokes against this list; the vim modal
-    /// engine is unaffected. Introduced by tui-V03 (config-driven
-    /// keymap).
     pub standard_keymap: Vec<(crate::input::keychord::KeyChord, crate::input::action::Action)>,
     pub config_path: Option<PathBuf>,
     pub modal: Option<crate::modal::Modal>,
@@ -233,7 +202,6 @@ impl App {
             file_watcher: None,
             block_template_picker: None,
             last_run_anchor: None,
-            tab_picker: None,
             standard: StandardState::default(),
             last_edit: None,
             standard_keymap,

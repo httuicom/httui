@@ -103,15 +103,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::EnvironmentPicker
             | Mode::Modal
             | Mode::BlockTemplatePicker
-            | Mode::TabPicker
     ) || app.db_row_detail.is_some()
         || app.http_response_detail.is_some()
         || app.connection_picker.is_some()
         || app.content_search.is_some()
         || app.environment_picker.is_some()
         || app.modal.is_some()
-        || app.block_template_picker.is_some()
-        || app.tab_picker.is_some();
+        || app.block_template_picker.is_some();
 
     // Snapshot the current result-panel tab so the render tree can
     // pass it down without re-borrowing `app` at every level.
@@ -360,7 +358,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // focused-leaf path; current tab marked with `●`, dirty tabs
     // get a trailing `*`. Painted last so it floats above any
     // other modal (none of the others share the gb chord).
-    if let Some(state) = app.tab_picker.as_ref() {
+    if let Some(crate::modal::Modal::TabPicker(state)) = app.modal.as_ref() {
         tab_picker::render(frame, editor_area, state, app.tabs.active);
     }
 }
@@ -818,14 +816,14 @@ mod tests {
     async fn tab_picker_modal_paints() {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
-        app.tab_picker = Some(TabPickerState {
+        app.modal = Some(crate::modal::Modal::TabPicker(TabPickerState {
             entries: vec![crate::app::TabPickerEntry {
                 idx: 0,
                 label: "a.md".into(),
                 dirty: false,
             }],
             selected: 0,
-        });
+        }));
         let (text, _c) = render(&mut app, 70, 14);
         assert!(text.contains("a.md"), "got: {text:?}");
     }
