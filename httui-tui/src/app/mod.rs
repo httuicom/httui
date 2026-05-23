@@ -146,6 +146,8 @@ pub struct App {
     /// handler invalidates `ConnectionsStore`'s cache and reloads the
     /// page if it's open.
     pub connections_toml_watcher: Option<crate::fs_watch::FileWatcher>,
+    /// V4 P8 (2026-05-23): watcher for `<vault>/envs/` dir entries.
+    pub envs_dir_watcher: Option<crate::fs_watch::FileWatcher>,
     pub last_run_anchor: Option<LastRunAnchor>,
     pub standard: StandardState,
     pub last_edit: Option<Instant>,
@@ -205,6 +207,7 @@ impl App {
             fence_edit: None,
             file_watcher: None,
             connections_toml_watcher: None,
+            envs_dir_watcher: None,
             last_run_anchor: None,
             standard: StandardState::default(),
             last_edit: None,

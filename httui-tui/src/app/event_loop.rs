@@ -50,8 +50,15 @@ pub async fn run(
     // store + reload the Connections page if it's up. The active-doc
     // watcher above is single-path and serves a different concern,
     // so a dedicated instance is cleaner than overloading it.
-    app.connections_toml_watcher = Some(crate::fs_watch::FileWatcher::new(sender));
+    app.connections_toml_watcher = Some(crate::fs_watch::FileWatcher::new(sender.clone()));
     sync_connections_toml_watcher(&mut app);
+    // V4 P8: watch a placeholder file inside envs/ (envs/.toml-watch).
+    // FileWatcher is single-target; for the envs *directory* we use
+    // its parent-dir watching trick: it already watches parent
+    // non-recursively, so events for any sibling file inside envs/
+    // come through. We pick a stable sentinel path.
+    app.envs_dir_watcher = Some(crate::fs_watch::FileWatcher::new(sender));
+    sync_envs_dir_watcher(&mut app);
 
     let result = main_loop(&mut terminal, &mut app, &mut events).await;
 
@@ -64,6 +71,23 @@ pub async fn run(
 /// db connection), watch the parent dir — the notify backend
 /// fires Create events for new files in that dir, so the first
 /// `n` from inside the page lights up the watcher retroactively.
+/// V4 P8: watcher pra <vault>/envs/. Aponta pra um arquivo sentinela
+/// dentro do dir, o FileWatcher watcha o parent dir não-recursivo —
+/// eventos pra qualquer sibling dentro de envs/ chegam.
+fn sync_envs_dir_watcher(app: &mut App) {
+    let envs_dir = app.vault_path.join("envs");
+    std::fs::create_dir_all(&envs_dir).ok();
+    let sentinel = envs_dir.join(".watch");
+    if let Some(w) = app.envs_dir_watcher.as_mut() {
+        if let Err(msg) = w.watch(&sentinel) {
+            app.set_status(
+                crate::app::StatusKind::Info,
+                format!("envs/ watcher: {msg}"),
+            );
+        }
+    }
+}
+
 fn sync_connections_toml_watcher(app: &mut App) {
     let toml_path = app.vault_path.join("connections.toml");
     if let Some(w) = app.connections_toml_watcher.as_mut() {
@@ -183,6 +207,8 @@ fn handle_app_event(app: &mut App, ev: AppEvent) -> bool {
             // chain assumes paths are markdown docs.
             if path == app.vault_path.join("connections.toml") {
                 handle_connections_toml_changed(app);
+            } else if path.starts_with(app.vault_path.join("envs")) {
+                handle_envs_dir_changed(app);
             } else {
                 handle_file_changed_externally(app, path);
             }
@@ -231,6 +257,21 @@ fn handle_connections_toml_changed(app: &mut App) {
         } else {
             app.set_status(StatusKind::Info, "connections.toml reloaded");
         }
+    }
+}
+
+/// V4 P8: external change inside `<vault>/envs/`. Invalidate the
+/// env store cache + reload the EnvsPage if open + refresh the
+/// active-env chip.
+fn handle_envs_dir_changed(app: &mut App) {
+    let store = app.environments_store.clone();
+    tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(store.invalidate_cache());
+    });
+    app.refresh_active_env_name();
+    if matches!(app.modal, Some(crate::modal::Modal::EnvsPage(_))) {
+        let _ = crate::input::apply::envs_page::open_envs_page(app);
+        app.set_status(crate::app::StatusKind::Info, "envs/ reloaded");
     }
 }
 

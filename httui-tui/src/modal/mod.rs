@@ -1,7 +1,9 @@
 use crate::app::{
     BlockHistoryState, BlockTemplatePickerState, ConnectionDeleteConfirmState,
     ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
-    DbExportPickerState, EnvironmentPickerState, TabPickerState,
+    DbExportPickerState, EnvDeleteConfirmState, EnvFormState, EnvironmentPickerState,
+    EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState, VarFormFocus,
+    VarFormState,
 };
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -28,6 +30,16 @@ pub enum Modal {
     /// Connections page. `y`/`Enter` runs store.delete; `n`/`Esc`
     /// reopens the page unchanged.
     ConnectionDeleteConfirm(ConnectionDeleteConfirmState),
+    /// V4 P2: Vars + Envs page (gV / Alt+V).
+    EnvsPage(EnvsPageState),
+    /// V4 P3: create/edit env form.
+    EnvForm(EnvFormState),
+    /// V4 P3: create/edit var form.
+    VarForm(VarFormState),
+    /// V4 P4: destructive confirm pra delete env.
+    EnvDeleteConfirm(EnvDeleteConfirmState),
+    /// V4 P4: destructive confirm pra delete var.
+    VarDeleteConfirm(VarDeleteConfirmState),
 }
 
 #[derive(Debug)]
@@ -51,6 +63,10 @@ impl Modal {
             Modal::Connections(_) => connections_page_handle_key(key),
             Modal::ConnectionForm(s) => connection_form_handle_key(s, key),
             Modal::ConnectionDeleteConfirm(_) => connection_delete_confirm_handle_key(key),
+            Modal::EnvsPage(s) => envs_page_handle_key(s.focus, key),
+            Modal::EnvForm(_) => env_form_handle_key(key),
+            Modal::VarForm(s) => var_form_handle_key(s.focus, key),
+            Modal::EnvDeleteConfirm(_) | Modal::VarDeleteConfirm(_) => env_or_var_confirm_handle_key(key),
         }
     }
 }
@@ -266,6 +282,117 @@ fn help_handle_key(key: KeyEvent) -> ModalOutcome {
         (_, KeyCode::Esc) => ModalOutcome::Close,
         (KeyModifiers::CONTROL, KeyCode::Char('c')) => ModalOutcome::Close,
         (m, KeyCode::Char('q')) if !m.contains(KeyModifiers::CONTROL) => ModalOutcome::Close,
+        _ => ModalOutcome::Continue,
+    }
+}
+
+// V4 P2-P4 handlers ----------
+
+fn envs_page_handle_key(focus: EnvsPaneFocus, key: KeyEvent) -> ModalOutcome {
+    let KeyEvent { code, modifiers, .. } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::CloseEnvsPage)
+        }
+        (_, KeyCode::Tab) | (_, KeyCode::BackTab) | (KeyModifiers::NONE, KeyCode::Char('\t')) => {
+            ModalOutcome::Emit(Action::EnvsPageFocusToggle)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('h')) => ModalOutcome::Emit(Action::EnvsPageFocusEnvs),
+        (KeyModifiers::NONE, KeyCode::Char('l')) => ModalOutcome::Emit(Action::EnvsPageFocusVars),
+        (KeyModifiers::NONE, KeyCode::Char('j')) | (_, KeyCode::Down) => {
+            ModalOutcome::Emit(if focus == EnvsPaneFocus::Envs {
+                Action::EnvsPageMoveEnvCursor(1)
+            } else {
+                Action::EnvsPageMoveVarCursor(1)
+            })
+        }
+        (KeyModifiers::NONE, KeyCode::Char('k')) | (_, KeyCode::Up) => {
+            ModalOutcome::Emit(if focus == EnvsPaneFocus::Envs {
+                Action::EnvsPageMoveEnvCursor(-1)
+            } else {
+                Action::EnvsPageMoveVarCursor(-1)
+            })
+        }
+        // a (activate) on envs pane → switch active env.
+        (KeyModifiers::NONE, KeyCode::Char('a')) if focus == EnvsPaneFocus::Envs => {
+            ModalOutcome::Emit(Action::EnvsPageActivateEnv)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('n')) => {
+            ModalOutcome::Emit(if focus == EnvsPaneFocus::Envs {
+                Action::OpenEnvForm
+            } else {
+                Action::OpenVarForm
+            })
+        }
+        (KeyModifiers::NONE, KeyCode::Char('e')) => {
+            ModalOutcome::Emit(if focus == EnvsPaneFocus::Envs {
+                Action::OpenEnvEditForm
+            } else {
+                Action::OpenVarEditForm
+            })
+        }
+        (mods, KeyCode::Char('D')) if !mods.contains(KeyModifiers::CONTROL) => {
+            ModalOutcome::Emit(if focus == EnvsPaneFocus::Envs {
+                Action::OpenEnvDeleteConfirm
+            } else {
+                Action::OpenVarDeleteConfirm
+            })
+        }
+        _ => ModalOutcome::Continue,
+    }
+}
+
+fn env_form_handle_key(key: KeyEvent) -> ModalOutcome {
+    let KeyEvent { code, modifiers, .. } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::CloseEnvForm)
+        }
+        (_, KeyCode::Enter) => ModalOutcome::Emit(Action::EnvFormSubmit),
+        (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::EnvFormBackspace),
+        (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
+            ModalOutcome::Emit(Action::EnvFormChar(c))
+        }
+        _ => ModalOutcome::Continue,
+    }
+}
+
+fn var_form_handle_key(focus: VarFormFocus, key: KeyEvent) -> ModalOutcome {
+    let KeyEvent { code, modifiers, .. } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::CloseVarForm)
+        }
+        (_, KeyCode::Enter) => ModalOutcome::Emit(Action::VarFormSubmit),
+        (_, KeyCode::Tab) | (_, KeyCode::Down) => ModalOutcome::Emit(Action::VarFormFocusNext),
+        (_, KeyCode::BackTab) | (_, KeyCode::Up) => ModalOutcome::Emit(Action::VarFormFocusPrev),
+        (KeyModifiers::NONE, KeyCode::Char(' ')) if focus == VarFormFocus::Secret => {
+            ModalOutcome::Emit(Action::VarFormToggleSecret)
+        }
+        (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::VarFormBackspace),
+        (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
+            if focus == VarFormFocus::Secret {
+                ModalOutcome::Continue
+            } else {
+                ModalOutcome::Emit(Action::VarFormChar(c))
+            }
+        }
+        _ => ModalOutcome::Continue,
+    }
+}
+
+fn env_or_var_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
+    let KeyEvent { code, modifiers, .. } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c'))
+        | (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
+            ModalOutcome::Emit(Action::CancelEnvOrVarDelete)
+        }
+        (_, KeyCode::Enter)
+        | (KeyModifiers::NONE, KeyCode::Char('y'))
+        | (KeyModifiers::NONE, KeyCode::Char('Y')) => {
+            ModalOutcome::Emit(Action::ConfirmEnvOrVarDelete)
+        }
         _ => ModalOutcome::Continue,
     }
 }

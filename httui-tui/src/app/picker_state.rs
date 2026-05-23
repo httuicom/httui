@@ -164,6 +164,93 @@ pub struct ConnectionsPageState {
     pub uses: Vec<ConnectionUse>,
 }
 
+// V4 P2 (2026-05-23) — Vars + Envs page state.
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum EnvsPaneFocus {
+    #[default]
+    Envs,
+    Vars,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnvSummary {
+    pub name: String,
+    pub var_count: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct VarRow {
+    pub key: String,
+    pub value: String,
+    pub is_secret: bool,
+}
+
+#[derive(Debug, Default)]
+pub struct EnvsPageState {
+    pub envs: Vec<EnvSummary>,
+    pub active: Option<String>,
+    pub selected_env: usize,
+    pub vars: Vec<VarRow>,
+    pub selected_var: usize,
+    pub focus: EnvsPaneFocus,
+}
+
+#[derive(Debug, Default)]
+pub struct EnvFormState {
+    pub name: crate::vim::lineedit::LineEdit,
+    pub editing: Option<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum VarFormFocus {
+    #[default]
+    Key,
+    Value,
+    Secret,
+}
+
+#[derive(Debug, Default)]
+pub struct VarFormState {
+    pub env_name: String,
+    pub key: crate::vim::lineedit::LineEdit,
+    pub value: crate::vim::lineedit::LineEdit,
+    pub is_secret: bool,
+    pub focus: VarFormFocus,
+    /// Some(original_key) → edit mode (renames not supported).
+    pub editing: Option<String>,
+    pub error: Option<String>,
+}
+
+impl VarFormFocus {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Key => Self::Value,
+            Self::Value => Self::Secret,
+            Self::Secret => Self::Key,
+        }
+    }
+    pub fn prev(self) -> Self {
+        match self {
+            Self::Key => Self::Secret,
+            Self::Value => Self::Key,
+            Self::Secret => Self::Value,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct EnvDeleteConfirmState {
+    pub name: String,
+}
+
+#[derive(Debug)]
+pub struct VarDeleteConfirmState {
+    pub env_name: String,
+    pub key: String,
+}
+
 /// Full detail of one connection — superset of `ConnectionEntry`
 /// (which carries only the picker's needs). The Connections page
 /// shows every public field in the right pane.

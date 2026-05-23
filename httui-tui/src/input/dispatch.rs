@@ -263,6 +263,35 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::TestSelectedConnection => {
             crate::input::apply::connection_form::apply_connection_form(app, action)
         }
+        Action::OpenEnvsPage
+        | Action::CloseEnvsPage
+        | Action::EnvsPageFocusToggle
+        | Action::EnvsPageFocusEnvs
+        | Action::EnvsPageFocusVars
+        | Action::EnvsPageMoveEnvCursor(_)
+        | Action::EnvsPageMoveVarCursor(_)
+        | Action::EnvsPageActivateEnv
+        | Action::OpenEnvForm
+        | Action::OpenEnvEditForm
+        | Action::CloseEnvForm
+        | Action::EnvFormChar(_)
+        | Action::EnvFormBackspace
+        | Action::EnvFormSubmit
+        | Action::OpenVarForm
+        | Action::OpenVarEditForm
+        | Action::CloseVarForm
+        | Action::VarFormChar(_)
+        | Action::VarFormBackspace
+        | Action::VarFormFocusNext
+        | Action::VarFormFocusPrev
+        | Action::VarFormToggleSecret
+        | Action::VarFormSubmit
+        | Action::OpenEnvDeleteConfirm
+        | Action::OpenVarDeleteConfirm
+        | Action::ConfirmEnvOrVarDelete
+        | Action::CancelEnvOrVarDelete => {
+            crate::input::apply::envs_page::apply_envs(app, action)
+        }
         Action::JumpNextBlock
         | Action::JumpPrevBlock
         | Action::RerunLastBlock

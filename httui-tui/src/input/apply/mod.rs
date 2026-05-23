@@ -6,6 +6,7 @@
 pub mod completion;
 /// V3 P3 (2026-05-23): create-connection form modal handlers.
 pub mod connection_form;
+pub mod envs_page;
 pub mod misc;
 pub mod modal_detail;
 pub mod navigation;

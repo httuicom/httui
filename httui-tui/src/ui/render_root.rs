@@ -15,8 +15,8 @@ use crate::vim::mode::Mode;
 use super::{
     anchor, block_history, block_template_picker, completion_popup, connection_delete_confirm,
     connection_form, connection_picker, connections_page, content_search, db_confirm_run,
-    db_export_picker, db_row_detail, db_settings_modal, environment_picker, fence_edit, help,
-    http_response_detail, quickopen, render_empty_state_inline, render_pane_tree, status,
+    db_export_picker, db_row_detail, db_settings_modal, envs_page, environment_picker, fence_edit,
+    help, http_response_detail, quickopen, render_empty_state_inline, render_pane_tree, status,
     tab_picker, tabs, tree, VisualOverlay,
 };
 
@@ -380,6 +380,27 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Connections page (the prior modal); `n`/`Esc` reopens the page.
     if let Some(crate::modal::Modal::ConnectionDeleteConfirm(state)) = app.modal.as_ref() {
         connection_delete_confirm::render(frame, editor_area, state);
+    }
+
+    // V4 P2-P4: envs/vars surfaces.
+    if let Some(crate::modal::Modal::EnvsPage(state)) = app.modal.as_ref() {
+        envs_page::render(frame, editor_area, state);
+    }
+    if let Some(crate::modal::Modal::EnvForm(state)) = app.modal.as_ref() {
+        if let Some((cx, cy)) = envs_page::render_env_form(frame, editor_area, state) {
+            frame.set_cursor_position((cx, cy));
+        }
+    }
+    if let Some(crate::modal::Modal::VarForm(state)) = app.modal.as_ref() {
+        if let Some((cx, cy)) = envs_page::render_var_form(frame, editor_area, state) {
+            frame.set_cursor_position((cx, cy));
+        }
+    }
+    if let Some(crate::modal::Modal::EnvDeleteConfirm(state)) = app.modal.as_ref() {
+        envs_page::render_env_delete_confirm(frame, editor_area, state);
+    }
+    if let Some(crate::modal::Modal::VarDeleteConfirm(state)) = app.modal.as_ref() {
+        envs_page::render_var_delete_confirm(frame, editor_area, state);
     }
 }
 

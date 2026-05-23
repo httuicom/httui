@@ -138,6 +138,7 @@ pub fn standard_actions() -> Vec<ActionSpec> {
             "alt+p",
             Action::OpenConnectionsPage,
         ),
+        spec("open_envs_page", "alt+v", Action::OpenEnvsPage),
         spec("quick_open", "ctrl+p", Action::EnterQuickOpen),
         spec("content_search", "ctrl+f", Action::OpenContentSearch),
         // Workspace.
@@ -188,6 +189,7 @@ pub fn is_universal_action(action: Action) -> bool {
             | Action::OpenDbSettingsModal
             | Action::OpenBlockTemplatePicker
             | Action::OpenConnectionsPage
+            | Action::OpenEnvsPage
             | Action::EnterQuickOpen
             | Action::OpenContentSearch
             | Action::TreeToggle

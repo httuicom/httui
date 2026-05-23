@@ -10,6 +10,7 @@ mod connection_picker;
 mod connection_delete_confirm;
 mod connection_form;
 mod connections_page;
+mod envs_page;
 mod content_search;
 mod cursor;
 mod db_confirm_run;

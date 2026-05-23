@@ -256,6 +256,12 @@ pub fn parse_normal(state: &mut VimState, key: KeyEvent) -> Action {
             state.take_count();
             return Action::OpenConnectionsPage;
         }
+        // `gV` — open the Vars + Envs page (V4 P2). Capital V to
+        // dodge any future `gv` (reselect last visual).
+        if let KeyCode::Char('V') = code {
+            state.take_count();
+            return Action::OpenEnvsPage;
+        }
         // `g?` — open the keymap help modal. Bare `?` is taken by
         // search-backwards, so the help lookup lives behind the
         // `g` prefix family.
