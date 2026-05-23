@@ -228,6 +228,252 @@ fn set_form_error(app: &mut App, msg: &str) {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::App;
+    use crate::config::Config;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use tempfile::TempDir;
+
+    async fn app_fixture() -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool);
+        (app, data, vault)
+    }
+
+    fn open_form(app: &mut App) {
+        apply_open_connection_form(app);
+    }
+
+    fn current_state(app: &App) -> &ConnectionFormState {
+        form_state_ref(app).expect("form should be open")
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_seeds_default_state() {
+        let (mut app, _d, _v) = app_fixture().await;
+        apply_open_connection_form(&mut app);
+        let state = current_state(&app);
+        assert_eq!(state.focus, ConnectionFormFocus::Name);
+        assert_eq!(state.driver_idx, 0);
+        assert!(state.name.as_str().is_empty());
+        assert!(!state.is_readonly);
+        assert_eq!(app.vim.mode, Mode::Modal);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn close_clears_modal_and_returns_normal() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        apply_close_connection_form(&mut app);
+        assert!(form_state_ref(&app).is_none());
+        assert_eq!(app.vim.mode, Mode::Normal);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn close_is_noop_when_other_modal_active() {
+        let (mut app, _d, _v) = app_fixture().await;
+        // Different modal open — close_form must not blow it away.
+        app.modal = Some(crate::modal::Modal::Help);
+        apply_close_connection_form(&mut app);
+        assert!(matches!(app.modal, Some(crate::modal::Modal::Help)));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn focus_next_cycles_through_fields() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        let order = ConnectionFormFocus::ORDER;
+        for expected in order.iter().skip(1) {
+            apply_form_focus_next(&mut app);
+            assert_eq!(current_state(&app).focus, *expected);
+        }
+        // Wrap.
+        apply_form_focus_next(&mut app);
+        assert_eq!(current_state(&app).focus, order[0]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn focus_prev_wraps_backwards() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        apply_form_focus_prev(&mut app);
+        assert_eq!(
+            current_state(&app).focus,
+            *ConnectionFormFocus::ORDER.last().unwrap()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn char_inserts_into_focused_field() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        apply_form_char(&mut app, 'a');
+        apply_form_char(&mut app, 'b');
+        assert_eq!(current_state(&app).name.as_str(), "ab");
+        // Tab over to host and type — name must stay put.
+        apply_form_focus_next(&mut app); // Driver
+        apply_form_focus_next(&mut app); // Host
+        apply_form_char(&mut app, 'x');
+        let state = current_state(&app);
+        assert_eq!(state.name.as_str(), "ab");
+        assert_eq!(state.host.as_str(), "x");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn char_on_driver_or_readonly_is_inert() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        // Move focus to Driver.
+        apply_form_focus_next(&mut app);
+        apply_form_char(&mut app, 'X');
+        // Nothing typed anywhere.
+        assert!(current_state(&app).name.as_str().is_empty());
+        assert!(current_state(&app).host.as_str().is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn backspace_delete_cursor_ops_target_focused_input() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        apply_form_char(&mut app, 'a');
+        apply_form_char(&mut app, 'b');
+        apply_form_char(&mut app, 'c');
+        apply_form_backspace(&mut app);
+        assert_eq!(current_state(&app).name.as_str(), "ab");
+        apply_form_cursor_home(&mut app);
+        apply_form_delete(&mut app);
+        assert_eq!(current_state(&app).name.as_str(), "b");
+        apply_form_cursor_end(&mut app);
+        apply_form_char(&mut app, 'z');
+        assert_eq!(current_state(&app).name.as_str(), "bz");
+        apply_form_cursor_left(&mut app);
+        apply_form_char(&mut app, '.');
+        assert_eq!(current_state(&app).name.as_str(), "b.z");
+        apply_form_cursor_right(&mut app);
+        apply_form_char(&mut app, '!');
+        assert_eq!(current_state(&app).name.as_str(), "b.z!");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cycle_driver_advances_and_wraps() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        apply_form_cycle_driver(&mut app, 1);
+        assert_eq!(current_state(&app).driver_idx, 1);
+        apply_form_cycle_driver(&mut app, 1);
+        assert_eq!(current_state(&app).driver_idx, 2);
+        apply_form_cycle_driver(&mut app, 1);
+        assert_eq!(current_state(&app).driver_idx, 0); // wrap
+        apply_form_cycle_driver(&mut app, -1);
+        assert_eq!(current_state(&app).driver_idx, 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_readonly_flips() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        assert!(!current_state(&app).is_readonly);
+        apply_form_toggle_readonly(&mut app);
+        assert!(current_state(&app).is_readonly);
+        apply_form_toggle_readonly(&mut app);
+        assert!(!current_state(&app).is_readonly);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn submit_rejects_empty_name_with_error_inline() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        // driver=sqlite so the username-required postgres validation
+        // doesn't fire — we want the name check to surface first.
+        apply_form_cycle_driver(&mut app, 2);
+        apply_form_submit(&mut app);
+        let state = current_state(&app);
+        assert_eq!(state.error.as_deref(), Some("name is required"));
+        // Modal still open.
+        assert!(form_state_ref(&app).is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn submit_rejects_non_numeric_port() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        // name=ok, driver=postgres (default), port=abc.
+        for c in "ok".chars() {
+            apply_form_char(&mut app, c);
+        }
+        // Navigate to Host then Port and type a non-number.
+        apply_form_focus_next(&mut app); // Driver
+        apply_form_focus_next(&mut app); // Host
+        apply_form_focus_next(&mut app); // Port
+        apply_form_char(&mut app, 'a');
+        apply_form_submit(&mut app);
+        let state = current_state(&app);
+        assert!(state
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("port must be a number"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn submit_sqlite_success_closes_form_and_persists() {
+        let (mut app, _d, vault) = app_fixture().await;
+        open_form(&mut app);
+        // Name = "local".
+        for c in "local".chars() {
+            apply_form_char(&mut app, c);
+        }
+        // Move to Driver and select sqlite (idx 2).
+        apply_form_focus_next(&mut app);
+        apply_form_cycle_driver(&mut app, 2);
+        // Move to Database and type a path (required for sqlite).
+        for _ in 0..3 {
+            apply_form_focus_next(&mut app);
+        } // Driver → Host → Port → Database
+        for c in "/tmp/x.db".chars() {
+            apply_form_char(&mut app, c);
+        }
+        apply_form_submit(&mut app);
+        // Modal closed; Connections page re-opened with the entry.
+        assert!(
+            matches!(app.modal, Some(crate::modal::Modal::Connections(_))),
+            "submit should reopen the page; modal was: {:?}",
+            app.modal
+        );
+        // TOML was written.
+        let toml_path = vault.path().join("connections.toml");
+        let contents = std::fs::read_to_string(toml_path).unwrap();
+        assert!(contents.contains("[connections.local]"));
+        assert!(contents.contains("type = \"sqlite\""));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn submit_postgres_missing_required_field_surfaces_store_error() {
+        let (mut app, _d, _v) = app_fixture().await;
+        open_form(&mut app);
+        // name=p1, driver=postgres (default), but no host/username/db.
+        // The store's `require` helper rejects with "X is required for postgres".
+        for c in "p1".chars() {
+            apply_form_char(&mut app, c);
+        }
+        apply_form_submit(&mut app);
+        let state = current_state(&app);
+        let err = state.error.as_deref().unwrap_or("");
+        assert!(
+            err.contains("required for postgres"),
+            "expected a required-field error, got: {err:?}"
+        );
+    }
+}
+
 pub(crate) fn apply_connection_form(app: &mut App, action: Action) {
     match action {
         Action::OpenConnectionForm => apply_open_connection_form(app),

@@ -433,3 +433,113 @@ fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
         height: h,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    fn render_form(state: &ConnectionFormState, w: u16, h: u16) -> (String, Option<(u16, u16)>) {
+        let backend = TestBackend::new(w, h);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut cursor = None;
+        terminal
+            .draw(|f| {
+                cursor = render(f, Rect::new(0, 0, w, h), state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        let text: String = (0..h)
+            .map(|y| {
+                let line: String = (0..w)
+                    .map(|x| buf.cell((x, y)).unwrap().symbol().to_string())
+                    .collect();
+                line.trim_end().to_string()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        (text, cursor)
+    }
+
+    #[test]
+    fn render_paints_title_and_driver_tabs() {
+        let state = ConnectionFormState::new();
+        let (text, _) = render_form(&state, 80, 28);
+        assert!(text.contains("New connection"), "title missing: {text}");
+        assert!(text.contains("PostgreSQL"));
+        assert!(text.contains("MySQL"));
+        assert!(text.contains("SQLite"));
+    }
+
+    #[test]
+    fn render_shows_connection_string_preview_for_postgres_default() {
+        let state = ConnectionFormState::new();
+        let (text, _) = render_form(&state, 80, 28);
+        // Default driver is postgres; without host/db the preview uses
+        // <host>/<database> placeholders.
+        assert!(
+            text.contains("postgres://"),
+            "preview missing: {text}"
+        );
+    }
+
+    #[test]
+    fn render_preview_swaps_to_sqlite_when_driver_changes() {
+        let mut state = ConnectionFormState::new();
+        state.driver_idx = 2; // sqlite
+        state.database_name = crate::vim::lineedit::LineEdit::from_str("/tmp/x.db");
+        let (text, _) = render_form(&state, 80, 28);
+        assert!(text.contains("sqlite:///tmp/x.db"), "preview wrong: {text}");
+    }
+
+    #[test]
+    fn render_returns_cursor_position_when_text_field_focused() {
+        let mut state = ConnectionFormState::new();
+        state.focus = ConnectionFormFocus::Name;
+        // Insert two chars so the cursor advances to column 2.
+        state.name.insert_char('a');
+        state.name.insert_char('b');
+        let (_, cursor) = render_form(&state, 80, 28);
+        let (cx, _cy) = cursor.expect("cursor pos should be returned");
+        // Popup is centered (62 wide in 80 → starts at x=9); inside the
+        // popup the form has a 1-cell border + 2-cell indent + 2-cell
+        // input prefix + 2-char text → cx = 9 + 1 + 2 + 2 + 2 = 16.
+        assert_eq!(cx, 16);
+    }
+
+    #[test]
+    fn render_returns_none_cursor_for_driver_and_readonly_fields() {
+        let mut state = ConnectionFormState::new();
+        state.focus = ConnectionFormFocus::Driver;
+        let (_, cursor) = render_form(&state, 80, 28);
+        assert!(cursor.is_none(), "driver tab focus has no caret");
+        state.focus = ConnectionFormFocus::Readonly;
+        let (_, cursor) = render_form(&state, 80, 28);
+        assert!(cursor.is_none(), "readonly toggle has no caret");
+    }
+
+    #[test]
+    fn render_masks_password_field() {
+        let mut state = ConnectionFormState::new();
+        state.password = crate::vim::lineedit::LineEdit::from_str("hunter2");
+        let (text, _) = render_form(&state, 80, 28);
+        // 7 chars → 7 bullets, and the raw value must NOT appear.
+        assert!(text.contains("•••••••"), "password should be masked: {text}");
+        assert!(!text.contains("hunter2"), "raw password leaked: {text}");
+    }
+
+    #[test]
+    fn render_displays_inline_error_when_set() {
+        let mut state = ConnectionFormState::new();
+        state.error = Some("name is required".into());
+        let (text, _) = render_form(&state, 80, 28);
+        assert!(text.contains("error: name is required"), "error not shown: {text}");
+    }
+
+    #[test]
+    fn render_smoke_does_not_panic_on_small_area() {
+        let state = ConnectionFormState::new();
+        let _ = render_form(&state, 40, 12);
+    }
+}

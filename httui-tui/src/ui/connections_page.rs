@@ -282,3 +282,153 @@ fn render_hint(frame: &mut Frame, area: Rect, _bg: Style) {
     ));
     frame.render_widget(para, area);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    fn detail(name: &str, driver: &str) -> ConnectionDetail {
+        ConnectionDetail {
+            name: name.into(),
+            driver: driver.into(),
+            host: Some("localhost".into()),
+            port: Some(5432),
+            database_name: Some("mydb".into()),
+            username: Some("user".into()),
+            has_password: true,
+            ssl_mode: None,
+            is_readonly: false,
+            description: None,
+        }
+    }
+
+    fn render_page(state: &ConnectionsPageState, w: u16, h: u16) -> String {
+        let backend = TestBackend::new(w, h);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, Rect::new(0, 0, w, h), state);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        (0..h)
+            .map(|y| {
+                let line: String = (0..w)
+                    .map(|x| buf.cell((x, y)).unwrap().symbol().to_string())
+                    .collect();
+                line.trim_end().to_string()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn render_empty_state_shows_hint() {
+        let state = ConnectionsPageState {
+            connections: Vec::new(),
+            selected: 0,
+        };
+        let text = render_page(&state, 80, 24);
+        assert!(text.contains("Connections · 0"));
+        assert!(text.contains("no conns yet"));
+        assert!(text.contains("press n to add"));
+    }
+
+    #[test]
+    fn render_populated_list_paints_entries_and_chips() {
+        let state = ConnectionsPageState {
+            connections: vec![
+                detail("Test", "sqlite"),
+                detail("old-htui", "postgres"),
+            ],
+            selected: 0,
+        };
+        let text = render_page(&state, 80, 24);
+        assert!(text.contains("Connections · 2"));
+        assert!(text.contains("Test"));
+        assert!(text.contains("old-htui"));
+        // Chip labels (SL/PG) appear in the sidebar.
+        assert!(text.contains("SL"), "sqlite chip missing: {text}");
+        assert!(text.contains("PG"), "postgres chip missing: {text}");
+    }
+
+    #[test]
+    fn render_detail_pane_groups_into_sections() {
+        let state = ConnectionsPageState {
+            connections: vec![detail("Test", "sqlite")],
+            selected: 0,
+        };
+        let text = render_page(&state, 80, 24);
+        assert!(text.contains("Connection"));
+        assert!(text.contains("Auth"));
+        assert!(text.contains("Options"));
+        // Specific value lines.
+        assert!(text.contains("localhost"));
+        assert!(text.contains("mydb"));
+        assert!(text.contains("user"));
+        assert!(text.contains("•••• (keychain)"));
+    }
+
+    #[test]
+    fn render_includes_description_section_when_present() {
+        let mut d = detail("Test", "sqlite");
+        d.description = Some("local dev db".into());
+        let state = ConnectionsPageState {
+            connections: vec![d],
+            selected: 0,
+        };
+        let text = render_page(&state, 80, 24);
+        assert!(text.contains("Description"));
+        assert!(text.contains("local dev db"));
+    }
+
+    #[test]
+    fn render_omits_description_when_absent() {
+        let state = ConnectionsPageState {
+            connections: vec![detail("Test", "sqlite")],
+            selected: 0,
+        };
+        let text = render_page(&state, 80, 24);
+        assert!(!text.contains("Description"));
+    }
+
+    #[test]
+    fn render_readonly_yes_when_flagged() {
+        let mut d = detail("Test", "sqlite");
+        d.is_readonly = true;
+        let state = ConnectionsPageState {
+            connections: vec![d],
+            selected: 0,
+        };
+        let text = render_page(&state, 80, 24);
+        assert!(text.contains("yes"));
+    }
+
+    #[test]
+    fn render_footer_hint_lists_chords() {
+        let state = ConnectionsPageState {
+            connections: vec![detail("Test", "sqlite")],
+            selected: 0,
+        };
+        let text = render_page(&state, 80, 24);
+        assert!(text.contains("j/k nav"));
+        assert!(text.contains("Esc close"));
+    }
+
+    #[test]
+    fn driver_chip_unknown_driver_falls_back() {
+        let (label, _) = driver_chip("oracle");
+        assert_eq!(label, "??");
+    }
+
+    #[test]
+    fn render_smoke_does_not_panic_on_small_area() {
+        let state = ConnectionsPageState {
+            connections: vec![detail("a", "sqlite")],
+            selected: 0,
+        };
+        let _ = render_page(&state, 30, 10);
+    }
+}
