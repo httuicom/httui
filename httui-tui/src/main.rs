@@ -16,6 +16,7 @@ mod error;
 mod event;
 mod fs_watch;
 mod input;
+mod modal;
 mod pane;
 mod schema;
 mod sql_completion;

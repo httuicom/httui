@@ -214,6 +214,7 @@ pub struct App {
     /// keymap).
     pub standard_keymap: Vec<(crate::input::keychord::KeyChord, crate::input::action::Action)>,
     pub config_path: Option<PathBuf>,
+    pub modal: Option<crate::modal::Modal>,
 }
 
 impl App {
@@ -262,6 +263,7 @@ impl App {
             last_edit: None,
             standard_keymap,
             config_path: None,
+            modal: None,
         };
         app.load_initial_document();
         app.refresh_active_env_name();

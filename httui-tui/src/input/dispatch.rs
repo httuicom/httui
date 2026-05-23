@@ -14,6 +14,7 @@ use crate::app::{App, StatusKind};
 use crate::buffer::Cursor;
 use crate::input::action::Action;
 use crate::input::block_swap::{action_needs_block_swap, InBlockSwap};
+use crate::modal::ModalOutcome;
 use crate::vim::mode::Mode;
 use crate::vim::parser::{
     parse_block_history, parse_block_template_picker, parse_cmdline, parse_connection_picker,
@@ -118,6 +119,10 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
         Mode::Help => parse_help(key),
         Mode::BlockTemplatePicker => parse_block_template_picker(key),
         Mode::TabPicker => parse_tab_picker(key),
+        Mode::Modal => {
+            handle_modal_key(app, key);
+            return;
+        }
     };
 
     // Snapshot the pre-swap cursor so the post-action "reparse on
@@ -165,6 +170,26 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
     // the cursor; everything else is a no-op for the popup.
     if matches!(action, Action::InsertChar(_) | Action::DeleteBackward) {
         refresh_completion_popup(app);
+    }
+}
+
+fn handle_modal_key(app: &mut App, key: KeyEvent) {
+    let outcome = match app.modal.as_mut() {
+        Some(m) => m.handle_key(key),
+        None => {
+            app.vim.enter_normal();
+            return;
+        }
+    };
+    match outcome {
+        ModalOutcome::Continue => {}
+        ModalOutcome::Close => {
+            app.modal = None;
+            app.vim.enter_normal();
+        }
+        ModalOutcome::Emit(action) => {
+            apply_action(app, action, false);
+        }
     }
 }
 

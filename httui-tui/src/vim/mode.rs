@@ -100,6 +100,8 @@ pub enum Mode {
     /// `g` + b for "go (to) buffer" — vim's bare `gb` isn't bound,
     /// so the chord is free.
     TabPicker,
+    #[allow(dead_code)]
+    Modal,
 }
 
 impl Mode {
@@ -127,6 +129,7 @@ impl Mode {
             Mode::Help => "HELP",
             Mode::BlockTemplatePicker => "NEW",
             Mode::TabPicker => "TABS",
+            Mode::Modal => "MOD",
         }
     }
 
@@ -152,6 +155,7 @@ impl Mode {
             Mode::Help => Color::LightCyan,
             Mode::BlockTemplatePicker => Color::LightGreen,
             Mode::TabPicker => Color::LightBlue,
+            Mode::Modal => Color::LightBlue,
         }
     }
 }
