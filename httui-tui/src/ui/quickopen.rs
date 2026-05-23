@@ -91,7 +91,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, qo: &QuickOpen) -> (u16, u16
         .style(bg_style)
         .highlight_style(
             Style::default()
-                .bg(Color::DarkGray)
+                .bg(super::palette::SELECTION_BG)
                 .fg(Color::White)
                 .add_modifier(Modifier::BOLD),
         )

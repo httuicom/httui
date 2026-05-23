@@ -87,7 +87,7 @@ pub fn render(
         .collect();
     let list = List::new(items).style(bg_style).highlight_style(
         Style::default()
-            .bg(Color::Rgb(60, 70, 110))
+            .bg(super::palette::SELECTION_BG)
             .fg(Color::White)
             .add_modifier(Modifier::BOLD),
     );

@@ -1512,7 +1512,7 @@ fn render_db_inner(
                     state.select(viewport_selected);
                     let table = table.row_highlight_style(
                         Style::default()
-                            .bg(Color::Rgb(60, 70, 110))
+                            .bg(super::palette::SELECTION_BG)
                             .add_modifier(Modifier::BOLD),
                     );
                     frame.render_stateful_widget(table, content_rect, &mut state);

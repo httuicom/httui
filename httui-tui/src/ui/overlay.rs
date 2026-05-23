@@ -64,7 +64,7 @@ pub(crate) fn overlay_visual_selection(
     };
 
     let layouts = layout_document(doc, area.width);
-    let style = Style::default().bg(Color::Rgb(60, 70, 110));
+    let style = Style::default().bg(super::palette::SELECTION_BG);
 
     for seg_idx in lo_seg..=hi_seg {
         let Some(seg) = doc.segments().get(seg_idx) else {
@@ -288,7 +288,7 @@ mod tests {
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 
-    const SEL_BG: Color = Color::Rgb(60, 70, 110);
+    const SEL_BG: Color = crate::ui::palette::SELECTION_BG;
 
     fn doc(md: &str) -> Document {
         Document::from_markdown(md).unwrap()

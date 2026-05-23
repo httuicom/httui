@@ -19,6 +19,7 @@ mod fence_edit;
 mod help;
 pub mod http_response_detail;
 mod overlay;
+pub(crate) mod palette;
 mod pane_tree;
 mod prose;
 mod quickopen;

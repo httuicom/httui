@@ -867,10 +867,7 @@ mod tests {
         terminal.backend().buffer().clone()
     }
 
-    /// The exact bg the vim visual overlay paints (`ui/overlay.rs`
-    /// `Style::default().bg(Color::Rgb(60, 70, 110))`). The Standard
-    /// arm reuses the SAME `VisualOverlay`, so it must paint this bg.
-    const SEL_BG: ratatui::style::Color = ratatui::style::Color::Rgb(60, 70, 110);
+    const SEL_BG: ratatui::style::Color = crate::ui::palette::SELECTION_BG;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn standard_mode_selection_paints_highlight_bg() {

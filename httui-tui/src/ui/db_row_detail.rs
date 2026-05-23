@@ -225,7 +225,7 @@ fn paint_visual_selection(
         (lo_line, lo_col, hi_line, hi_col)
     };
 
-    let style = Style::default().bg(Color::Rgb(60, 70, 110));
+    let style = Style::default().bg(super::palette::SELECTION_BG);
     let buf = frame.buffer_mut();
     let total_lines = rope.len_lines();
     for line in start_line..=end_line {
