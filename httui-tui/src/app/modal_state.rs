@@ -20,6 +20,7 @@ use crate::buffer::Document;
 /// `Ctrl-p`/`Down`/`Up`) and routes them to the popup; everything
 /// else falls through to normal insert handling and triggers a
 /// re-filter.
+#[derive(Debug)]
 pub struct CompletionPopupState {
     pub segment_idx: usize,
     pub items: Vec<crate::sql_completion::CompletionItem>,
@@ -46,6 +47,7 @@ pub struct CompletionPopupState {
 /// block while the modal is up doesn't mutate it. `viewport_height`
 /// is written back by the renderer so half/full-page motions know
 /// how far to jump.
+#[derive(Debug)]
 pub struct DbRowDetailState {
     /// Back-pointer to the source row in the editor's document.
     /// Used by `dispatch::db_row_payload` for the (yet-to-land)
@@ -72,6 +74,7 @@ pub struct DbRowDetailState {
 /// any extra wiring. The body is snapshotted at open time; running
 /// the underlying block again while the modal is up doesn't mutate
 /// it.
+#[derive(Debug)]
 pub struct HttpResponseDetailState {
     /// Back-pointer to the source HTTP block. Kept for a future
     /// "jump back to block" command and for the title.
@@ -134,6 +137,7 @@ pub struct DbConfirmRunState {
 /// `cached_result` so we don't carry a copy around. The cursor IS
 /// allowed to move while the picker is up; we re-resolve through
 /// `segment_idx` at confirm-time, same contract as `FenceEditState`.
+#[derive(Debug)]
 pub struct DbExportPickerState {
     pub segment_idx: usize,
     pub selected: usize,
@@ -224,6 +228,7 @@ pub type DbExportFormat = BlockExportFormat;
 ///  - Search is also synchronous (sub-millisecond on small vaults
 ///    via FTS5). If `search_content` ever gets expensive, debounce
 ///    on a tokio task with cancellation.
+#[derive(Debug)]
 pub struct ContentSearchState {
     pub query: crate::vim::lineedit::LineEdit,
     pub results: Vec<httui_core::search::ContentSearchResult>,
@@ -269,6 +274,7 @@ impl ContentSearchState {
 /// `httui-core::block_history` (V1: HTTP only — DB history will reuse
 /// the same modal once the executor records it). Pure read-only — the
 /// only interactions are j/k navigation and Esc/Ctrl-C to close.
+#[derive(Debug)]
 pub struct BlockHistoryState {
     pub segment_idx: usize,
     /// Header info shown in the modal title — `<METHOD> <alias>`.
@@ -298,6 +304,7 @@ pub struct BlockHistoryState {
 ///
 /// V1 only carries one kind (positive integer); a select / boolean
 /// kind would slot in as a new enum variant the same way.
+#[derive(Debug)]
 pub struct SettingsField {
     pub label: &'static str,
     /// JSON key in `block.params` — what the confirm path writes
@@ -315,6 +322,7 @@ pub struct SettingsField {
 /// Pinned by user-memory `project_tui_block_settings_modal.md` —
 /// settings live behind one chord (`gs`), one popup, multiple
 /// inputs; never chord-per-field.
+#[derive(Debug)]
 pub struct DbSettingsState {
     pub segment_idx: usize,
     pub fields: Vec<SettingsField>,

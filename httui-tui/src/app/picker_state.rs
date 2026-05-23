@@ -14,6 +14,7 @@ use std::path::PathBuf;
 /// connection registry; `selected` indexes into it. The renderer
 /// paints the popup just below the block (or above when there's no
 /// room) — see `ui::connection_picker`.
+#[derive(Debug)]
 pub struct ConnectionPickerState {
     pub segment_idx: usize,
     pub connections: Vec<ConnectionEntry>,
@@ -36,6 +37,7 @@ pub struct ConnectionEntry {
 /// `TabBar` by its focused-leaf path. Cloned at open-time so the
 /// picker doesn't hold a borrow on `TabBar` while it's up; the user
 /// can keep typing if a future iteration adds search.
+#[derive(Debug)]
 pub struct TabPickerState {
     pub entries: Vec<TabPickerEntry>,
     pub selected: usize,
@@ -101,6 +103,7 @@ impl BlockTemplate {
 /// Open instance of the block-template picker (`gN`). The picker
 /// lives over the editor, centered (no anchor — the templates aren't
 /// tied to a source block). `selected` indexes into `BlockTemplate::ALL`.
+#[derive(Debug)]
 pub struct BlockTemplatePickerState {
     pub selected: usize,
 }
@@ -122,6 +125,7 @@ impl Default for BlockTemplatePickerState {
 /// `entries`. The active env is identified by `active_id` so the
 /// renderer can mark it. Confirm flips the active flag in SQLite,
 /// refreshes the cached `App.active_env_name`, and dismisses.
+#[derive(Debug)]
 pub struct EnvironmentPickerState {
     pub entries: Vec<EnvironmentEntry>,
     pub selected: usize,

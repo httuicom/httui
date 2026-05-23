@@ -16,6 +16,7 @@ use crate::vim::undo::{Snapshot, UndoStack};
 /// the cursor. Block segments are read-only — calls are no-ops when
 /// the cursor sits on a `BlockSelected`. Undo / redo arrive with the
 /// vim engine round 3.
+#[derive(Debug)]
 pub struct Document {
     segments: Vec<Segment>,
     cursor: Cursor,
