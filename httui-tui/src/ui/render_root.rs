@@ -13,11 +13,11 @@ use crate::pane::PaneNode;
 use crate::vim::mode::Mode;
 
 use super::{
-    anchor, block_history, block_template_picker, completion_popup, connection_form,
-    connection_picker, connections_page, content_search, db_confirm_run, db_export_picker,
-    db_row_detail, db_settings_modal, environment_picker, fence_edit, help, http_response_detail,
-    quickopen, render_empty_state_inline, render_pane_tree, status, tab_picker, tabs, tree,
-    VisualOverlay,
+    anchor, block_history, block_template_picker, completion_popup, connection_delete_confirm,
+    connection_form, connection_picker, connections_page, content_search, db_confirm_run,
+    db_export_picker, db_row_detail, db_settings_modal, environment_picker, fence_edit, help,
+    http_response_detail, quickopen, render_empty_state_inline, render_pane_tree, status,
+    tab_picker, tabs, tree, VisualOverlay,
 };
 
 pub fn render(frame: &mut Frame, app: &mut App) {
@@ -374,6 +374,12 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         if let Some((cx, cy)) = connection_form::render(frame, editor_area, state) {
             frame.set_cursor_position((cx, cy));
         }
+    }
+
+    // V3 P4: delete-confirm. Always painted last — sits above the
+    // Connections page (the prior modal); `n`/`Esc` reopens the page.
+    if let Some(crate::modal::Modal::ConnectionDeleteConfirm(state)) = app.modal.as_ref() {
+        connection_delete_confirm::render(frame, editor_area, state);
     }
 }
 

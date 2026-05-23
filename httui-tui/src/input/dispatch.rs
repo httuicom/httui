@@ -244,6 +244,9 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         }
         Action::OpenConnectionForm
         | Action::CloseConnectionForm
+        | Action::OpenConnectionDeleteConfirm
+        | Action::ConfirmConnectionDelete
+        | Action::CancelConnectionDelete
         | Action::ConnectionFormFocusNext
         | Action::ConnectionFormFocusPrev
         | Action::ConnectionFormChar(_)

@@ -126,6 +126,15 @@ pub struct DbConfirmRunState {
     pub reason: String,
 }
 
+/// V3 P4 (2026-05-23): confirm modal for deleting a connection
+/// from `<vault>/connections.toml`. Opened by `D` on the
+/// Connections page; `y`/`Enter` confirms (store.delete + page
+/// reload), `n`/`Esc` cancels (reopens the page unchanged).
+#[derive(Debug)]
+pub struct ConnectionDeleteConfirmState {
+    pub name: String,
+}
+
 /// Open instance of the DB export-format picker. Anchored to the DB
 /// block at `segment_idx` (the cursor was on it when `gx` opened the
 /// picker); `formats` is a fixed 4-element list (CSV/JSON/Markdown/

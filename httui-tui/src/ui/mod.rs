@@ -7,6 +7,7 @@ mod block_template_picker;
 mod blocks;
 mod completion_popup;
 mod connection_picker;
+mod connection_delete_confirm;
 mod connection_form;
 mod connections_page;
 mod content_search;

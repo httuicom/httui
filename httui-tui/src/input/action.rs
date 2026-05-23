@@ -363,6 +363,16 @@ pub enum Action {
     ConnectionFormToggleReadonly,
     /// Enter — validate + `store.create`. Failure surfaces inline.
     ConnectionFormSubmit,
+    /// V3 P4: `D` on the Connections page — open delete-confirm
+    /// modal for the highlighted entry.
+    OpenConnectionDeleteConfirm,
+    /// `y`/`Enter` in the confirm modal — call `store.delete` and
+    /// reload the Connections page list. Failures surface as status
+    /// errors and leave the page list unchanged.
+    ConfirmConnectionDelete,
+    /// `n`/`Esc` in the confirm modal — close without deleting,
+    /// reopen the page in the previous state.
+    CancelConnectionDelete,
 
     /// Read-only listing of the chord vocabulary grouped by section.
     /// Mnemonic: `g`-prefix family + `?` = "help".

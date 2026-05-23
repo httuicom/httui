@@ -1,7 +1,7 @@
 use crate::app::{
-    BlockHistoryState, BlockTemplatePickerState, ConnectionFormState, ConnectionPickerState,
-    ConnectionsPageState, DbConfirmRunState, DbExportPickerState, EnvironmentPickerState,
-    TabPickerState,
+    BlockHistoryState, BlockTemplatePickerState, ConnectionDeleteConfirmState,
+    ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
+    DbExportPickerState, EnvironmentPickerState, TabPickerState,
 };
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -24,6 +24,10 @@ pub enum Modal {
     /// V3 P3 (2026-05-23): create-connection form, opened by `n` on
     /// the Connections page. Submits to `ConnectionsStore::create`.
     ConnectionForm(ConnectionFormState),
+    /// V3 P4 (2026-05-23): destructive confirm for `D` on the
+    /// Connections page. `y`/`Enter` runs store.delete; `n`/`Esc`
+    /// reopens the page unchanged.
+    ConnectionDeleteConfirm(ConnectionDeleteConfirmState),
 }
 
 #[derive(Debug)]
@@ -46,6 +50,7 @@ impl Modal {
             Modal::ConnectionPicker(_) => connection_picker_handle_key(key),
             Modal::Connections(_) => connections_page_handle_key(key),
             Modal::ConnectionForm(s) => connection_form_handle_key(s, key),
+            Modal::ConnectionDeleteConfirm(_) => connection_delete_confirm_handle_key(key),
         }
     }
 }
@@ -112,18 +117,46 @@ fn connection_form_handle_key(state: &ConnectionFormState, key: KeyEvent) -> Mod
     }
 }
 
-/// Connections page (`gC` / `Alt+P`). Vocab: navigate the list with
-/// `j`/`k`/arrows/`Ctrl+n`/`Ctrl+p`; `n` opens the create form (P3);
-/// `Esc`/`Ctrl+C` close.
+/// Connections page (`gC` / `Alt+P`). Vocab: navigate with `j`/`k`/
+/// arrows/`Ctrl+n`/`Ctrl+p`; `n` opens the create form (P3); `D`
+/// opens the delete-confirm modal (P4); `Esc`/`Ctrl+C` close.
 fn connections_page_handle_key(key: KeyEvent) -> ModalOutcome {
-    if let (KeyModifiers::NONE, KeyCode::Char('n')) = (key.modifiers, key.code) {
-        return ModalOutcome::Emit(Action::OpenConnectionForm);
+    match (key.modifiers, key.code) {
+        (KeyModifiers::NONE, KeyCode::Char('n')) => {
+            return ModalOutcome::Emit(Action::OpenConnectionForm);
+        }
+        // Capital D — matches the picker's destructive chord style
+        // (lowercase 'd' would conflict with vim's `dd` reflex).
+        (mods, KeyCode::Char('D')) if !mods.contains(KeyModifiers::CONTROL) => {
+            return ModalOutcome::Emit(Action::OpenConnectionDeleteConfirm);
+        }
+        _ => {}
     }
     match list_picker_key(key) {
         ListPickerKey::Up => ModalOutcome::Emit(Action::MoveConnectionsPageCursor(-1)),
         ListPickerKey::Down => ModalOutcome::Emit(Action::MoveConnectionsPageCursor(1)),
         ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseConnectionsPage),
         ListPickerKey::Confirm | ListPickerKey::Other => ModalOutcome::Continue,
+    }
+}
+
+/// V3 P4: y/Enter → confirm delete; n/Esc/Ctrl-C → cancel; other → noop.
+fn connection_delete_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) => ModalOutcome::Emit(Action::CancelConnectionDelete),
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::CancelConnectionDelete)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
+            ModalOutcome::Emit(Action::CancelConnectionDelete)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('y'))
+        | (KeyModifiers::NONE, KeyCode::Char('Y'))
+        | (_, KeyCode::Enter) => ModalOutcome::Emit(Action::ConfirmConnectionDelete),
+        _ => ModalOutcome::Continue,
     }
 }
 

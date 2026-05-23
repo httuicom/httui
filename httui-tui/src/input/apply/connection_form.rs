@@ -228,6 +228,79 @@ fn set_form_error(app: &mut App, msg: &str) {
     }
 }
 
+// ---------- V3 P4: delete confirm ---------------------------------------
+
+/// Open the delete-confirm modal for the highlighted entry on the
+/// Connections page. No-op when the page isn't open or the list
+/// is empty. Snapshots the name so the page state is free to be
+/// rebuilt afterwards.
+pub(crate) fn apply_open_connection_delete_confirm(app: &mut App) {
+    let name = match app.modal.as_ref() {
+        Some(crate::modal::Modal::Connections(page)) => {
+            page.connections.get(page.selected).map(|c| c.name.clone())
+        }
+        _ => None,
+    };
+    let Some(name) = name else {
+        return;
+    };
+    app.modal = Some(crate::modal::Modal::ConnectionDeleteConfirm(
+        crate::app::ConnectionDeleteConfirmState { name },
+    ));
+    // Mode stays `Modal` (page was already in Modal); keep `vim`
+    // untouched so the confirm sits on top of the page conceptually.
+}
+
+/// y/Enter — call `store.delete` and reload the Connections page.
+pub(crate) fn apply_confirm_connection_delete(app: &mut App) {
+    let name = match app.modal.as_ref() {
+        Some(crate::modal::Modal::ConnectionDeleteConfirm(state)) => state.name.clone(),
+        _ => return,
+    };
+    let store = app.connections_store.clone();
+    let result = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(store.delete(&name))
+    });
+    match result {
+        Ok(()) => {
+            // Reopen the Connections page (refreshed list).
+            if let Err(msg) = crate::input::apply::pickers::open_connections_page(app) {
+                // List empty after delete → page open path returns
+                // error; fall back to closing modal entirely.
+                app.modal = None;
+                app.vim.enter_normal();
+                app.set_status(StatusKind::Info, format!("deleted \"{name}\" — {msg}"));
+                app.refresh_connection_names();
+                return;
+            }
+            app.refresh_connection_names();
+            app.set_status(StatusKind::Info, format!("deleted \"{name}\""));
+        }
+        Err(e) => {
+            // Reopen page so the user isn't stuck in the dead confirm
+            // modal, and surface the error.
+            let _ = crate::input::apply::pickers::open_connections_page(app);
+            app.set_status(StatusKind::Error, format!("delete failed: {e}"));
+        }
+    }
+}
+
+/// n/Esc — close confirm and reopen the page unchanged.
+pub(crate) fn apply_cancel_connection_delete(app: &mut App) {
+    if !matches!(
+        app.modal,
+        Some(crate::modal::Modal::ConnectionDeleteConfirm(_))
+    ) {
+        return;
+    }
+    // Reopen the page (cheap reload). If reload fails, fall back to
+    // closing the modal so the user isn't trapped.
+    if crate::input::apply::pickers::open_connections_page(app).is_err() {
+        app.modal = None;
+        app.vim.enter_normal();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -472,6 +545,125 @@ mod tests {
             "expected a required-field error, got: {err:?}"
         );
     }
+
+    // ---------- V3 P4: delete confirm ----------
+
+    async fn seed_one(app: &App, name: &str) {
+        use httui_core::vault_config::CreateConnectionInput;
+        app.connections_store
+            .create(CreateConnectionInput {
+                name: name.into(),
+                driver: "sqlite".into(),
+                host: None,
+                port: None,
+                database_name: Some("/tmp/x.db".into()),
+                username: None,
+                password: None,
+                ssl_mode: None,
+                is_readonly: None,
+                description: None,
+            })
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_delete_confirm_snapshots_highlighted_name() {
+        let (mut app, _d, _v) = app_fixture().await;
+        seed_one(&app, "to-go").await;
+        crate::input::apply::pickers::open_connections_page(&mut app).unwrap();
+        apply_open_connection_delete_confirm(&mut app);
+        match &app.modal {
+            Some(crate::modal::Modal::ConnectionDeleteConfirm(state)) => {
+                assert_eq!(state.name, "to-go");
+            }
+            other => panic!("expected ConnectionDeleteConfirm, got {other:?}"),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_delete_confirm_is_noop_when_page_not_open() {
+        let (mut app, _d, _v) = app_fixture().await;
+        apply_open_connection_delete_confirm(&mut app);
+        assert!(app.modal.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn confirm_delete_removes_entry_and_reopens_page() {
+        let (mut app, _d, vault) = app_fixture().await;
+        seed_one(&app, "kill-me").await;
+        seed_one(&app, "keeper").await;
+        crate::input::apply::pickers::open_connections_page(&mut app).unwrap();
+        // Snapshot the highlighted name (TOML order is BTreeMap-
+        // alphabetical, not insertion order), then delete it.
+        let target = match &app.modal {
+            Some(crate::modal::Modal::Connections(page)) => {
+                page.connections[page.selected].name.clone()
+            }
+            _ => panic!("page should be open"),
+        };
+        apply_open_connection_delete_confirm(&mut app);
+        apply_confirm_connection_delete(&mut app);
+        // Modal is back to the (refreshed) Connections page; deleted
+        // entry is gone, the other one remains.
+        match &app.modal {
+            Some(crate::modal::Modal::Connections(page)) => {
+                let names: Vec<&str> =
+                    page.connections.iter().map(|c| c.name.as_str()).collect();
+                assert!(!names.contains(&target.as_str()), "{target} should be gone");
+                assert_eq!(names.len(), 1);
+            }
+            other => panic!("expected Connections, got {other:?}"),
+        }
+        // TOML reflects the delete.
+        let contents = std::fs::read_to_string(vault.path().join("connections.toml")).unwrap();
+        assert!(!contents.contains(&format!("[connections.{target}]")));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn confirm_delete_last_entry_keeps_empty_page() {
+        let (mut app, _d, _v) = app_fixture().await;
+        seed_one(&app, "only-one").await;
+        crate::input::apply::pickers::open_connections_page(&mut app).unwrap();
+        apply_open_connection_delete_confirm(&mut app);
+        apply_confirm_connection_delete(&mut app);
+        // Page stays open but with an empty list — render path shows
+        // the "press n to add" hint. Empty-list-closes-modal would
+        // surprise the user mid-confirm; better to keep them on the
+        // page so they can immediately create another one.
+        match &app.modal {
+            Some(crate::modal::Modal::Connections(page)) => {
+                assert!(page.connections.is_empty());
+            }
+            other => panic!("expected empty Connections page, got {other:?}"),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_delete_reopens_page_unchanged() {
+        let (mut app, _d, vault) = app_fixture().await;
+        seed_one(&app, "stay").await;
+        crate::input::apply::pickers::open_connections_page(&mut app).unwrap();
+        apply_open_connection_delete_confirm(&mut app);
+        apply_cancel_connection_delete(&mut app);
+        match &app.modal {
+            Some(crate::modal::Modal::Connections(page)) => {
+                assert_eq!(page.connections.len(), 1);
+                assert_eq!(page.connections[0].name, "stay");
+            }
+            other => panic!("expected Connections, got {other:?}"),
+        }
+        // TOML untouched.
+        let contents = std::fs::read_to_string(vault.path().join("connections.toml")).unwrap();
+        assert!(contents.contains("[connections.stay]"));
+    }
+
+    /// Local helper — the real page cursor lives in
+    /// `apply_move_connections_page_cursor` (`crate::input::apply::pickers`).
+    /// Re-exporting here keeps the seed test self-contained.
+    fn apply_move_connections_page_cursor_for_test(app: &mut App, delta: i32) {
+        crate::input::apply::pickers::apply_move_connections_page_cursor(app, delta);
+    }
 }
 
 pub(crate) fn apply_connection_form(app: &mut App, action: Action) {
@@ -490,6 +682,9 @@ pub(crate) fn apply_connection_form(app: &mut App, action: Action) {
         Action::ConnectionFormCycleDriver(delta) => apply_form_cycle_driver(app, delta),
         Action::ConnectionFormToggleReadonly => apply_form_toggle_readonly(app),
         Action::ConnectionFormSubmit => apply_form_submit(app),
+        Action::OpenConnectionDeleteConfirm => apply_open_connection_delete_confirm(app),
+        Action::ConfirmConnectionDelete => apply_confirm_connection_delete(app),
+        Action::CancelConnectionDelete => apply_cancel_connection_delete(app),
         _ => unreachable!("apply_connection_form: variante fora do grupo"),
     }
 }
