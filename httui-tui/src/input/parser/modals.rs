@@ -264,31 +264,6 @@ pub fn parse_environment_picker(key: KeyEvent) -> Action {
     }
 }
 
-/// Translate one key while the export-format picker is open. Same
-/// vocab as `parse_connection_picker` — vertical-only navigation
-/// (`j`/`k`/arrows), `Enter` to copy, `Esc`/`Ctrl-C` to dismiss.
-/// Anything else is a no-op so a stray keystroke can't leak through
-/// to the editor underneath.
-pub fn parse_db_export_picker(key: KeyEvent) -> Action {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-    match (modifiers, code) {
-        (_, KeyCode::Esc) => Action::CloseDbExportPicker,
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => Action::CloseDbExportPicker,
-        (_, KeyCode::Enter) => Action::ConfirmDbExportPicker,
-        (_, KeyCode::Down) | (KeyModifiers::NONE, KeyCode::Char('j')) => {
-            Action::MoveDbExportPickerCursor(1)
-        }
-        (_, KeyCode::Up) | (KeyModifiers::NONE, KeyCode::Char('k')) => {
-            Action::MoveDbExportPickerCursor(-1)
-        }
-        (KeyModifiers::CONTROL, KeyCode::Char('n')) => Action::MoveDbExportPickerCursor(1),
-        (KeyModifiers::CONTROL, KeyCode::Char('p')) => Action::MoveDbExportPickerCursor(-1),
-        _ => Action::Noop,
-    }
-}
-
 /// Translate one key while the DB block settings modal is open.
 /// Mirrors `parse_fence_edit` but adds Tab/BackTab/Up/Down for
 /// switching the focused field, and routes typing into whichever

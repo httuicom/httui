@@ -68,7 +68,7 @@ pub use crate::input::parser::lineedit::{
 // and the in-file `mod tests` keep resolving them (tui-v2 vertical 1, fase 1 p3d).
 pub use crate::input::parser::modals::{
     parse_block_template_picker, parse_connection_picker,
-    parse_content_search, parse_db_export_picker, parse_db_row_detail,
+    parse_content_search, parse_db_row_detail,
     parse_db_settings_modal, parse_environment_picker, parse_http_response_detail,
     parse_tab_picker,
 };
@@ -817,58 +817,6 @@ mod tests {
         assert_eq!(
             parse_db_settings_modal(mk(KeyModifiers::NONE, KeyCode::End)),
             Action::DbSettingsCursorEnd,
-        );
-    }
-
-    #[test]
-    fn export_picker_navigation_keys() {
-        // Vertical-only: j/k, arrows, Ctrl-n/p all move; Enter
-        // confirms; Esc/Ctrl-C close. Anything else is a no-op so
-        // a stray motion can't leak through to the editor.
-        use crossterm::event::{KeyEvent, KeyModifiers};
-        let mk = |mods, code| KeyEvent::new(code, mods);
-
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::NONE, KeyCode::Char('j'))),
-            Action::MoveDbExportPickerCursor(1),
-        );
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::NONE, KeyCode::Char('k'))),
-            Action::MoveDbExportPickerCursor(-1),
-        );
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::NONE, KeyCode::Down)),
-            Action::MoveDbExportPickerCursor(1),
-        );
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::NONE, KeyCode::Up)),
-            Action::MoveDbExportPickerCursor(-1),
-        );
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::CONTROL, KeyCode::Char('n'))),
-            Action::MoveDbExportPickerCursor(1),
-        );
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::CONTROL, KeyCode::Char('p'))),
-            Action::MoveDbExportPickerCursor(-1),
-        );
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::NONE, KeyCode::Enter)),
-            Action::ConfirmDbExportPicker,
-        );
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::NONE, KeyCode::Esc)),
-            Action::CloseDbExportPicker,
-        );
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::CONTROL, KeyCode::Char('c'))),
-            Action::CloseDbExportPicker,
-        );
-        // A motion key (e.g. `h`) is a no-op — must not leak into
-        // the editor while the picker is up.
-        assert_eq!(
-            parse_db_export_picker(mk(KeyModifiers::NONE, KeyCode::Char('h'))),
-            Action::Noop,
         );
     }
 

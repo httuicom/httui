@@ -43,12 +43,6 @@ pub enum Mode {
     /// dismiss. Renders independently of mode (popup is painted
     /// while `App.connection_picker` is `Some`).
     ConnectionPicker,
-    /// `gx` on a DB block with select rows opens the export-format
-    /// picker. Up/Down (or `j`/`k`) navigate, Enter copies the
-    /// serialized result to the clipboard, Esc/Ctrl-C dismisses.
-    /// Renders as a small popup (same chrome as ConnectionPicker)
-    /// while `App.db_export_picker` is `Some`.
-    DbExportPicker,
     /// Inline fence-edit prompt for one of the block's metadata
     /// fields (alias / limit / timeout). State lives on
     /// `App.fence_edit`; the prompt renders in the status bar like
@@ -103,7 +97,6 @@ impl Mode {
             Mode::DbRowDetail => "ROW",
             Mode::HttpResponseDetail => "RESP",
             Mode::ConnectionPicker => "CONN",
-            Mode::DbExportPicker => "EXPORT",
             Mode::FenceEdit => "EDIT",
             Mode::DbSettings => "SET",
             Mode::ContentSearch => "FIND",
@@ -126,7 +119,6 @@ impl Mode {
             Mode::DbRowDetail => Color::LightBlue,
             Mode::HttpResponseDetail => Color::LightBlue,
             Mode::ConnectionPicker => Color::LightBlue,
-            Mode::DbExportPicker => Color::LightBlue,
             Mode::FenceEdit => Color::LightYellow,
             Mode::DbSettings => Color::LightYellow,
             Mode::ContentSearch => Color::LightGreen,

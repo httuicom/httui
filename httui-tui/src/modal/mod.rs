@@ -1,4 +1,4 @@
-use crate::app::{BlockHistoryState, DbConfirmRunState};
+use crate::app::{BlockHistoryState, DbConfirmRunState, DbExportPickerState};
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -7,6 +7,7 @@ pub enum Modal {
     Help,
     DbConfirmRun(DbConfirmRunState),
     BlockHistory(BlockHistoryState),
+    DbExportPicker(DbExportPickerState),
 }
 
 #[derive(Debug)]
@@ -22,6 +23,7 @@ impl Modal {
             Modal::Help => help_handle_key(key),
             Modal::DbConfirmRun(_) => db_confirm_run_handle_key(key),
             Modal::BlockHistory(_) => block_history_handle_key(key),
+            Modal::DbExportPicker(_) => db_export_picker_handle_key(key),
         }
     }
 }
@@ -32,6 +34,16 @@ fn block_history_handle_key(key: KeyEvent) -> ModalOutcome {
         ListPickerKey::Down => ModalOutcome::Emit(Action::MoveBlockHistoryCursor(1)),
         ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseBlockHistory),
         ListPickerKey::Confirm | ListPickerKey::Other => ModalOutcome::Continue,
+    }
+}
+
+fn db_export_picker_handle_key(key: KeyEvent) -> ModalOutcome {
+    match list_picker_key(key) {
+        ListPickerKey::Up => ModalOutcome::Emit(Action::MoveDbExportPickerCursor(-1)),
+        ListPickerKey::Down => ModalOutcome::Emit(Action::MoveDbExportPickerCursor(1)),
+        ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseDbExportPicker),
+        ListPickerKey::Confirm => ModalOutcome::Emit(Action::ConfirmDbExportPicker),
+        ListPickerKey::Other => ModalOutcome::Continue,
     }
 }
 

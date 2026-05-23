@@ -1619,19 +1619,23 @@ pub fn open_export_picker(app: &mut App) -> Result<(), String> {
         ));
     };
 
-    app.db_export_picker = Some(crate::app::DbExportPickerState::new(segment_idx, formats));
-    app.vim.mode = crate::vim::mode::Mode::DbExportPicker;
+    app.modal = Some(crate::modal::Modal::DbExportPicker(
+        crate::app::DbExportPickerState::new(segment_idx, formats),
+    ));
+    app.vim.mode = crate::vim::mode::Mode::Modal;
     app.vim.reset_pending();
     Ok(())
 }
 
 pub fn close_export_picker(app: &mut App) {
-    app.db_export_picker = None;
+    if matches!(app.modal, Some(crate::modal::Modal::DbExportPicker(_))) {
+        app.modal = None;
+    }
     app.vim.enter_normal();
 }
 
 pub fn move_export_picker_cursor(app: &mut App, delta: i32) {
-    let Some(state) = app.db_export_picker.as_mut() else {
+    let Some(crate::modal::Modal::DbExportPicker(state)) = app.modal.as_mut() else {
         return;
     };
     let n = state.formats.len() as i64;
@@ -1649,9 +1653,13 @@ pub fn move_export_picker_cursor(app: &mut App, delta: i32) {
 /// popup closes either way; clipboard failure shows in the status
 /// line so the user notices it didn't paste.
 pub fn confirm_export_picker(app: &mut App) {
-    let Some(state) = app.db_export_picker.take() else {
-        app.vim.enter_normal();
-        return;
+    let state = match app.modal.take() {
+        Some(crate::modal::Modal::DbExportPicker(s)) => s,
+        other => {
+            app.modal = other;
+            app.vim.enter_normal();
+            return;
+        }
     };
     app.vim.enter_normal();
 

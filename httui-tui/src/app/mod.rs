@@ -110,11 +110,6 @@ pub struct App {
     /// body; cleared on Accept/Dismiss or when the prefix becomes
     /// empty.
     pub completion_popup: Option<CompletionPopupState>,
-    /// `Some` while the export-format picker is open. Mode flips to
-    /// `Mode::DbExportPicker` so dispatch routes navigation/confirm
-    /// keys to the picker. The popup renders independently of mode —
-    /// any `Some` value paints it. See `commands::db::open_export_picker`.
-    pub db_export_picker: Option<DbExportPickerState>,
     /// `Some` while the block-settings modal is open (`gs` chord).
     /// Mode flips to `Mode::DbSettings` so dispatch routes typing
     /// into the focused LineEdit. Renders independently of mode —
@@ -228,7 +223,6 @@ impl App {
             connection_picker: None,
             schema_cache: crate::schema::SchemaCache::new(),
             completion_popup: None,
-            db_export_picker: None,
             db_settings: None,
             active_env_name: None,
             content_search: None,

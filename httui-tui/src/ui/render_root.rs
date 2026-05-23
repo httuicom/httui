@@ -314,7 +314,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Export-format picker — opened by `gx` over a DB block with
     // rows. Same chrome as the connection picker; anchored above
     // the block when there's headroom.
-    if let Some(state) = app.db_export_picker.as_ref() {
+    if let Some(crate::modal::Modal::DbExportPicker(state)) = app.modal.as_ref() {
         let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         db_export_picker::render(frame, editor_area, state, anchor);
     }
@@ -728,7 +728,9 @@ mod tests {
         let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
         let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
         open_doc(&mut app, src);
-        app.db_export_picker = Some(DbExportPickerState::new(0, BlockExportFormat::DB_FORMATS));
+        app.modal = Some(crate::modal::Modal::DbExportPicker(
+            DbExportPickerState::new(0, BlockExportFormat::DB_FORMATS),
+        ));
         let (text, _c) = render(&mut app, 70, 16);
         assert!(
             text.contains("CSV") || text.contains("JSON"),
