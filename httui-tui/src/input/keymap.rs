@@ -138,7 +138,11 @@ pub fn standard_actions() -> Vec<ActionSpec> {
             "alt+p",
             Action::OpenConnectionsPage,
         ),
-        spec("open_envs_page", "alt+v", Action::OpenEnvsPage),
+        // alt+shift+v (não alt+v puro) porque Alt+v no macOS Terminal
+        // vira o unicode `√` antes do crossterm receber. Shift evita.
+        // Customizável em config.toml por quem usa terminal que trata
+        // Alt como meta key (kitty/wezterm/iTerm2 configurados).
+        spec("open_envs_page", "alt+shift+v", Action::OpenEnvsPage),
         spec("quick_open", "ctrl+p", Action::EnterQuickOpen),
         spec("content_search", "ctrl+f", Action::OpenContentSearch),
         // Workspace.
