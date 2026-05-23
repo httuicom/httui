@@ -328,8 +328,6 @@ pub enum Action {
     /// Read-only listing of the chord vocabulary grouped by section.
     /// Mnemonic: `g`-prefix family + `?` = "help".
     OpenHelp,
-    /// `Esc` / `q` / `Ctrl-C` inside the help modal — close.
-    CloseHelp,
     /// `g]` chord — jump to the next executable block in document
     /// order. No-op when the cursor is already past the last block
     /// (no wrap, matching vim's `]m` / `]]` motion conventions).

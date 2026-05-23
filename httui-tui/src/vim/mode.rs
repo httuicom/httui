@@ -79,13 +79,6 @@ pub enum Mode {
     /// Renders as a small popup while `App.environment_picker` is
     /// `Some`.
     EnvironmentPicker,
-    /// `g?` — open the keymap help modal. Read-only listing of the
-    /// chord vocabulary grouped by section (motions, blocks, modals,
-    /// files). Esc/q/Ctrl-C close. Picked over `?` (taken by
-    /// search-backwards) and `<F1>` (some terminals don't deliver
-    /// it cleanly) — `g?` matches the `g`-prefix family used by the
-    /// rest of the modal openers.
-    Help,
     /// `gN` — open the block-template picker. Lists a small fixed
     /// set of executable-block templates (HTTP GET / POST / SQLite
     /// Query); Enter inserts the picked template at the cursor's
@@ -100,7 +93,6 @@ pub enum Mode {
     /// `g` + b for "go (to) buffer" — vim's bare `gb` isn't bound,
     /// so the chord is free.
     TabPicker,
-    #[allow(dead_code)]
     Modal,
 }
 
@@ -126,7 +118,6 @@ impl Mode {
             Mode::BlockHistory => "HIST",
             Mode::ContentSearch => "FIND",
             Mode::EnvironmentPicker => "ENV",
-            Mode::Help => "HELP",
             Mode::BlockTemplatePicker => "NEW",
             Mode::TabPicker => "TABS",
             Mode::Modal => "MOD",
@@ -152,7 +143,6 @@ impl Mode {
             Mode::BlockHistory => Color::LightBlue,
             Mode::ContentSearch => Color::LightGreen,
             Mode::EnvironmentPicker => Color::LightMagenta,
-            Mode::Help => Color::LightCyan,
             Mode::BlockTemplatePicker => Color::LightGreen,
             Mode::TabPicker => Color::LightBlue,
             Mode::Modal => Color::LightBlue,

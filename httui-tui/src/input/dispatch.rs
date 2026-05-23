@@ -19,7 +19,7 @@ use crate::vim::mode::Mode;
 use crate::vim::parser::{
     parse_block_history, parse_block_template_picker, parse_cmdline, parse_connection_picker,
     parse_content_search, parse_db_confirm_run, parse_db_export_picker, parse_db_row_detail,
-    parse_db_settings_modal, parse_environment_picker, parse_fence_edit, parse_help,
+    parse_db_settings_modal, parse_environment_picker, parse_fence_edit,
     parse_http_response_detail, parse_insert, parse_normal, parse_quickopen, parse_search,
     parse_tab_picker, parse_tree, parse_tree_prompt, parse_visual,
 };
@@ -116,7 +116,6 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
         Mode::BlockHistory => parse_block_history(key),
         Mode::ContentSearch => parse_content_search(key),
         Mode::EnvironmentPicker => parse_environment_picker(key),
-        Mode::Help => parse_help(key),
         Mode::BlockTemplatePicker => parse_block_template_picker(key),
         Mode::TabPicker => parse_tab_picker(key),
         Mode::Modal => {
@@ -306,7 +305,6 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::CloseContentSearch
         | Action::CloseDbExportPicker
         | Action::CloseDbSettingsModal
-        | Action::CloseHelp
         | Action::CmdlineBackspace
         | Action::CmdlineCancel
         | Action::CmdlineChar(..)

@@ -101,7 +101,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::ConnectionPicker
             | Mode::ContentSearch
             | Mode::EnvironmentPicker
-            | Mode::Help
+            | Mode::Modal
             | Mode::BlockTemplatePicker
             | Mode::TabPicker
     ) || app.db_row_detail.is_some()
@@ -109,7 +109,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         || app.connection_picker.is_some()
         || app.content_search.is_some()
         || app.environment_picker.is_some()
-        || app.help_visible
+        || app.modal.is_some()
         || app.block_template_picker.is_some()
         || app.tab_picker.is_some();
 
@@ -345,7 +345,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Help modal — opened by `g?`. Stateless overlay listing the
     // chord vocabulary grouped by section. Painted last so it
     // floats above any other modal that might still be on screen.
-    if app.help_visible {
+    if matches!(app.modal, Some(crate::modal::Modal::Help)) {
         help::render(frame, editor_area);
     }
 
@@ -558,7 +558,7 @@ mod tests {
     async fn suppress_cursor_when_modal_owns_input() {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
-        app.help_visible = true; // any suppressing modal
+        app.modal = Some(crate::modal::Modal::Help);
         let (text, _c) = render(&mut app, 60, 12);
         // Help modal painted on top.
         assert!(!text.trim().is_empty());
@@ -795,7 +795,7 @@ mod tests {
     async fn help_modal_paints() {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
-        app.help_visible = true;
+        app.modal = Some(crate::modal::Modal::Help);
         let (text, _c) = render(&mut app, 80, 24);
         assert!(!text.trim().is_empty(), "help modal should paint");
     }

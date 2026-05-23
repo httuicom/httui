@@ -167,12 +167,6 @@ pub struct App {
     /// whenever the active document changes (load, tab switch,
     /// `:e <path>`).
     pub file_watcher: Option<crate::fs_watch::FileWatcher>,
-    /// `true` while the keymap help modal is open (`g?`). Mode flips
-    /// to `Mode::Help` so dispatch routes Esc/q to the closer. The
-    /// modal is read-only and stateless — no scroll, no selection —
-    /// so a flag is enough; a future iteration with a search field
-    /// would graduate this to a struct.
-    pub help_visible: bool,
     /// `Some` while the block-template picker is open (`gN`). Mode
     /// flips to `Mode::BlockTemplatePicker`. The template list is a
     /// static `&'static [BlockTemplate]` so the state only carries
@@ -255,7 +249,6 @@ impl App {
             fence_edit: None,
             environment_picker: None,
             file_watcher: None,
-            help_visible: false,
             block_template_picker: None,
             last_run_anchor: None,
             tab_picker: None,

@@ -162,13 +162,9 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
             }
         }
         Action::OpenHelp => {
-            app.help_visible = true;
-            app.vim.mode = Mode::Help;
+            app.modal = Some(crate::modal::Modal::Help);
+            app.vim.mode = Mode::Modal;
             app.vim.reset_pending();
-        }
-        Action::CloseHelp => {
-            app.help_visible = false;
-            app.vim.enter_normal();
         }
         Action::WriteFile => {
             // `<C-s>` — same code path as `:w`, status reporting and

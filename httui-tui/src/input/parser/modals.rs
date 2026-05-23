@@ -239,21 +239,6 @@ pub fn parse_block_template_picker(key: KeyEvent) -> Action {
     }
 }
 
-/// Translate one key while the help modal is open. Read-only
-/// modal — only Esc/q/Ctrl-C close it. Anything else is a no-op so
-/// stray motions don't leak through to the editor below.
-pub fn parse_help(key: KeyEvent) -> Action {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-    match (modifiers, code) {
-        (_, KeyCode::Esc) => Action::CloseHelp,
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => Action::CloseHelp,
-        (m, KeyCode::Char('q')) if !m.contains(KeyModifiers::CONTROL) => Action::CloseHelp,
-        _ => Action::Noop,
-    }
-}
-
 /// Translate one key while the environment picker is open. Same
 /// vocab as `parse_connection_picker` minus `D` (no destructive
 /// op for envs in V1 — they're configuration, not data, and one
