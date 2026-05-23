@@ -216,16 +216,11 @@ fn input_widget(
                 .add_modifier(Modifier::ITALIC),
         )
     } else {
-        (
-            display,
-            Style::default().fg(Color::White),
-        )
+        (display, Style::default().fg(Color::White))
     };
-    let bg = if focused {
-        Style::default().bg(Color::DarkGray)
-    } else {
-        Style::default()
-    };
+    // Focus is signaled by the cursor glyph + label highlight only —
+    // no background tint on the input itself (kept the row visually
+    // clean against the popup's black background).
     let cursor = if focused { "▍ " } else { "  " };
     Paragraph::new(Line::from(vec![
         Span::styled(
@@ -236,7 +231,7 @@ fn input_widget(
                 Style::default().fg(Color::DarkGray)
             },
         ),
-        Span::styled(text, style.patch(bg)),
+        Span::styled(text, style),
     ]))
 }
 
