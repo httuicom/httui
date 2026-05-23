@@ -290,7 +290,7 @@ pub(crate) fn apply_confirm_tab_picker(app: &mut App) {
 // ───────────── block-template picker (gN) ─────────────
 
 pub(crate) fn apply_move_block_template_picker_cursor(app: &mut App, delta: i32) {
-    let Some(state) = app.block_template_picker.as_mut() else {
+    let Some(crate::modal::Modal::BlockTemplatePicker(state)) = app.modal.as_mut() else {
         return;
     };
     let len = crate::app::BlockTemplate::ALL.len();
@@ -321,9 +321,13 @@ pub(crate) fn apply_move_block_template_picker_cursor(app: &mut App, delta: i32)
 /// the freshly-promoted block's first body offset so the user can
 /// immediately edit the URL / SQL.
 pub(crate) fn apply_confirm_block_template_picker(app: &mut App) {
-    let Some(state) = app.block_template_picker.take() else {
-        app.vim.enter_normal();
-        return;
+    let state = match app.modal.take() {
+        Some(crate::modal::Modal::BlockTemplatePicker(s)) => s,
+        other => {
+            app.modal = other;
+            app.vim.enter_normal();
+            return;
+        }
     };
     app.vim.enter_normal();
     let Some(tpl) = crate::app::BlockTemplate::ALL.get(state.selected).copied() else {
@@ -539,12 +543,16 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         }
         Action::ConfirmEnvironmentPicker => apply_confirm_environment_picker(app),
         Action::OpenBlockTemplatePicker => {
-            app.block_template_picker = Some(crate::app::BlockTemplatePickerState::new());
-            app.vim.mode = Mode::BlockTemplatePicker;
+            app.modal = Some(crate::modal::Modal::BlockTemplatePicker(
+                crate::app::BlockTemplatePickerState::new(),
+            ));
+            app.vim.mode = Mode::Modal;
             app.vim.reset_pending();
         }
         Action::CloseBlockTemplatePicker => {
-            app.block_template_picker = None;
+            if matches!(app.modal, Some(crate::modal::Modal::BlockTemplatePicker(_))) {
+                app.modal = None;
+            }
             app.vim.enter_normal();
         }
         Action::MoveBlockTemplatePickerCursor(delta) => {

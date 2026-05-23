@@ -102,14 +102,12 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::ContentSearch
             | Mode::EnvironmentPicker
             | Mode::Modal
-            | Mode::BlockTemplatePicker
     ) || app.db_row_detail.is_some()
         || app.http_response_detail.is_some()
         || app.connection_picker.is_some()
         || app.content_search.is_some()
         || app.environment_picker.is_some()
-        || app.modal.is_some()
-        || app.block_template_picker.is_some();
+        || app.modal.is_some();
 
     // Snapshot the current result-panel tab so the render tree can
     // pass it down without re-borrowing `app` at every level.
@@ -350,7 +348,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Block-template picker — opened by `gN`. Centered popup with
     // a fixed list of fence templates; confirm splices the picked
     // template into the prose at the cursor and re-parses.
-    if let Some(state) = app.block_template_picker.as_ref() {
+    if let Some(crate::modal::Modal::BlockTemplatePicker(state)) = app.modal.as_ref() {
         block_template_picker::render(frame, editor_area, state);
     }
 
@@ -804,7 +802,9 @@ mod tests {
     async fn block_template_picker_modal_paints() {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
-        app.block_template_picker = Some(BlockTemplatePickerState::new());
+        app.modal = Some(crate::modal::Modal::BlockTemplatePicker(
+            BlockTemplatePickerState::new(),
+        ));
         let (text, _c) = render(&mut app, 70, 16);
         assert!(
             text.contains("HTTP") || !text.trim().is_empty(),

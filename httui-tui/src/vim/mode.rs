@@ -65,14 +65,6 @@ pub enum Mode {
     /// Renders as a small popup while `App.environment_picker` is
     /// `Some`.
     EnvironmentPicker,
-    /// `gN` — open the block-template picker. Lists a small fixed
-    /// set of executable-block templates (HTTP GET / POST / SQLite
-    /// Query); Enter inserts the picked template at the cursor's
-    /// line and re-parses the surrounding prose so the fence
-    /// promotes to a `Segment::Block`. Mnemonic: `g` + capital N
-    /// for "go new (block)" — lowercase `gn` is taken by vim's
-    /// "find next match" motion.
-    BlockTemplatePicker,
     Modal,
 }
 
@@ -95,7 +87,6 @@ impl Mode {
             Mode::DbSettings => "SET",
             Mode::ContentSearch => "FIND",
             Mode::EnvironmentPicker => "ENV",
-            Mode::BlockTemplatePicker => "NEW",
             Mode::Modal => "MOD",
         }
     }
@@ -116,7 +107,6 @@ impl Mode {
             Mode::DbSettings => Color::LightYellow,
             Mode::ContentSearch => Color::LightGreen,
             Mode::EnvironmentPicker => Color::LightMagenta,
-            Mode::BlockTemplatePicker => Color::LightGreen,
             Mode::Modal => Color::LightBlue,
         }
     }

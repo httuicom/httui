@@ -193,11 +193,8 @@ pub fn parse_connection_picker(key: KeyEvent) -> Action {
     }
 }
 
-/// Translate one key while the block-template picker is open.
-/// Same vocab as `parse_environment_picker`: vertical-only
-/// navigation and Enter/Esc. No `D` (templates aren't deletable —
-/// they're a static const).
-pub fn parse_block_template_picker(key: KeyEvent) -> Action {
+#[allow(dead_code)]
+fn _parse_block_template_picker_placeholder(key: KeyEvent) -> Action {
     let KeyEvent {
         code, modifiers, ..
     } = key;

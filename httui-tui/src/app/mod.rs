@@ -152,11 +152,6 @@ pub struct App {
     /// whenever the active document changes (load, tab switch,
     /// `:e <path>`).
     pub file_watcher: Option<crate::fs_watch::FileWatcher>,
-    /// `Some` while the block-template picker is open (`gN`). Mode
-    /// flips to `Mode::BlockTemplatePicker`. The template list is a
-    /// static `&'static [BlockTemplate]` so the state only carries
-    /// the selection cursor.
-    pub block_template_picker: Option<BlockTemplatePickerState>,
     pub last_run_anchor: Option<LastRunAnchor>,
     pub standard: StandardState,
     pub last_edit: Option<Instant>,
@@ -200,7 +195,6 @@ impl App {
             fence_edit: None,
             environment_picker: None,
             file_watcher: None,
-            block_template_picker: None,
             last_run_anchor: None,
             standard: StandardState::default(),
             last_edit: None,

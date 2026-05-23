@@ -17,7 +17,7 @@ use crate::input::block_swap::{action_needs_block_swap, InBlockSwap};
 use crate::modal::ModalOutcome;
 use crate::vim::mode::Mode;
 use crate::vim::parser::{
-    parse_block_template_picker, parse_cmdline, parse_connection_picker,
+    parse_cmdline, parse_connection_picker,
     parse_content_search, parse_db_row_detail,
     parse_db_settings_modal, parse_environment_picker, parse_fence_edit,
     parse_http_response_detail, parse_insert, parse_normal, parse_quickopen, parse_search,
@@ -111,7 +111,6 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
         Mode::DbSettings => parse_db_settings_modal(key),
         Mode::ContentSearch => parse_content_search(key),
         Mode::EnvironmentPicker => parse_environment_picker(key),
-        Mode::BlockTemplatePicker => parse_block_template_picker(key),
         Mode::Modal => {
             handle_modal_key(app, key);
             return;

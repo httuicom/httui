@@ -74,8 +74,10 @@ pub fn apply_slash_key(app: &mut App) {
     // block, the `/` is just a literal character. In a block result,
     // the insert was a no-op (read-only) — same treatment.
     if matches!(cursor_pre, Some(Cursor::InProse { .. })) {
-        app.block_template_picker = Some(BlockTemplatePickerState::new());
-        app.vim.mode = Mode::BlockTemplatePicker;
+        app.modal = Some(crate::modal::Modal::BlockTemplatePicker(
+            BlockTemplatePickerState::new(),
+        ));
+        app.vim.mode = Mode::Modal;
         app.vim.reset_pending();
     }
 
@@ -132,10 +134,10 @@ mod tests {
 
         // Picker must be visible with a fresh state.
         assert!(
-            app.block_template_picker.is_some(),
+            matches!(app.modal, Some(crate::modal::Modal::BlockTemplatePicker(_))),
             "slash in prose must open the block-template picker"
         );
-        assert_eq!(app.vim.mode, Mode::BlockTemplatePicker);
+        assert_eq!(app.vim.mode, Mode::Modal);
 
         // `/` must have landed in the rope.
         let serialized = app.document().unwrap().to_markdown();
@@ -171,7 +173,7 @@ mod tests {
         apply_slash_key(&mut app);
 
         assert!(
-            app.block_template_picker.is_none(),
+            !matches!(app.modal, Some(crate::modal::Modal::BlockTemplatePicker(_))),
             "slash inside a block must NOT open the picker"
         );
         // Insertion still happened — the block's raw rope grew by one
@@ -210,7 +212,7 @@ mod tests {
             "slash in block result must not mutate the document"
         );
         assert!(
-            app.block_template_picker.is_none(),
+            !matches!(app.modal, Some(crate::modal::Modal::BlockTemplatePicker(_))),
             "slash in block result must NOT open the picker"
         );
     }
@@ -233,7 +235,7 @@ mod tests {
         assert_ne!(before, after_slash, "slash must change the buffer");
 
         // Close the picker so undo isn't gated by modal state.
-        app.block_template_picker = None;
+        app.modal = None;
         app.vim.enter_normal();
 
         // Undo via the same public path `Action::Undo` uses.
@@ -263,7 +265,7 @@ mod tests {
         // Intentionally do NOT open any document.
 
         apply_slash_key(&mut app);
-        assert!(app.block_template_picker.is_none());
+        assert!(!matches!(app.modal, Some(crate::modal::Modal::BlockTemplatePicker(_))));
         assert!(
             app.last_edit.is_none(),
             "no doc → no edit clock; the applier must bail before setting last_edit"
