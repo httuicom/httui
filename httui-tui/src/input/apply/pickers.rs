@@ -247,9 +247,10 @@ pub(crate) fn open_connections_page(app: &mut App) -> Result<(), String> {
         })
         .collect();
     let vault_root = app.vault_path.clone();
-    let uses = connections
-        .first()
-        .map(|c| httui_core::connection_uses::find_connection_uses(&vault_root, &c.name))
+    let first_name = connections.first().map(|c| c.name.clone());
+    let uses = first_name
+        .as_deref()
+        .map(|n| httui_core::connection_uses::find_connection_uses(&vault_root, n))
         .unwrap_or_default();
     app.modal = Some(crate::modal::Modal::Connections(
         crate::app::ConnectionsPageState {
@@ -260,6 +261,12 @@ pub(crate) fn open_connections_page(app: &mut App) -> Result<(), String> {
     ));
     app.vim.mode = Mode::Modal;
     app.vim.reset_pending();
+    // V3 P5.2: kick off the schema introspection in the background;
+    // the renderer reads from `app.schema_cache` and shows "loading…"
+    // until `AppEvent::SchemaLoaded` lands and rerenders.
+    if let Some(name) = first_name {
+        app.ensure_schema_loaded(&name);
+    }
     Ok(())
 }
 
@@ -297,10 +304,20 @@ pub(crate) fn apply_move_connections_page_cursor(app: &mut App, delta: i32) {
         .saturating_add(delta as i64)
         .clamp(0, last);
     state.selected = next as usize;
-    // V3 P5.1: refresh "used in" snapshot only when the selection
-    // actually changed (j past the end / k past the start are no-ops).
+    // V3 P5.1/P5.2: refresh "used in" snapshot + trigger schema
+    // introspection for the new selection. Both are no-ops when
+    // selection didn't actually move (j past the end / k past the
+    // start).
     if state.selected != previous {
         refresh_uses_for_selected(app);
+        let selected_name = if let Some(crate::modal::Modal::Connections(s)) = app.modal.as_ref() {
+            s.connections.get(s.selected).map(|c| c.name.clone())
+        } else {
+            None
+        };
+        if let Some(name) = selected_name {
+            app.ensure_schema_loaded(&name);
+        }
     }
 }
 

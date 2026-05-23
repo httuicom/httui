@@ -362,7 +362,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // sits above every other surface — leaving via `Esc` restores
     // the editor underneath.
     if let Some(crate::modal::Modal::Connections(state)) = app.modal.as_ref() {
-        connections_page::render(frame, editor_area, state);
+        connections_page::render(frame, editor_area, state, &app.schema_cache);
     }
 
     // V3 P3: create-connection form modal. Painted on top of the

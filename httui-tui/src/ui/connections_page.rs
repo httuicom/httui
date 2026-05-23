@@ -14,6 +14,7 @@ use ratatui::{
 };
 
 use crate::app::{ConnectionDetail, ConnectionsPageState};
+use crate::schema::SchemaCache;
 
 const POPUP_WIDTH: u16 = 64;
 /// Tall enough for the full detail pane (header + Connection + Auth +
@@ -22,7 +23,12 @@ const POPUP_WIDTH: u16 = 64;
 const POPUP_HEIGHT: u16 = 28;
 const SIDEBAR_COLS: u16 = 22;
 
-pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionsPageState) {
+pub fn render(
+    frame: &mut Frame,
+    editor_area: Rect,
+    state: &ConnectionsPageState,
+    schema_cache: &SchemaCache,
+) {
     let area = centered_rect(editor_area);
     let bg_style = Style::default().bg(Color::Black).fg(Color::White);
 
@@ -66,7 +72,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionsPageState
 
     render_sidebar(frame, body[0], state, bg_style);
     render_divider(frame, body[1], bg_style);
-    render_detail(frame, body[2], state, bg_style);
+    render_detail(frame, body[2], state, schema_cache, bg_style);
     render_hint(frame, rows[1], bg_style);
 }
 
@@ -138,7 +144,13 @@ fn render_divider(frame: &mut Frame, area: Rect, _bg: Style) {
     }
 }
 
-fn render_detail(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg: Style) {
+fn render_detail(
+    frame: &mut Frame,
+    area: Rect,
+    state: &ConnectionsPageState,
+    schema_cache: &SchemaCache,
+    bg: Style,
+) {
     let Some(detail) = state.connections.get(state.selected) else {
         let empty = Paragraph::new("  (no connection selected)")
             .style(bg.fg(Color::DarkGray));
@@ -147,9 +159,12 @@ fn render_detail(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg
     };
 
     let mut lines = detail_lines(detail);
-    // V3 P5.1: append the "Used in" section showing vault-grep
-    // results for this connection name.
+    // V3 P5.1: vault-grep refs.
     lines.extend(used_in_lines(&state.uses));
+    // V3 P5.2: schema preview — sync read of the in-memory cache;
+    // shows "loading…" when the background introspection hasn't
+    // landed yet.
+    lines.extend(schema_lines(&detail.name, schema_cache));
     let para = Paragraph::new(lines).style(bg).wrap(Wrap { trim: false });
     let inner = Rect {
         x: area.x.saturating_add(2),
@@ -158,6 +173,61 @@ fn render_detail(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg
         height: area.height,
     };
     frame.render_widget(para, inner);
+}
+
+fn schema_lines(connection_name: &str, schema_cache: &SchemaCache) -> Vec<Line<'static>> {
+    let mut lines = vec![Line::from("")];
+    match schema_cache.get(connection_name) {
+        None => {
+            lines.push(section_header("Schema"));
+            lines.push(Line::from(Span::styled(
+                "loading…",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )));
+        }
+        Some(entry) if entry.tables.is_empty() => {
+            lines.push(section_header("Schema · 0 tables"));
+            lines.push(Line::from(Span::styled(
+                "(empty)",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )));
+        }
+        Some(entry) => {
+            let total_cols: usize = entry.tables.iter().map(|t| t.columns.len()).sum();
+            lines.push(section_header(&format!(
+                "Schema · {} tables · {} cols",
+                entry.tables.len(),
+                total_cols
+            )));
+            const MAX_ROWS: usize = 5;
+            for t in entry.tables.iter().take(MAX_ROWS) {
+                let qualified = match &t.schema {
+                    Some(s) => format!("{s}.{}", t.name),
+                    None => t.name.clone(),
+                };
+                lines.push(Line::from(vec![
+                    Span::styled(qualified, Style::default().fg(Color::White)),
+                    Span::styled(
+                        format!(" ({} cols)", t.columns.len()),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                ]));
+            }
+            if entry.tables.len() > MAX_ROWS {
+                lines.push(Line::from(Span::styled(
+                    format!("+{} more", entry.tables.len() - MAX_ROWS),
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                )));
+            }
+        }
+    }
+    lines
 }
 
 fn used_in_lines(uses: &[crate::app::ConnectionUse]) -> Vec<Line<'static>> {
@@ -351,11 +421,20 @@ mod tests {
     }
 
     fn render_page(state: &ConnectionsPageState, w: u16, h: u16) -> String {
+        render_page_with_cache(state, &SchemaCache::new(), w, h)
+    }
+
+    fn render_page_with_cache(
+        state: &ConnectionsPageState,
+        cache: &SchemaCache,
+        w: u16,
+        h: u16,
+    ) -> String {
         let backend = TestBackend::new(w, h);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
-                render(f, Rect::new(0, 0, w, h), state);
+                render(f, Rect::new(0, 0, w, h), state, cache);
             })
             .unwrap();
         let buf = terminal.backend().buffer().clone();
@@ -540,5 +619,102 @@ mod tests {
         assert!(text.contains("note-1.md"));
         assert!(text.contains("note-6.md"));
         assert!(text.contains("+4 more"));
+    }
+
+    // ---------- V3 P5.2: schema preview ----------
+
+    #[test]
+    fn schema_section_shows_loading_when_cache_miss() {
+        let state = ConnectionsPageState {
+            connections: vec![detail("Test", "sqlite")],
+            selected: 0,
+            ..Default::default()
+        };
+        let text = render_page_with_cache(&state, &SchemaCache::new(), 80, 36);
+        assert!(text.contains("Schema"));
+        assert!(text.contains("loading"));
+    }
+
+    #[test]
+    fn schema_section_shows_empty_marker_when_no_tables() {
+        let mut cache = SchemaCache::new();
+        cache.store("Test", Vec::new());
+        let state = ConnectionsPageState {
+            connections: vec![detail("Test", "sqlite")],
+            selected: 0,
+            ..Default::default()
+        };
+        let text = render_page_with_cache(&state, &cache, 80, 36);
+        assert!(text.contains("Schema · 0 tables"));
+        assert!(text.contains("(empty)"));
+    }
+
+    #[test]
+    fn schema_section_lists_tables_with_col_counts() {
+        use crate::schema::{SchemaColumn, SchemaTable};
+        let mut cache = SchemaCache::new();
+        cache.store(
+            "Test",
+            vec![
+                SchemaTable {
+                    schema: None,
+                    name: "users".into(),
+                    columns: vec![
+                        SchemaColumn {
+                            name: "id".into(),
+                            data_type: Some("integer".into()),
+                        },
+                        SchemaColumn {
+                            name: "name".into(),
+                            data_type: Some("text".into()),
+                        },
+                    ],
+                },
+                SchemaTable {
+                    schema: Some("public".into()),
+                    name: "orders".into(),
+                    columns: vec![SchemaColumn {
+                        name: "id".into(),
+                        data_type: Some("integer".into()),
+                    }],
+                },
+            ],
+        );
+        let state = ConnectionsPageState {
+            connections: vec![detail("Test", "sqlite")],
+            selected: 0,
+            ..Default::default()
+        };
+        let text = render_page_with_cache(&state, &cache, 80, 36);
+        assert!(text.contains("Schema · 2 tables · 3 cols"));
+        assert!(text.contains("users"));
+        assert!(text.contains("(2 cols)"));
+        // Qualified table name with schema prefix.
+        assert!(text.contains("public.orders"));
+        assert!(text.contains("(1 cols)"));
+    }
+
+    #[test]
+    fn schema_section_caps_with_more_marker() {
+        use crate::schema::SchemaTable;
+        let mut cache = SchemaCache::new();
+        let tables: Vec<_> = (1..=10)
+            .map(|i| SchemaTable {
+                schema: None,
+                name: format!("t{i}"),
+                columns: vec![],
+            })
+            .collect();
+        cache.store("Test", tables);
+        let state = ConnectionsPageState {
+            connections: vec![detail("Test", "sqlite")],
+            selected: 0,
+            ..Default::default()
+        };
+        let text = render_page_with_cache(&state, &cache, 80, 40);
+        assert!(text.contains("Schema · 10 tables"));
+        assert!(text.contains("t1 "));
+        assert!(text.contains("t5 "));
+        assert!(text.contains("+5 more"));
     }
 }
