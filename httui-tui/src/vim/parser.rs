@@ -69,7 +69,7 @@ pub use crate::input::parser::lineedit::{
 pub use crate::input::parser::modals::{
     parse_connection_picker,
     parse_content_search, parse_db_row_detail,
-    parse_db_settings_modal, parse_environment_picker, parse_http_response_detail,
+    parse_db_settings_modal, parse_http_response_detail,
 };
 
 // `parse_insert` now lives in `crate::input::parser::insert`.

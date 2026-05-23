@@ -19,7 +19,7 @@ use crate::vim::mode::Mode;
 use crate::vim::parser::{
     parse_cmdline, parse_connection_picker,
     parse_content_search, parse_db_row_detail,
-    parse_db_settings_modal, parse_environment_picker, parse_fence_edit,
+    parse_db_settings_modal, parse_fence_edit,
     parse_http_response_detail, parse_insert, parse_normal, parse_quickopen, parse_search,
     parse_tree, parse_tree_prompt, parse_visual,
 };
@@ -110,7 +110,6 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
         Mode::FenceEdit => parse_fence_edit(key),
         Mode::DbSettings => parse_db_settings_modal(key),
         Mode::ContentSearch => parse_content_search(key),
-        Mode::EnvironmentPicker => parse_environment_picker(key),
         Mode::Modal => {
             handle_modal_key(app, key);
             return;

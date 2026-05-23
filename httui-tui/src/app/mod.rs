@@ -124,13 +124,6 @@ pub struct App {
     /// Mode flips to `Mode::ContentSearch`. The query buffer + last
     /// FTS5 results live here; each keystroke re-queries.
     pub content_search: Option<ContentSearchState>,
-    /// `Some` while the environment-picker modal is open (`gE`).
-    /// Mode flips to `Mode::EnvironmentPicker` so dispatch routes
-    /// navigation/confirm keys to the picker. Confirm calls
-    /// `set_active_environment` + `refresh_active_env_name` so the
-    /// status-bar chip updates in lockstep. Renders independently of
-    /// mode — any `Some` value paints the popup.
-    pub environment_picker: Option<EnvironmentPickerState>,
     /// `true` once the FTS5 search index has been (re)built this
     /// session. Set by `open_content_search` after the first lazy
     /// rebuild so subsequent opens skip the cost. Cleared by
@@ -193,7 +186,6 @@ impl App {
             content_search_index_built: false,
             db_result_tab: ResultPanelTab::default(),
             fence_edit: None,
-            environment_picker: None,
             file_watcher: None,
             last_run_anchor: None,
             standard: StandardState::default(),

@@ -452,23 +452,27 @@ pub(crate) fn open_environment_picker(app: &mut App) -> Result<(), String> {
         .and_then(|id| entries.iter().position(|e| e.id == id))
         .unwrap_or(0);
 
-    app.environment_picker = Some(crate::app::EnvironmentPickerState {
-        entries,
-        selected,
-        active_id,
-    });
-    app.vim.mode = Mode::EnvironmentPicker;
+    app.modal = Some(crate::modal::Modal::EnvironmentPicker(
+        crate::app::EnvironmentPickerState {
+            entries,
+            selected,
+            active_id,
+        },
+    ));
+    app.vim.mode = Mode::Modal;
     app.vim.reset_pending();
     Ok(())
 }
 
 pub(crate) fn apply_close_environment_picker(app: &mut App) {
-    app.environment_picker = None;
+    if matches!(app.modal, Some(crate::modal::Modal::EnvironmentPicker(_))) {
+        app.modal = None;
+    }
     app.vim.enter_normal();
 }
 
 pub(crate) fn apply_move_environment_picker_cursor(app: &mut App, delta: i32) {
-    let Some(state) = app.environment_picker.as_mut() else {
+    let Some(crate::modal::Modal::EnvironmentPicker(state)) = app.modal.as_mut() else {
         return;
     };
     if state.entries.is_empty() {
@@ -485,9 +489,13 @@ pub(crate) fn apply_move_environment_picker_cursor(app: &mut App, delta: i32) {
 /// the cached display name (so the status-bar chip updates), and
 /// dismiss. A no-op when the highlighted entry is already active.
 pub(crate) fn apply_confirm_environment_picker(app: &mut App) {
-    let Some(state) = app.environment_picker.take() else {
-        app.vim.enter_normal();
-        return;
+    let state = match app.modal.take() {
+        Some(crate::modal::Modal::EnvironmentPicker(s)) => s,
+        other => {
+            app.modal = other;
+            app.vim.enter_normal();
+            return;
+        }
     };
     app.vim.enter_normal();
     let Some(picked) = state.entries.get(state.selected).cloned() else {

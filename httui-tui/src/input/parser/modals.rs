@@ -214,12 +214,8 @@ fn _parse_block_template_picker_placeholder(key: KeyEvent) -> Action {
     }
 }
 
-/// Translate one key while the environment picker is open. Same
-/// vocab as `parse_connection_picker` minus `D` (no destructive
-/// op for envs in V1 — they're configuration, not data, and one
-/// missing env yields a clear "no active env" instead of a broken
-/// block). Anything else is a no-op so stray keys don't leak.
-pub fn parse_environment_picker(key: KeyEvent) -> Action {
+#[allow(dead_code)]
+fn _parse_environment_picker_placeholder(key: KeyEvent) -> Action {
     let KeyEvent {
         code, modifiers, ..
     } = key;

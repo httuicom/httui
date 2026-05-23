@@ -100,13 +100,11 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::HttpResponseDetail
             | Mode::ConnectionPicker
             | Mode::ContentSearch
-            | Mode::EnvironmentPicker
             | Mode::Modal
     ) || app.db_row_detail.is_some()
         || app.http_response_detail.is_some()
         || app.connection_picker.is_some()
         || app.content_search.is_some()
-        || app.environment_picker.is_some()
         || app.modal.is_some();
 
     // Snapshot the current result-panel tab so the render tree can
@@ -334,7 +332,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Environment picker — opened by `gE`. Centered popup (no
     // anchor: envs are global state), magenta border to match the
     // status-bar chip.
-    if let Some(state) = app.environment_picker.as_ref() {
+    if let Some(crate::modal::Modal::EnvironmentPicker(state)) = app.modal.as_ref() {
         environment_picker::render(frame, editor_area, state);
     }
 
@@ -777,14 +775,14 @@ mod tests {
     async fn environment_picker_modal_paints() {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
-        app.environment_picker = Some(EnvironmentPickerState {
+        app.modal = Some(crate::modal::Modal::EnvironmentPicker(EnvironmentPickerState {
             entries: vec![crate::app::EnvironmentEntry {
                 id: "e1".into(),
                 name: "staging".into(),
             }],
             selected: 0,
             active_id: None,
-        });
+        }));
         let (text, _c) = render(&mut app, 70, 14);
         assert!(text.contains("staging"), "got: {text:?}");
     }
