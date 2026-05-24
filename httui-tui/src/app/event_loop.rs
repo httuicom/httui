@@ -74,7 +74,7 @@ pub async fn run(
 /// V4 P8: watcher pra <vault>/envs/. Aponta pra um arquivo sentinela
 /// dentro do dir, o FileWatcher watcha o parent dir não-recursivo —
 /// eventos pra qualquer sibling dentro de envs/ chegam.
-fn sync_envs_dir_watcher(app: &mut App) {
+pub(crate) fn sync_envs_dir_watcher(app: &mut App) {
     let envs_dir = app.vault_path.join("envs");
     std::fs::create_dir_all(&envs_dir).ok();
     let sentinel = envs_dir.join(".watch");
@@ -88,7 +88,7 @@ fn sync_envs_dir_watcher(app: &mut App) {
     }
 }
 
-fn sync_connections_toml_watcher(app: &mut App) {
+pub(crate) fn sync_connections_toml_watcher(app: &mut App) {
     let toml_path = app.vault_path.join("connections.toml");
     if let Some(w) = app.connections_toml_watcher.as_mut() {
         if let Err(msg) = w.watch(&toml_path) {

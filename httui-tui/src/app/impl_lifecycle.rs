@@ -74,6 +74,123 @@ impl App {
     pub fn clear_status(&mut self) {
         self.status_message = None;
     }
+
+    /// Swap the entire vault-dependent surface in-place. Used by V10
+    /// (vault picker / empty-state Open/Clone/Create) so the user
+    /// changes workspace without restarting the binary.
+    ///
+    /// What gets rebuilt:
+    /// - `connections_store`, `environments_store` (new vault root)
+    /// - `pool_manager` (wraps the new `connections_store`)
+    /// - `connection_names`, `active_env_name` (re-read from the new
+    ///   vault's TOMLs)
+    /// - `schema_cache`, `result_viewport_top` (cleared — pertain to
+    ///   the old vault's connections)
+    /// - `tabs`, `tree` (cleared — old paths are vault-relative and
+    ///   no longer resolve)
+    /// - transient UI (`modal`, `db_row_detail`, `http_response_detail`,
+    ///   `completion_popup`, `db_settings`, `content_search`,
+    ///   `fence_edit`, `running_query`, `standard.anchor`, vim
+    ///   pending chord) — drop everything that could refer to the old
+    ///   document state
+    /// - `file_watcher`, `connections_toml_watcher`, `envs_dir_watcher`
+    ///   — rewired against the new vault paths if the event sender
+    ///   exists (production), no-op in unit tests
+    /// - `content_search_index_built` flipped to `false` so the next
+    ///   FTS open triggers a fresh rebuild for the new vault
+    ///
+    /// Persistence: writes `set_active_vault(pool, new_vault)` so the
+    /// next launch resumes here even without picker. Dirty buffers in
+    /// the old tabs are silently dropped — callers (the modal flow)
+    /// must prompt the user beforehand if `force == false`.
+    pub fn switch_vault(&mut self, new_vault: std::path::PathBuf) -> Result<(), String> {
+        let canonical = new_vault
+            .canonicalize()
+            .map_err(|e| format!("vault path {}: {e}", new_vault.display()))?;
+        if !canonical.is_dir() {
+            return Err(format!("{} is not a directory", canonical.display()));
+        }
+
+        // Persist first — if the DB write fails the in-memory swap
+        // never happens, keeping the running state consistent with the
+        // registry.
+        let pool = self.pool_manager.app_pool().clone();
+        let canonical_str = canonical.to_string_lossy().to_string();
+        let persist_result = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current()
+                .block_on(httui_core::vaults::set_active_vault(&pool, &canonical_str))
+        });
+        if let Err(e) = persist_result {
+            return Err(format!("save active vault: {e}"));
+        }
+
+        // Rebuild vault-dependent core stores.
+        let connections_store =
+            httui_core::vault_config::ConnectionsStore::new(canonical.clone());
+        let new_pool_manager = std::sync::Arc::new(
+            httui_core::db::connections::PoolManager::new_standalone(
+                connections_store.clone(),
+                pool.clone(),
+            ),
+        );
+        let user_config_path =
+            httui_core::vault_config::user_store::default_user_config_path()
+                .unwrap_or_else(|_| canonical.join("user.toml"));
+        let environments_store = httui_core::vault_config::EnvironmentsStore::new(
+            canonical.clone(),
+            user_config_path,
+        );
+        let connection_names = super::helpers::load_connection_names(&connections_store);
+
+        self.vault_path = canonical;
+        self.connections_store = connections_store;
+        self.pool_manager = new_pool_manager;
+        self.environments_store = environments_store;
+        self.connection_names = connection_names;
+
+        // Clear caches and per-block UI state — they all keyed off
+        // the old vault's segments / connection ids.
+        self.schema_cache = crate::schema::SchemaCache::new();
+        self.result_viewport_top.clear();
+        self.content_search_index_built = false;
+        self.last_run_anchor = None;
+
+        // Drop transient overlays so nothing dangles a pointer into
+        // the old buffer / connection.
+        self.modal = None;
+        self.db_row_detail = None;
+        self.http_response_detail = None;
+        self.completion_popup = None;
+        self.db_settings = None;
+        self.content_search = None;
+        self.fence_edit = None;
+        self.running_query = None;
+        self.standard.anchor = None;
+        self.vim.reset_pending();
+        self.clear_status();
+
+        // Replace tabs + tree with a fresh post-bootstrap state.
+        self.tabs = super::TabBar::default();
+        self.tree = crate::tree::FileTree::default();
+        self.load_initial_document();
+        self.refresh_active_env_name();
+
+        // Rewire the filesystem watchers if production already
+        // installed them. In unit tests they're `None` and we leave
+        // them that way — the integration path in `event_loop` is
+        // what owns watcher lifetime, not this method.
+        if let Some(sender) = self.event_sender.clone() {
+            self.file_watcher = Some(crate::fs_watch::FileWatcher::new(sender.clone()));
+            self.sync_file_watcher();
+            self.connections_toml_watcher =
+                Some(crate::fs_watch::FileWatcher::new(sender.clone()));
+            super::event_loop::sync_connections_toml_watcher(self);
+            self.envs_dir_watcher = Some(crate::fs_watch::FileWatcher::new(sender));
+            super::event_loop::sync_envs_dir_watcher(self);
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -196,5 +313,75 @@ mod tests {
 
         app.clear_status();
         assert!(app.status_message.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn switch_vault_rejects_non_directory() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        let bogus = std::env::temp_dir().join("definitely-not-a-real-dir-9381");
+        let err = app
+            .switch_vault(bogus)
+            .expect_err("non-existent path must error");
+        assert!(
+            err.contains("vault path"),
+            "error should mention vault path: {err}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn switch_vault_swaps_root_and_resets_session_state() {
+        let (mut app, _data, _vault_a) = app_fixture("# A\n").await;
+        let old_vault = app.vault_path.clone();
+
+        // Build a second vault on disk + plant a marker file so we can
+        // assert the swap actually re-rooted the file picker.
+        let vault_b = TempDir::new().unwrap();
+        std::fs::write(vault_b.path().join("welcome.md"), "# B\n").unwrap();
+
+        // Plant transient session state — switch_vault must wipe it.
+        app.completion_popup = None; // already none, but assert later
+        app.last_run_anchor = Some(super::LastRunAnchor {
+            file_path: std::path::PathBuf::from("note.md"),
+            segment_idx: 0,
+            alias: None,
+        });
+        app.result_viewport_top.insert(0, 5);
+        app.content_search_index_built = true;
+        app.standard.anchor = Some(crate::buffer::Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+
+        app.switch_vault(vault_b.path().to_path_buf())
+            .expect("switch must succeed");
+
+        // Root moved.
+        assert_ne!(app.vault_path, old_vault);
+        assert_eq!(
+            app.vault_path,
+            vault_b.path().canonicalize().unwrap(),
+            "vault_path must canonicalize to the new vault"
+        );
+        // The new vault's initial file is picked up.
+        let pane = app.active_pane().expect("anchor tab exists");
+        let path = pane
+            .document_path
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string());
+        assert_eq!(
+            path.as_deref(),
+            Some("welcome.md"),
+            "initial-document picker should find welcome.md in the new vault"
+        );
+        // Session caches/UI flags wiped.
+        assert!(app.last_run_anchor.is_none());
+        assert!(app.result_viewport_top.is_empty());
+        assert!(!app.content_search_index_built);
+        assert!(app.standard.anchor.is_none());
+        assert!(app.modal.is_none());
+        // Active vault persisted in the registry.
+        let pool = app.pool_manager.app_pool().clone();
+        let active = httui_core::vaults::get_active_vault(&pool).await.unwrap();
+        assert_eq!(active.as_deref(), Some(app.vault_path.to_string_lossy().as_ref()));
     }
 }
