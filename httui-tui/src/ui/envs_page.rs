@@ -15,7 +15,7 @@ use crate::app::{
 };
 
 const POPUP_WIDTH: u16 = 76;
-const POPUP_HEIGHT: u16 = 26;
+const POPUP_HEIGHT: u16 = 30;
 
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Option<(u16, u16)> {
     let area = centered(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
@@ -43,7 +43,13 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Op
         .split(rows[0]);
     render_env_list(frame, body[0], state);
     fill_col(frame, body[1], "│", Color::DarkGray);
-    render_var_table(frame, body[2], state);
+    // V4 P7: vars area = vars list (cima) + used-in panel (baixo, 7L).
+    let vars_split = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(3), Constraint::Length(7)])
+        .split(body[2]);
+    render_var_table(frame, vars_split[0], state);
+    super::var_uses_panel::render_var_uses_panel(frame, vars_split[1], state);
     render_hint(frame, rows[1], state.focus);
     None
 }
@@ -422,6 +428,22 @@ mod tests {
     use super::*;
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+
+    #[test]
+    fn hint_envs_focus_mentions_used_in_keys() {
+        let backend = TestBackend::new(80, 1);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                render_hint(f, Rect::new(0, 0, 80, 1), EnvsPaneFocus::Envs);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        let line: String = (0..80)
+            .map(|x| buf.cell((x, 0)).unwrap().symbol().to_string())
+            .collect();
+        assert!(line.contains("1-9 activate"), "hint envs sem 1-9: {line:?}");
+    }
 
     #[test]
     fn hint_envs_focus_mentions_clone() {

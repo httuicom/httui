@@ -194,6 +194,9 @@ pub struct EnvsPageState {
     pub vars: Vec<VarRow>,
     pub selected_var: usize,
     pub focus: EnvsPaneFocus,
+    /// V4 P7: vault-grep da var selecionada (`{{KEY}}` / `{{KEY.path}}`
+    /// em qualquer `.md`). Re-popula quando var cursor muda.
+    pub var_uses: Vec<httui_core::var_uses::VarUseEntry>,
 }
 
 #[derive(Debug, Default)]

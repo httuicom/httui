@@ -34,13 +34,16 @@ pub(crate) fn apply_envs(app: &mut App, action: Action) {
             move_env_cursor(app, d);
             reload_vars(app);
         }
-        Action::EnvsPageMoveVarCursor(d) => with_page(app, |s| {
-            if s.vars.is_empty() {
-                return;
-            }
-            let last = s.vars.len() as i64 - 1;
-            s.selected_var = ((s.selected_var as i64 + d as i64).clamp(0, last)) as usize;
-        }),
+        Action::EnvsPageMoveVarCursor(d) => {
+            with_page(app, |s| {
+                if s.vars.is_empty() {
+                    return;
+                }
+                let last = s.vars.len() as i64 - 1;
+                s.selected_var = ((s.selected_var as i64 + d as i64).clamp(0, last)) as usize;
+            });
+            refresh_var_uses(app);
+        }
         Action::EnvsPageActivateEnv => activate_selected_env(app),
         Action::OpenEnvForm => open_env_form(app, false),
         Action::OpenEnvEditForm => open_env_form(app, true),
@@ -188,9 +191,12 @@ pub(crate) fn open_envs_page(app: &mut App) -> Result<(), String> {
         vars,
         selected_var: 0,
         focus,
+        var_uses: Vec::new(),
     }));
     app.vim.mode = Mode::Modal;
     app.vim.reset_pending();
+    // V4 P7: dispara grep inicial para a primeira var (se houver).
+    refresh_var_uses(app);
     Ok(())
 }
 
@@ -245,8 +251,30 @@ fn reload_vars(app: &mut App) {
                     is_secret: v.is_secret,
                 })
                 .collect();
+            // V4 P7: clamp cursor + dispara reload do used-in.
+            if s.selected_var >= s.vars.len() {
+                s.selected_var = s.vars.len().saturating_sub(1);
+            }
         });
+        refresh_var_uses(app);
     }
+}
+
+/// V4 P7: vault-grep da var selecionada. Pular se sem vault path ou
+/// var inválida. Falha de IO produz lista vazia (não-fatal).
+pub(super) fn refresh_var_uses(app: &mut App) {
+    let key = if let Some(crate::modal::Modal::EnvsPage(s)) = app.modal.as_ref() {
+        s.vars.get(s.selected_var).map(|v| v.key.clone())
+    } else {
+        None
+    };
+    let uses = match (key, app.vault_path.to_str()) {
+        (Some(k), Some(p)) => {
+            httui_core::var_uses::grep_var_uses(p, &k).unwrap_or_default()
+        }
+        _ => Vec::new(),
+    };
+    with_page(app, |s| s.var_uses = uses);
 }
 
 fn activate_selected_env(app: &mut App) {

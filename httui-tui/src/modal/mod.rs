@@ -578,6 +578,7 @@ mod tests {
             vars: Vec::new(),
             selected_var: 0,
             focus,
+            var_uses: Vec::new(),
         })
     }
 }

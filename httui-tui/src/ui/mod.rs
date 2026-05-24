@@ -13,6 +13,8 @@ mod connections_page;
 /// V4 P5: clone-env form renderer (extraído de envs_page).
 mod envs_clone;
 mod envs_page;
+/// V4 P7: "Used in N" panel pra var selecionada na EnvsPage.
+mod var_uses_panel;
 mod content_search;
 mod cursor;
 mod db_confirm_run;
