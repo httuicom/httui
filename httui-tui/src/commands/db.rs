@@ -696,15 +696,16 @@ fn value_for_bind(v: &serde_json::Value) -> Result<serde_json::Value, String> {
 // ───────────── env vars / connection lookups ─────────────
 
 /// Load the active environment's variables into a `key → value` map.
-/// V4 P1 (2026-05-23): now reads `<vault>/envs/*.toml` via
-/// `EnvironmentsStore`. Secrets are keychain-resolved by `list_vars`.
-/// Returns `None` when there's no active env, the lookup fails, or
-/// the env has no vars — callers fall back to an empty map.
+/// Uses `list_vars_resolved` so secrets come through the keychain —
+/// `list_vars` would hand back empty values for every secret, which
+/// would silently turn `{{TOKEN}}` into the empty string at request
+/// dispatch. Returns `None` when there's no active env, the lookup
+/// fails, or the env has no vars — callers fall back to an empty map.
 pub async fn load_active_env_vars(
     store: &httui_core::vault_config::EnvironmentsStore,
 ) -> Option<std::collections::HashMap<String, String>> {
     let env_name = store.active_env().await.ok().flatten()?;
-    let vars = store.list_vars(&env_name).await.ok()?;
+    let vars = store.list_vars_resolved(&env_name).await.ok()?;
     Some(vars.into_iter().map(|v| (v.key, v.value)).collect())
 }
 

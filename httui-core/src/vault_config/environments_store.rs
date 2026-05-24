@@ -364,6 +364,41 @@ impl EnvironmentsStore {
         Ok(out)
     }
 
+    /// Same shape as `list_vars`, but secrets are pre-resolved through
+    /// the keychain. Use this for execution paths (HTTP/DB block ref
+    /// resolution) — never for UI listing, where the value must stay
+    /// masked.
+    ///
+    /// Best-effort per key: a missing or broken keychain entry leaves
+    /// that secret with an empty value instead of failing the whole
+    /// env, so the surrounding plain vars still resolve.
+    pub async fn list_vars_resolved(
+        &self,
+        env_name: &str,
+    ) -> Result<Vec<EnvVariablePublic>, String> {
+        let Some(file) = self.load_env(env_name).await? else {
+            return Err(format!("environment '{env_name}' not found"));
+        };
+        let mut out = Vec::new();
+        for (key, value) in &file.vars {
+            out.push(EnvVariablePublic {
+                key: key.clone(),
+                value: value.clone(),
+                is_secret: false,
+            });
+        }
+        for (key, reference) in &file.secrets {
+            let value = resolve_value(reference).ok().flatten().unwrap_or_default();
+            out.push(EnvVariablePublic {
+                key: key.clone(),
+                value,
+                is_secret: true,
+            });
+        }
+        out.sort_by(|a, b| a.key.cmp(&b.key));
+        Ok(out)
+    }
+
     /// Resolve a var for actual execution. Secrets pass through the
     /// keychain. Plain `[vars]` come back verbatim.
     pub async fn resolve_var(&self, env_name: &str, key: &str) -> Result<Option<String>, String> {
@@ -710,6 +745,114 @@ mod tests {
         // And the env file must not have a `BRAND_NEW` entry anywhere.
         let vars = store.list_vars(&env_name).await.unwrap();
         assert!(vars.iter().all(|v| v.key != "BRAND_NEW"));
+    }
+
+    #[tokio::test]
+    async fn list_vars_resolved_returns_real_secret_value() {
+        // Regression: list_vars masks secrets with value="", so any
+        // caller that fed `list_vars` into a ref-resolution map (HTTP/DB
+        // block dispatch) was silently sending the empty string for
+        // {{SECRET_KEY}}. list_vars_resolved must hit the keychain.
+        let _guard = KEYCHAIN_TEST_LOCK.lock().unwrap();
+        let (store, _t) = fresh_store();
+        let env_name = unique_name("resolved");
+        store.create_env(&env_name).await.unwrap();
+
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "TOKEN".into(),
+                value: "real-42".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+
+        let vars = store.list_vars_resolved(&env_name).await.unwrap();
+        assert_eq!(vars.len(), 1);
+        assert_eq!(vars[0].key, "TOKEN");
+        assert!(vars[0].is_secret);
+        assert_eq!(vars[0].value, "real-42");
+
+        let _ = delete_secret(&env_var_key(&env_name, "TOKEN"));
+    }
+
+    #[tokio::test]
+    async fn list_vars_resolved_mixes_plain_and_secret() {
+        let _guard = KEYCHAIN_TEST_LOCK.lock().unwrap();
+        let (store, _t) = fresh_store();
+        let env_name = unique_name("mixed");
+        store.create_env(&env_name).await.unwrap();
+
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "BASE_URL".into(),
+                value: "https://api.example.com".into(),
+                is_secret: false,
+            })
+            .await
+            .unwrap();
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "TOKEN".into(),
+                value: "secret-abc".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+
+        let vars = store.list_vars_resolved(&env_name).await.unwrap();
+        let by_key: std::collections::HashMap<_, _> =
+            vars.into_iter().map(|v| (v.key, (v.value, v.is_secret))).collect();
+        assert_eq!(
+            by_key["BASE_URL"],
+            ("https://api.example.com".into(), false)
+        );
+        assert_eq!(by_key["TOKEN"], ("secret-abc".into(), true));
+
+        let _ = delete_secret(&env_var_key(&env_name, "TOKEN"));
+    }
+
+    #[tokio::test]
+    async fn list_vars_resolved_keeps_plain_when_secret_missing() {
+        // A keychain entry can go missing (machine swap, manual purge,
+        // backend hiccup). One broken secret must not blank-out every
+        // other variable in the env.
+        let _guard = KEYCHAIN_TEST_LOCK.lock().unwrap();
+        let (store, _t) = fresh_store();
+        let env_name = unique_name("missing");
+        store.create_env(&env_name).await.unwrap();
+
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "BASE_URL".into(),
+                value: "https://api.example.com".into(),
+                is_secret: false,
+            })
+            .await
+            .unwrap();
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "TOKEN".into(),
+                value: "stored".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+
+        // Yank the keychain entry behind the reference; the TOML still
+        // has the {{keychain:…}} ref.
+        let _ = delete_secret(&env_var_key(&env_name, "TOKEN"));
+
+        let vars = store.list_vars_resolved(&env_name).await.unwrap();
+        let by_key: std::collections::HashMap<_, _> =
+            vars.into_iter().map(|v| (v.key, v.value)).collect();
+        assert_eq!(by_key["BASE_URL"], "https://api.example.com");
+        assert_eq!(by_key["TOKEN"], ""); // best-effort fallback
     }
 
     #[tokio::test]
