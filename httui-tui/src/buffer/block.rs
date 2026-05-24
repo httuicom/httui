@@ -124,6 +124,21 @@ pub fn header_raw_offset() -> usize {
     0
 }
 
+/// Extract the body of a block's raw rope as a `String` — everything
+/// between the fence header (line 0) and the closer line, excluding
+/// both. Returns an empty string for degenerate raws (no body lines).
+/// Used by the completion popup for any block kind that doesn't keep
+/// a parsed copy of the body in `params` (HTTP, raw fences, etc.).
+pub fn body_text(raw: &Rope) -> String {
+    let body_lines = body_line_count(raw);
+    if body_lines == 0 {
+        return String::new();
+    }
+    let start = body_line_to_raw_offset(raw, 0);
+    let end = closer_raw_offset(raw);
+    raw.slice(start..end).to_string()
+}
+
 /// Document-scoped identifier for a block node.
 ///
 /// Stable across mutations for the lifetime of the [`Document`][doc] that

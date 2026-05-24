@@ -75,7 +75,11 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
         app.completion_popup = None;
         return;
     };
-    if !block.is_db() {
+    // Ref completion (`{{...}}`) works in HTTP and DB; SQL completion
+    // only in DB. Other block kinds get no popup.
+    let is_db = block.is_db();
+    let is_http = block.is_http();
+    if !is_db && !is_http {
         app.completion_popup = None;
         return;
     }
@@ -89,12 +93,20 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
             return;
         }
     };
-    let body = match block.params.get("query").and_then(|v| v.as_str()) {
-        Some(s) => s.to_string(),
-        None => {
-            app.completion_popup = None;
-            return;
+    // DB blocks expose a parsed `query`; HTTP keeps the request body
+    // distributed across params, so we fall back to the raw body text
+    // (everything between header and closer). Both produce the same
+    // (line, col)-addressable string the completion engine expects.
+    let body = if is_db {
+        match block.params.get("query").and_then(|v| v.as_str()) {
+            Some(s) => s.to_string(),
+            None => {
+                app.completion_popup = None;
+                return;
+            }
         }
+    } else {
+        crate::buffer::block::body_text(&block.raw)
     };
     // Refs win over SQL completion: when the cursor sits inside an
     // open `{{...}}` ref, the popup switches to alias / env-var /
@@ -139,6 +151,13 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
             anchor_offset: ref_detect.anchor_offset,
             prefix: ref_detect.prefix,
         });
+        return;
+    }
+
+    // Outside `{{...}}`, only DB blocks have an SQL completion path —
+    // HTTP / other kinds close the popup.
+    if !is_db {
+        app.completion_popup = None;
         return;
     }
 
@@ -320,5 +339,111 @@ pub(crate) fn apply_completion(app: &mut App, action: Action, _recording: bool) 
         Action::ConfirmDbRun => apply_confirm_db_run(app),
         Action::CancelDbRun => apply_cancel_db_run(app),
         _ => unreachable!("apply_completion: variante fora do grupo"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::buffer::Segment;
+    use crate::config::{Config, EditorMode};
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use tempfile::TempDir;
+
+    async fn app_with(md: &str) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        std::fs::write(vault.path().join("note.md"), md).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let mut cfg = Config::default();
+        cfg.editor.mode = EditorMode::Standard;
+        let app = App::new(cfg, resolved, pool);
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn http_block_opens_ref_popup_inside_double_brace() {
+        // Regression: ref autocomplete (`{{`) used to be DB-only — the
+        // rebuild_completion_popup short-circuited on !is_db. HTTP now
+        // shares the ref completion path so `{{` inside a header value
+        // or URL surfaces aliases (and env keys) just like in DB.
+        // The fixture includes an earlier block with `alias=ping` so
+        // complete_refs has at least one candidate to surface.
+        let md = "```http alias=ping\nGET https://x\n```\n\n```http alias=req\nGET https://api.example.com\nAuthorization: Bearer {{\n```\n";
+        let (mut app, _d, _v) = app_with(md).await;
+        // Pick the SECOND block (alias=req) — that's where we'll type.
+        let block_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| matches!(s, Segment::Block(_)))
+            .nth(1)
+            .map(|(i, _)| i)
+            .expect("fixture has two http blocks");
+
+        let raw = match app.document().unwrap().segments().get(block_idx) {
+            Some(Segment::Block(b)) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        let off = raw.find("{{").map(|i| i + 2).unwrap();
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: off,
+        });
+
+        rebuild_completion_popup(&mut app, /* allow_empty_prefix = */ true);
+
+        let popup = app
+            .completion_popup
+            .as_ref()
+            .expect("popup should open for {{ context in HTTP block");
+        assert_eq!(popup.segment_idx, block_idx);
+        assert!(
+            popup.prefix.is_empty(),
+            "prefix should be empty right after `{{{{`, got {:?}",
+            popup.prefix
+        );
+        // And the earlier alias must show up as a candidate.
+        assert!(
+            popup.items.iter().any(|i| i.label == "ping"),
+            "popup should list the earlier `ping` alias, got {:?}",
+            popup.items.iter().map(|i| &i.label).collect::<Vec<_>>()
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn http_block_closes_popup_outside_double_brace() {
+        // Outside `{{...}}`, HTTP has no completion path (no SQL
+        // dialect). Popup must NOT open.
+        let md = "```http alias=req\nGET https://api.example.com\n```\n";
+        let (mut app, _d, _v) = app_with(md).await;
+        let block_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("fixture has an http block");
+        let raw = match app.document().unwrap().segments().get(block_idx) {
+            Some(Segment::Block(b)) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        let off = raw.find("GET ").map(|i| i + 4).unwrap();
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: off,
+        });
+
+        rebuild_completion_popup(&mut app, true);
+        assert!(
+            app.completion_popup.is_none(),
+            "HTTP plain text shouldn't open the SQL popup"
+        );
     }
 }
