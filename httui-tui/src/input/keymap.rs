@@ -139,7 +139,7 @@ pub fn standard_actions() -> Vec<ActionSpec> {
             Action::OpenConnectionsPage,
         ),
         spec("open_envs_page", "alt+i", Action::OpenEnvsPage),
-        spec("open_vault_picker", "alt+k", Action::OpenVaultPicker),
+        spec("open_vault_picker", "alt+;", Action::OpenVaultPicker),
         spec("quick_open", "ctrl+p", Action::EnterQuickOpen),
         spec("content_search", "ctrl+f", Action::OpenContentSearch),
         // Workspace.
@@ -218,7 +218,6 @@ fn macos_option_to_ascii(c: char) -> Option<char> {
         '¿' => '?', // Option+? — often Shift-1 variant
         '≈' => 'x', // Option+x
         '…' => '.', // Option+.
-        '˚' => 'k', // Option+k
         _ => return None,
     })
 }
@@ -326,15 +325,14 @@ mod tests {
     }
 
     #[test]
-    fn lookup_remaps_macos_option_k_to_alt_k() {
-        // V10 slice 8 hotfix 2: terminal hosts (WezTerm + others)
-        // commonly grab `Alt+W` themselves as a close-tab shortcut,
-        // so the picker moved to `Alt+K`. Option+k on macOS (Use
-        // Option as Meta OFF) emits `˚` without ALT — the unmap
-        // table rewrites it back to Alt+k so OpenVaultPicker fires.
+    fn lookup_finds_vault_picker_on_alt_semicolon() {
+        // V10 slice 8 hotfix 3: tested chord migration — Alt+W and
+        // Alt+K both got intercepted by the user's terminal host
+        // (WezTerm). Alt+; passes through; lockdown the binding
+        // here so future keymap refactors don't silently drop it.
         let keymap = resolve_standard_keymap(&KeymapConfig::default());
         assert_eq!(
-            lookup(&keymap, ev(KeyCode::Char('˚'), KeyModifiers::NONE)),
+            lookup(&keymap, ev(KeyCode::Char(';'), KeyModifiers::ALT)),
             Some(Action::OpenVaultPicker),
         );
     }
