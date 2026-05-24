@@ -21,13 +21,18 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Op
     let area = centered(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
     let bg = Style::default().bg(Color::Black).fg(Color::White);
     fill(frame, area, bg);
+    let title = if state.envs.is_empty() {
+        " Variables · no envs ".to_string()
+    } else {
+        format!(
+            " Variables · {} envs · {} vars ",
+            state.envs.len(),
+            state.vars.len()
+        )
+    };
     let outer = Block::default()
         .borders(Borders::ALL)
-        .title(format!(
-            " Variables · {}/{} envs ",
-            state.envs.len(),
-            state.envs.len()
-        ))
+        .title(title)
         .style(bg)
         .border_style(Style::default().fg(Color::LightMagenta).bg(Color::Black));
     let inner = outer.inner(area);
@@ -43,15 +48,37 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Op
         .split(rows[0]);
     render_env_list(frame, body[0], state);
     fill_col(frame, body[1], "│", Color::DarkGray);
-    // V4 P7: vars area = vars list (cima) + used-in panel (baixo, 7L).
+    // V4 P7: vars area = vars list (altura proporcional ao count) +
+    // divisor + used-in panel. Sem gap morto quando há poucas vars.
+    let vars_h = (state.vars.len() as u16 + 1).clamp(3, body[2].height.saturating_sub(8));
     let vars_split = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(3), Constraint::Length(7)])
+        .constraints([
+            Constraint::Length(vars_h),
+            Constraint::Length(1), // divisor horizontal
+            Constraint::Min(3),    // used-in panel
+        ])
         .split(body[2]);
     render_var_table(frame, vars_split[0], state);
-    super::var_uses_panel::render_var_uses_panel(frame, vars_split[1], state);
+    fill_row(frame, vars_split[1], "─", Color::DarkGray);
+    super::var_uses_panel::render_var_uses_panel(frame, vars_split[2], state);
     render_hint(frame, rows[1], state.focus);
     None
+}
+
+/// Preenche uma linha horizontal com `sym` na cor `fg`.
+pub(super) fn fill_row(frame: &mut Frame, area: Rect, sym: &str, fg: Color) {
+    let buf = frame.buffer_mut();
+    if area.height == 0 {
+        return;
+    }
+    let y = area.y;
+    for x in area.x..area.x.saturating_add(area.width) {
+        if let Some(c) = buf.cell_mut((x, y)) {
+            c.set_symbol(sym);
+            c.set_style(Style::default().fg(fg).bg(Color::Black));
+        }
+    }
 }
 
 fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
@@ -76,7 +103,8 @@ fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
     let items: Vec<ListItem> = state
         .envs
         .iter()
-        .map(|e| {
+        .enumerate()
+        .map(|(i, e)| {
             let active = state.active.as_deref() == Some(e.name.as_str());
             let marker = if active { "●" } else { " " };
             let style_name = if active {
@@ -84,14 +112,27 @@ fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
             } else {
                 Style::default().fg(Color::White)
             };
+            // Atalho numérico no fim da linha (só pros 9 primeiros);
+            // largura = 24 cols - 1 highlight symbol - 4 chrome
+            // (` ● ` + atalho ` N`) = 17 cols disponíveis pro nome.
+            let name_truncated = truncate(&e.name, 17);
+            let shortcut = if i < 9 {
+                format!("{} ", i + 1)
+            } else {
+                "  ".to_string()
+            };
+            let padding = 17usize.saturating_sub(name_truncated.chars().count());
             ListItem::new(Line::from(vec![
                 Span::raw(" "),
                 Span::styled(marker, Style::default().fg(Color::LightGreen)),
                 Span::raw(" "),
-                Span::styled(e.name.clone(), style_name),
+                Span::styled(name_truncated, style_name),
+                Span::raw(" ".repeat(padding)),
                 Span::styled(
-                    format!(" ({})", e.var_count),
-                    Style::default().fg(Color::DarkGray),
+                    shortcut,
+                    Style::default()
+                        .fg(Color::LightMagenta)
+                        .add_modifier(Modifier::DIM),
                 ),
             ]))
         })

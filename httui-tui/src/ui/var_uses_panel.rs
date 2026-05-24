@@ -17,10 +17,10 @@ use super::envs_page::truncate;
 const MAX_ROWS: usize = 4;
 
 pub(super) fn render_var_uses_panel(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
-    let header_label = if state.vars.get(state.selected_var).is_some() {
-        format!(" Used in {}", state.var_uses.len())
-    } else {
-        " Used in —".to_string()
+    let var_key = state.vars.get(state.selected_var).map(|v| v.key.as_str());
+    let header_label = match var_key {
+        Some(k) => format!(" Used in {} · {{{{{}}}}}", state.var_uses.len(), k),
+        None => " Used in —".to_string(),
     };
     let header = Line::from(Span::styled(
         header_label,
