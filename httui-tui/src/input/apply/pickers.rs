@@ -815,7 +815,7 @@ pub(crate) fn open_vault_picker(app: &mut App) -> Result<(), String> {
         })
     })?;
     if entries.is_empty() {
-        return Err("nenhum vault registrado ainda".into());
+        return Err("no vaults registered yet".into());
     }
     let selected = active
         .as_deref()
@@ -871,7 +871,7 @@ pub(crate) fn apply_confirm_vault_picker(app: &mut App) {
         return;
     };
     if state.active.as_deref() == Some(target.as_str()) {
-        app.set_status(StatusKind::Info, format!("já no vault {target}"));
+        app.set_status(StatusKind::Info, format!("already on vault {target}"));
         return;
     }
     match app.switch_vault(std::path::PathBuf::from(&target)) {
@@ -951,10 +951,10 @@ fn apply_vault_create_form_submit(app: &mut App) {
     let target = outcome.destination.clone();
     let display = target.display().to_string();
     match app.switch_vault(target) {
-        Ok(()) => app.set_status(StatusKind::Info, format!("vault criado → {display}")),
+        Ok(()) => app.set_status(StatusKind::Info, format!("vault created → {display}")),
         Err(e) => app.set_status(
             StatusKind::Error,
-            format!("vault criado em {display} mas switch falhou: {e}"),
+            format!("vault created at {display} but switch failed: {e}"),
         ),
     }
 }
@@ -1030,10 +1030,10 @@ fn apply_vault_clone_form_submit(app: &mut App) {
     let target = outcome.destination.clone();
     let display = target.display().to_string();
     match app.switch_vault(target) {
-        Ok(()) => app.set_status(StatusKind::Info, format!("vault clonado → {display}")),
+        Ok(()) => app.set_status(StatusKind::Info, format!("vault cloned → {display}")),
         Err(e) => app.set_status(
             StatusKind::Error,
-            format!("vault clonado em {display} mas switch falhou: {e}"),
+            format!("vault cloned at {display} but switch failed: {e}"),
         ),
     }
 }
@@ -1237,7 +1237,7 @@ fn apply_vault_missing_secrets_save(app: &mut App) {
     if modal_drop {
         app.modal = None;
         app.vim.enter_normal();
-        app.set_status(StatusKind::Info, "todos os secrets salvos");
+        app.set_status(StatusKind::Info, "all secrets saved");
     }
 }
 

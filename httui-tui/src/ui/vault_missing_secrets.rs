@@ -34,7 +34,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultMissingSecretsS
     }
 
     let pending = state.items.iter().filter(|r| !r.saved).count();
-    let title = format!(" Secrets pendentes · {pending}/{} ", state.items.len());
+    let title = format!(" Pending secrets · {pending}/{} ", state.items.len());
     let outer = Block::default()
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded)
