@@ -188,12 +188,17 @@ fn handle_content_search(key: KeyEvent) -> KeyOutcome {
     KeyOutcome::Effect(crate::input::parser::modals::parse_content_search(key))
 }
 
-/// DB row-detail modal — vim motions over a read-only doc. The parser
-/// is a vim parser, so in Standard profile we `Forward` and let
-/// `route_standard` decode arrows/etc. against the modal doc via the
-/// `document_mut` redirect.
+/// DB row-detail modal — vim motions over a read-only doc. The modal
+/// owns the parser ONLY while vim sits in `Mode::DbRowDetail`. Once a
+/// transient mode kicks in (Visual / Search / CmdLine) the modal still
+/// renders (state is gated on `app.db_row_detail`, not on the vim
+/// mode), but key dispatch is delegated to the vim engine so chords
+/// like `va{y` work. Standard profile bypasses the vim parser entirely.
 fn handle_db_row_detail(app: &mut App, key: KeyEvent) -> KeyOutcome {
     if app.config.editor.mode == crate::config::EditorMode::Standard {
+        return KeyOutcome::Forward;
+    }
+    if app.vim.mode != crate::vim::mode::Mode::DbRowDetail {
         return KeyOutcome::Forward;
     }
     let action = crate::input::parser::modals::parse_db_row_detail(&mut app.vim, key);
@@ -203,6 +208,9 @@ fn handle_db_row_detail(app: &mut App, key: KeyEvent) -> KeyOutcome {
 /// HTTP response-detail modal — same shape as DbRowDetail.
 fn handle_http_response_detail(app: &mut App, key: KeyEvent) -> KeyOutcome {
     if app.config.editor.mode == crate::config::EditorMode::Standard {
+        return KeyOutcome::Forward;
+    }
+    if app.vim.mode != crate::vim::mode::Mode::HttpResponseDetail {
         return KeyOutcome::Forward;
     }
     let action = crate::input::parser::modals::parse_http_response_detail(&mut app.vim, key);
