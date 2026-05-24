@@ -112,6 +112,14 @@ impl App {
         self.modal.as_mut().and_then(|m| m.as_content_search_mut())
     }
 
+    pub fn quickopen(&self) -> Option<&crate::vim::quickopen::QuickOpen> {
+        self.modal.as_ref().and_then(|m| m.as_quickopen())
+    }
+
+    pub fn quickopen_mut(&mut self) -> Option<&mut crate::vim::quickopen::QuickOpen> {
+        self.modal.as_mut().and_then(|m| m.as_quickopen_mut())
+    }
+
     // ----- result tabs (per-block) ---------------------------------------
 
     /// Selected result tab for `block_id`. Missing entry → default

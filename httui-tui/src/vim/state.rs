@@ -2,7 +2,6 @@ use crate::buffer::Cursor;
 use crate::vim::change::{ChangeRecord, InsertSession};
 use crate::vim::mode::Mode;
 use crate::vim::parser::{Motion, Operator};
-use crate::vim::quickopen::QuickOpen;
 use crate::vim::register::Register;
 
 /// Which find / till variant is waiting for its target char.
@@ -54,8 +53,6 @@ pub struct VimState {
     /// while the matches stop being painted on screen. Re-arms when a
     /// new search executes.
     pub search_highlight: bool,
-    /// State for the `Ctrl+P` quick-open modal.
-    pub quickopen: QuickOpen,
     pub unnamed: Register,
     /// `Ctrl+W` was just seen and we're waiting for the window-command
     /// suffix (`v`/`s`/`h`/`j`/`k`/`l`/`c`/`w`/`=` …).
@@ -103,7 +100,6 @@ impl VimState {
             last_search: None,
             last_search_forward: true,
             search_highlight: true,
-            quickopen: QuickOpen::default(),
             unnamed: Register::empty(),
             pending_window: false,
             pending_z: false,
@@ -158,15 +154,6 @@ impl VimState {
         self.mode = Mode::VisualLine;
         self.reset_pending();
         self.visual_anchor = Some(at);
-    }
-
-    /// Enter the `Ctrl+P` quick-open modal. The caller seeds the file
-    /// list (we don't want `state.rs` reaching out to the filesystem
-    /// on its own).
-    pub fn enter_quickopen(&mut self, files: Vec<String>) {
-        self.mode = Mode::QuickOpen;
-        self.reset_pending();
-        self.quickopen.reset(files);
     }
 
     pub fn push_digit(&mut self, d: usize) {

@@ -109,6 +109,10 @@ pub enum Modal {
     /// plus the live result list + selection. Per-keystroke re-query
     /// happens in `commands::search`; this modal owns only the I/O.
     ContentSearch(ContentSearchState),
+    /// `Ctrl+P` quick-open modal — fuzzy file picker over `.md` files
+    /// in the vault. Owns query buffer + filtered candidate list +
+    /// selection cursor.
+    QuickOpen(crate::vim::quickopen::QuickOpen),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -174,6 +178,9 @@ impl Modal {
             Modal::Prompt(kind, _) => prompt_handle_key(*kind, key),
             Modal::ContentSearch(_) => ModalOutcome::Emit(
                 crate::input::parser::modals::parse_content_search(key),
+            ),
+            Modal::QuickOpen(_) => ModalOutcome::Emit(
+                crate::input::parser::lineedit::parse_quickopen(key),
             ),
         }
     }
@@ -250,6 +257,20 @@ impl Modal {
     pub fn as_content_search_mut(&mut self) -> Option<&mut ContentSearchState> {
         match self {
             Modal::ContentSearch(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_quickopen(&self) -> Option<&crate::vim::quickopen::QuickOpen> {
+        match self {
+            Modal::QuickOpen(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_quickopen_mut(&mut self) -> Option<&mut crate::vim::quickopen::QuickOpen> {
+        match self {
+            Modal::QuickOpen(s) => Some(s),
             _ => None,
         }
     }

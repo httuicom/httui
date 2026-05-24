@@ -209,8 +209,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             frame.set_cursor_position((x, status_area.y));
         }
         Mode::QuickOpen => {
-            let (cx, cy) = quickopen::render(frame, editor_area, &app.vim.quickopen);
-            frame.set_cursor_position((cx, cy));
+            if let Some(qo) = app.quickopen() {
+                let (cx, cy) = quickopen::render(frame, editor_area, qo);
+                frame.set_cursor_position((cx, cy));
+            }
         }
         Mode::ContentSearch => {
             if let Some(state) = app.content_search() {

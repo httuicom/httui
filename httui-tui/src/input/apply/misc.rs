@@ -386,31 +386,72 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
         }
         Action::EnterQuickOpen => {
             let files = list_vault_md_files(&app.vault_path.to_string_lossy());
-            app.vim.enter_quickopen(files);
+            let mut qo = crate::vim::quickopen::QuickOpen::default();
+            qo.reset(files);
+            app.modal = Some(crate::modal::Modal::QuickOpen(qo));
+            app.vim.mode = crate::vim::mode::Mode::QuickOpen;
+            app.vim.reset_pending();
         }
         Action::QuickOpenChar(c) => {
-            app.vim.quickopen.push_char(c);
+            if let Some(qo) = app.quickopen_mut() {
+                qo.push_char(c);
+            }
         }
         Action::QuickOpenBackspace => {
             // Empty buffer + backspace closes the modal — same as `<Esc>`.
-            if app.vim.quickopen.query.is_empty() {
+            let close = match app.quickopen_mut() {
+                Some(qo) => {
+                    if qo.query.is_empty() {
+                        true
+                    } else {
+                        qo.pop_char();
+                        false
+                    }
+                }
+                None => true,
+            };
+            if close {
+                app.modal = None;
                 app.vim.enter_normal();
-            } else {
-                app.vim.quickopen.pop_char();
             }
         }
-        Action::QuickOpenDelete => app.vim.quickopen.delete_after(),
-        Action::QuickOpenCursorLeft => app.vim.quickopen.move_left(),
-        Action::QuickOpenCursorRight => app.vim.quickopen.move_right(),
-        Action::QuickOpenCursorHome => app.vim.quickopen.move_home(),
-        Action::QuickOpenCursorEnd => app.vim.quickopen.move_end(),
+        Action::QuickOpenDelete => {
+            if let Some(qo) = app.quickopen_mut() {
+                qo.delete_after();
+            }
+        }
+        Action::QuickOpenCursorLeft => {
+            if let Some(qo) = app.quickopen_mut() {
+                qo.move_left();
+            }
+        }
+        Action::QuickOpenCursorRight => {
+            if let Some(qo) = app.quickopen_mut() {
+                qo.move_right();
+            }
+        }
+        Action::QuickOpenCursorHome => {
+            if let Some(qo) = app.quickopen_mut() {
+                qo.move_home();
+            }
+        }
+        Action::QuickOpenCursorEnd => {
+            if let Some(qo) = app.quickopen_mut() {
+                qo.move_end();
+            }
+        }
         Action::QuickOpenSelectNext => {
-            app.vim.quickopen.select_next();
+            if let Some(qo) = app.quickopen_mut() {
+                qo.select_next();
+            }
         }
         Action::QuickOpenSelectPrev => {
-            app.vim.quickopen.select_prev();
+            if let Some(qo) = app.quickopen_mut() {
+                qo.select_prev();
+            }
         }
         Action::QuickOpenCancel => {
+            app.modal = None;
             app.vim.enter_normal();
         }
         Action::QuickOpenExecute => {
@@ -418,7 +459,8 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
             // switches to the existing tab if already open). The vim
             // ex command `:e <path>` is the explicit "replace current"
             // path for users who want that.
-            let chosen = app.vim.quickopen.chosen_path();
+            let chosen = app.quickopen().and_then(|qo| qo.chosen_path());
+            app.modal = None;
             app.vim.enter_normal();
             if let Some(path) = chosen {
                 match app.open_in_new_tab(path) {
