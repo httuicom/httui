@@ -102,7 +102,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::HttpResponseDetail
             | Mode::ContentSearch
             | Mode::Modal
-    ) || app.content_search.is_some() || app.modal.is_some();
+    ) || app.modal.is_some();
 
     // Snapshot the per-block result-tab map so the render tree can
     // read it without re-borrowing `app` at every level. Clone is
@@ -203,7 +203,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             frame.set_cursor_position((cx, cy));
         }
         Mode::ContentSearch => {
-            if let Some(state) = app.content_search.as_ref() {
+            if let Some(state) = app.content_search() {
                 let (cx, cy) = content_search::render(frame, editor_area, state);
                 frame.set_cursor_position((cx, cy));
             }
@@ -615,7 +615,7 @@ mod tests {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
         app.vim.mode = Mode::ContentSearch;
-        app.content_search = Some(ContentSearchState::new());
+        app.modal = Some(crate::modal::Modal::ContentSearch(ContentSearchState::new()));
         let (_t, cur) = render(&mut app, 60, 12);
         assert!(cur.is_some());
     }

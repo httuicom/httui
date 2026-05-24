@@ -29,9 +29,6 @@ pub enum ScopeKind {
     /// `app.db_settings.is_some()` — DB block settings popup
     /// (limit/timeout). Always consumes.
     DbSettings,
-    /// `app.content_search.is_some()` — full-text search panel.
-    /// Always consumes.
-    ContentSearch,
     /// `app.modal.is_some()` — every modal variant (forms, pickers,
     /// confirms, detail modals). The detail variants (`DbRowDetail`,
     /// `HttpResponseDetail`) host the vim engine over a read-only
@@ -73,9 +70,6 @@ pub fn active_scopes(app: &App) -> Vec<ScopeKind> {
     if app.db_settings.is_some() {
         v.push(ScopeKind::DbSettings);
     }
-    if app.content_search.is_some() {
-        v.push(ScopeKind::ContentSearch);
-    }
     if app.modal.is_some() {
         v.push(ScopeKind::Modal);
     }
@@ -114,7 +108,6 @@ fn handle_scope(kind: ScopeKind, app: &mut App, key: KeyEvent) -> KeyOutcome {
         ScopeKind::Editor => handle_editor(app, key),
         ScopeKind::CompletionPopup => handle_completion_popup(key),
         ScopeKind::DbSettings => handle_db_settings(key),
-        ScopeKind::ContentSearch => handle_content_search(key),
         ScopeKind::Modal => handle_modal(app, key),
         ScopeKind::RunningQueryCatch => handle_running_query_catch(app, key),
     }
@@ -155,11 +148,6 @@ fn handle_completion_popup(key: KeyEvent) -> KeyOutcome {
 /// key maps to an action.
 fn handle_db_settings(key: KeyEvent) -> KeyOutcome {
     KeyOutcome::Effect(crate::input::parser::modals::parse_db_settings_modal(key))
-}
-
-/// Full-text content search panel. Parser is total.
-fn handle_content_search(key: KeyEvent) -> KeyOutcome {
-    KeyOutcome::Effect(crate::input::parser::modals::parse_content_search(key))
 }
 
 /// Running-query cancel — catches the profile-specific cancel chord.

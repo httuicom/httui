@@ -106,10 +106,6 @@ pub struct App {
     /// render the chip without an async hop on every redraw. `None`
     /// when no environment is set as active.
     pub active_env_name: Option<String>,
-    /// `Some` while the content-search modal is open (`<C-f>`).
-    /// Mode flips to `Mode::ContentSearch`. The query buffer + last
-    /// FTS5 results live here; each keystroke re-queries.
-    pub content_search: Option<ContentSearchState>,
     /// `true` once the FTS5 search index has been (re)built this
     /// session. Set by `open_content_search` after the first lazy
     /// rebuild so subsequent opens skip the cost. Cleared by
@@ -198,7 +194,6 @@ impl App {
             completion_popup: None,
             db_settings: None,
             active_env_name: None,
-            content_search: None,
             content_search_index_built: false,
             result_tabs: std::collections::HashMap::new(),
             file_watcher: None,

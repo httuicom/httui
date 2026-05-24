@@ -104,6 +104,14 @@ impl App {
         self.modal.as_mut().and_then(|m| m.as_http_response_detail_mut())
     }
 
+    pub fn content_search(&self) -> Option<&crate::app::ContentSearchState> {
+        self.modal.as_ref().and_then(|m| m.as_content_search())
+    }
+
+    pub fn content_search_mut(&mut self) -> Option<&mut crate::app::ContentSearchState> {
+        self.modal.as_mut().and_then(|m| m.as_content_search_mut())
+    }
+
     // ----- result tabs (per-block) ---------------------------------------
 
     /// Selected result tab for `block_id`. Missing entry → default

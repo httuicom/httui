@@ -1,11 +1,11 @@
 use crate::app::{
     BlockHistoryState, BlockTemplatePickerState, ConnectionDeleteConfirmState,
-    ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
-    DbExportPickerState, DbRowDetailState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
-    EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, HttpResponseDetailState, TabPickerState,
-    VarDeleteConfirmState, VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState,
-    VaultCreateFormFocus, VaultCreateFormState, VaultMissingSecretsState, VaultOpenPickerState,
-    VaultPickerState,
+    ConnectionFormState, ConnectionPickerState, ConnectionsPageState, ContentSearchState,
+    DbConfirmRunState, DbExportPickerState, DbRowDetailState, EnvCloneFormState,
+    EnvDeleteConfirmState, EnvFormState, EnvironmentPickerState, EnvsPageState, EnvsPaneFocus,
+    HttpResponseDetailState, TabPickerState, VarDeleteConfirmState, VarFormFocus, VarFormState,
+    VaultCloneFormFocus, VaultCloneFormState, VaultCreateFormFocus, VaultCreateFormState,
+    VaultMissingSecretsState, VaultOpenPickerState, VaultPickerState,
 };
 use crate::config::EditorMode;
 use crate::vim::state::VimState;
@@ -105,6 +105,10 @@ pub enum Modal {
     /// shared `LineEdit` field carries the buffer + caret while the
     /// kind tells `apply_action` where to commit on Enter.
     Prompt(PromptKind, crate::vim::lineedit::LineEdit),
+    /// Full-text search panel (`<C-f>`). Carries the in-flight query
+    /// plus the live result list + selection. Per-keystroke re-query
+    /// happens in `commands::search`; this modal owns only the I/O.
+    ContentSearch(ContentSearchState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -162,6 +166,9 @@ impl Modal {
             Modal::VaultMissingSecrets(s) => vault_missing_secrets_handle_key(s.editing, key),
             Modal::DbRowDetail(_) | Modal::HttpResponseDetail(_) => ModalOutcome::Continue,
             Modal::Prompt(kind, _) => prompt_handle_key(*kind, key),
+            Modal::ContentSearch(_) => ModalOutcome::Emit(
+                crate::input::parser::modals::parse_content_search(key),
+            ),
         }
     }
 
@@ -223,6 +230,20 @@ impl Modal {
     ) -> Option<(PromptKind, &mut crate::vim::lineedit::LineEdit)> {
         match self {
             Modal::Prompt(kind, le) => Some((*kind, le)),
+            _ => None,
+        }
+    }
+
+    pub fn as_content_search(&self) -> Option<&ContentSearchState> {
+        match self {
+            Modal::ContentSearch(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_content_search_mut(&mut self) -> Option<&mut ContentSearchState> {
+        match self {
+            Modal::ContentSearch(s) => Some(s),
             _ => None,
         }
     }

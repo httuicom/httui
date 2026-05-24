@@ -142,22 +142,22 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
         Action::ContentSearchBackspace => crate::commands::search::content_search_backspace(app),
         Action::ContentSearchDelete => crate::commands::search::content_search_delete(app),
         Action::ContentSearchCursorLeft => {
-            if let Some(s) = app.content_search.as_mut() {
+            if let Some(s) = app.content_search_mut() {
                 s.query.move_left();
             }
         }
         Action::ContentSearchCursorRight => {
-            if let Some(s) = app.content_search.as_mut() {
+            if let Some(s) = app.content_search_mut() {
                 s.query.move_right();
             }
         }
         Action::ContentSearchCursorHome => {
-            if let Some(s) = app.content_search.as_mut() {
+            if let Some(s) = app.content_search_mut() {
                 s.query.move_home();
             }
         }
         Action::ContentSearchCursorEnd => {
-            if let Some(s) = app.content_search.as_mut() {
+            if let Some(s) = app.content_search_mut() {
                 s.query.move_end();
             }
         }

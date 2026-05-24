@@ -35,7 +35,7 @@ pub fn open_content_search(app: &mut App) -> Result<(), String> {
         });
     }
 
-    app.content_search = Some(state);
+    app.modal = Some(crate::modal::Modal::ContentSearch(state));
     app.vim.mode = Mode::ContentSearch;
     app.vim.reset_pending();
     Ok(())
@@ -51,7 +51,7 @@ pub fn handle_index_built(app: &mut App, result: Result<(), String>) {
     match result {
         Ok(()) => {
             app.content_search_index_built = true;
-            if let Some(state) = app.content_search.as_mut() {
+            if let Some(state) = app.content_search_mut() {
                 state.building = false;
             }
             // Run the query against the now-populated index. If the
@@ -60,7 +60,9 @@ pub fn handle_index_built(app: &mut App, result: Result<(), String>) {
             requery(app);
         }
         Err(msg) => {
-            app.content_search = None;
+            if matches!(app.modal, Some(crate::modal::Modal::ContentSearch(_))) {
+        app.modal = None;
+    }
             app.vim.enter_normal();
             app.set_status(StatusKind::Error, msg);
         }
@@ -68,12 +70,14 @@ pub fn handle_index_built(app: &mut App, result: Result<(), String>) {
 }
 
 pub fn close_content_search(app: &mut App) {
-    app.content_search = None;
+    if matches!(app.modal, Some(crate::modal::Modal::ContentSearch(_))) {
+        app.modal = None;
+    }
     app.vim.enter_normal();
 }
 
 pub fn move_content_search_cursor(app: &mut App, delta: i32) {
-    let Some(state) = app.content_search.as_mut() else {
+    let Some(state) = app.content_search_mut() else {
         return;
     };
     if delta >= 0 {
@@ -87,21 +91,21 @@ pub fn move_content_search_cursor(app: &mut App, delta: i32) {
 /// `requery` is split out so backspace/delete/cursor-edit paths can
 /// share the same FTS5 round-trip without copy-paste.
 pub fn content_search_char(app: &mut App, c: char) {
-    if let Some(state) = app.content_search.as_mut() {
+    if let Some(state) = app.content_search_mut() {
         state.query.insert_char(c);
     }
     requery(app);
 }
 
 pub fn content_search_backspace(app: &mut App) {
-    if let Some(state) = app.content_search.as_mut() {
+    if let Some(state) = app.content_search_mut() {
         state.query.delete_before();
     }
     requery(app);
 }
 
 pub fn content_search_delete(app: &mut App) {
-    if let Some(state) = app.content_search.as_mut() {
+    if let Some(state) = app.content_search_mut() {
         state.query.delete_after();
     }
     requery(app);
@@ -112,7 +116,7 @@ pub fn content_search_delete(app: &mut App) {
 /// Skips entirely while the index is still building — querying a
 /// half-populated index would surface partial / wrong results.
 fn requery(app: &mut App) {
-    let Some(state) = app.content_search.as_ref() else {
+    let Some(state) = app.content_search() else {
         return;
     };
     if state.building {
@@ -124,7 +128,7 @@ fn requery(app: &mut App) {
         tokio::runtime::Handle::current()
             .block_on(async move { httui_core::search::search_content(&pool, &query).await })
     });
-    if let Some(state) = app.content_search.as_mut() {
+    if let Some(state) = app.content_search_mut() {
         match results {
             Ok(list) => {
                 state.results = list;
@@ -148,8 +152,7 @@ fn requery(app: &mut App) {
 /// user can pick another result.
 pub fn confirm_content_search(app: &mut App) {
     let chosen_path = app
-        .content_search
-        .as_ref()
+        .content_search()
         .and_then(|s| s.chosen())
         .map(|r| r.file_path.clone());
 
