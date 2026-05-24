@@ -239,12 +239,17 @@ pub(crate) fn apply_copy_db_row_detail_json(app: &mut App) {
 /// object. Source for the modal's `y` clipboard copy. Returns
 /// `None` if the block / row vanished between the keystroke and
 /// the dispatch (e.g. user re-ran the block in another tab).
+///
+/// Must read from the active pane's note doc, not `app.document()`:
+/// while the modal is open, `document()` redirects to the modal's
+/// body doc (single Prose segment), so indexing by `segment_idx`
+/// would never find a Block. The owning note lives on the pane.
 pub(crate) fn db_row_payload(
     app: &App,
     segment_idx: usize,
     row: usize,
 ) -> Option<serde_json::Value> {
-    let doc = app.document()?;
+    let doc = app.tabs.active_document()?;
     let Segment::Block(block) = doc.segments().get(segment_idx)? else {
         return None;
     };
@@ -466,8 +471,12 @@ pub(crate) fn render_http_body(cached: &serde_json::Value) -> String {
 
 /// Raw body for the `Y`-copy path. Same fallback chain as
 /// [`render_http_body`], minus the leading section labels.
+///
+/// Same trap as `db_row_payload`: `app.document()` redirects to the
+/// modal's body doc while the HTTP response detail is open, so the
+/// caller must reach for the editor pane's note doc directly.
 pub(crate) fn http_response_raw_body(app: &App, segment_idx: usize) -> Option<String> {
-    let doc = app.document()?;
+    let doc = app.tabs.active_document()?;
     let Segment::Block(block) = doc.segments().get(segment_idx)? else {
         return None;
     };
