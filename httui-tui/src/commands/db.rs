@@ -1005,20 +1005,28 @@ pub(crate) fn run_db_block_inner(
         }
     }
 
-    // Confirm gate: unscoped UPDATE/DELETE (no WHERE) is the kind
-    // of slip that nukes a whole table. Pop a y/n modal so the user
-    // explicitly OKs it. Skipped when `force_unscoped` is true (the
+    // Confirm gate: ANY write (INSERT/UPDATE/DELETE/CREATE/DROP/
+    // ALTER/TRUNCATE/GRANT/REVOKE/VACUUM/REPLACE/MERGE). Pops a y/n
+    // modal so the user explicitly OKs every mutation — V6 audit
+    // decision, prevents accidental writes on r-spam in a DB block.
+    // The `reason` differentiates unscoped destructive (UPDATE/DELETE
+    // without WHERE) with a stronger message; other writes get a
+    // neutral confirm. Skipped when `force_unscoped` is true (the
     // user already said yes from the previous popup) — and EXPLAIN
     // calls always pass force_unscoped, so this branch is also a
     // no-op for the side-channel.
-    if !force_unscoped && is_unscoped_destructive(&raw_query) {
+    if !force_unscoped && is_writing_query(&raw_query) {
         let s = strip_leading_sql_comments(&raw_query);
         let kind: String = s
             .chars()
             .take_while(|c| c.is_ascii_alphabetic())
             .collect::<String>()
             .to_ascii_uppercase();
-        let reason = format!("{kind} without WHERE will affect every row");
+        let reason = if is_unscoped_destructive(&raw_query) {
+            format!("{kind} without WHERE will affect every row")
+        } else {
+            format!("{kind} mutates the database — confirm before running")
+        };
         app.modal = Some(crate::modal::Modal::DbConfirmRun(
             crate::app::DbConfirmRunState {
                 segment_idx,

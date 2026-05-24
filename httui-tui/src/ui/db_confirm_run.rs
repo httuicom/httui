@@ -1,5 +1,7 @@
-//! Centered confirm modal that fires before TUI runs an unscoped
-//! destructive query (UPDATE/DELETE without WHERE). Tiny vocab —
+//! Centered confirm modal that fires before TUI runs any DB write
+//! (INSERT/UPDATE/DELETE/CREATE/DROP/etc — see `is_writing_query`).
+//! The `reason` string differentiates unscoped destructive
+//! (UPDATE/DELETE without WHERE) from other writes. Tiny vocab —
 //! `y`/`Enter` runs anyway, `n`/`Esc`/`Ctrl-C` cancels — so this
 //! widget is also tiny: red border, two text lines (warning +
 //! reason), one footer with the two key chips.
@@ -37,7 +39,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &DbConfirmRunState) {
 
     let outer = Block::default()
         .borders(Borders::ALL)
-        .title(" Confirm destructive query ")
+        .title(" Confirm write ")
         .style(bg_style)
         .border_style(Style::default().fg(Color::LightRed).bg(Color::Black));
     let inner = outer.inner(popup);
