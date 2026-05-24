@@ -14,7 +14,13 @@ use crate::vim::mode::Mode;
 pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     // Priority: command-line prompt > tree prompt > search prompt > status > info.
     if app.vim.mode == Mode::CommandLine {
-        let line = Line::from(vec![Span::raw(format!(":{}", app.vim.cmdline.as_str()))]);
+        let buf = app
+            .modal
+            .as_ref()
+            .and_then(|m| m.as_prompt())
+            .map(|(_, le)| le.as_str().to_string())
+            .unwrap_or_default();
+        let line = Line::from(vec![Span::raw(format!(":{buf}"))]);
         frame.render_widget(Paragraph::new(line), area);
         return;
     }
@@ -44,11 +50,13 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     if app.vim.mode == Mode::Search {
-        let prompt = if app.vim.search_forward { '/' } else { '?' };
-        let line = Line::from(vec![Span::raw(format!(
-            "{prompt}{}",
-            app.vim.search_buf.as_str()
-        ))]);
+        let (sigil, buf) = match app.modal.as_ref().and_then(|m| m.as_prompt()) {
+            Some((crate::modal::PromptKind::Search { forward }, le)) => {
+                (if forward { '/' } else { '?' }, le.as_str().to_string())
+            }
+            _ => ('/', String::new()),
+        };
+        let line = Line::from(vec![Span::raw(format!("{sigil}{buf}"))]);
         frame.render_widget(Paragraph::new(line), area);
         return;
     }
@@ -453,7 +461,10 @@ mod tests {
     async fn command_line_prompt_renders_colon_prefix() {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         app.vim.mode = Mode::CommandLine;
-        app.vim.cmdline = crate::vim::lineedit::LineEdit::from_str("w foo");
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::Cmdline,
+            crate::vim::lineedit::LineEdit::from_str("w foo"),
+        ));
         let (text, _) = render(&app);
         assert!(text.contains(":w foo"), "got: {text:?}");
     }
@@ -518,12 +529,17 @@ mod tests {
     async fn search_prompt_forward_and_backward() {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         app.vim.mode = Mode::Search;
-        app.vim.search_forward = true;
-        app.vim.search_buf = crate::vim::lineedit::LineEdit::from_str("needle");
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::Search { forward: true },
+            crate::vim::lineedit::LineEdit::from_str("needle"),
+        ));
         let (text, _) = render(&app);
         assert!(text.contains("/needle"), "got: {text:?}");
 
-        app.vim.search_forward = false;
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::Search { forward: false },
+            crate::vim::lineedit::LineEdit::from_str("needle"),
+        ));
         let (text, _) = render(&app);
         assert!(text.contains("?needle"), "got: {text:?}");
     }

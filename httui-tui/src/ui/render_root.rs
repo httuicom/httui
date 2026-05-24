@@ -72,9 +72,18 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Live editing of the search buffer (while in `Mode::Search`) also
     // highlights, so users see what their query is hitting before pressing
     // Enter — incremental search affordance.
-    let live_search = app.vim.mode == Mode::Search && !app.vim.search_buf.is_empty();
-    let search_pattern: Option<String> = if live_search {
-        Some(app.vim.search_buf.as_str().to_string())
+    let live_search_buf = if app.vim.mode == Mode::Search {
+        match app.modal.as_ref().and_then(|m| m.as_prompt()) {
+            Some((crate::modal::PromptKind::Search { .. }, le)) if !le.is_empty() => {
+                Some(le.as_str().to_string())
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
+    let search_pattern: Option<String> = if let Some(buf) = live_search_buf {
+        Some(buf)
     } else if app.vim.search_highlight {
         app.vim.last_search.clone()
     } else {
@@ -189,11 +198,12 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // already drawn by `render_pane_tree` for non-suppressing modes).
     match app.vim.mode {
         Mode::CommandLine | Mode::Search => {
-            let cursor_chars = if app.vim.mode == Mode::CommandLine {
-                app.vim.cmdline.cursor_col()
-            } else {
-                app.vim.search_buf.cursor_col()
-            };
+            let cursor_chars = app
+                .modal
+                .as_ref()
+                .and_then(|m| m.as_prompt())
+                .map(|(_, le)| le.cursor_col())
+                .unwrap_or(0);
             let col = (cursor_chars as u16).saturating_add(1);
             let x = status_area.x + col.min(status_area.width.saturating_sub(1));
             frame.set_cursor_position((x, status_area.y));
@@ -585,7 +595,10 @@ mod tests {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
         app.vim.mode = Mode::CommandLine;
-        app.vim.cmdline = crate::vim::lineedit::LineEdit::from_str("w");
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::Cmdline,
+            crate::vim::lineedit::LineEdit::from_str("w"),
+        ));
         let (_t, cur) = render(&mut app, 60, 10);
         assert!(cur.is_some(), "command-line cursor should be set");
     }
@@ -595,8 +608,10 @@ mod tests {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "find me here\n")]).await;
         open_doc(&mut app, "find me here\n");
         app.vim.mode = Mode::Search;
-        app.vim.search_forward = true;
-        app.vim.search_buf = crate::vim::lineedit::LineEdit::from_str("me");
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::Search { forward: true },
+            crate::vim::lineedit::LineEdit::from_str("me"),
+        ));
         let (_t, cur) = render(&mut app, 60, 10);
         assert!(cur.is_some(), "search cursor should be set");
     }

@@ -223,29 +223,64 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
             }
         }
         Action::EnterCmdline => {
-            app.vim.enter_cmdline();
+            app.modal = Some(crate::modal::Modal::Prompt(
+                crate::modal::PromptKind::Cmdline,
+                crate::vim::lineedit::LineEdit::new(),
+            ));
+            app.vim.mode = crate::vim::mode::Mode::CommandLine;
+            app.vim.reset_pending();
         }
         Action::CmdlineChar(c) => {
-            app.vim.cmdline_push(c);
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.insert_char(c);
+            }
         }
         Action::CmdlineBackspace => {
             // Empty buffer + backspace exits the prompt — same as `<Esc>`.
-            if !app.vim.cmdline_pop() {
+            let close = match app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                Some((_, le)) => !le.delete_before(),
+                None => true,
+            };
+            if close {
+                app.modal = None;
                 app.vim.enter_normal();
             }
         }
         Action::CmdlineDelete => {
-            app.vim.cmdline.delete_after();
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.delete_after();
+            }
         }
-        Action::CmdlineCursorLeft => app.vim.cmdline.move_left(),
-        Action::CmdlineCursorRight => app.vim.cmdline.move_right(),
-        Action::CmdlineCursorHome => app.vim.cmdline.move_home(),
-        Action::CmdlineCursorEnd => app.vim.cmdline.move_end(),
+        Action::CmdlineCursorLeft => {
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_left();
+            }
+        }
+        Action::CmdlineCursorRight => {
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_right();
+            }
+        }
+        Action::CmdlineCursorHome => {
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_home();
+            }
+        }
+        Action::CmdlineCursorEnd => {
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_end();
+            }
+        }
         Action::CmdlineCancel => {
+            app.modal = None;
             app.vim.enter_normal();
         }
         Action::CmdlineExecute => {
-            let buf = app.vim.cmdline.take();
+            let buf = match app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                Some((_, le)) => le.take(),
+                None => String::new(),
+            };
+            app.modal = None;
             app.vim.enter_normal();
             match ex::run(app, &buf) {
                 ExResult::Ok(msg) => app.set_status(StatusKind::Info, msg),
@@ -277,29 +312,63 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
             crate::input::apply::replay::replay_last_change(app, count.max(1));
         }
         Action::EnterSearch(forward) => {
-            app.vim.enter_search(forward);
+            app.modal = Some(crate::modal::Modal::Prompt(
+                crate::modal::PromptKind::Search { forward },
+                crate::vim::lineedit::LineEdit::new(),
+            ));
+            app.vim.mode = crate::vim::mode::Mode::Search;
+            app.vim.reset_pending();
         }
         Action::SearchChar(c) => {
-            app.vim.search_push(c);
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.insert_char(c);
+            }
         }
         Action::SearchBackspace => {
-            if !app.vim.search_pop() {
+            let close = match app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                Some((_, le)) => !le.delete_before(),
+                None => true,
+            };
+            if close {
+                app.modal = None;
                 app.vim.enter_normal();
             }
         }
         Action::SearchDelete => {
-            app.vim.search_buf.delete_after();
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.delete_after();
+            }
         }
-        Action::SearchCursorLeft => app.vim.search_buf.move_left(),
-        Action::SearchCursorRight => app.vim.search_buf.move_right(),
-        Action::SearchCursorHome => app.vim.search_buf.move_home(),
-        Action::SearchCursorEnd => app.vim.search_buf.move_end(),
+        Action::SearchCursorLeft => {
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_left();
+            }
+        }
+        Action::SearchCursorRight => {
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_right();
+            }
+        }
+        Action::SearchCursorHome => {
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_home();
+            }
+        }
+        Action::SearchCursorEnd => {
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_end();
+            }
+        }
         Action::SearchCancel => {
+            app.modal = None;
             app.vim.enter_normal();
         }
         Action::SearchExecute => {
-            let pattern = app.vim.search_buf.take();
-            let forward = app.vim.search_forward;
+            let (pattern, forward) = match app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                Some((crate::modal::PromptKind::Search { forward }, le)) => (le.take(), forward),
+                _ => (String::new(), true),
+            };
+            app.modal = None;
             app.vim.enter_normal();
             execute_search(app, &pattern, forward, /* save = */ true);
         }

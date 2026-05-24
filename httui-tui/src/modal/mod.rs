@@ -112,13 +112,19 @@ pub enum Modal {
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
-/// (e.g. which block a fence-edit targets) that survives until the
-/// prompt confirms or cancels.
+/// (e.g. which block a fence-edit targets, which direction a search
+/// runs) that survives until the prompt confirms or cancels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PromptKind {
     /// `<C-a>` on a block → edit its alias used in `{{alias.path}}`
     /// refs and shown in the block title.
     FenceEditAlias { segment_idx: usize },
+    /// `:` ex-command prompt. On Enter the buffer is fed through
+    /// `vim::ex::run`; status bar paints `:<buf>`.
+    Cmdline,
+    /// `/` (forward) or `?` (backward) search prompt. `forward`
+    /// selects the prompt sigil and the executed direction.
+    Search { forward: bool },
 }
 
 #[derive(Debug)]
@@ -751,11 +757,14 @@ fn db_confirm_run_handle_key(key: KeyEvent) -> ModalOutcome {
 /// this function maps it to the right concrete `Action` based on the
 /// prompt's `PromptKind`.
 fn prompt_handle_key(kind: PromptKind, key: KeyEvent) -> ModalOutcome {
-    match kind {
-        PromptKind::FenceEditAlias { .. } => ModalOutcome::Emit(
-            crate::input::parser::lineedit::parse_fence_edit(key),
-        ),
-    }
+    let action = match kind {
+        PromptKind::FenceEditAlias { .. } => {
+            crate::input::parser::lineedit::parse_fence_edit(key)
+        }
+        PromptKind::Cmdline => crate::input::parser::lineedit::parse_cmdline(key),
+        PromptKind::Search { .. } => crate::input::parser::lineedit::parse_search(key),
+    };
+    ModalOutcome::Emit(action)
 }
 
 #[cfg(test)]

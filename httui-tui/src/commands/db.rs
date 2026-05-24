@@ -338,11 +338,12 @@ pub fn open_fence_edit_alias(app: &mut App) {
 /// new value, drop the prompt, return to normal mode. On failure:
 /// the prompt stays open and the status bar surfaces the reason.
 pub fn confirm_fence_edit(app: &mut App) {
-    let Some((kind, le)) = app.modal.as_ref().and_then(|m| m.as_prompt()) else {
+    let Some((crate::modal::PromptKind::FenceEditAlias { segment_idx }, le)) =
+        app.modal.as_ref().and_then(|m| m.as_prompt())
+    else {
         app.vim.enter_normal();
         return;
     };
-    let crate::modal::PromptKind::FenceEditAlias { segment_idx } = kind;
     let raw = le.as_str().trim().to_string();
 
     // Empty input = clear the alias (block becomes anonymous —
