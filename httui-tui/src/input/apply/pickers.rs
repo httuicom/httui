@@ -449,6 +449,7 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
             vm::apply_move_vault_open_picker_cursor(app, delta)
         }
         Action::VaultOpenPickerEnter => vm::apply_vault_open_picker_enter(app),
+        Action::VaultOpenPickerOpenAsVault => vm::apply_vault_open_picker_open_as_vault(app),
         Action::VaultOpenPickerUp => vm::apply_vault_open_picker_up(app),
         Action::CloseVaultMissingSecrets => vm::apply_close_vault_missing_secrets(app),
         Action::MoveVaultMissingSecretsCursor(delta) => {

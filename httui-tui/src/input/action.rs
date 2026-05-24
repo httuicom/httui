@@ -588,9 +588,14 @@ pub enum Action {
     OpenVaultOpenPicker,
     CloseVaultOpenPicker,
     MoveVaultOpenPickerCursor(i32),
-    /// `Enter` inside the open picker — descend into the highlighted
-    /// directory, or `switch_vault` if it's a vault root.
+    /// `Enter` inside the open picker — always descend (or ascend on
+    /// `..`). Never opens as vault, so a vault-as-parent doesn't trap
+    /// navigation. Use `VaultOpenPickerOpenAsVault` to open.
     VaultOpenPickerEnter,
+    /// `o`/`O` inside the open picker — open the highlighted directory
+    /// (Directory OR Vault) as the active vault via `switch_vault`.
+    /// Allows a vault inside another vault.
+    VaultOpenPickerOpenAsVault,
     /// `Backspace` inside the open picker — ascend one level.
     VaultOpenPickerUp,
     /// first-run secrets modal actions.

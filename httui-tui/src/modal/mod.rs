@@ -367,6 +367,9 @@ fn vault_open_picker_handle_key(key: KeyEvent) -> ModalOutcome {
     if let (_, KeyCode::Backspace) = (modifiers, code) {
         return ModalOutcome::Emit(Action::VaultOpenPickerUp);
     }
+    if let (KeyModifiers::NONE, KeyCode::Char('o') | KeyCode::Char('O')) = (modifiers, code) {
+        return ModalOutcome::Emit(Action::VaultOpenPickerOpenAsVault);
+    }
     match list_picker_key(key) {
         ListPickerKey::Up => ModalOutcome::Emit(Action::MoveVaultOpenPickerCursor(-1)),
         ListPickerKey::Down => ModalOutcome::Emit(Action::MoveVaultOpenPickerCursor(1)),
@@ -1119,6 +1122,21 @@ mod tests {
         assert!(matches!(
             m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
             ModalOutcome::Emit(Action::CloseVaultOpenPicker)
+        ));
+    }
+
+    #[test]
+    fn vault_open_picker_o_emits_open_as_vault() {
+        // V6 audit fix — `o`/`O` must be distinct from Enter so a
+        // vault-as-parent doesn't trap the user inside it.
+        let mut m = vault_open_picker();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('o'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultOpenPickerOpenAsVault)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('O'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultOpenPickerOpenAsVault)
         ));
     }
 

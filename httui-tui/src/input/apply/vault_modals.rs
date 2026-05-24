@@ -298,8 +298,9 @@ pub(crate) fn apply_move_vault_open_picker_cursor(app: &mut App, delta: i32) {
     state.selected = next as usize;
 }
 
-/// Enter: descend into the highlighted dir, ascend if `..`, or
-/// switch_vault when the entry is a vault root.
+/// Enter: always descend (or ascend on `..`). Never opens as vault —
+/// that's a separate action (`o`/`O`) so a vault-as-parent doesn't
+/// trap navigation when the user wants to reach a deeper subdir.
 pub(crate) fn apply_vault_open_picker_enter(app: &mut App) {
     let (cwd, entry) = match app.modal.as_ref() {
         Some(crate::modal::Modal::VaultOpenPicker(s)) => match s.entries.get(s.selected).cloned() {
@@ -311,20 +312,35 @@ pub(crate) fn apply_vault_open_picker_enter(app: &mut App) {
     use crate::app::VaultOpenEntryKind;
     match entry.kind {
         VaultOpenEntryKind::Parent => navigate_to(app, cwd.parent().map(|p| p.to_path_buf())),
-        VaultOpenEntryKind::Directory => {
+        VaultOpenEntryKind::Directory | VaultOpenEntryKind::Vault => {
             let target = cwd.join(&entry.name);
             navigate_to(app, Some(target));
         }
-        VaultOpenEntryKind::Vault => {
-            let target = cwd.join(&entry.name);
-            app.modal = None;
-            app.vim.enter_normal();
-            let display = target.display().to_string();
-            match app.switch_vault(target) {
-                Ok(()) => app.set_status(StatusKind::Info, format!("vault → {display}")),
-                Err(e) => app.set_status(StatusKind::Error, format!("switch vault: {e}")),
-            }
-        }
+    }
+}
+
+/// `o`/`O`: open the highlighted entry as the active vault. Works on
+/// Directory AND Vault entries — a vault inside another vault is
+/// allowed. No-op for `..` (ascending isn't a vault target).
+pub(crate) fn apply_vault_open_picker_open_as_vault(app: &mut App) {
+    let (cwd, entry) = match app.modal.as_ref() {
+        Some(crate::modal::Modal::VaultOpenPicker(s)) => match s.entries.get(s.selected).cloned() {
+            Some(e) => (s.cwd.clone(), e),
+            None => return,
+        },
+        _ => return,
+    };
+    use crate::app::VaultOpenEntryKind;
+    if matches!(entry.kind, VaultOpenEntryKind::Parent) {
+        return;
+    }
+    let target = cwd.join(&entry.name);
+    app.modal = None;
+    app.vim.enter_normal();
+    let display = target.display().to_string();
+    match app.switch_vault(target) {
+        Ok(()) => app.set_status(StatusKind::Info, format!("vault → {display}")),
+        Err(e) => app.set_status(StatusKind::Error, format!("switch vault: {e}")),
     }
 }
 
