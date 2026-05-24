@@ -98,6 +98,8 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvironmentPickerSta
     let footer = Line::from(vec![
         Span::styled(" jk ", chip_key),
         Span::styled(" navigate   ", chip_label),
+        Span::styled(" 1-9 ", chip_key),
+        Span::styled(" pick   ", chip_label),
         Span::styled(" Enter ", chip_key),
         Span::styled(" activate   ", chip_label),
         Span::styled(" Esc ", chip_key),

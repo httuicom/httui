@@ -229,6 +229,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::CloseEnvironmentPicker
         | Action::MoveEnvironmentPickerCursor(_)
         | Action::ConfirmEnvironmentPicker
+        | Action::ActivateEnvByIndex(_)
         | Action::OpenConnectionsPage
         | Action::CloseConnectionsPage
         | Action::MoveConnectionsPageCursor(_)

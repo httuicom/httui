@@ -420,6 +420,10 @@ pub enum Action {
     EnvCloneFormToggleVar,
     EnvCloneFormToggleAll,
     EnvCloneFormSubmit,
+    /// V4 P6: ativa o env de índice 1..9 (1-based) dentro do
+    /// EnvsPage focus=Envs ou do environment_picker. Modal-only —
+    /// sem conflito com vim count-prefix.
+    ActivateEnvByIndex(usize),
 
     /// Read-only listing of the chord vocabulary grouped by section.
     /// Mnemonic: `g`-prefix family + `?` = "help".

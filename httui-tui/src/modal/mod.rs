@@ -8,6 +8,10 @@ use crate::app::{
 
 /// V4 P5: clone-env form key handler (extraído pra respeitar size limit).
 mod clone_form;
+/// V4 P6: utils compartilhados entre handlers de modal.
+mod util;
+
+use util::digit_1_9;
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -209,6 +213,11 @@ fn connection_picker_handle_key(key: KeyEvent) -> ModalOutcome {
 }
 
 fn environment_picker_handle_key(key: KeyEvent) -> ModalOutcome {
+    // V4 P6: numeric shortcuts 1-9 ativam env diretamente (modal —
+    // sem conflito com vim count-prefix).
+    if let Some(idx) = digit_1_9(key) {
+        return ModalOutcome::Emit(Action::ActivateEnvByIndex(idx));
+    }
     match list_picker_key(key) {
         ListPickerKey::Up => ModalOutcome::Emit(Action::MoveEnvironmentPickerCursor(-1)),
         ListPickerKey::Down => ModalOutcome::Emit(Action::MoveEnvironmentPickerCursor(1)),
@@ -217,6 +226,8 @@ fn environment_picker_handle_key(key: KeyEvent) -> ModalOutcome {
         ListPickerKey::Other => ModalOutcome::Continue,
     }
 }
+
+// V4 P6: digit_1_9 vive em `modal/util.rs`.
 
 fn block_template_picker_handle_key(key: KeyEvent) -> ModalOutcome {
     match list_picker_key(key) {
@@ -351,7 +362,16 @@ fn envs_page_handle_key(focus: EnvsPaneFocus, key: KeyEvent) -> ModalOutcome {
         (KeyModifiers::NONE, KeyCode::Char('c')) if focus == EnvsPaneFocus::Envs => {
             ModalOutcome::Emit(Action::OpenEnvCloneForm)
         }
-        _ => ModalOutcome::Continue,
+        _ => {
+            // V4 P6: 1-9 ativam env por índice (Envs-focus only;
+            // em Vars-focus números não têm semantica).
+            if focus == EnvsPaneFocus::Envs {
+                if let Some(idx) = digit_1_9(key) {
+                    return ModalOutcome::Emit(Action::ActivateEnvByIndex(idx));
+                }
+            }
+            ModalOutcome::Continue
+        }
     }
 }
 
@@ -512,4 +532,52 @@ mod tests {
     }
 
     // V4 P5: tests do clone form ficam em `modal/clone_form.rs`.
+
+    // V4 P6: tests de digit_1_9 ficam em `modal/util.rs`.
+
+    fn env_picker_modal() -> Modal {
+        Modal::EnvironmentPicker(EnvironmentPickerState {
+            entries: Vec::new(),
+            selected: 0,
+            active_id: None,
+        })
+    }
+
+    #[test]
+    fn env_picker_digit_emits_activate() {
+        let mut m = env_picker_modal();
+        match m.handle_key(k(KeyCode::Char('2'), KeyModifiers::NONE)) {
+            ModalOutcome::Emit(Action::ActivateEnvByIndex(2)) => {}
+            other => panic!("expected ActivateEnvByIndex(2), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn envs_page_envs_focus_digit_emits_activate() {
+        let mut m = empty_envs_page(EnvsPaneFocus::Envs);
+        match m.handle_key(k(KeyCode::Char('7'), KeyModifiers::NONE)) {
+            ModalOutcome::Emit(Action::ActivateEnvByIndex(7)) => {}
+            other => panic!("expected ActivateEnvByIndex(7), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn envs_page_vars_focus_digit_is_inert() {
+        let mut m = empty_envs_page(EnvsPaneFocus::Vars);
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('3'), KeyModifiers::NONE)),
+            ModalOutcome::Continue
+        ));
+    }
+
+    fn empty_envs_page(focus: EnvsPaneFocus) -> Modal {
+        Modal::EnvsPage(EnvsPageState {
+            envs: Vec::new(),
+            active: None,
+            selected_env: 0,
+            vars: Vec::new(),
+            selected_var: 0,
+            focus,
+        })
+    }
 }

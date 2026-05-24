@@ -169,7 +169,7 @@ fn render_var_table(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
 
 fn render_hint(frame: &mut Frame, area: Rect, focus: EnvsPaneFocus) {
     let body = match focus {
-        EnvsPaneFocus::Envs => " Tab vars · j/k · a activate · n new · e edit · c clone · D delete · Esc ",
+        EnvsPaneFocus::Envs => " Tab vars · j/k · 1-9 activate · a activate · n new · e edit · c clone · D delete · Esc ",
         EnvsPaneFocus::Vars => " Tab envs · j/k · n new var · e edit · D delete · Esc ",
     };
     let p = Paragraph::new(Span::styled(

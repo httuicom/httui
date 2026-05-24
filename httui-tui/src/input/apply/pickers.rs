@@ -657,6 +657,7 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
             apply_move_environment_picker_cursor(app, delta)
         }
         Action::ConfirmEnvironmentPicker => apply_confirm_environment_picker(app),
+        Action::ActivateEnvByIndex(idx) => super::env_activate::apply_activate_env_by_index(app, idx),
         Action::OpenConnectionsPage => {
             if let Err(msg) = open_connections_page(app) {
                 app.set_status(StatusKind::Error, msg);

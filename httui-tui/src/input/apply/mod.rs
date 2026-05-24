@@ -9,6 +9,8 @@ pub mod connection_form;
 /// V4 P5 (2026-05-23): handlers do clone-env form. Extraído de
 /// `envs_page` pra respeitar size limit do DoD.
 pub mod envs_clone;
+/// V4 P6 (2026-05-23): activate-env-by-index handler.
+pub mod env_activate;
 pub mod envs_page;
 pub mod misc;
 pub mod modal_detail;
