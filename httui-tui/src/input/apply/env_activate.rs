@@ -38,15 +38,11 @@ pub(crate) fn apply_activate_env_by_index(app: &mut App, idx: usize) {
     if was_page || was_picker {
         app.modal = None;
         if was_page {
-            // Reabre EnvsPage com active atualizado pra que o user veja o
-            // novo ● (picker comportamento padrão = fecha + volta normal).
+            // V4 P6 (refinamento): reabre EnvsPage com active
+            // atualizado. `open_envs_page` defaulta foco em Vars
+            // quando há envs — que é o que queremos: usuário acabou
+            // de trocar env e agora vê/edita as vars desse env.
             let _ = super::envs_page::open_envs_page(app);
-            // V4 P6 (refinamento): força foco em Envs após ativar via
-            // 1-9. UX: user aperta `1` de qualquer foco, vê o `●` no
-            // env trocado e fica já preparado pra navegar envs.
-            if let Some(crate::modal::Modal::EnvsPage(s)) = app.modal.as_mut() {
-                s.focus = crate::app::EnvsPaneFocus::Envs;
-            }
         } else {
             app.vim.enter_normal();
         }
@@ -114,23 +110,24 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn activate_from_vars_focus_returns_focus_to_envs() {
-        // V4 P6 refinamento: depois de ativar via 1-9, o foco volta
-        // pra Envs (mesmo se estava em Vars antes) — UX permite
-        // troca rápida e prepara navegação de envs.
+    async fn activate_lands_focus_on_vars_of_picked_env() {
+        // V4 P6 refinamento: depois de ativar via 1-9, foco fica em
+        // Vars do env recém-ativado (UX: trocar env rápido e já estar
+        // pronto pra ver/editar suas vars).
         let (mut app, _d, _v) = app_fixture().await;
         app.environments_store.create_env("alpha").await.unwrap();
         crate::input::apply::envs_page::apply_envs(
             &mut app,
             crate::input::action::Action::OpenEnvsPage,
         );
-        // Default abre com focus=Vars quando há envs.
+        // Força foco em Envs primeiro pra garantir que activate força Vars.
         if let Some(crate::modal::Modal::EnvsPage(s)) = app.modal.as_mut() {
-            s.focus = crate::app::EnvsPaneFocus::Vars;
+            s.focus = crate::app::EnvsPaneFocus::Envs;
         }
         apply_activate_env_by_index(&mut app, 1);
         if let Some(crate::modal::Modal::EnvsPage(s)) = app.modal.as_ref() {
-            assert_eq!(s.focus, crate::app::EnvsPaneFocus::Envs);
+            assert_eq!(s.focus, crate::app::EnvsPaneFocus::Vars);
+            assert_eq!(s.active.as_deref(), Some("alpha"));
         } else {
             panic!("page deveria estar aberta após activate");
         }
