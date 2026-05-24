@@ -17,7 +17,6 @@ pub struct Config {
     pub theme: String,
     pub sidebar_default_visible: bool,
     pub sidebar_width: u16,
-    pub auto_save_debounce_ms: u64,
     pub mouse_enabled: bool,
 
     pub ui: UiConfig,
@@ -150,7 +149,6 @@ impl Default for Config {
             theme: "auto".into(),
             sidebar_default_visible: true,
             sidebar_width: 28,
-            auto_save_debounce_ms: 1000,
             mouse_enabled: false,
             ui: UiConfig::default(),
             blocks: BlocksConfig::default(),
@@ -305,7 +303,6 @@ mod tests {
         let cfg: Config = toml::from_str(raw).unwrap();
         assert_eq!(cfg.theme, "dark");
         assert_eq!(cfg.sidebar_width, 40);
-        assert_eq!(cfg.auto_save_debounce_ms, 1000); // default preserved
         assert!(cfg.ui.show_line_numbers); // nested default preserved
     }
 

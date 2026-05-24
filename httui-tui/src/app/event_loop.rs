@@ -181,10 +181,7 @@ fn handle_app_event(app: &mut App, ev: AppEvent) -> bool {
             crate::input::apply::standard_sel::insert_text_at_caret(app, &text);
         }
         AppEvent::Resize(_, _) => {}
-        // Debounced auto-save (tui-V01 / fase 5 p3 — Cenário 4).
-        // All decision logic + the write call live in the covered
-        // `super::autosave` module; this arm is just the seam.
-        AppEvent::Tick => super::autosave::tick_autosave(app),
+        AppEvent::Tick => {}
         AppEvent::DbBlockResult {
             segment_idx,
             kind,
@@ -561,33 +558,6 @@ mod tests {
         assert!(cont);
         assert!(app.status_message.is_none());
         assert!(!app.should_quit);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn tick_triggers_autosave_when_debounce_elapsed() {
-        // End-to-end wiring proof (tui-V01 / fase 5 p3): the Tick arm
-        // of `handle_app_event` must reach `autosave::tick_autosave`,
-        // which in turn fires `:w`. We seed dirty state + an expired
-        // debounce and check the file on disk after one Tick.
-        let (mut app, _d, vault) = app_fixture("body\n").await;
-        for ch in "HI".chars() {
-            app.tabs
-                .active_document_mut()
-                .unwrap()
-                .insert_char_at_cursor(ch);
-        }
-        app.last_edit = Some(std::time::Instant::now() - Duration::from_secs(10));
-        app.config.auto_save_debounce_ms = 1000;
-
-        let cont = handle_app_event(&mut app, AppEvent::Tick);
-        assert!(cont, "Tick is non-terminal");
-
-        let body = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
-        assert!(
-            body.contains("HI"),
-            "Tick arm must invoke autosave::tick_autosave: {body:?}"
-        );
-        assert!(!app.tabs.active_document_mut().unwrap().is_dirty());
     }
 
     #[tokio::test(flavor = "multi_thread")]

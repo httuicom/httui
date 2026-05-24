@@ -45,9 +45,7 @@ pub(crate) fn is_toggle_editor_mode(toggle_key: &str, key: KeyEvent) -> bool {
 /// Modal popups (`completion_popup`, `db_settings`, `block_history`,
 /// pickers, the help modal, `running_query`) are NOT touched — they
 /// own their own dismissal flow and the next routed key reaches them
-/// through the new profile's path. `app.last_edit` is preserved
-/// because the toggle is a meta-action, not an edit: a pending
-/// auto-save debounce should still flush.
+/// through the new profile's path.
 pub(crate) fn toggle_editor_mode(app: &mut App) {
     app.config.editor.mode = match app.config.editor.mode {
         EditorMode::Standard => EditorMode::Vim,
@@ -83,27 +81,6 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
         action
     };
 
-    // Auto-save edit-clock tap (tui-V01 / fase 5 p2). Set
-    // `app.last_edit` for any action that *mutates* the buffer; the
-    // Tick branch in `event_loop` debounces against it. The list
-    // mirrors `standard_undo::maybe_snapshot`'s mutating set, plus
-    // Cut/Paste (which snapshot in `standard_sel`). Motion / Copy /
-    // ClearSelection / SelectExtend are pure cursor moves and must
-    // NOT reset the clock — otherwise just navigating after an edit
-    // would push the debounce indefinitely. Ortogonal to
-    // `edit_group`/`maybe_snapshot` (no shared state).
-    if matches!(
-        action,
-        Action::InsertChar(_)
-            | Action::InsertNewline
-            | Action::DeleteBackward
-            | Action::DeleteForward
-            | Action::Cut
-            | Action::PasteSystem
-    ) {
-        app.last_edit = Some(std::time::Instant::now());
-    }
-
     // Undo-group snapshot policy (tui-V1 / fase 4 p2). Runs once per
     // keystroke BEFORE any dispatch so the snapshot captures the
     // pre-edit document; it covers every path below (incl. the
@@ -116,7 +93,6 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
     // dedicated (fully-covered) `standard_sel` module, with a real
     // clipboard injected here. The vim path never reaches this — it
     // never decodes into these `Action`s — so Cenário 2 is untouched.
-    // `Action` is already in scope from the auto-save tap above.
     match action {
         Action::SelectExtend(_)
         | Action::ClearSelection
@@ -732,54 +708,6 @@ mod tests {
         );
     }
 
-    // ----- fase 5 p2: last_edit clock --------------------------------
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn insert_char_sets_last_edit_clock() {
-        // Standard-mode `a` decodes to InsertChar('a'); the auto-save
-        // tap must record `last_edit`. Proves the textual-action arm
-        // of the matches!() in route_standard.
-        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
-        assert!(app.last_edit.is_none(), "fresh App: no edit clock yet");
-        route(&mut app, key(KeyCode::Char('a')));
-        assert!(
-            app.last_edit.is_some(),
-            "InsertChar must set last_edit (auto-save debounce input)"
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn motion_does_not_set_last_edit_clock() {
-        // A pure cursor move (Left arrow → Action::Motion) must NOT
-        // reset the clock — otherwise just navigating after an edit
-        // would push the debounce window indefinitely.
-        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
-        route(&mut app, key(KeyCode::Right));
-        assert!(
-            app.last_edit.is_none(),
-            "Motion must NOT set last_edit (only mutating actions do)"
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn delete_backward_sets_last_edit_clock() {
-        // Backspace decodes to DeleteBackward — also part of the
-        // mutating set the tap watches.
-        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
-        // Move cursor into the doc so backspace has something to bite.
-        route(&mut app, key(KeyCode::Right));
-        assert!(app.last_edit.is_none());
-        route(&mut app, key(KeyCode::Backspace));
-        assert!(app.last_edit.is_some(), "DeleteBackward must set last_edit");
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn insert_newline_sets_last_edit_clock() {
-        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
-        route(&mut app, key(KeyCode::Enter));
-        assert!(app.last_edit.is_some(), "InsertNewline must set last_edit");
-    }
-
     // ---------------------------------------------------------------
     // Hot toggle — the configured chord (`EditorConfig::toggle_mode_key`,
     // default `f2`) flips `config.editor.mode` from BOTH profiles, in
@@ -908,23 +836,6 @@ mod tests {
             "toggle chord must NOT be typed as text in vim Insert"
         );
         assert_eq!(app.config.editor.mode, EditorMode::Standard);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn toggle_preserves_last_edit_clock() {
-        // The toggle is a meta-action, not an edit. A pending
-        // auto-save debounce (driven by `last_edit`) should NOT be
-        // cleared by the profile flip — otherwise a user editing then
-        // toggling would lose the pending flush.
-        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
-        route(&mut app, key(KeyCode::Char('z')));
-        let clock_before = app.last_edit;
-        assert!(clock_before.is_some());
-        route(&mut app, alt(KeyCode::Char('m')));
-        assert_eq!(
-            app.last_edit, clock_before,
-            "toggle must NOT reset the auto-save edit clock"
-        );
     }
 
     #[tokio::test(flavor = "multi_thread")]

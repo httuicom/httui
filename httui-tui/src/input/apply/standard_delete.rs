@@ -46,17 +46,12 @@
 //!   instead of a stale block widget — matching the owner's
 //!   "vai mostrar o texto ao invés de mostrar o bloco" expectation.
 //!
-//! ## Why undo / autosave taps live here too
+//! ## Why the undo tap lives here too
 //!
-//! `route::route_standard` runs `maybe_snapshot` and the `last_edit`
-//! clock for the original `DeleteBackward` variant. The new variant
-//! `DeleteBackwardStandard` was added to `standard_undo::maybe_snapshot`'s
-//! Delete arm so coalescing still works. But `route::route_standard`'s
-//! own `last_edit` tap matches the original variant by name and would
-//! force a touch of the 904-line `route.rs` to recognise the new one;
-//! the applier sets `app.last_edit` inline instead, keeping the V2
-//! change strictly additive (same trade-off `slash::apply_slash_key`
-//! made).
+//! `route::route_standard` runs `maybe_snapshot` for the original
+//! `DeleteBackward` variant. The new variant `DeleteBackwardStandard`
+//! was added to `standard_undo::maybe_snapshot`'s Delete arm so
+//! coalescing still works.
 
 use ropey::Rope;
 
@@ -86,14 +81,11 @@ pub fn apply_delete_backward_standard(app: &mut App) {
         // rope-edit + cursor-move + reparse-from-raw correctly. We
         // didn't need to clone it here.
         doc.delete_char_before_cursor();
-        app.last_edit = Some(std::time::Instant::now());
         return;
     }
 
     // offset == 0 — the boundary case. If we're already at the very
-    // first segment there's nothing earlier to consume; bail without
-    // touching `last_edit` (no edit happened, so the autosave debounce
-    // shouldn't reset).
+    // first segment there's nothing earlier to consume; bail.
     if segment_idx == 0 {
         return;
     }
@@ -134,7 +126,6 @@ pub fn apply_delete_backward_standard(app: &mut App) {
                 offset: len,
             });
             doc.delete_char_before_cursor();
-            app.last_edit = Some(std::time::Instant::now());
         }
         PrevKind::Block => {
             // Block. Splice the last char out of `block.raw`, reparse,
@@ -185,7 +176,6 @@ pub fn apply_delete_backward_standard(app: &mut App) {
             };
             doc.set_cursor(new_cursor);
             doc.mark_dirty();
-            app.last_edit = Some(std::time::Instant::now());
         }
     }
 }
@@ -234,9 +224,9 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn delete_in_prose_offset_gt_zero_removes_one_char() {
-        // Plain Backspace away from any boundary: deletes one char,
-        // updates last_edit. The applier delegates to the legacy
-        // in-segment path; this test guards that the delegation works.
+        // Plain Backspace away from any boundary: deletes one char.
+        // The applier delegates to the legacy in-segment path; this
+        // test guards that the delegation works.
         let (mut app, _d, _v) = app_with("hello\n").await;
         app.document_mut().unwrap().set_cursor(Cursor::InProse {
             segment_idx: 0,
@@ -250,7 +240,6 @@ mod tests {
             serialized.starts_with("hell"),
             "one char must be removed; got {serialized:?}"
         );
-        assert!(app.last_edit.is_some());
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -280,7 +269,6 @@ mod tests {
             _ => unreachable!(),
         };
         assert_eq!(new_len, raw_len - 1, "block raw must shrink by one char");
-        assert!(app.last_edit.is_some());
     }
 
     // ───── Boundary cases (offset == 0) ─────
@@ -288,8 +276,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn boundary_at_start_of_doc_is_a_noop() {
         // Cursor at segment 0, offset 0, with no segment before. The
-        // applier must bail without panicking and without touching
-        // last_edit (no edit happened).
+        // applier must bail without panicking.
         let (mut app, _d, _v) = app_with("hello\n").await;
         app.document_mut().unwrap().set_cursor(Cursor::InProse {
             segment_idx: 0,
@@ -301,10 +288,6 @@ mod tests {
         let after = app.document().unwrap().to_markdown();
 
         assert_eq!(before, after, "start-of-doc Backspace must not mutate");
-        assert!(
-            app.last_edit.is_none(),
-            "no edit → no clock; movement-only no-op"
-        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -337,10 +320,6 @@ mod tests {
                 if segment_idx == block_idx - 1 && offset == 0
             ),
             "cursor must have slid into the empty prose at idx-1"
-        );
-        assert!(
-            app.last_edit.is_none(),
-            "no actual delete → don't reset autosave clock"
         );
     }
 
@@ -399,7 +378,6 @@ mod tests {
             ),
             "cursor must land at the new end of the prev prose"
         );
-        assert!(app.last_edit.is_some());
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -447,7 +425,6 @@ mod tests {
             ),
             "cursor must land at the new end of the block raw"
         );
-        assert!(app.last_edit.is_some());
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -493,13 +470,12 @@ mod tests {
             }
             Segment::Block(_) => panic!("the broken-fence block must demote to Prose"),
         }
-        assert!(app.last_edit.is_some());
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn delete_in_block_result_is_a_noop() {
         // Mirror the legacy applier's read-only handling of
-        // InBlockResult: no edit, no clock tap.
+        // InBlockResult: no edit.
         let md = "```http alias=req1\nGET /api\n```\n";
         let (mut app, _d, _v) = app_with(md).await;
         let block_idx = block_segment_idx(app.document().unwrap());
@@ -515,14 +491,12 @@ mod tests {
         let after = app.document().unwrap().to_markdown();
 
         assert_eq!(before, after);
-        assert!(app.last_edit.is_none());
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn no_active_document_is_inert() {
         // Vault with no `.md` — App::new opens an empty tab. The
-        // applier must bail without panicking and must not touch the
-        // edit clock.
+        // applier must bail without panicking.
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
@@ -534,6 +508,5 @@ mod tests {
         let mut app = App::new(cfg, resolved, pool);
 
         apply_delete_backward_standard(&mut app);
-        assert!(app.last_edit.is_none());
     }
 }

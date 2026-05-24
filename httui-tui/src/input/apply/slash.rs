@@ -26,24 +26,22 @@
 //!   read-only; mirrors `insert_char_at_cursor`'s `InBlockResult`
 //!   arm).
 //!
-//! ## Why the snapshot + last_edit live here
+//! ## Why the snapshot lives here
 //!
-//! `route::route_standard` runs `maybe_snapshot` and the `last_edit`
-//! clock for `InsertChar`/`DeleteBackward`/… before dispatch. The
-//! `SlashKey` arm is deliberately NOT in either of those lists — the
-//! route file already crossed the 600-line size gate before V2
-//! started, and threading a new variant through it would force a
-//! mechanical split of a module that's outside V2's scope. Instead
-//! the applier owns its own snapshot + edit-clock taps, keeping the
-//! V2 change strictly additive.
+//! `route::route_standard` runs `maybe_snapshot` for
+//! `InsertChar`/`DeleteBackward`/… before dispatch. The `SlashKey`
+//! arm is deliberately NOT in that list — the route file already
+//! crossed the 600-line size gate before V2 started, and threading a
+//! new variant through it would force a mechanical split of a module
+//! that's outside V2's scope. Instead the applier owns its own
+//! snapshot, keeping the V2 change strictly additive.
 
 use crate::app::{App, BlockTemplatePickerState};
 use crate::buffer::Cursor;
 use crate::vim::mode::Mode;
 
 /// Apply `Action::SlashKey`. See module doc for the context-aware
-/// rules and the rationale for the inline snapshot / `last_edit`
-/// taps.
+/// rules and the rationale for the inline snapshot.
 pub fn apply_slash_key(app: &mut App) {
     // Sample the cursor *before* the insert advances it — we need to
     // know whether the keystroke landed in prose to decide whether to
@@ -65,7 +63,7 @@ pub fn apply_slash_key(app: &mut App) {
     };
 
     // No document → nothing to do; the picker would have nowhere to
-    // splice into. Bail before touching mode / clock state.
+    // splice into. Bail before touching mode state.
     if !inserted {
         return;
     }
@@ -81,10 +79,6 @@ pub fn apply_slash_key(app: &mut App) {
         app.vim.reset_pending();
     }
 
-    // Auto-save edit-clock tap (same shape as the matches in
-    // `route::route_standard` for InsertChar / DeleteBackward / …).
-    // The Tick branch in `event_loop` debounces against this.
-    app.last_edit = Some(std::time::Instant::now());
 }
 
 #[cfg(test)]
@@ -145,12 +139,6 @@ mod tests {
             serialized.starts_with("hello/"),
             "slash must be inserted literally; got {serialized:?}"
         );
-
-        // last_edit must be set so the autosave debounce can see it.
-        assert!(
-            app.last_edit.is_some(),
-            "slash must record last_edit so autosave fires"
-        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -185,15 +173,13 @@ mod tests {
             slashes_before + 1,
             "exactly one extra `/` must land in the block body; before={before:?} after={after:?}"
         );
-        assert!(app.last_edit.is_some());
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn slash_in_block_result_does_not_open_picker() {
         // Block results are read-only (`insert_char_at_cursor`
         // returns silently). The slash applier must mirror that — no
-        // picker open. `last_edit` *does* get set (the applier is
-        // uniform; the no-op is at the buffer layer).
+        // picker open.
         let md = "```http alias=req1\nGET https://example.com\n```\n";
         let (mut app, _d, _v) = app_with(md).await;
         app.document_mut()
@@ -251,8 +237,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn slash_with_no_active_document_is_inert() {
         // App without an open tab — no document. The applier must
-        // not panic, must not set last_edit (no edit happened), and
-        // must not open the picker (nothing to splice into).
+        // not panic and must not open the picker (nothing to splice
+        // into).
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
@@ -266,9 +252,5 @@ mod tests {
 
         apply_slash_key(&mut app);
         assert!(!matches!(app.modal, Some(crate::modal::Modal::BlockTemplatePicker(_))));
-        assert!(
-            app.last_edit.is_none(),
-            "no doc → no edit clock; the applier must bail before setting last_edit"
-        );
     }
 }

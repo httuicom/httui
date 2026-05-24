@@ -1,6 +1,5 @@
 use crossterm::event::KeyEvent;
 use std::path::PathBuf;
-use std::time::Instant;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::warn;
 
@@ -123,7 +122,6 @@ pub struct App {
     pub envs_dir_watcher: Option<crate::fs_watch::FileWatcher>,
     pub last_run_anchor: Option<LastRunAnchor>,
     pub standard: StandardState,
-    pub last_edit: Option<Instant>,
     pub standard_keymap: Vec<(crate::input::keychord::KeyChord, crate::input::action::Action)>,
     pub config_path: Option<PathBuf>,
     pub modal: Option<crate::modal::Modal>,
@@ -189,7 +187,6 @@ impl App {
             envs_dir_watcher: None,
             last_run_anchor: None,
             standard: StandardState::default(),
-            last_edit: None,
             standard_keymap,
             config_path: None,
             modal: None,
