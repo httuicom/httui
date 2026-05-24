@@ -81,6 +81,22 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
         action
     };
 
+    // Standard parity for vim's `Enter`-on-result-row → row detail:
+    // cursor parked in a DB block's result table + Enter opens the
+    // row detail modal. The grid is read-only so InsertNewline would
+    // be a no-op anyway; intercepting here gives standard users the
+    // same affordance vim has via `parse_normal`.
+    let action = if matches!(action, Action::InsertNewline)
+        && matches!(
+            app.document().map(|d| d.cursor()),
+            Some(crate::buffer::Cursor::InBlockResult { .. })
+        )
+    {
+        Action::OpenDbRowDetail
+    } else {
+        action
+    };
+
     // Undo-group snapshot policy (tui-V1 / fase 4 p2). Runs once per
     // keystroke BEFORE any dispatch so the snapshot captures the
     // pre-edit document; it covers every path below (incl. the

@@ -24,17 +24,37 @@
 //!      goes through `parse_db_row_detail` (the read-only filter on
 //!      `parse_normal`).
 
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::config::EditorMode;
+use crate::input::action::Action;
 use crate::vim::mode::Mode;
 
 use super::{ModalKeyCtx, ModalOutcome};
+
+/// Standard-mode shortcuts for detail modals: `Ctrl+C` copies (the
+/// JSON row / HTTP body) and `Esc` closes. Without intercepting
+/// these here, `Ctrl+C` would fall through to `route_standard` and
+/// quit the TUI; `Esc` would just clear selection.
+fn standard_detail_shortcut(key: KeyEvent, copy: Action, close: Action) -> Option<Action> {
+    match (key.modifiers, key.code) {
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => Some(copy),
+        (KeyModifiers::NONE, KeyCode::Esc) => Some(close),
+        _ => None,
+    }
+}
 
 /// `Modal::DbRowDetail.handle_key_with_ctx` body. See module docs for
 /// the routing contract.
 pub(super) fn db_row_handle_key(key: KeyEvent, ctx: &mut ModalKeyCtx<'_>) -> ModalOutcome {
     if matches!(ctx.editor_mode, EditorMode::Standard) {
+        if let Some(a) = standard_detail_shortcut(
+            key,
+            Action::CopyDbRowDetailJson,
+            Action::CloseDbRowDetail,
+        ) {
+            return ModalOutcome::Emit(a);
+        }
         return ModalOutcome::Forward;
     }
     if ctx.vim.mode != Mode::DbRowDetail {
@@ -48,6 +68,13 @@ pub(super) fn db_row_handle_key(key: KeyEvent, ctx: &mut ModalKeyCtx<'_>) -> Mod
 /// [`db_row_handle_key`].
 pub(super) fn http_response_handle_key(key: KeyEvent, ctx: &mut ModalKeyCtx<'_>) -> ModalOutcome {
     if matches!(ctx.editor_mode, EditorMode::Standard) {
+        if let Some(a) = standard_detail_shortcut(
+            key,
+            Action::CopyHttpResponseBody,
+            Action::CloseHttpResponseDetail,
+        ) {
+            return ModalOutcome::Emit(a);
+        }
         return ModalOutcome::Forward;
     }
     if ctx.vim.mode != Mode::HttpResponseDetail {
