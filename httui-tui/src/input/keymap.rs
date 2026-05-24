@@ -138,7 +138,7 @@ pub fn standard_actions() -> Vec<ActionSpec> {
             "alt+p",
             Action::OpenConnectionsPage,
         ),
-        spec("open_envs_page", "alt+v", Action::OpenEnvsPage),
+        spec("open_envs_page", "alt+i", Action::OpenEnvsPage),
         spec("quick_open", "ctrl+p", Action::EnterQuickOpen),
         spec("content_search", "ctrl+f", Action::OpenContentSearch),
         // Workspace.
@@ -204,6 +204,7 @@ fn unmap_macos_option(key: KeyEvent) -> KeyEvent {
 /// — adding more is a one-liner.
 fn macos_option_to_ascii(c: char) -> Option<char> {
     Some(match c {
+        'ˆ' => 'i', // Option+i (dead key)
         '√' => 'v', // Option+v
         '®' => 'r', // Option+r
         '†' => 't', // Option+t
