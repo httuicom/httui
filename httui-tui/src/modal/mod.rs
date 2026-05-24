@@ -363,12 +363,13 @@ fn envs_page_handle_key(focus: EnvsPaneFocus, key: KeyEvent) -> ModalOutcome {
             ModalOutcome::Emit(Action::OpenEnvCloneForm)
         }
         _ => {
-            // V4 P6: 1-9 ativam env por índice (Envs-focus only;
-            // em Vars-focus números não têm semantica).
-            if focus == EnvsPaneFocus::Envs {
-                if let Some(idx) = digit_1_9(key) {
-                    return ModalOutcome::Emit(Action::ActivateEnvByIndex(idx));
-                }
+            // V4 P6: 1-9 ativam env por índice em qualquer foco.
+            // Em Vars-focus o número não compete com input de char
+            // porque a página em si não captura texto livre — só o
+            // VarForm modal (esse usa handler próprio).
+            let _ = focus;
+            if let Some(idx) = digit_1_9(key) {
+                return ModalOutcome::Emit(Action::ActivateEnvByIndex(idx));
             }
             ModalOutcome::Continue
         }
@@ -562,12 +563,14 @@ mod tests {
     }
 
     #[test]
-    fn envs_page_vars_focus_digit_is_inert() {
+    fn envs_page_vars_focus_digit_also_emits_activate() {
+        // V4 P6 refinamento: 1-9 ativam env por índice em qualquer
+        // foco (UX: trocar env rápido sem precisar Tab pra Envs).
         let mut m = empty_envs_page(EnvsPaneFocus::Vars);
-        assert!(matches!(
-            m.handle_key(k(KeyCode::Char('3'), KeyModifiers::NONE)),
-            ModalOutcome::Continue
-        ));
+        match m.handle_key(k(KeyCode::Char('3'), KeyModifiers::NONE)) {
+            ModalOutcome::Emit(Action::ActivateEnvByIndex(3)) => {}
+            other => panic!("expected ActivateEnvByIndex(3), got {other:?}"),
+        }
     }
 
     fn empty_envs_page(focus: EnvsPaneFocus) -> Modal {

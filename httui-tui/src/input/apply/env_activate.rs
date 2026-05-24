@@ -41,6 +41,12 @@ pub(crate) fn apply_activate_env_by_index(app: &mut App, idx: usize) {
             // Reabre EnvsPage com active atualizado pra que o user veja o
             // novo ● (picker comportamento padrão = fecha + volta normal).
             let _ = super::envs_page::open_envs_page(app);
+            // V4 P6 (refinamento): força foco em Envs após ativar via
+            // 1-9. UX: user aperta `1` de qualquer foco, vê o `●` no
+            // env trocado e fica já preparado pra navegar envs.
+            if let Some(crate::modal::Modal::EnvsPage(s)) = app.modal.as_mut() {
+                s.focus = crate::app::EnvsPaneFocus::Envs;
+            }
         } else {
             app.vim.enter_normal();
         }
@@ -105,5 +111,28 @@ mod tests {
         // Reabre EnvsPage com active atualizado (não fica None).
         assert!(matches!(app.modal, Some(crate::modal::Modal::EnvsPage(_))));
         assert_eq!(app.active_env_name.as_deref(), Some("alpha"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn activate_from_vars_focus_returns_focus_to_envs() {
+        // V4 P6 refinamento: depois de ativar via 1-9, o foco volta
+        // pra Envs (mesmo se estava em Vars antes) — UX permite
+        // troca rápida e prepara navegação de envs.
+        let (mut app, _d, _v) = app_fixture().await;
+        app.environments_store.create_env("alpha").await.unwrap();
+        crate::input::apply::envs_page::apply_envs(
+            &mut app,
+            crate::input::action::Action::OpenEnvsPage,
+        );
+        // Default abre com focus=Vars quando há envs.
+        if let Some(crate::modal::Modal::EnvsPage(s)) = app.modal.as_mut() {
+            s.focus = crate::app::EnvsPaneFocus::Vars;
+        }
+        apply_activate_env_by_index(&mut app, 1);
+        if let Some(crate::modal::Modal::EnvsPage(s)) = app.modal.as_ref() {
+            assert_eq!(s.focus, crate::app::EnvsPaneFocus::Envs);
+        } else {
+            panic!("page deveria estar aberta após activate");
+        }
     }
 }
