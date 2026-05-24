@@ -134,15 +134,22 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
 }
 
 fn handle_modal_key(app: &mut App, key: KeyEvent) {
+    let editor_mode = app.config.editor.mode;
     let outcome = match app.modal.as_mut() {
-        Some(m) => m.handle_key(key),
+        Some(m) => {
+            let mut ctx = crate::modal::ModalKeyCtx {
+                vim: &mut app.vim,
+                editor_mode,
+            };
+            m.handle_key_with_ctx(key, &mut ctx)
+        }
         None => {
             app.vim.enter_normal();
             return;
         }
     };
     match outcome {
-        ModalOutcome::Continue => {}
+        ModalOutcome::Continue | ModalOutcome::Forward => {}
         ModalOutcome::Close => {
             app.modal = None;
             app.vim.enter_normal();

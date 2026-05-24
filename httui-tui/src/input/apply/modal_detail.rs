@@ -68,7 +68,7 @@ pub(crate) fn apply_open_db_row_detail(app: &mut App) {
         Ok(d) => d,
         Err(_) => return,
     };
-    app.db_row_detail = Some(crate::app::DbRowDetailState {
+    app.modal = Some(crate::modal::Modal::DbRowDetail(crate::app::DbRowDetailState {
         segment_idx,
         row,
         title,
@@ -79,7 +79,7 @@ pub(crate) fn apply_open_db_row_detail(app: &mut App) {
         // divide by zero anywhere.
         viewport_height: 1,
         viewport_top: 0,
-    });
+    }));
     app.vim.mode = Mode::DbRowDetail;
     app.vim.reset_pending();
 }
@@ -88,7 +88,9 @@ pub(crate) fn apply_open_db_row_detail(app: &mut App) {
 /// to normal mode. The editor cursor stays on the result row that
 /// was being inspected, which feels right when the modal closes.
 pub(crate) fn apply_close_db_row_detail(app: &mut App) {
-    app.db_row_detail = None;
+    if matches!(app.modal, Some(crate::modal::Modal::DbRowDetail(_))) {
+        app.modal = None;
+    }
     app.vim.enter_normal();
 }
 
@@ -218,10 +220,11 @@ pub(crate) fn render_value_text(v: &serde_json::Value) -> Vec<String> {
 /// clipboard backend is reachable (SSH without a forwarder, headless
 /// container, sandbox).
 pub(crate) fn apply_copy_db_row_detail_json(app: &mut App) {
-    let Some(state) = app.db_row_detail.as_ref() else {
+    let Some(state) = app.db_row_detail() else {
         return;
     };
-    let Some(payload) = db_row_payload(app, state.segment_idx, state.row) else {
+    let (segment_idx, row) = (state.segment_idx, state.row);
+    let Some(payload) = db_row_payload(app, segment_idx, row) else {
         app.set_status(StatusKind::Error, "row no longer available");
         return;
     };

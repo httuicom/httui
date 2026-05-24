@@ -66,14 +66,9 @@ pub struct App {
     /// in DB block footers instead of a raw UUID. Refreshed by
     /// `App::refresh_connection_names`.
     pub connection_names: std::collections::HashMap<String, String>,
-    /// `Some` while the row-detail modal is open. Mode flips to
-    /// `Mode::DbRowDetail` in lockstep so the dispatcher routes keys
-    /// to the modal's parser.
-    pub db_row_detail: Option<DbRowDetailState>,
     /// `Some` while the HTTP response-detail modal is open. Mode
-    /// flips to `Mode::HttpResponseDetail` in lockstep. Same modal
-    /// trick as `db_row_detail` — the modal's body lives in a
-    /// sub-`Document` so motions/visual/yank work out of the box.
+    /// flips to `Mode::HttpResponseDetail` in lockstep. The body lives
+    /// in a sub-`Document` so motions/visual/yank work out of the box.
     pub http_response_detail: Option<HttpResponseDetailState>,
     /// Sender for the main loop's `AppEvent` channel — handed to
     /// spawned async tasks (currently the DB executor) so they can
@@ -206,7 +201,6 @@ impl App {
             should_quit: false,
             pool_manager,
             connection_names,
-            db_row_detail: None,
             http_response_detail: None,
             event_sender: None,
             running_query: None,

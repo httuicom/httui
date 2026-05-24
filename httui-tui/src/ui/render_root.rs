@@ -102,8 +102,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::HttpResponseDetail
             | Mode::ContentSearch
             | Mode::Modal
-    ) || app.db_row_detail.is_some()
-        || app.http_response_detail.is_some()
+    ) || app.http_response_detail.is_some()
         || app.content_search.is_some()
         || app.modal.is_some();
 
@@ -240,8 +239,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Modal is independent of mode — it stays painted while the
     // user is in `Mode::DbRowDetail` *and* while a transient mode
     // (Visual, VisualLine) is active over the modal's body.
-    if let Some(state) = app.db_row_detail.as_mut() {
-        let visual = match (app.vim.mode, app.vim.visual_anchor) {
+    let vim_mode = app.vim.mode;
+    let visual_anchor = app.vim.visual_anchor;
+    if let Some(state) = app.db_row_detail_mut() {
+        let visual = match (vim_mode, visual_anchor) {
             (Mode::Visual, Some(anchor)) => Some(VisualOverlay {
                 anchor,
                 linewise: false,
@@ -688,14 +689,14 @@ mod tests {
     async fn db_row_detail_modal_paints() {
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
-        app.db_row_detail = Some(DbRowDetailState {
+        app.modal = Some(crate::modal::Modal::DbRowDetail(DbRowDetailState {
             segment_idx: 0,
             row: 0,
             title: " row 1 ".into(),
             doc: sub_doc(),
             viewport_height: 10,
             viewport_top: 0,
-        });
+        }));
         let (text, _c) = render(&mut app, 70, 16);
         assert!(text.contains("body"), "got: {text:?}");
     }

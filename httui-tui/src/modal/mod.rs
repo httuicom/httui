@@ -1,20 +1,36 @@
 use crate::app::{
     BlockHistoryState, BlockTemplatePickerState, ConnectionDeleteConfirmState,
     ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
-    DbExportPickerState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
+    DbExportPickerState, DbRowDetailState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
     EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState,
     VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState, VaultCreateFormFocus,
     VaultCreateFormState, VaultMissingSecretsState, VaultOpenPickerState, VaultPickerState,
 };
+use crate::config::EditorMode;
+use crate::vim::state::VimState;
 
-/// V4 P5: clone-env form key handler (extraído pra respeitar size limit).
 mod clone_form;
-/// V4 P6: utils compartilhados entre handlers de modal.
+/// Detail-modal handlers (`DbRowDetail`, `HttpResponseDetail`). They
+/// route keys through the vim engine over a read-only sub-`Document`,
+/// so they live apart from the simple per-variant dispatch table.
+mod detail;
 mod util;
 
 use util::digit_1_9;
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+/// Cross-cutting context handed to [`Modal::handle_key_with_ctx`]. Only
+/// the detail variants (`DbRowDetail`, `HttpResponseDetail`) consult it
+/// today — they need `&mut VimState` to drive the read-only vim engine
+/// over their sub-`Document`, and `editor_mode` to decide between
+/// owning the key (vim profile in detail mode) or forwarding to the
+/// editor (standard profile, or a transient vim mode like Visual that
+/// must reach `parse_visual`).
+pub struct ModalKeyCtx<'a> {
+    pub vim: &'a mut VimState,
+    pub editor_mode: EditorMode,
+}
 
 #[derive(Debug)]
 pub enum Modal {
@@ -72,6 +88,13 @@ pub enum Modal {
     /// sem entrada no keychain local. Tab/jk navega, type edita
     /// value, Enter salva, `s` skip, Esc fecha.
     VaultMissingSecrets(VaultMissingSecretsState),
+    /// DB row-detail modal. `<CR>` on a result row opens it with a
+    /// sub-`Document` carrying the row's columns + values; the modal
+    /// hosts the full vim motion engine over that doc (read-only).
+    /// `Ctrl-c` closes; `Y` copies row as JSON. Visual mode INSIDE
+    /// the modal is allowed — the renderer paints while state is
+    /// `Some`, regardless of `vim.mode`.
+    DbRowDetail(DbRowDetailState),
 }
 
 #[derive(Debug)]
@@ -79,9 +102,21 @@ pub enum ModalOutcome {
     Continue,
     Close,
     Emit(Action),
+    /// Modal doesn't own this key — let the scope walker pass it to
+    /// the editor below. Used by detail modals (`DbRowDetail` /
+    /// `HttpResponseDetail`) to delegate transient vim modes (Visual,
+    /// Search) and the entire standard profile to the editor scope,
+    /// which then operates on `app.document_mut()` (redirected to the
+    /// modal's sub-doc by [`crate::app::App::document_mut`]).
+    Forward,
 }
 
 impl Modal {
+    /// Context-free dispatch. Kept for tests and for the simple
+    /// modals (most variants) that don't need `&mut VimState` or
+    /// the editor profile. Detail variants return `Continue` here —
+    /// production code calls [`Modal::handle_key_with_ctx`] from the
+    /// scope walker, which threads the missing context.
     pub fn handle_key(&mut self, key: KeyEvent) -> ModalOutcome {
         match self {
             Modal::Help => help_handle_key(key),
@@ -105,6 +140,38 @@ impl Modal {
             Modal::VaultCloneForm(s) => vault_clone_form_handle_key(s.focus, key),
             Modal::VaultOpenPicker(_) => vault_open_picker_handle_key(key),
             Modal::VaultMissingSecrets(s) => vault_missing_secrets_handle_key(s.editing, key),
+            Modal::DbRowDetail(_) => ModalOutcome::Continue,
+        }
+    }
+
+    /// Context-aware dispatch used by the scope walker. Detail
+    /// variants consume `ctx` to drive the read-only vim engine or
+    /// forward to the editor; every other variant ignores it and
+    /// delegates to [`Modal::handle_key`].
+    pub fn handle_key_with_ctx(
+        &mut self,
+        key: KeyEvent,
+        ctx: &mut ModalKeyCtx<'_>,
+    ) -> ModalOutcome {
+        match self {
+            Modal::DbRowDetail(_) => detail::db_row_handle_key(key, ctx),
+            _ => self.handle_key(key),
+        }
+    }
+
+    /// Borrow the active `DbRowDetail` state if that's the current
+    /// modal. Used by the renderer + accessors that need the sub-doc.
+    pub fn as_db_row_detail(&self) -> Option<&DbRowDetailState> {
+        match self {
+            Modal::DbRowDetail(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_db_row_detail_mut(&mut self) -> Option<&mut DbRowDetailState> {
+        match self {
+            Modal::DbRowDetail(s) => Some(s),
+            _ => None,
         }
     }
 }

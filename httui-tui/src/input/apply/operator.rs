@@ -602,7 +602,7 @@ pub(crate) fn apply_operator(app: &mut App, action: Action, recording: bool) {
 }
 
 fn is_readonly_modal_open(app: &App) -> bool {
-    app.db_row_detail.is_some() || app.http_response_detail.is_some()
+    app.db_row_detail().is_some() || app.http_response_detail.is_some()
 }
 
 fn is_doc_mutation(action: &Action) -> bool {
@@ -637,14 +637,14 @@ mod tests {
             vault: vault.path().to_path_buf(),
         };
         let mut app = App::new(Config::default(), resolved, pool);
-        app.db_row_detail = Some(DbRowDetailState {
+        app.modal = Some(crate::modal::Modal::DbRowDetail(DbRowDetailState {
             segment_idx: 0,
             row: 0,
             title: "t".into(),
             doc: Document::from_markdown(content).unwrap(),
             viewport_height: 4,
             viewport_top: 0,
-        });
+        }));
         (app, data, vault)
     }
 

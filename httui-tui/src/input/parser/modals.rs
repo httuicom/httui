@@ -101,9 +101,9 @@ pub(crate) fn is_blocked_in_modal(action: &Action) -> bool {
             // path. Search and ex are still blocked — supporting
             // them needs a "return to modal mode after the transient
             // mode exits" plumbing. Visual mode IS supported: the
-            // modal renders whenever `app.db_row_detail` is Some,
-            // independent of `app.vim.mode`, and the dispatch
-            // restores `Mode::DbRowDetail` after the visual op.
+            // modal renders whenever `Modal::DbRowDetail` occupies
+            // `app.modal`, independent of `app.vim.mode`, and the
+            // dispatch restores `Mode::DbRowDetail` after the visual op.
             | Action::EnterSearch(_)
             | Action::SearchExecute
             | Action::SearchRepeat { .. }

@@ -197,7 +197,6 @@ impl App {
         // Drop transient overlays so nothing dangles a pointer into
         // the old buffer / connection.
         self.modal = None;
-        self.db_row_detail = None;
         self.http_response_detail = None;
         self.completion_popup = None;
         self.db_settings = None;

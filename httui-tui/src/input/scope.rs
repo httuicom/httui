@@ -36,15 +36,15 @@ pub enum ScopeKind {
     /// `app.content_search.is_some()` — full-text search panel.
     /// Always consumes.
     ContentSearch,
-    /// `app.db_row_detail.is_some()` — DB row-detail modal.
-    /// Always consumes.
-    DbRowDetail,
     /// `app.http_response_detail.is_some()` — HTTP response-detail
     /// modal. Always consumes.
     HttpResponseDetail,
     /// `app.modal.is_some()` — every modal variant (forms, pickers,
-    /// confirms). Consumes every key by default; unbound keys never
-    /// leak to the editor.
+    /// confirms, detail modals). The detail variants (`DbRowDetail`,
+    /// `HttpResponseDetail`) host the vim engine over a read-only
+    /// sub-doc and return [`crate::modal::ModalOutcome::Forward`] for
+    /// keys that need to flow to the editor (standard profile +
+    /// transient vim modes); every other variant consumes by default.
     Modal,
     /// `app.running_query.is_some()` — catches the profile-specific
     /// query-cancel key (`Ctrl+C` in vim, `Esc` in standard). Sits
@@ -85,9 +85,6 @@ pub fn active_scopes(app: &App) -> Vec<ScopeKind> {
     }
     if app.content_search.is_some() {
         v.push(ScopeKind::ContentSearch);
-    }
-    if app.db_row_detail.is_some() {
-        v.push(ScopeKind::DbRowDetail);
     }
     if app.http_response_detail.is_some() {
         v.push(ScopeKind::HttpResponseDetail);
@@ -132,7 +129,6 @@ fn handle_scope(kind: ScopeKind, app: &mut App, key: KeyEvent) -> KeyOutcome {
         ScopeKind::FenceEdit => handle_fence_edit(key),
         ScopeKind::DbSettings => handle_db_settings(key),
         ScopeKind::ContentSearch => handle_content_search(key),
-        ScopeKind::DbRowDetail => handle_db_row_detail(app, key),
         ScopeKind::HttpResponseDetail => handle_http_response_detail(app, key),
         ScopeKind::Modal => handle_modal(app, key),
         ScopeKind::RunningQueryCatch => handle_running_query_catch(app, key),
@@ -188,24 +184,11 @@ fn handle_content_search(key: KeyEvent) -> KeyOutcome {
     KeyOutcome::Effect(crate::input::parser::modals::parse_content_search(key))
 }
 
-/// DB row-detail modal — vim motions over a read-only doc. The modal
-/// owns the parser ONLY while vim sits in `Mode::DbRowDetail`. Once a
-/// transient mode kicks in (Visual / Search / CmdLine) the modal still
-/// renders (state is gated on `app.db_row_detail`, not on the vim
-/// mode), but key dispatch is delegated to the vim engine so chords
-/// like `va{y` work. Standard profile bypasses the vim parser entirely.
-fn handle_db_row_detail(app: &mut App, key: KeyEvent) -> KeyOutcome {
-    if app.config.editor.mode == crate::config::EditorMode::Standard {
-        return KeyOutcome::Forward;
-    }
-    if app.vim.mode != crate::vim::mode::Mode::DbRowDetail {
-        return KeyOutcome::Forward;
-    }
-    let action = crate::input::parser::modals::parse_db_row_detail(&mut app.vim, key);
-    KeyOutcome::Effect(action)
-}
-
-/// HTTP response-detail modal — same shape as DbRowDetail.
+/// HTTP response-detail modal — vim motions over a read-only doc. The
+/// modal owns the parser only while vim sits in `Mode::HttpResponseDetail`;
+/// transient modes (Visual / Search / CmdLine) and the entire standard
+/// profile are forwarded so the editor scope can drive the modal's
+/// sub-doc via `app.document_mut`'s redirect.
 fn handle_http_response_detail(app: &mut App, key: KeyEvent) -> KeyOutcome {
     if app.config.editor.mode == crate::config::EditorMode::Standard {
         return KeyOutcome::Forward;
@@ -236,13 +219,21 @@ fn handle_running_query_catch(app: &mut App, key: KeyEvent) -> KeyOutcome {
     }
 }
 
-/// Modal scope — wraps `Modal::handle_key`. Consumes by default
-/// (`ModalOutcome::Continue` → `Consumed`), pops on `Close`, applies
-/// the action via `Effect` on `Emit`. Net result: no key ever leaks
-/// past a modal, including keys the modal didn't bind.
+/// Modal scope — wraps `Modal::handle_key_with_ctx`. Consumes by
+/// default (`Continue` → `Consumed`), pops on `Close`, applies the
+/// action via `Effect` on `Emit`, and lets detail modals push the key
+/// down the stack via `Forward`. Net result: no key ever leaks past a
+/// modal except where the modal explicitly delegates.
 fn handle_modal(app: &mut App, key: KeyEvent) -> KeyOutcome {
+    let editor_mode = app.config.editor.mode;
     let outcome = match app.modal.as_mut() {
-        Some(m) => m.handle_key(key),
+        Some(m) => {
+            let mut ctx = crate::modal::ModalKeyCtx {
+                vim: &mut app.vim,
+                editor_mode,
+            };
+            m.handle_key_with_ctx(key, &mut ctx)
+        }
         // Stack derivation guarantees we only enter here when modal is
         // open, but the early-return keeps the function total.
         None => return KeyOutcome::Forward,
@@ -255,6 +246,7 @@ fn handle_modal(app: &mut App, key: KeyEvent) -> KeyOutcome {
             KeyOutcome::Consumed
         }
         crate::modal::ModalOutcome::Emit(action) => KeyOutcome::Effect(action),
+        crate::modal::ModalOutcome::Forward => KeyOutcome::Forward,
     }
 }
 
@@ -328,14 +320,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn detail_modal_forwards_in_standard_profile() {
         let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
-        app.db_row_detail = Some(crate::app::DbRowDetailState {
+        app.modal = Some(crate::modal::Modal::DbRowDetail(crate::app::DbRowDetailState {
             segment_idx: 0,
             row: 0,
             title: "test".into(),
             doc: crate::buffer::Document::from_markdown("alpha\nbeta\n").unwrap(),
             viewport_height: 4,
             viewport_top: 0,
-        });
+        }));
         app.vim.mode = crate::vim::mode::Mode::DbRowDetail;
         let before = app.document().unwrap().cursor();
         dispatch(&mut app, key(KeyCode::Down));
@@ -346,14 +338,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn detail_modal_consumes_in_vim_profile() {
         let (mut app, _d, _v) = app_fixture(EditorMode::Vim).await;
-        app.db_row_detail = Some(crate::app::DbRowDetailState {
+        app.modal = Some(crate::modal::Modal::DbRowDetail(crate::app::DbRowDetailState {
             segment_idx: 0,
             row: 0,
             title: "test".into(),
             doc: crate::buffer::Document::from_markdown("alpha\nbeta\n").unwrap(),
             viewport_height: 4,
             viewport_top: 0,
-        });
+        }));
         app.vim.mode = crate::vim::mode::Mode::DbRowDetail;
         let before = app.document().unwrap().cursor();
         dispatch(&mut app, key(KeyCode::Char('j')));

@@ -39,7 +39,7 @@ impl App {
     /// File-save / status-bar code that needs the editor's note
     /// specifically should reach for `tabs.active_document()` instead.
     pub fn document(&self) -> Option<&Document> {
-        if let Some(state) = self.db_row_detail.as_ref() {
+        if let Some(state) = self.db_row_detail() {
             return Some(&state.doc);
         }
         if let Some(state) = self.http_response_detail.as_ref() {
@@ -58,8 +58,8 @@ impl App {
         // Two-step access keeps the borrow checker happy: probe
         // `is_some` immutably (drops at end of `if`), then take a
         // fresh mut borrow only on the modal branch.
-        if self.db_row_detail.is_some() {
-            return self.db_row_detail.as_mut().map(|s| &mut s.doc);
+        if self.db_row_detail().is_some() {
+            return self.db_row_detail_mut().map(|s| &mut s.doc);
         }
         if self.http_response_detail.is_some() {
             return self.http_response_detail.as_mut().map(|s| &mut s.doc);
@@ -75,13 +75,25 @@ impl App {
     /// the modal is open this returns the modal's body height — same
     /// reasoning as [`Self::document`].
     pub fn viewport_height(&self) -> u16 {
-        if let Some(state) = self.db_row_detail.as_ref() {
+        if let Some(state) = self.db_row_detail() {
             return state.viewport_height;
         }
         if let Some(state) = self.http_response_detail.as_ref() {
             return state.viewport_height;
         }
         self.active_pane().map(|p| p.viewport_height).unwrap_or(0)
+    }
+
+    /// Borrow the open `DbRowDetail` state if that modal is current.
+    /// Returns `None` either when no modal is open or when another
+    /// modal variant occupies the slot. Sugar over the
+    /// `app.modal.as_ref().and_then(Modal::as_db_row_detail)` pattern.
+    pub fn db_row_detail(&self) -> Option<&crate::app::DbRowDetailState> {
+        self.modal.as_ref().and_then(|m| m.as_db_row_detail())
+    }
+
+    pub fn db_row_detail_mut(&mut self) -> Option<&mut crate::app::DbRowDetailState> {
+        self.modal.as_mut().and_then(|m| m.as_db_row_detail_mut())
     }
 
     // ----- result tabs (per-block) ---------------------------------------
@@ -210,14 +222,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn document_redirects_to_db_row_detail_modal_while_open() {
         let (mut app, _d, _v) = app_fixture("editor body\n").await;
-        app.db_row_detail = Some(DbRowDetailState {
+        app.modal = Some(crate::modal::Modal::DbRowDetail(DbRowDetailState {
             segment_idx: 0,
             row: 0,
             title: "row".into(),
             doc: detail_doc("MODAL BODY\n"),
             viewport_height: 7,
             viewport_top: 0,
-        });
+        }));
 
         // While the modal is up the accessors return the modal doc, not
         // the editor's note, and report the modal's viewport height.
