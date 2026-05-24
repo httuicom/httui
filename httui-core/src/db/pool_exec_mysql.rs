@@ -173,9 +173,13 @@ fn decode_mysql_by_type(
         }
         "BIGINT UNSIGNED" => serde_json::Value::Number(mysql_get::<u64>(row, idx)?.into()),
         "FLOAT" | "DOUBLE" => serde_json::json!(mysql_get::<f64>(row, idx)?),
-        // DECIMAL: stringified to preserve precision without pulling in
-        // `bigdecimal`/`rust_decimal` features.
-        "DECIMAL" => serde_json::Value::String(mysql_get::<String>(row, idx)?),
+        // DECIMAL: sqlx-mysql doesn't decode it as String directly, so we
+        // pull `BigDecimal` (feature `bigdecimal`) and route through
+        // `decimal_to_json`: emit JSON number when an f64 round-trip is
+        // exact, else fall back to string to preserve precision.
+        "DECIMAL" => super::pool::decimal_to_json(
+            &mysql_get::<sqlx::types::BigDecimal>(row, idx)?.to_string(),
+        ),
         "VARCHAR" | "CHAR" | "TEXT" | "TINYTEXT" | "MEDIUMTEXT" | "LONGTEXT" | "ENUM" | "SET" => {
             serde_json::Value::String(mysql_get::<String>(row, idx)?)
         }

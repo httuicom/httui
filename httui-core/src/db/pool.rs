@@ -32,6 +32,39 @@ use super::sql_scanner::{contains_multiple_statements, count_placeholders};
 /// Row data as JSON-compatible values.
 pub type JsonRow = Vec<serde_json::Value>;
 
+/// Convert a canonical decimal string (from `BigDecimal::to_string()`)
+/// into a JSON value. Emits a JSON number when an f64 round-trip is
+/// exact (modulo trailing zeros); otherwise falls back to a string to
+/// preserve precision. Used by the PG NUMERIC and MySQL DECIMAL
+/// decoders so common values (`499.80`, `0.1`, IDs, prices) export as
+/// proper numbers while values that exceed f64 mantissa keep their
+/// exact representation.
+pub(super) fn decimal_to_json(s: &str) -> serde_json::Value {
+    if let Ok(f) = s.parse::<f64>() {
+        if let Some(n) = serde_json::Number::from_f64(f) {
+            // `f64::to_string` uses ryū (shortest-roundtrip), so
+            // "499.80".parse() then `.to_string()` yields "499.8".
+            // Strip trailing zeros on both sides before comparing
+            // so cosmetic precision (NUMERIC(10,2) padding) doesn't
+            // force a string fallback.
+            let canon_in = strip_trailing_decimal_zeros(s);
+            let canon_back = strip_trailing_decimal_zeros(&f.to_string());
+            if canon_in == canon_back {
+                return serde_json::Value::Number(n);
+            }
+        }
+    }
+    serde_json::Value::String(s.to_string())
+}
+
+fn strip_trailing_decimal_zeros(s: &str) -> String {
+    if s.contains('.') {
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    } else {
+        s.to_string()
+    }
+}
+
 #[derive(Debug)]
 pub struct QueryResult {
     pub columns: Vec<ColumnInfo>,
@@ -332,11 +365,17 @@ fn build_mysql_connect_options(
     // via CLIENT_CONNECT_WITH_DB in the handshake breaks routing in ProxySQL
     // deployments that apply schema-based hostgroup rules on USE/queries only.
     // We select the database via `USE` in after_connect instead.
+    //
+    // `charset("utf8mb4")` forces the connection charset on handshake.
+    // Without it sqlx-mysql's default lands on the server's `character_set_client`
+    // (often latin1 on older configs), so UTF-8 text round-trips mangled
+    // (e.g. `Aragão`→`AragÃ£o`).
     Ok(MySqlConnectOptions::new()
         .host(host)
         .port(port)
         .username(user)
         .password(&password)
+        .charset("utf8mb4")
         .ssl_mode(ssl_mode))
 }
 
@@ -469,6 +508,41 @@ mod tests {
     fn validate_sqlite_path_rejects_traversal() {
         assert!(validate_sqlite_path("../foo.db").is_err());
         assert!(validate_sqlite_path("..\\foo.db").is_err());
+    }
+
+    #[test]
+    fn decimal_to_json_emits_number_for_lossless_values() {
+        // Common money amounts round-trip exactly through f64 once
+        // trailing zeros are stripped.
+        for s in &["499.80", "0.1", "42.50", "189.00", "239.97", "1234567"] {
+            assert!(
+                matches!(decimal_to_json(s), serde_json::Value::Number(_)),
+                "{s} should emit JSON number"
+            );
+        }
+    }
+
+    #[test]
+    fn decimal_to_json_falls_back_to_string_when_precision_lost() {
+        // Values exceeding f64 mantissa (~15-17 sig figs) must
+        // preserve precision via string.
+        for s in &[
+            "12345678901234567890.123",     // 23 sig figs
+            "0.123456789012345678",         // 18 sig figs
+            "9999999999999999.999",         // edge of f64 precision
+        ] {
+            assert!(
+                matches!(decimal_to_json(s), serde_json::Value::String(_)),
+                "{s} should fall back to JSON string"
+            );
+        }
+    }
+
+    #[test]
+    fn decimal_to_json_handles_negative_and_zero() {
+        assert!(matches!(decimal_to_json("0"), serde_json::Value::Number(_)));
+        assert!(matches!(decimal_to_json("0.00"), serde_json::Value::Number(_)));
+        assert!(matches!(decimal_to_json("-499.80"), serde_json::Value::Number(_)));
     }
 
     #[test]
