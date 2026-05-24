@@ -528,6 +528,7 @@ fn env_form_handle_key(key: KeyEvent) -> ModalOutcome {
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
             ModalOutcome::Emit(Action::CloseEnvForm)
         }
+        (KeyModifiers::CONTROL, KeyCode::Char('v')) => ModalOutcome::Emit(Action::PasteSystem),
         (_, KeyCode::Enter) => ModalOutcome::Emit(Action::EnvFormSubmit),
         (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::EnvFormBackspace),
         (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
@@ -543,6 +544,7 @@ fn var_form_handle_key(focus: VarFormFocus, key: KeyEvent) -> ModalOutcome {
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
             ModalOutcome::Emit(Action::CloseVarForm)
         }
+        (KeyModifiers::CONTROL, KeyCode::Char('v')) => ModalOutcome::Emit(Action::PasteSystem),
         (_, KeyCode::Enter) => ModalOutcome::Emit(Action::VarFormSubmit),
         (_, KeyCode::Tab) | (_, KeyCode::Down) => ModalOutcome::Emit(Action::VarFormFocusNext),
         (_, KeyCode::BackTab) | (_, KeyCode::Up) => ModalOutcome::Emit(Action::VarFormFocusPrev),

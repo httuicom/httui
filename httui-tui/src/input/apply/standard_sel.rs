@@ -242,7 +242,7 @@ pub fn insert_text_at_caret(app: &mut App, text: &str) {
 /// a new form is one match arm, not a refactor across the apply
 /// router.
 fn paste_into_active_modal_field(app: &mut App, text: &str) -> bool {
-    use crate::app::{VaultCloneFormFocus, VaultCreateFormFocus};
+    use crate::app::{VarFormFocus, VaultCloneFormFocus, VaultCreateFormFocus};
     use crate::modal::Modal;
     let Some(modal) = app.modal.as_mut() else {
         return false;
@@ -273,6 +273,23 @@ fn paste_into_active_modal_field(app: &mut App, text: &str) -> bool {
                 for c in text.chars() {
                     row.value.insert_char(c);
                 }
+            }
+            true
+        }
+        Modal::EnvForm(s) => {
+            for c in text.chars() {
+                s.name.insert_char(c);
+            }
+            true
+        }
+        Modal::VarForm(s) => {
+            let target = match s.focus {
+                VarFormFocus::Key => &mut s.key,
+                VarFormFocus::Value => &mut s.value,
+                VarFormFocus::Secret => return true, // toggle field, swallow paste
+            };
+            for c in text.chars() {
+                target.insert_char(c);
             }
             true
         }
