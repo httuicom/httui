@@ -69,10 +69,15 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .constraints([
+            Constraint::Min(1),    // list
+            Constraint::Length(1), // verbs footer (n/c/o/s)
+            Constraint::Length(1), // nav footer (jk/Enter/Esc)
+        ])
         .split(inner);
     let body_area = chunks[0];
-    let footer_area = chunks[1];
+    let verbs_area = chunks[1];
+    let nav_area = chunks[2];
 
     let items: Vec<ListItem> = state
         .entries
@@ -109,7 +114,20 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
         .fg(Color::Black)
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
-    let footer = Line::from(vec![
+
+    let verbs = Line::from(vec![
+        Span::styled(" n ", chip_key),
+        Span::styled(" new   ", chip_label),
+        Span::styled(" c ", chip_key),
+        Span::styled(" clone   ", chip_label),
+        Span::styled(" o ", chip_key),
+        Span::styled(" open   ", chip_label),
+        Span::styled(" s ", chip_key),
+        Span::styled(" secrets ", chip_label),
+    ]);
+    frame.render_widget(Paragraph::new(verbs).style(bg_style), verbs_area);
+
+    let nav = Line::from(vec![
         Span::styled(" jk ", chip_key),
         Span::styled(" navigate   ", chip_label),
         Span::styled(" Enter ", chip_key),
@@ -117,7 +135,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
         Span::styled(" Esc ", chip_key),
         Span::styled(" close ", chip_label),
     ]);
-    frame.render_widget(Paragraph::new(footer).style(bg_style), footer_area);
+    frame.render_widget(Paragraph::new(nav).style(bg_style), nav_area);
 }
 
 /// Width fits the longest path (clamped 40..area.width-2). Height
@@ -131,9 +149,12 @@ fn compute_popup_rect(area: Rect, state: &VaultPickerState) -> Rect {
         .map(|p| collapse_home(p).chars().count())
         .max()
         .unwrap_or(30) as u16;
-    let width = (longest + PADDING).clamp(40, area.width.saturating_sub(2));
+    // Width clamps to 50 minimum so the verbs footer
+    // (` n  new  c  clone  o  open  s  secrets `) doesn't wrap.
+    let width = (longest + PADDING).clamp(50, area.width.saturating_sub(2));
     let visible = state.entries.len().min(MAX_VISIBLE_ROWS) as u16;
-    let height = visible + 3;
+    // list rows + verbs footer + nav footer + 2 borders.
+    let height = visible + 4;
 
     let x = area.x + (area.width.saturating_sub(width)) / 2;
     let y = area.y + 3u16.min(area.height.saturating_sub(height));
@@ -183,6 +204,6 @@ mod tests {
         };
         let popup = compute_popup_rect(area, &state);
         assert!(popup.width <= area.width.saturating_sub(2));
-        assert!(popup.width >= 40, "minimum clamp must hold");
+        assert!(popup.width >= 50, "minimum clamp must hold");
     }
 }
