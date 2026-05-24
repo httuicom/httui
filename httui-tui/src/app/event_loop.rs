@@ -198,6 +198,9 @@ fn handle_app_event(app: &mut App, ev: AppEvent) -> bool {
         } => {
             crate::commands::http::handle_http_block_result(app, segment_idx, outcome);
         }
+        AppEvent::HttpBlockChunk { segment_idx, chunk } => {
+            crate::commands::http::handle_http_block_chunk(app, segment_idx, chunk);
+        }
         AppEvent::SchemaLoaded {
             connection_id,
             result,

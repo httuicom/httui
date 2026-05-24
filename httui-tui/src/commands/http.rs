@@ -82,10 +82,19 @@ pub fn apply_run_http_block(app: &mut App, segment_idx: usize) {
     };
     let token_for_task = token.clone();
     let segment_idx_for_task = segment_idx;
+    let sender_for_chunks = sender.clone();
     tokio::spawn(async move {
         let executor = HttpExecutor::new();
         let outcome = executor
-            .execute_with_cancel(resolved, token_for_task)
+            .execute_streamed(resolved, token_for_task, move |chunk| {
+                use httui_core::executor::http::types::HttpChunk;
+                if matches!(chunk, HttpChunk::Headers { .. } | HttpChunk::BodyChunk { .. }) {
+                    let _ = sender_for_chunks.send(crate::event::AppEvent::HttpBlockChunk {
+                        segment_idx: segment_idx_for_task,
+                        chunk,
+                    });
+                }
+            })
             .await
             .map_err(|e| format!("{e}"));
         let _ = sender.send(crate::event::AppEvent::HttpBlockResult {
@@ -100,8 +109,30 @@ pub fn apply_run_http_block(app: &mut App, segment_idx: usize) {
         started_at: Instant::now(),
         kind: RunningKind::Run,
         cache_key: None,
+        bytes_received: 0,
     });
     app.record_run_anchor(segment_idx);
+}
+
+/// Update `app.running_query.bytes_received` from a streamed chunk.
+/// Ignores terminal variants (Complete/Error/Cancelled are folded
+/// via `handle_http_block_result`). The status bar reads
+/// `bytes_received` to paint the download counter.
+pub fn handle_http_block_chunk(
+    app: &mut App,
+    segment_idx: usize,
+    chunk: httui_core::executor::http::types::HttpChunk,
+) {
+    use httui_core::executor::http::types::HttpChunk;
+    let Some(rq) = app.running_query.as_mut() else {
+        return;
+    };
+    if rq.segment_idx != segment_idx {
+        return;
+    }
+    if let HttpChunk::BodyChunk { offset, bytes } = chunk {
+        rq.bytes_received = offset + bytes.len() as u64;
+    }
 }
 
 pub fn handle_http_block_result(

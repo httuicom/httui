@@ -27,6 +27,11 @@ pub struct RunningQuery {
     /// and only when the active pane has a file path. `None` for
     /// mutations and load-more pages — they never write to the cache.
     pub cache_key: Option<(String, String)>,
+    /// Cumulative response bytes received so far (HTTP only). Driven
+    /// by `AppEvent::HttpBlockChunk` events emitted from the
+    /// streaming executor; the status bar reads this to paint a
+    /// download progress hint while a request is in flight.
+    pub bytes_received: u64,
 }
 
 #[derive(Debug, Clone, Copy)]

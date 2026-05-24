@@ -532,6 +532,7 @@ fn render_http_response_panel(
         ResultPanelTab::Messages => http_response_headers_lines(b),
         ResultPanelTab::Plan => http_response_cookies_lines(b),
         ResultPanelTab::Stats => http_response_stats_lines(b),
+        ResultPanelTab::Raw => http_response_raw_lines(b),
     };
     frame.render_widget(Paragraph::new(lines), area);
 }
@@ -545,11 +546,7 @@ fn http_response_body_lines(b: &BlockNode) -> Vec<Line<'static>> {
         return vec![placeholder];
     };
     let body = result.get("body");
-    // Body is either a JSON value (object/array → pretty-print and
-    // syntax-highlight as JSON) or a string (rendered as-is). We
-    // highlight the JSON path because that covers the common case
-    // of `application/json` responses.
-    let (text, is_json) = match body {
+    let (text, body_is_json) = match body {
         Some(serde_json::Value::String(s)) => (s.clone(), false),
         Some(other) => (
             serde_json::to_string_pretty(other).unwrap_or_default(),
@@ -560,13 +557,132 @@ fn http_response_body_lines(b: &BlockNode) -> Vec<Line<'static>> {
     if text.is_empty() {
         return vec![placeholder];
     }
-    if is_json {
-        text.lines()
-            .map(|l| Line::from(highlight_json_line(l)))
-            .collect()
+    let lang = if body_is_json {
+        BodyLang::Json
     } else {
-        text.lines().map(|l| Line::from(l.to_string())).collect()
+        lang_from_content_type(content_type_of(result).as_deref())
+    };
+    match lang {
+        BodyLang::Json => text
+            .lines()
+            .map(|l| Line::from(highlight_json_line(l)))
+            .collect(),
+        BodyLang::Xml | BodyLang::Html => text
+            .lines()
+            .map(|l| Line::from(highlight_xml_line(l)))
+            .collect(),
+        BodyLang::Plain => text.lines().map(|l| Line::from(l.to_string())).collect(),
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BodyLang {
+    Json,
+    Xml,
+    Html,
+    Plain,
+}
+
+fn content_type_of(result: &serde_json::Value) -> Option<String> {
+    let arr = result.get("headers")?.as_array()?;
+    arr.iter().find_map(|h| {
+        let key = h.get("key")?.as_str()?;
+        if key.eq_ignore_ascii_case("content-type") {
+            h.get("value")?.as_str().map(String::from)
+        } else {
+            None
+        }
+    })
+}
+
+fn lang_from_content_type(ct: Option<&str>) -> BodyLang {
+    let Some(ct) = ct else { return BodyLang::Plain };
+    let mime = ct.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+    if mime.contains("json") {
+        BodyLang::Json
+    } else if mime.contains("html") {
+        BodyLang::Html
+    } else if mime.contains("xml") || mime == "image/svg+xml" {
+        BodyLang::Xml
+    } else {
+        BodyLang::Plain
+    }
+}
+
+/// Cheap per-line XML/HTML highlighter: angle brackets + tag names in
+/// cyan, attribute names in yellow, attribute values in green, text
+/// content default. Doesn't try to track nesting or quote escapes —
+/// enough for an eyeball read.
+fn highlight_xml_line(line: &str) -> Vec<Span<'static>> {
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    let bytes = line.as_bytes();
+    let mut i = 0usize;
+    let punct = Style::default().fg(Color::DarkGray);
+    let tag = Style::default().fg(Color::Cyan);
+    let attr = Style::default().fg(Color::Yellow);
+    let val = Style::default().fg(Color::Green);
+    while i < bytes.len() {
+        if bytes[i] == b'<' {
+            spans.push(Span::styled("<".to_string(), punct));
+            i += 1;
+            if i < bytes.len() && bytes[i] == b'/' {
+                spans.push(Span::styled("/".to_string(), punct));
+                i += 1;
+            }
+            let name_start = i;
+            while i < bytes.len()
+                && !matches!(bytes[i], b' ' | b'\t' | b'>' | b'/' | b'?' | b'!')
+            {
+                i += 1;
+            }
+            if i > name_start {
+                spans.push(Span::styled(line[name_start..i].to_string(), tag));
+            }
+            while i < bytes.len() && bytes[i] != b'>' {
+                if bytes[i] == b' ' || bytes[i] == b'\t' {
+                    spans.push(Span::raw((bytes[i] as char).to_string()));
+                    i += 1;
+                } else if bytes[i] == b'=' {
+                    spans.push(Span::styled("=".to_string(), punct));
+                    i += 1;
+                } else if bytes[i] == b'"' || bytes[i] == b'\'' {
+                    let quote = bytes[i];
+                    let start = i;
+                    i += 1;
+                    while i < bytes.len() && bytes[i] != quote {
+                        i += 1;
+                    }
+                    if i < bytes.len() {
+                        i += 1;
+                    }
+                    spans.push(Span::styled(line[start..i].to_string(), val));
+                } else {
+                    let start = i;
+                    while i < bytes.len()
+                        && !matches!(bytes[i], b'=' | b' ' | b'\t' | b'>' | b'"' | b'\'')
+                    {
+                        i += 1;
+                    }
+                    if i > start {
+                        spans.push(Span::styled(line[start..i].to_string(), attr));
+                    }
+                }
+            }
+            if i < bytes.len() {
+                spans.push(Span::styled(">".to_string(), punct));
+                i += 1;
+            }
+        } else {
+            let start = i;
+            while i < bytes.len() && bytes[i] != b'<' {
+                i += 1;
+            }
+            if i > start {
+                spans.push(Span::raw(line[start..i].to_string()));
+            }
+        }
+    }
+    spans
 }
 
 /// Tiny JSON-aware lexer: highlights string keys / values, numbers,
@@ -785,6 +901,49 @@ fn http_response_stats_lines(b: &BlockNode) -> Vec<Line<'static>> {
     }
 }
 
+/// Render the response as an HTTP-message: status line + headers +
+/// blank + body. Mirrors how `curl -i` displays a response so users
+/// can copy/eyeball the wire format. Body uses the same lang-by-CT
+/// pick as the Body tab (JSON pretty, XML/HTML basic highlight,
+/// otherwise raw).
+fn http_response_raw_lines(b: &BlockNode) -> Vec<Line<'static>> {
+    let placeholder = Line::from(Span::styled(
+        " (no response)",
+        Style::default().fg(Color::DarkGray),
+    ));
+    let Some(result) = b.cached_result.as_ref() else {
+        return vec![placeholder];
+    };
+    let mut lines: Vec<Line<'static>> = Vec::new();
+    // Status line.
+    let status = result.get("status").and_then(|v| v.as_u64()).unwrap_or(0);
+    let status_text = result
+        .get("status_text")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    lines.push(Line::from(Span::styled(
+        format!(" HTTP/1.1 {status} {status_text}"),
+        Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+    )));
+    // Headers.
+    if let Some(headers) = result.get("headers").and_then(|v| v.as_array()) {
+        for h in headers {
+            let key = h.get("key").and_then(|v| v.as_str()).unwrap_or("");
+            let value = h.get("value").and_then(|v| v.as_str()).unwrap_or("");
+            lines.push(Line::from(vec![
+                Span::styled(format!(" {key}"), Style::default().fg(Color::Cyan)),
+                Span::styled(": ", Style::default().fg(Color::DarkGray)),
+                Span::raw(value.to_string()),
+            ]));
+        }
+    }
+    // Blank separator + body lines.
+    lines.push(Line::from(""));
+    let body_lines = http_response_body_lines(b);
+    lines.extend(body_lines);
+    lines
+}
+
 fn http_response_panel_height(_b: &BlockNode) -> u16 {
     // Tab bar (1) + separator (1) + content viewport (8). Body
     // content scrolls beyond the viewport; we don't grow the card
@@ -949,6 +1108,83 @@ mod tests {
         let spans = highlight_http_request_line(line);
         let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
         assert_eq!(total, line.chars().count());
+    }
+
+    #[test]
+    fn lang_from_content_type_routes_json_xml_html_and_plain() {
+        assert_eq!(
+            lang_from_content_type(Some("application/json")),
+            BodyLang::Json
+        );
+        assert_eq!(
+            lang_from_content_type(Some("application/json; charset=utf-8")),
+            BodyLang::Json
+        );
+        assert_eq!(
+            lang_from_content_type(Some("application/xml")),
+            BodyLang::Xml
+        );
+        assert_eq!(
+            lang_from_content_type(Some("image/svg+xml")),
+            BodyLang::Xml
+        );
+        assert_eq!(
+            lang_from_content_type(Some("text/html; charset=utf-8")),
+            BodyLang::Html
+        );
+        assert_eq!(
+            lang_from_content_type(Some("text/plain")),
+            BodyLang::Plain
+        );
+        assert_eq!(lang_from_content_type(None), BodyLang::Plain);
+    }
+
+    #[test]
+    fn content_type_of_extracts_case_insensitively() {
+        let result = json!({
+            "headers": [
+                {"key": "X-Trace", "value": "abc"},
+                {"key": "content-type", "value": "application/xml"},
+            ],
+        });
+        assert_eq!(
+            content_type_of(&result),
+            Some("application/xml".to_string())
+        );
+    }
+
+    #[test]
+    fn highlight_xml_line_marks_tag_attrs_and_value() {
+        let spans = highlight_xml_line(r#"<a href="x" />"#);
+        let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
+        assert_eq!(total, r#"<a href="x" />"#.chars().count());
+    }
+
+    #[test]
+    fn http_response_raw_lines_paints_status_headers_and_body() {
+        let mut b = http_block();
+        b.cached_result = Some(json!({
+            "status": 200,
+            "status_text": "OK",
+            "headers": [
+                {"key": "Content-Type", "value": "text/plain"},
+            ],
+            "body": "hello"
+        }));
+        let lines = http_response_raw_lines(&b);
+        let text: String = lines
+            .iter()
+            .map(|l| {
+                l.spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(text.contains("HTTP/1.1 200 OK"));
+        assert!(text.contains("Content-Type"));
+        assert!(text.contains("hello"));
     }
 
     #[test]

@@ -452,6 +452,7 @@ mod tests {
             started_at: std::time::Instant::now(),
             kind: crate::app::RunningKind::Run,
             cache_key: None,
+            bytes_received: 0,
         }
     }
 

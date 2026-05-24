@@ -688,6 +688,13 @@ fn render_db_inner(
                 let lines = build_stats_lines(b);
                 frame.render_widget(Paragraph::new(lines), content_rect);
             }
+            // DB blocks don't expose `Raw` (variants_for("db-*") omits
+            // it). If the global tab state somehow lands here, paint
+            // the stats fallback so we never panic.
+            crate::app::ResultPanelTab::Raw => {
+                let lines = build_stats_lines(b);
+                frame.render_widget(Paragraph::new(lines), content_rect);
+            }
         }
     } else {
         let _ = (selected_row, viewport_top);
@@ -1207,18 +1214,13 @@ fn render_result_tab_bar_for(
     let inactive_style = Style::default().fg(Color::DarkGray);
     let mut spans: Vec<Span<'static>> = Vec::new();
     spans.push(Span::raw(" "));
-    for tab in [
-        ResultPanelTab::Result,
-        ResultPanelTab::Messages,
-        ResultPanelTab::Plan,
-        ResultPanelTab::Stats,
-    ] {
-        let style = if tab == selected {
+    for tab in ResultPanelTab::variants_for(block_type) {
+        let style = if *tab == selected {
             active_style
         } else {
             inactive_style
         };
-        let label = match (tab, result_count) {
+        let label = match (*tab, result_count) {
             // Pluralize Result(s) when multi-statement returned >1
             // (DB only — HTTP never has multi).
             (ResultPanelTab::Result, Some(n)) if n > 1 => format!("Results ({n})"),

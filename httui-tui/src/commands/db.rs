@@ -1188,6 +1188,7 @@ fn spawn_db_query(
         started_at: std::time::Instant::now(),
         kind,
         cache_key,
+        bytes_received: 0,
     });
     // Anchor for `gr` (rerun). Only Run / Explain set this — LoadMore
     // is a transparent pagination follow-up, not a fresh user dispatch,

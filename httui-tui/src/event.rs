@@ -40,6 +40,15 @@ pub enum AppEvent {
         segment_idx: usize,
         outcome: Result<HttpResponse, String>,
     },
+    /// Streaming progress from an in-flight HTTP request. Emitted by
+    /// the `execute_streamed` callback as the executor sees the
+    /// response headers and then each body chunk. The main loop
+    /// updates `RunningQuery::bytes_received` so the status bar can
+    /// paint a download counter.
+    HttpBlockChunk {
+        segment_idx: usize,
+        chunk: httui_core::executor::http::types::HttpChunk,
+    },
     /// A backgrounded schema introspection finished. Spawned by
     /// `App::ensure_schema_loaded` (typically right after the user
     /// confirms a connection in the picker). The main loop folds the

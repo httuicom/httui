@@ -113,11 +113,17 @@ impl App {
             | crate::buffer::Cursor::InBlockResult { segment_idx, .. } => segment_idx,
             crate::buffer::Cursor::InProse { .. } => return,
         };
-        let Some(block_id) = doc.block_at(segment_idx).map(|b| b.id) else {
+        let Some(block) = doc.block_at(segment_idx) else {
             return;
         };
+        let block_id = block.id;
+        let block_type = block.block_type.clone();
         let current = self.result_tab_for(block_id);
-        let next = if dir >= 0 { current.next() } else { current.prev() };
+        let next = if dir >= 0 {
+            current.next_for(&block_type)
+        } else {
+            current.prev_for(&block_type)
+        };
         self.set_result_tab(block_id, next);
     }
 
@@ -282,7 +288,7 @@ mod tests {
         app.cycle_result_tab_at_cursor(1);
         assert_eq!(
             app.result_tab_for(id_a),
-            crate::app::ResultPanelTab::Result.next(),
+            crate::app::ResultPanelTab::Result.next_for("db-postgres"),
         );
         assert_eq!(app.result_tab_for(id_b), crate::app::ResultPanelTab::Stats);
     }
@@ -315,7 +321,7 @@ mod tests {
         app.cycle_result_tab_at_cursor(1);
         assert_eq!(
             app.result_tab_for(id_a),
-            crate::app::ResultPanelTab::Result.next(),
+            crate::app::ResultPanelTab::Result.next_for("db-postgres"),
         );
     }
 
