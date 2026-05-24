@@ -189,14 +189,22 @@ fn handle_content_search(key: KeyEvent) -> KeyOutcome {
 }
 
 /// DB row-detail modal — vim motions over a read-only doc. The parser
-/// needs `&mut VimState` for chord buffering.
+/// is a vim parser, so in Standard profile we `Forward` and let
+/// `route_standard` decode arrows/etc. against the modal doc via the
+/// `document_mut` redirect.
 fn handle_db_row_detail(app: &mut App, key: KeyEvent) -> KeyOutcome {
+    if app.config.editor.mode == crate::config::EditorMode::Standard {
+        return KeyOutcome::Forward;
+    }
     let action = crate::input::parser::modals::parse_db_row_detail(&mut app.vim, key);
     KeyOutcome::Effect(action)
 }
 
 /// HTTP response-detail modal — same shape as DbRowDetail.
 fn handle_http_response_detail(app: &mut App, key: KeyEvent) -> KeyOutcome {
+    if app.config.editor.mode == crate::config::EditorMode::Standard {
+        return KeyOutcome::Forward;
+    }
     let action = crate::input::parser::modals::parse_http_response_detail(&mut app.vim, key);
     KeyOutcome::Effect(action)
 }
@@ -307,6 +315,59 @@ mod tests {
         assert!(matches!(app.modal, Some(crate::modal::Modal::EnvForm(_))));
         assert_eq!(app.document().unwrap().to_markdown(), before_doc);
         assert_eq!(app.tabs.active, before_tab);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn detail_modal_forwards_in_standard_profile() {
+        let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
+        app.db_row_detail = Some(crate::app::DbRowDetailState {
+            segment_idx: 0,
+            row: 0,
+            title: "test".into(),
+            doc: crate::buffer::Document::from_markdown("alpha\nbeta\n").unwrap(),
+            viewport_height: 4,
+            viewport_top: 0,
+        });
+        app.vim.mode = crate::vim::mode::Mode::DbRowDetail;
+        let before = app.document().unwrap().cursor();
+        dispatch(&mut app, key(KeyCode::Down));
+        let after = app.document().unwrap().cursor();
+        assert_ne!(before, after, "Down must move modal cursor in standard");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn detail_modal_consumes_in_vim_profile() {
+        let (mut app, _d, _v) = app_fixture(EditorMode::Vim).await;
+        app.db_row_detail = Some(crate::app::DbRowDetailState {
+            segment_idx: 0,
+            row: 0,
+            title: "test".into(),
+            doc: crate::buffer::Document::from_markdown("alpha\nbeta\n").unwrap(),
+            viewport_height: 4,
+            viewport_top: 0,
+        });
+        app.vim.mode = crate::vim::mode::Mode::DbRowDetail;
+        let before = app.document().unwrap().cursor();
+        dispatch(&mut app, key(KeyCode::Char('j')));
+        let after = app.document().unwrap().cursor();
+        assert_ne!(before, after, "j must move modal cursor in vim");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn http_detail_modal_forwards_in_standard_profile() {
+        let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
+        app.http_response_detail = Some(crate::app::HttpResponseDetailState {
+            segment_idx: 0,
+            title: "resp".into(),
+            doc: crate::buffer::Document::from_markdown("line1\nline2\n").unwrap(),
+            viewport_height: 4,
+            viewport_top: 0,
+        });
+        app.vim.mode = crate::vim::mode::Mode::HttpResponseDetail;
+        let before = app.document().unwrap().cursor();
+        dispatch(&mut app, key(KeyCode::Down));
+        let after = app.document().unwrap().cursor();
+        assert_ne!(before, after);
     }
 
     #[tokio::test(flavor = "multi_thread")]
