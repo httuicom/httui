@@ -116,10 +116,15 @@ pub(crate) fn open_envs_page(app: &mut App) -> Result<(), String> {
             }
         })
         .collect();
-    let vars = if let Some(first) = envs.first() {
+    // Pre-select o env ativo (falls back pro primeiro se nada ativo).
+    let selected_env = active
+        .as_deref()
+        .and_then(|name| envs.iter().position(|e| e.name == name))
+        .unwrap_or(0);
+    let vars = if let Some(env) = envs.get(selected_env) {
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current()
-                .block_on(store.list_vars(&first.name))
+                .block_on(store.list_vars(&env.name))
                 .map(|vs| {
                     vs.into_iter()
                         .map(|v| VarRow {
@@ -145,7 +150,7 @@ pub(crate) fn open_envs_page(app: &mut App) -> Result<(), String> {
     app.modal = Some(crate::modal::Modal::EnvsPage(EnvsPageState {
         envs,
         active,
-        selected_env: 0,
+        selected_env,
         vars,
         selected_var: 0,
         focus,
