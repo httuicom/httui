@@ -11,211 +11,6 @@ use crate::buffer::{Cursor, Segment};
 use crate::input::action::Action;
 use crate::vim::mode::Mode;
 
-// ───────────── connection picker popup ─────────────
-
-/// `Ctrl+L` — open the connection picker popup anchored to the DB
-/// block at the cursor. Loads connections from
-/// `<vault>/connections.toml` via `ConnectionsStore`
-/// (V3 reordering 2026-05-23: was SQL, now reads the vault TOML so
-/// desktop ↔ TUI share the same source). Returns `Err(msg)` on
-/// validation failures so the caller can surface a status.
-pub(crate) fn open_connection_picker(app: &mut App) -> Result<(), String> {
-    let segment_idx = match app.document().map(|d| d.cursor()) {
-        Some(Cursor::InBlock { segment_idx, .. })
-        | Some(Cursor::InBlockResult { segment_idx, .. }) => segment_idx,
-        _ => return Err("no DB block at cursor".into()),
-    };
-    let block = match app
-        .document()
-        .and_then(|d| d.segments().get(segment_idx).cloned())
-    {
-        Some(Segment::Block(b)) => b,
-        _ => return Err("no DB block at cursor".into()),
-    };
-    if !block.is_db() {
-        return Err(format!(
-            "`{}` blocks don't have a connection",
-            block.block_type
-        ));
-    }
-
-    let store = app.connections_store.clone();
-    let raw = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(store.list_public())
-    });
-    // TOML uses the connection name as the row key, so id == name —
-    // ConnectionEntry's `id` field carries the lookup key callers
-    // (status bar, schema cache) already expect.
-    let connections: Vec<crate::app::ConnectionEntry> = match raw {
-        Ok(list) => list
-            .into_iter()
-            .map(|c| crate::app::ConnectionEntry {
-                id: c.name.clone(),
-                name: c.name,
-                kind: c.driver,
-            })
-            .collect(),
-        Err(e) => return Err(format!("connection list failed: {e}")),
-    };
-    if connections.is_empty() {
-        return Err("no connections registered yet".into());
-    }
-
-    // Pre-select the block's current connection so the user can hit
-    // Enter to keep it (or arrow to switch). Falls back to the first
-    // entry when the current value matches nothing.
-    let current = block
-        .params
-        .get("connection_id")
-        .or_else(|| block.params.get("connection"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let selected = connections
-        .iter()
-        .position(|c| c.id == current || c.name == current)
-        .unwrap_or(0);
-
-    app.modal = Some(crate::modal::Modal::ConnectionPicker(
-        crate::app::ConnectionPickerState {
-            segment_idx,
-            connections,
-            selected,
-        },
-    ));
-    app.vim.mode = Mode::Modal;
-    app.vim.reset_pending();
-    Ok(())
-}
-
-pub(crate) fn apply_close_connection_picker(app: &mut App) {
-    if matches!(app.modal, Some(crate::modal::Modal::ConnectionPicker(_))) {
-        app.modal = None;
-    }
-    app.vim.enter_normal();
-}
-
-pub(crate) fn apply_move_connection_picker_cursor(app: &mut App, delta: i32) {
-    let Some(crate::modal::Modal::ConnectionPicker(state)) = app.modal.as_mut() else {
-        return;
-    };
-    if state.connections.is_empty() {
-        return;
-    }
-    let last = state.connections.len() as i64 - 1;
-    let next = (state.selected as i64)
-        .saturating_add(delta as i64)
-        .clamp(0, last);
-    state.selected = next as usize;
-}
-
-/// `Enter` in the picker — write the selected connection's id to
-/// the anchored block's params (`connection` field) and close. The
-/// document is marked dirty via `snapshot()` so undo can restore
-/// the previous value.
-pub(crate) fn apply_confirm_connection_picker(app: &mut App) {
-    let state = match app.modal.take() {
-        Some(crate::modal::Modal::ConnectionPicker(s)) => s,
-        other => {
-            app.modal = other;
-            app.vim.enter_normal();
-            return;
-        }
-    };
-    app.vim.enter_normal();
-    let Some(picked) = state.connections.get(state.selected).cloned() else {
-        return;
-    };
-    let segment_idx = state.segment_idx;
-    let picked_id = picked.id.clone();
-    let picked_name = picked.name.clone();
-    if let Some(doc) = app.tabs.active_document_mut() {
-        doc.snapshot();
-        if let Some(block) = doc.block_at_mut(segment_idx) {
-            if let Some(obj) = block.params.as_object_mut() {
-                obj.insert(
-                    "connection".into(),
-                    serde_json::Value::String(picked_id.clone()),
-                );
-                // Drop the legacy alias so the next save serializes
-                // the canonical `connection=<id>` form only — the
-                // `connection_id` field was a JSON-body holdover from
-                // pre-redesign blocks and gets resolved the same way
-                // at run time.
-                obj.remove("connection_id");
-            }
-        }
-    }
-    // Kick off schema introspection in the background. By the time
-    // the user starts typing inside the SQL field, the
-    // completion engine has tables/columns ready to suggest. Cheap to
-    // call repeatedly — `ensure_schema_loaded` dedups on `pending`.
-    app.ensure_schema_loaded(&picked_id);
-    app.set_status(StatusKind::Info, format!("connection set to {picked_name}"));
-}
-
-/// `D` in the connection picker — drop the highlighted connection
-/// from `<vault>/connections.toml` via `ConnectionsStore` (V3
-/// reordering 2026-05-23: was SQL, now writes the vault TOML so
-/// desktop ↔ TUI stay in sync). Blocks that referenced the deleted
-/// name will surface a missing-connection error on next run.
-pub(crate) fn apply_delete_connection_in_picker(app: &mut App) {
-    let Some(crate::modal::Modal::ConnectionPicker(state)) = app.modal.as_ref() else {
-        return;
-    };
-    let Some(picked) = state.connections.get(state.selected).cloned() else {
-        return;
-    };
-    let store = app.connections_store.clone();
-    let name = picked.name.clone();
-    let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(store.delete(&name))
-    });
-    if let Err(e) = result {
-        app.set_status(StatusKind::Error, format!("delete connection failed: {e}"));
-        return;
-    }
-
-    // Reload the list so the picker reflects the deletion. If we
-    // emptied the list, close the picker — there's nothing left to
-    // pick.
-    let raw = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(store.list_public())
-    });
-    match raw {
-        Ok(list) => {
-            let entries: Vec<crate::app::ConnectionEntry> = list
-                .into_iter()
-                .map(|c| crate::app::ConnectionEntry {
-                    id: c.name.clone(),
-                    name: c.name,
-                    kind: c.driver,
-                })
-                .collect();
-            if entries.is_empty() {
-                apply_close_connection_picker(app);
-                app.set_status(
-                    StatusKind::Info,
-                    format!("deleted \"{name}\" — no connections left"),
-                );
-                return;
-            }
-            if let Some(crate::modal::Modal::ConnectionPicker(state)) = app.modal.as_mut() {
-                state.selected = state.selected.min(entries.len().saturating_sub(1));
-                state.connections = entries;
-            }
-            // Refresh the global name lookup so block headers stop
-            // showing the deleted connection's label.
-            app.refresh_connection_names();
-            app.set_status(StatusKind::Info, format!("deleted \"{name}\""));
-        }
-        Err(e) => {
-            app.set_status(
-                StatusKind::Error,
-                format!("connection list reload failed: {e}"),
-            );
-        }
-    }
-}
 
 // ───────────── connections page (gC / Alt+P) ─────────────
 
@@ -522,113 +317,9 @@ pub(crate) fn apply_confirm_block_template_picker(app: &mut App) {
     app.set_status(StatusKind::Info, format!("inserted {}", tpl.label));
 }
 
-// ───────────── environment picker (gE) ─────────────
-
-/// `gE` — list envs from `<vault>/envs/*.toml` via `EnvironmentsStore`
-/// (V4 P1, 2026-05-23: was SQL, now reads the vault TOML so
-/// desktop ↔ TUI share the same source). Pre-selects the active env
-/// so Enter is a no-op confirm.
-pub(crate) fn open_environment_picker(app: &mut App) -> Result<(), String> {
-    let store = app.environments_store.clone();
-    let (entries, active_id) = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async {
-            let envs = store
-                .list_envs()
-                .await
-                .map_err(|e| format!("env list failed: {e}"))?;
-            // `active_env()` returns `Result<Option<String>>`. Swallow
-            // any read error so the picker still opens — falls back
-            // to first entry pre-selected.
-            let active = store.active_env().await.ok().flatten();
-            Ok::<_, String>((envs, active))
-        })
-    })?;
-    if entries.is_empty() {
-        // No envs yet — instead of dead-ending with a status error,
-        // hand the user the EnvsPage where they can create one.
-        return super::envs_page::open_envs_page(app);
-    }
-    // TOML keys envs by name so `id == name`. Preserves the legacy
-    // EnvironmentEntry shape so the renderer and confirm path keep
-    // working unchanged.
-    let entries: Vec<crate::app::EnvironmentEntry> = entries
-        .into_iter()
-        .map(|e| crate::app::EnvironmentEntry {
-            id: e.name.clone(),
-            name: e.name,
-        })
-        .collect();
-    let selected = active_id
-        .as_deref()
-        .and_then(|n| entries.iter().position(|e| e.id == n))
-        .unwrap_or(0);
-
-    app.modal = Some(crate::modal::Modal::EnvironmentPicker(
-        crate::app::EnvironmentPickerState {
-            entries,
-            selected,
-            active_id,
-        },
-    ));
-    app.vim.mode = Mode::Modal;
-    app.vim.reset_pending();
-    Ok(())
-}
-
-pub(crate) fn apply_close_environment_picker(app: &mut App) {
-    if matches!(app.modal, Some(crate::modal::Modal::EnvironmentPicker(_))) {
-        app.modal = None;
-    }
-    app.vim.enter_normal();
-}
-
-pub(crate) fn apply_move_environment_picker_cursor(app: &mut App, delta: i32) {
-    let Some(crate::modal::Modal::EnvironmentPicker(state)) = app.modal.as_mut() else {
-        return;
-    };
-    if state.entries.is_empty() {
-        return;
-    }
-    let last = state.entries.len() as i64 - 1;
-    let next = (state.selected as i64)
-        .saturating_add(delta as i64)
-        .clamp(0, last);
-    state.selected = next as usize;
-}
-
-/// `Enter` in the env picker — flip the active flag in SQLite, refresh
-/// the cached display name (so the status-bar chip updates), and
-/// dismiss. A no-op when the highlighted entry is already active.
-pub(crate) fn apply_confirm_environment_picker(app: &mut App) {
-    let state = match app.modal.take() {
-        Some(crate::modal::Modal::EnvironmentPicker(s)) => s,
-        other => {
-            app.modal = other;
-            app.vim.enter_normal();
-            return;
-        }
-    };
-    app.vim.enter_normal();
-    let Some(picked) = state.entries.get(state.selected).cloned() else {
-        return;
-    };
-    if state.active_id.as_deref() == Some(picked.id.as_str()) {
-        // Already active — silent no-op rather than a redundant
-        // SQLite write. The display name is current.
-        return;
-    }
-    let store = app.environments_store.clone();
-    let name = picked.name.clone();
-    let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(store.set_active_env(Some(&name)))
-    });
-    if let Err(e) = result {
-        app.set_status(StatusKind::Error, format!("set active env failed: {e}"));
-        return;
-    }
-    app.refresh_active_env_name();
-    app.set_status(StatusKind::Info, format!("env: {}", picked.name));
-}
+// Environment picker (gE) handlers were mechanically split into
+// `super::env_picker` (tui-V10) to keep this file under the 600-line
+// size gate.
 
 /// `apply_action` sub-match for the picker-popup domain: connection
 /// (`gc`), environment (`gE`), tab (`gb`), block-template (`gN`).
@@ -637,28 +328,31 @@ pub(crate) fn apply_confirm_environment_picker(app: &mut App) {
 /// copied verbatim. The outer router routes only this group's variants
 /// here, so the `unreachable!` is a compile-time-backed invariant.
 pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
+    use super::connection_picker as cp;
+    use super::env_picker as ep;
+    use super::vault_modals as vm;
     match action {
         Action::OpenConnectionPicker => {
-            if let Err(msg) = open_connection_picker(app) {
+            if let Err(msg) = cp::open_connection_picker(app) {
                 app.set_status(StatusKind::Error, msg);
             }
         }
-        Action::CloseConnectionPicker => apply_close_connection_picker(app),
+        Action::CloseConnectionPicker => cp::apply_close_connection_picker(app),
         Action::MoveConnectionPickerCursor(delta) => {
-            apply_move_connection_picker_cursor(app, delta)
+            cp::apply_move_connection_picker_cursor(app, delta)
         }
-        Action::ConfirmConnectionPicker => apply_confirm_connection_picker(app),
-        Action::DeleteConnectionInPicker => apply_delete_connection_in_picker(app),
+        Action::ConfirmConnectionPicker => cp::apply_confirm_connection_picker(app),
+        Action::DeleteConnectionInPicker => cp::apply_delete_connection_in_picker(app),
         Action::OpenEnvironmentPicker => {
-            if let Err(msg) = open_environment_picker(app) {
+            if let Err(msg) = ep::open_environment_picker(app) {
                 app.set_status(StatusKind::Error, msg);
             }
         }
-        Action::CloseEnvironmentPicker => apply_close_environment_picker(app),
+        Action::CloseEnvironmentPicker => ep::apply_close_environment_picker(app),
         Action::MoveEnvironmentPickerCursor(delta) => {
-            apply_move_environment_picker_cursor(app, delta)
+            ep::apply_move_environment_picker_cursor(app, delta)
         }
-        Action::ConfirmEnvironmentPicker => apply_confirm_environment_picker(app),
+        Action::ConfirmEnvironmentPicker => ep::apply_confirm_environment_picker(app),
         Action::ActivateEnvByIndex(idx) => super::env_activate::apply_activate_env_by_index(app, idx),
         Action::OpenConnectionsPage => {
             if let Err(msg) = open_connections_page(app) {
@@ -696,22 +390,26 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         Action::MoveTabPickerCursor(delta) => apply_move_tab_picker_cursor(app, delta),
         Action::ConfirmTabPicker => apply_confirm_tab_picker(app),
         Action::OpenVaultPicker => {
-            if let Err(msg) = open_vault_picker(app) {
+            if let Err(msg) = vm::open_vault_picker(app) {
                 app.set_status(StatusKind::Error, msg);
             }
         }
-        Action::CloseVaultPicker => apply_close_vault_picker(app),
-        Action::MoveVaultPickerCursor(delta) => apply_move_vault_picker_cursor(app, delta),
-        Action::ConfirmVaultPicker => apply_confirm_vault_picker(app),
-        Action::OpenVaultCreateForm => open_vault_create_form(app),
-        Action::CloseVaultCreateForm => apply_close_vault_create_form(app),
-        Action::VaultCreateFormFocusNext => with_vault_create_form(app, |f| f.focus = f.focus.next()),
-        Action::VaultCreateFormFocusPrev => with_vault_create_form(app, |f| f.focus = f.focus.prev()),
-        Action::VaultCreateFormChar(c) => with_vault_create_form(app, |f| match f.focus {
+        Action::CloseVaultPicker => vm::apply_close_vault_picker(app),
+        Action::MoveVaultPickerCursor(delta) => vm::apply_move_vault_picker_cursor(app, delta),
+        Action::ConfirmVaultPicker => vm::apply_confirm_vault_picker(app),
+        Action::OpenVaultCreateForm => vm::open_vault_create_form(app),
+        Action::CloseVaultCreateForm => vm::apply_close_vault_create_form(app),
+        Action::VaultCreateFormFocusNext => {
+            vm::with_vault_create_form(app, |f| f.focus = f.focus.next())
+        }
+        Action::VaultCreateFormFocusPrev => {
+            vm::with_vault_create_form(app, |f| f.focus = f.focus.prev())
+        }
+        Action::VaultCreateFormChar(c) => vm::with_vault_create_form(app, |f| match f.focus {
             crate::app::VaultCreateFormFocus::Parent => f.parent.insert_char(c),
             crate::app::VaultCreateFormFocus::Name => f.name.insert_char(c),
         }),
-        Action::VaultCreateFormBackspace => with_vault_create_form(app, |f| match f.focus {
+        Action::VaultCreateFormBackspace => vm::with_vault_create_form(app, |f| match f.focus {
             crate::app::VaultCreateFormFocus::Parent => {
                 f.parent.delete_before();
             }
@@ -719,16 +417,20 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
                 f.name.delete_before();
             }
         }),
-        Action::VaultCreateFormSubmit => apply_vault_create_form_submit(app),
-        Action::OpenVaultCloneForm => open_vault_clone_form(app),
-        Action::CloseVaultCloneForm => apply_close_vault_clone_form(app),
-        Action::VaultCloneFormFocusNext => with_vault_clone_form(app, |f| f.focus = f.focus.next()),
-        Action::VaultCloneFormFocusPrev => with_vault_clone_form(app, |f| f.focus = f.focus.prev()),
-        Action::VaultCloneFormChar(c) => with_vault_clone_form(app, |f| match f.focus {
+        Action::VaultCreateFormSubmit => vm::apply_vault_create_form_submit(app),
+        Action::OpenVaultCloneForm => vm::open_vault_clone_form(app),
+        Action::CloseVaultCloneForm => vm::apply_close_vault_clone_form(app),
+        Action::VaultCloneFormFocusNext => {
+            vm::with_vault_clone_form(app, |f| f.focus = f.focus.next())
+        }
+        Action::VaultCloneFormFocusPrev => {
+            vm::with_vault_clone_form(app, |f| f.focus = f.focus.prev())
+        }
+        Action::VaultCloneFormChar(c) => vm::with_vault_clone_form(app, |f| match f.focus {
             crate::app::VaultCloneFormFocus::Url => f.url.insert_char(c),
             crate::app::VaultCloneFormFocus::Parent => f.parent.insert_char(c),
         }),
-        Action::VaultCloneFormBackspace => with_vault_clone_form(app, |f| match f.focus {
+        Action::VaultCloneFormBackspace => vm::with_vault_clone_form(app, |f| match f.focus {
             crate::app::VaultCloneFormFocus::Url => {
                 f.url.delete_before();
             }
@@ -736,569 +438,42 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
                 f.parent.delete_before();
             }
         }),
-        Action::VaultCloneFormSubmit => apply_vault_clone_form_submit(app),
+        Action::VaultCloneFormSubmit => vm::apply_vault_clone_form_submit(app),
         Action::OpenVaultOpenPicker => {
-            if let Err(msg) = open_vault_open_picker(app) {
+            if let Err(msg) = vm::open_vault_open_picker(app) {
                 app.set_status(StatusKind::Error, msg);
             }
         }
-        Action::CloseVaultOpenPicker => apply_close_vault_open_picker(app),
-        Action::MoveVaultOpenPickerCursor(delta) => apply_move_vault_open_picker_cursor(app, delta),
-        Action::VaultOpenPickerEnter => apply_vault_open_picker_enter(app),
-        Action::VaultOpenPickerUp => apply_vault_open_picker_up(app),
-        Action::CloseVaultMissingSecrets => apply_close_vault_missing_secrets(app),
-        Action::MoveVaultMissingSecretsCursor(delta) => {
-            apply_move_vault_missing_secrets_cursor(app, delta)
+        Action::CloseVaultOpenPicker => vm::apply_close_vault_open_picker(app),
+        Action::MoveVaultOpenPickerCursor(delta) => {
+            vm::apply_move_vault_open_picker_cursor(app, delta)
         }
-        Action::VaultMissingSecretsEnterEdit => with_missing_secrets(app, |s| s.editing = true),
-        Action::VaultMissingSecretsCancelEdit => with_missing_secrets(app, |s| {
+        Action::VaultOpenPickerEnter => vm::apply_vault_open_picker_enter(app),
+        Action::VaultOpenPickerUp => vm::apply_vault_open_picker_up(app),
+        Action::CloseVaultMissingSecrets => vm::apply_close_vault_missing_secrets(app),
+        Action::MoveVaultMissingSecretsCursor(delta) => {
+            vm::apply_move_vault_missing_secrets_cursor(app, delta)
+        }
+        Action::VaultMissingSecretsEnterEdit => vm::with_missing_secrets(app, |s| s.editing = true),
+        Action::VaultMissingSecretsCancelEdit => vm::with_missing_secrets(app, |s| {
             s.editing = false;
             if let Some(row) = s.items.get_mut(s.selected) {
                 row.value = crate::vim::lineedit::LineEdit::new();
             }
         }),
-        Action::VaultMissingSecretsChar(c) => with_missing_secrets(app, |s| {
+        Action::VaultMissingSecretsChar(c) => vm::with_missing_secrets(app, |s| {
             if let Some(row) = s.items.get_mut(s.selected) {
                 row.value.insert_char(c);
             }
         }),
-        Action::VaultMissingSecretsBackspace => with_missing_secrets(app, |s| {
+        Action::VaultMissingSecretsBackspace => vm::with_missing_secrets(app, |s| {
             if let Some(row) = s.items.get_mut(s.selected) {
                 row.value.delete_before();
             }
         }),
-        Action::VaultMissingSecretsSave => apply_vault_missing_secrets_save(app),
-        Action::VaultMissingSecretsSkip => apply_vault_missing_secrets_skip(app),
+        Action::VaultMissingSecretsSave => vm::apply_vault_missing_secrets_save(app),
+        Action::VaultMissingSecretsSkip => vm::apply_vault_missing_secrets_skip(app),
         _ => unreachable!("apply_pickers: variante fora do grupo"),
     }
 }
 
-// ───────────── vault sub-modal back-stack helper ─────────────
-
-/// Dismiss the current sub-modal opened from the vault picker.
-/// When `app.resume_vault_picker` is set (chord-driven flow), reopen
-/// the picker so the user lands back at the menu instead of the
-/// editor. When unset (auto-open paths like the first-run secrets
-/// modal at startup), just close the modal.
-fn dismiss_sub_modal(app: &mut App) {
-    app.modal = None;
-    if app.resume_vault_picker {
-        app.resume_vault_picker = false;
-        let _ = open_vault_picker(app);
-        // If the picker fails to open (vault registry empty, etc),
-        // fall through to a clean normal-mode editor.
-        if app.modal.is_none() {
-            app.vim.enter_normal();
-        }
-    } else {
-        app.vim.enter_normal();
-    }
-}
-
-// ───────────── vault picker (Alt+W) ─────────────
-
-/// Open the vault picker. Reads every path registered via
-/// `httui_core::vaults::list_vaults` and marks the active one with
-/// `active`. Returns an error if the registry is empty (the
-/// empty-state — — handles first-run; the picker is a tool
-/// for users who already have at least one vault).
-pub(crate) fn open_vault_picker(app: &mut App) -> Result<(), String> {
-    let pool = app.pool_manager.app_pool().clone();
-    let (entries, active) = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async {
-            let vs = httui_core::vaults::list_vaults(&pool)
-                .await
-                .map_err(|e| format!("list vaults: {e}"))?;
-            let active = httui_core::vaults::get_active_vault(&pool)
-                .await
-                .ok()
-                .flatten();
-            Ok::<_, String>((vs, active))
-        })
-    })?;
-    if entries.is_empty() {
-        return Err("no vaults registered yet".into());
-    }
-    let selected = active
-        .as_deref()
-        .and_then(|a| entries.iter().position(|v| v == a))
-        .unwrap_or(0);
-    app.modal = Some(crate::modal::Modal::VaultPicker(
-        crate::app::VaultPickerState {
-            entries,
-            selected,
-            active,
-        },
-    ));
-    app.vim.mode = Mode::Modal;
-    app.vim.reset_pending();
-    Ok(())
-}
-
-pub(crate) fn apply_close_vault_picker(app: &mut App) {
-    if matches!(app.modal, Some(crate::modal::Modal::VaultPicker(_))) {
-        app.modal = None;
-    }
-    app.vim.enter_normal();
-}
-
-pub(crate) fn apply_move_vault_picker_cursor(app: &mut App, delta: i32) {
-    let Some(crate::modal::Modal::VaultPicker(state)) = app.modal.as_mut() else {
-        return;
-    };
-    if state.entries.is_empty() {
-        return;
-    }
-    let last = state.entries.len() as i64 - 1;
-    let next = (state.selected as i64)
-        .saturating_add(delta as i64)
-        .clamp(0, last);
-    state.selected = next as usize;
-}
-
-/// `Enter` in the vault picker — call `App::switch_vault` for the
-/// highlighted path. No-op (just close) when the highlighted entry is
-/// already active.
-pub(crate) fn apply_confirm_vault_picker(app: &mut App) {
-    let state = match app.modal.take() {
-        Some(crate::modal::Modal::VaultPicker(s)) => s,
-        other => {
-            app.modal = other;
-            app.vim.enter_normal();
-            return;
-        }
-    };
-    app.vim.enter_normal();
-    let Some(target) = state.entries.get(state.selected).cloned() else {
-        return;
-    };
-    if state.active.as_deref() == Some(target.as_str()) {
-        app.set_status(StatusKind::Info, format!("already on vault {target}"));
-        return;
-    }
-    match app.switch_vault(std::path::PathBuf::from(&target)) {
-        Ok(()) => app.set_status(StatusKind::Info, format!("vault → {target}")),
-        Err(e) => app.set_status(StatusKind::Error, format!("switch vault: {e}")),
-    }
-}
-
-// ───────────── vault create form ─────────────
-
-/// Open the Create form. Default parent is `$HOME` so the user just
-/// needs to pick a name; can be edited if they want a different root.
-fn open_vault_create_form(app: &mut App) {
-    use crate::vim::lineedit::LineEdit;
-    let default_parent = std::env::var("HOME")
-        .ok()
-        .unwrap_or_else(|| ".".to_string());
-    app.resume_vault_picker = true;
-    app.modal = Some(crate::modal::Modal::VaultCreateForm(
-        crate::app::VaultCreateFormState {
-            parent: LineEdit::from_str(default_parent),
-            name: LineEdit::new(),
-            focus: crate::app::VaultCreateFormFocus::Name,
-            error: None,
-        },
-    ));
-    app.vim.mode = Mode::Modal;
-    app.vim.reset_pending();
-}
-
-fn apply_close_vault_create_form(app: &mut App) {
-    if matches!(app.modal, Some(crate::modal::Modal::VaultCreateForm(_))) {
-        dismiss_sub_modal(app);
-    }
-}
-
-fn with_vault_create_form(app: &mut App, f: impl FnOnce(&mut crate::app::VaultCreateFormState)) {
-    if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_mut() {
-        f(s);
-    }
-}
-
-/// Validate + scaffold + switch. Errors stay inline on the form so
-/// the user can fix and resubmit. Success closes the modal and the
-/// status bar reflects the new active vault.
-fn apply_vault_create_form_submit(app: &mut App) {
-    let (parent_raw, name) = if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_ref() {
-        (s.parent.as_str().to_string(), s.name.as_str().trim().to_string())
-    } else {
-        return;
-    };
-    if name.is_empty() {
-        if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_mut() {
-            s.error = Some("name is required".into());
-        }
-        return;
-    }
-    let parent_expanded = crate::vault::expand_tilde(parent_raw.trim());
-    let parent_path = std::path::PathBuf::from(&parent_expanded);
-    if !parent_path.is_dir() {
-        if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_mut() {
-            s.error = Some(format!("parent must be a directory: {parent_expanded}"));
-        }
-        return;
-    }
-    let outcome = match httui_core::vault_config::create::create_new_vault(&parent_path, &name) {
-        Ok(o) => o,
-        Err(e) => {
-            if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_mut() {
-                s.error = Some(format!("create vault: {e}"));
-            }
-            return;
-        }
-    };
-    app.modal = None;
-    app.vim.enter_normal();
-    let target = outcome.destination.clone();
-    let display = target.display().to_string();
-    match app.switch_vault(target) {
-        Ok(()) => app.set_status(StatusKind::Info, format!("vault created → {display}")),
-        Err(e) => app.set_status(
-            StatusKind::Error,
-            format!("vault created at {display} but switch failed: {e}"),
-        ),
-    }
-}
-
-// ───────────── vault clone form ─────────────
-
-fn open_vault_clone_form(app: &mut App) {
-    use crate::vim::lineedit::LineEdit;
-    let default_parent = std::env::var("HOME")
-        .ok()
-        .unwrap_or_else(|| ".".to_string());
-    app.resume_vault_picker = true;
-    app.modal = Some(crate::modal::Modal::VaultCloneForm(
-        crate::app::VaultCloneFormState {
-            url: LineEdit::new(),
-            parent: LineEdit::from_str(default_parent),
-            focus: crate::app::VaultCloneFormFocus::Url,
-            error: None,
-        },
-    ));
-    app.vim.mode = Mode::Modal;
-    app.vim.reset_pending();
-}
-
-fn apply_close_vault_clone_form(app: &mut App) {
-    if matches!(app.modal, Some(crate::modal::Modal::VaultCloneForm(_))) {
-        dismiss_sub_modal(app);
-    }
-}
-
-fn with_vault_clone_form(app: &mut App, f: impl FnOnce(&mut crate::app::VaultCloneFormState)) {
-    if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_mut() {
-        f(s);
-    }
-}
-
-/// Validate URL + parent → git_clone → switch_vault. Errors inline.
-fn apply_vault_clone_form_submit(app: &mut App) {
-    let (url, parent_raw) =
-        if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_ref() {
-            (
-                s.url.as_str().trim().to_string(),
-                s.parent.as_str().to_string(),
-            )
-        } else {
-            return;
-        };
-    if url.is_empty() {
-        if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_mut() {
-            s.error = Some("URL is required".into());
-        }
-        return;
-    }
-    let parent_expanded = crate::vault::expand_tilde(parent_raw.trim());
-    let parent_path = std::path::PathBuf::from(&parent_expanded);
-    if !parent_path.is_dir() {
-        if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_mut() {
-            s.error = Some(format!("parent must be a directory: {parent_expanded}"));
-        }
-        return;
-    }
-    let outcome = match httui_core::git::clone::git_clone(&url, Some(&parent_path)) {
-        Ok(o) => o,
-        Err(e) => {
-            if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_mut() {
-                s.error = Some(format!("clone: {e}"));
-            }
-            return;
-        }
-    };
-    app.modal = None;
-    app.vim.enter_normal();
-    let target = outcome.destination.clone();
-    let display = target.display().to_string();
-    match app.switch_vault(target) {
-        Ok(()) => app.set_status(StatusKind::Info, format!("vault cloned → {display}")),
-        Err(e) => app.set_status(
-            StatusKind::Error,
-            format!("vault cloned at {display} but switch failed: {e}"),
-        ),
-    }
-}
-
-// ───────────── vault open picker ─────────────
-
-/// Open the directory navigator rooted at `$HOME` (or `.` when HOME
-/// isn't set). The user can Enter to descend, Backspace to ascend,
-/// Enter on a vault root to switch into it.
-fn open_vault_open_picker(app: &mut App) -> Result<(), String> {
-    let start = std::env::var("HOME")
-        .ok()
-        .map(std::path::PathBuf::from)
-        .filter(|p| p.is_dir())
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
-    let canonical = start
-        .canonicalize()
-        .map_err(|e| format!("resolve start dir {}: {e}", start.display()))?;
-    let entries = read_dir_entries(&canonical)?;
-    app.resume_vault_picker = true;
-    app.modal = Some(crate::modal::Modal::VaultOpenPicker(
-        crate::app::VaultOpenPickerState {
-            cwd: canonical,
-            entries,
-            selected: 0,
-        },
-    ));
-    app.vim.mode = Mode::Modal;
-    app.vim.reset_pending();
-    Ok(())
-}
-
-fn apply_close_vault_open_picker(app: &mut App) {
-    if matches!(app.modal, Some(crate::modal::Modal::VaultOpenPicker(_))) {
-        dismiss_sub_modal(app);
-    }
-}
-
-fn apply_move_vault_open_picker_cursor(app: &mut App, delta: i32) {
-    let Some(crate::modal::Modal::VaultOpenPicker(state)) = app.modal.as_mut() else {
-        return;
-    };
-    if state.entries.is_empty() {
-        return;
-    }
-    let last = state.entries.len() as i64 - 1;
-    let next = (state.selected as i64)
-        .saturating_add(delta as i64)
-        .clamp(0, last);
-    state.selected = next as usize;
-}
-
-/// Enter: descend into the highlighted dir, ascend if `..`, or
-/// switch_vault when the entry is a vault root.
-fn apply_vault_open_picker_enter(app: &mut App) {
-    let (cwd, entry) = match app.modal.as_ref() {
-        Some(crate::modal::Modal::VaultOpenPicker(s)) => match s.entries.get(s.selected).cloned() {
-            Some(e) => (s.cwd.clone(), e),
-            None => return,
-        },
-        _ => return,
-    };
-    use crate::app::VaultOpenEntryKind;
-    match entry.kind {
-        VaultOpenEntryKind::Parent => navigate_to(app, cwd.parent().map(|p| p.to_path_buf())),
-        VaultOpenEntryKind::Directory => {
-            let target = cwd.join(&entry.name);
-            navigate_to(app, Some(target));
-        }
-        VaultOpenEntryKind::Vault => {
-            let target = cwd.join(&entry.name);
-            app.modal = None;
-            app.vim.enter_normal();
-            let display = target.display().to_string();
-            match app.switch_vault(target) {
-                Ok(()) => app.set_status(StatusKind::Info, format!("vault → {display}")),
-                Err(e) => app.set_status(StatusKind::Error, format!("switch vault: {e}")),
-            }
-        }
-    }
-}
-
-fn apply_vault_open_picker_up(app: &mut App) {
-    let cwd = match app.modal.as_ref() {
-        Some(crate::modal::Modal::VaultOpenPicker(s)) => s.cwd.clone(),
-        _ => return,
-    };
-    navigate_to(app, cwd.parent().map(|p| p.to_path_buf()));
-}
-
-/// Shared helper: re-read entries for `target` and update the picker
-/// state. No-op when `target` is `None` (already at filesystem root).
-fn navigate_to(app: &mut App, target: Option<std::path::PathBuf>) {
-    let Some(target) = target else { return };
-    let canonical = match target.canonicalize() {
-        Ok(p) => p,
-        Err(e) => {
-            app.set_status(
-                StatusKind::Error,
-                format!("dir {}: {e}", target.display()),
-            );
-            return;
-        }
-    };
-    if !canonical.is_dir() {
-        return;
-    }
-    let entries = match read_dir_entries(&canonical) {
-        Ok(es) => es,
-        Err(e) => {
-            app.set_status(StatusKind::Error, e);
-            return;
-        }
-    };
-    if let Some(crate::modal::Modal::VaultOpenPicker(state)) = app.modal.as_mut() {
-        state.cwd = canonical;
-        state.entries = entries;
-        state.selected = 0;
-    }
-}
-
-// ───────────── vault missing-secrets modal ─────────────
-
-fn apply_close_vault_missing_secrets(app: &mut App) {
-    if matches!(app.modal, Some(crate::modal::Modal::VaultMissingSecrets(_))) {
-        dismiss_sub_modal(app);
-    }
-}
-
-fn apply_move_vault_missing_secrets_cursor(app: &mut App, delta: i32) {
-    let Some(crate::modal::Modal::VaultMissingSecrets(state)) = app.modal.as_mut() else {
-        return;
-    };
-    if state.items.is_empty() {
-        return;
-    }
-    let last = state.items.len() as i64 - 1;
-    let next = (state.selected as i64)
-        .saturating_add(delta as i64)
-        .clamp(0, last);
-    state.selected = next as usize;
-    state.editing = false;
-}
-
-fn with_missing_secrets(
-    app: &mut App,
-    f: impl FnOnce(&mut crate::app::VaultMissingSecretsState),
-) {
-    if let Some(crate::modal::Modal::VaultMissingSecrets(s)) = app.modal.as_mut() {
-        f(s);
-    }
-}
-
-/// Enter while editing — push the entered value into the keychain
-/// and drop the row from `pending_secrets`. Closes the modal when
-/// nothing pending is left.
-fn apply_vault_missing_secrets_save(app: &mut App) {
-    let (key, value) = {
-        let Some(crate::modal::Modal::VaultMissingSecrets(state)) = app.modal.as_ref() else {
-            return;
-        };
-        let Some(row) = state.items.get(state.selected) else {
-            return;
-        };
-        (row.keychain_key.clone(), row.value.as_str().to_string())
-    };
-    if value.is_empty() {
-        app.set_status(StatusKind::Error, "value cannot be empty");
-        return;
-    }
-    if let Err(e) = httui_core::db::keychain::store_secret(&key, &value) {
-        app.set_status(StatusKind::Error, format!("keychain store: {e}"));
-        return;
-    }
-    // Remove the saved key from the pending list.
-    app.pending_secrets.retain(|r| r.keychain_key != key);
-    let modal_drop = {
-        let Some(crate::modal::Modal::VaultMissingSecrets(state)) = app.modal.as_mut() else {
-            return;
-        };
-        if let Some(row) = state.items.get_mut(state.selected) {
-            row.saved = true;
-            row.value = crate::vim::lineedit::LineEdit::new();
-        }
-        state.editing = false;
-        // Find the next unsaved row; if there's none, signal close.
-        let next_unsaved = state
-            .items
-            .iter()
-            .enumerate()
-            .find(|(_, r)| !r.saved)
-            .map(|(i, _)| i);
-        match next_unsaved {
-            Some(i) => {
-                state.selected = i;
-                false
-            }
-            None => true,
-        }
-    };
-    if modal_drop {
-        app.modal = None;
-        app.vim.enter_normal();
-        app.set_status(StatusKind::Info, "all secrets saved");
-    }
-}
-
-/// `s` in browse mode — mark current row as skipped (just advance to
-/// the next item). The pending list isn't touched; the badge in the
-/// status bar surfaces it later.
-fn apply_vault_missing_secrets_skip(app: &mut App) {
-    let Some(crate::modal::Modal::VaultMissingSecrets(state)) = app.modal.as_mut() else {
-        return;
-    };
-    if state.items.is_empty() {
-        return;
-    }
-    let last = state.items.len() as i64 - 1;
-    let next = ((state.selected as i64).saturating_add(1)).clamp(0, last);
-    state.selected = next as usize;
-}
-
-/// Read the dir as a `[.., dirs..]` listing. Hidden files (starting
-/// with `.`) are skipped because the picker is for choosing
-/// workspaces, not browsing dotfiles. Dirs containing the vault
-/// markers (`runbooks/`, `.httui/`) are flagged as `Vault` so Enter
-/// activates them; the rest are plain Directory.
-fn read_dir_entries(path: &std::path::Path) -> Result<Vec<crate::app::VaultOpenEntry>, String> {
-    use crate::app::{VaultOpenEntry, VaultOpenEntryKind};
-    let read = std::fs::read_dir(path).map_err(|e| format!("read dir {}: {e}", path.display()))?;
-    let mut dirs: Vec<VaultOpenEntry> = Vec::new();
-    for entry in read.flatten() {
-        let ftype = match entry.file_type() {
-            Ok(t) => t,
-            Err(_) => continue,
-        };
-        if !ftype.is_dir() {
-            continue;
-        }
-        let name = match entry.file_name().into_string() {
-            Ok(s) => s,
-            Err(_) => continue,
-        };
-        if name.starts_with('.') {
-            continue;
-        }
-        let kind = if httui_core::vault_config::scaffold::is_vault(&entry.path()) {
-            VaultOpenEntryKind::Vault
-        } else {
-            VaultOpenEntryKind::Directory
-        };
-        dirs.push(VaultOpenEntry { name, kind });
-    }
-    dirs.sort_by(|a, b| a.name.cmp(&b.name));
-    // Synthetic `..` at the top — present unless we're at the
-    // filesystem root (no parent).
-    let mut out = Vec::with_capacity(dirs.len() + 1);
-    if path.parent().is_some() {
-        out.push(VaultOpenEntry {
-            name: "..".to_string(),
-            kind: VaultOpenEntryKind::Parent,
-        });
-    }
-    out.extend(dirs);
-    Ok(out)
-}
