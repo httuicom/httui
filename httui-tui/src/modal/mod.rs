@@ -100,6 +100,21 @@ pub enum Modal {
     /// headers + body in a sub-`Document` driven by the vim motion
     /// engine (read-only). `Ctrl-c` closes; `Y` copies the raw body.
     HttpResponseDetail(HttpResponseDetailState),
+    /// Single-line text prompt. Variants of [`PromptKind`] discriminate
+    /// the open-source (inline fence-edit, ex-command, search) so the
+    /// shared `LineEdit` field carries the buffer + caret while the
+    /// kind tells `apply_action` where to commit on Enter.
+    Prompt(PromptKind, crate::vim::lineedit::LineEdit),
+}
+
+/// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
+/// (e.g. which block a fence-edit targets) that survives until the
+/// prompt confirms or cancels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PromptKind {
+    /// `<C-a>` on a block → edit its alias used in `{{alias.path}}`
+    /// refs and shown in the block title.
+    FenceEditAlias { segment_idx: usize },
 }
 
 #[derive(Debug)]
@@ -146,6 +161,7 @@ impl Modal {
             Modal::VaultOpenPicker(_) => vault_open_picker_handle_key(key),
             Modal::VaultMissingSecrets(s) => vault_missing_secrets_handle_key(s.editing, key),
             Modal::DbRowDetail(_) | Modal::HttpResponseDetail(_) => ModalOutcome::Continue,
+            Modal::Prompt(kind, _) => prompt_handle_key(*kind, key),
         }
     }
 
@@ -191,6 +207,22 @@ impl Modal {
     pub fn as_http_response_detail_mut(&mut self) -> Option<&mut HttpResponseDetailState> {
         match self {
             Modal::HttpResponseDetail(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_prompt(&self) -> Option<(PromptKind, &crate::vim::lineedit::LineEdit)> {
+        match self {
+            Modal::Prompt(kind, le) => Some((*kind, le)),
+            _ => None,
+        }
+    }
+
+    pub fn as_prompt_mut(
+        &mut self,
+    ) -> Option<(PromptKind, &mut crate::vim::lineedit::LineEdit)> {
+        match self {
+            Modal::Prompt(kind, le) => Some((*kind, le)),
             _ => None,
         }
     }
@@ -690,6 +722,18 @@ fn db_confirm_run_handle_key(key: KeyEvent) -> ModalOutcome {
         | (KeyModifiers::NONE, KeyCode::Char('Y'))
         | (_, KeyCode::Enter) => ModalOutcome::Emit(Action::ConfirmDbRun),
         _ => ModalOutcome::Continue,
+    }
+}
+
+/// Dispatch one key into the active prompt. The shared
+/// `parse_lineedit_prompt` returns a kind-agnostic `LineEditAction`;
+/// this function maps it to the right concrete `Action` based on the
+/// prompt's `PromptKind`.
+fn prompt_handle_key(kind: PromptKind, key: KeyEvent) -> ModalOutcome {
+    match kind {
+        PromptKind::FenceEditAlias { .. } => ModalOutcome::Emit(
+            crate::input::parser::lineedit::parse_fence_edit(key),
+        ),
     }
 }
 

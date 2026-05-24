@@ -121,12 +121,6 @@ pub struct App {
     /// Cycled via `gt`/`gT` (or `Tab`/`Shift+Tab`) while the cursor
     /// is on a result row.
     pub result_tabs: std::collections::HashMap<crate::buffer::block::BlockId, ResultPanelTab>,
-    /// `Some` while an inline fence-edit prompt is open (alias /
-    /// limit / timeout). Mode flips to `Mode::FenceEdit` so dispatch
-    /// routes typing into the prompt's `LineEdit`. Renders in the
-    /// status bar like `TreePrompt` so the editor underneath stays
-    /// visible. See `commands::db::open_fence_edit_*`.
-    pub fence_edit: Option<FenceEditState>,
     /// Filesystem watcher for the active document. `None` until
     /// `wire_event_sender` runs (unit-test paths skip the watcher
     /// since there's no main loop to receive its events). Updated
@@ -207,7 +201,6 @@ impl App {
             content_search: None,
             content_search_index_built: false,
             result_tabs: std::collections::HashMap::new(),
-            fence_edit: None,
             file_watcher: None,
             connections_toml_watcher: None,
             envs_dir_watcher: None,

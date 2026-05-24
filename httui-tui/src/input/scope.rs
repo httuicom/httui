@@ -26,10 +26,6 @@ pub enum ScopeKind {
     /// the editor (the user types into the doc and the popup re-
     /// computes against the new prefix).
     CompletionPopup,
-    /// `app.fence_edit.is_some()` — inline fence-edit prompt
-    /// (alias/limit/timeout). Always consumes (`parse_fence_edit`
-    /// is total).
-    FenceEdit,
     /// `app.db_settings.is_some()` — DB block settings popup
     /// (limit/timeout). Always consumes.
     DbSettings,
@@ -74,9 +70,6 @@ pub fn active_scopes(app: &App) -> Vec<ScopeKind> {
     if app.completion_popup.is_some() {
         v.push(ScopeKind::CompletionPopup);
     }
-    if app.fence_edit.is_some() {
-        v.push(ScopeKind::FenceEdit);
-    }
     if app.db_settings.is_some() {
         v.push(ScopeKind::DbSettings);
     }
@@ -120,7 +113,6 @@ fn handle_scope(kind: ScopeKind, app: &mut App, key: KeyEvent) -> KeyOutcome {
     match kind {
         ScopeKind::Editor => handle_editor(app, key),
         ScopeKind::CompletionPopup => handle_completion_popup(key),
-        ScopeKind::FenceEdit => handle_fence_edit(key),
         ScopeKind::DbSettings => handle_db_settings(key),
         ScopeKind::ContentSearch => handle_content_search(key),
         ScopeKind::Modal => handle_modal(app, key),
@@ -159,15 +151,8 @@ fn handle_completion_popup(key: KeyEvent) -> KeyOutcome {
     }
 }
 
-/// Fence-edit prompt (alias/limit/timeout inline editing). Parser is
-/// total — every key maps to an action — so this scope always
-/// consumes via `Effect`.
-fn handle_fence_edit(key: KeyEvent) -> KeyOutcome {
-    KeyOutcome::Effect(crate::input::parser::lineedit::parse_fence_edit(key))
-}
-
-/// DB block settings popup (limit/timeout). Same shape as fence
-/// edit — parser is total.
+/// DB block settings popup (limit/timeout). Parser is total — every
+/// key maps to an action.
 fn handle_db_settings(key: KeyEvent) -> KeyOutcome {
     KeyOutcome::Effect(crate::input::parser::modals::parse_db_settings_modal(key))
 }

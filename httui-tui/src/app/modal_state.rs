@@ -88,34 +88,6 @@ pub struct HttpResponseDetailState {
     pub viewport_top: u16,
 }
 
-/// State for the inline fence-edit prompt. `kind` carries the field
-/// being edited (alias today; limit / timeout once those slices land);
-/// `input` is the actual text-edit buffer that the prompt parser
-/// drives. `segment_idx` pins the block — the cursor may move while
-/// the prompt is up, but the edit always commits to the block the
-/// user opened the prompt against.
-#[derive(Debug, Clone)]
-pub struct FenceEditState {
-    pub segment_idx: usize,
-    pub kind: FenceEditKind,
-    pub input: crate::vim::lineedit::LineEdit,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FenceEditKind {
-    /// `<C-a>` on a block — edit the alias used in `{{alias.path}}`
-    /// refs and shown in the block title. Blank input clears the
-    /// alias (block becomes anonymous).
-    Alias,
-}
-
-impl FenceEditKind {
-    pub fn label(self) -> &'static str {
-        match self {
-            FenceEditKind::Alias => "alias",
-        }
-    }
-}
 
 /// State for the run-confirm modal. Carries the segment to re-run
 /// (the cursor may have moved in between) and the human reason
@@ -145,7 +117,7 @@ pub struct ConnectionDeleteConfirmState {
 /// dispatch handler reads them straight from the document's
 /// `cached_result` so we don't carry a copy around. The cursor IS
 /// allowed to move while the picker is up; we re-resolve through
-/// `segment_idx` at confirm-time, same contract as `FenceEditState`.
+/// `segment_idx` at confirm-time.
 #[derive(Debug)]
 pub struct DbExportPickerState {
     pub segment_idx: usize,
@@ -375,28 +347,6 @@ impl DbSettingsState {
 mod tests {
     use super::*;
     use crate::vim::lineedit::LineEdit;
-
-    // ---- FenceEditKind ----
-
-    #[test]
-    fn fence_edit_kind_label_is_alias() {
-        assert_eq!(FenceEditKind::Alias.label(), "alias");
-    }
-
-    #[test]
-    fn fence_edit_state_pins_segment_and_kind() {
-        let st = FenceEditState {
-            segment_idx: 3,
-            kind: FenceEditKind::Alias,
-            input: LineEdit::from_str("req1"),
-        };
-        assert_eq!(st.segment_idx, 3);
-        assert_eq!(st.kind, FenceEditKind::Alias);
-        assert_eq!(st.input.as_str(), "req1");
-        // Derived Debug/Clone/PartialEq stay covered.
-        assert_eq!(st.kind, st.clone().kind);
-        assert!(format!("{st:?}").contains("Alias"));
-    }
 
     // ---- BlockExportFormat ----
 

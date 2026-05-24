@@ -284,9 +284,11 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // soon). Anchored above the block being edited so the user keeps
     // visual context — the previous status-bar prompt felt detached
     // from the action.
-    if let Some(state) = app.fence_edit.as_ref() {
-        let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
-        fence_edit::render(frame, editor_area, state, anchor);
+    if let Some((crate::modal::PromptKind::FenceEditAlias { segment_idx }, le)) =
+        app.modal.as_ref().and_then(|m| m.as_prompt())
+    {
+        let anchor = anchor::compute_block_anchor(app, editor_area, segment_idx);
+        fence_edit::render(frame, editor_area, "alias", le, anchor);
     }
 
     // SQL completion popup — paints whenever its state is `Some`,
@@ -450,8 +452,7 @@ mod tests {
     use crate::app::{
         BlockHistoryState, BlockTemplatePickerState, ConnectionPickerState, ContentSearchState,
         DbConfirmRunState, DbExportPickerState, DbRowDetailState, DbSettingsState,
-        EnvironmentPickerState, FenceEditState, HttpResponseDetailState, SettingsField,
-        TabPickerState,
+        EnvironmentPickerState, HttpResponseDetailState, SettingsField, TabPickerState,
     };
     use crate::buffer::{Cursor, Document};
     use crate::config::{Config, EditorMode};
@@ -755,11 +756,10 @@ mod tests {
         let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
         let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
         open_doc(&mut app, src);
-        app.fence_edit = Some(FenceEditState {
-            segment_idx: 0,
-            kind: crate::app::FenceEditKind::Alias,
-            input: crate::vim::lineedit::LineEdit::from_str("req1"),
-        });
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::FenceEditAlias { segment_idx: 0 },
+            crate::vim::lineedit::LineEdit::from_str("req1"),
+        ));
         let (text, _c) = render(&mut app, 70, 14);
         assert!(
             text.contains("req1") || text.contains("alias"),

@@ -16,8 +16,8 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::FenceEditState;
 use crate::ui::BlockAnchor;
+use crate::vim::lineedit::LineEdit;
 
 /// Outer box minimums: the input row is one cell, plus 2 borders + 1
 /// footer = 4 chrome rows. Width is clamped so the popup never
@@ -28,7 +28,8 @@ const POPUP_MIN_WIDTH: u16 = 36;
 pub fn render(
     frame: &mut Frame,
     editor_area: Rect,
-    state: &FenceEditState,
+    kind_label: &str,
+    input: &LineEdit,
     anchor: Option<BlockAnchor>,
 ) {
     let popup = compute_popup_rect(editor_area, anchor);
@@ -48,7 +49,7 @@ pub fn render(
         }
     }
 
-    let title = format!(" Edit {} ", state.kind.label());
+    let title = format!(" Edit {} ", kind_label);
     let outer = Block::default()
         .borders(Borders::ALL)
         .title(title)
@@ -68,8 +69,8 @@ pub fn render(
     // can't show the real terminal cursor here (that lives where the
     // editor put it); ▏ is a thin vertical bar that reads as "your
     // typing position" without overlapping the previous char.
-    let buf_str = state.input.as_str();
-    let cursor_col = state.input.cursor_col();
+    let buf_str = input.as_str();
+    let cursor_col = input.cursor_col();
     let (before, after) = split_at_byte_offset_by_chars(buf_str, cursor_col);
     let line = Line::from(vec![
         Span::styled(before.to_string(), bg_style),

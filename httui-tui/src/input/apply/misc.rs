@@ -360,49 +360,49 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
         }
         Action::OpenFenceEditAlias => crate::commands::db::open_fence_edit_alias(app),
         Action::FenceEditChar(c) => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.insert_char(c);
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.insert_char(c);
             }
         }
         Action::FenceEditBackspace => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                // Backspace on an empty buffer cancels — same affordance
-                // as the tree prompt; users can hold backspace to bail.
-                if !prompt.input.delete_before() {
-                    app.fence_edit = None;
-                    app.vim.enter_normal();
-                }
-            } else {
+            // Backspace on an empty buffer cancels — same affordance
+            // as the tree prompt; users can hold backspace to bail.
+            let close = match app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                Some((_, le)) => !le.delete_before(),
+                None => true,
+            };
+            if close {
+                app.modal = None;
                 app.vim.enter_normal();
             }
         }
         Action::FenceEditDelete => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.delete_after();
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.delete_after();
             }
         }
         Action::FenceEditCursorLeft => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.move_left();
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_left();
             }
         }
         Action::FenceEditCursorRight => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.move_right();
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_right();
             }
         }
         Action::FenceEditCursorHome => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.move_home();
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_home();
             }
         }
         Action::FenceEditCursorEnd => {
-            if let Some(prompt) = app.fence_edit.as_mut() {
-                prompt.input.move_end();
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                le.move_end();
             }
         }
         Action::FenceEditCancel => {
-            app.fence_edit = None;
+            app.modal = None;
             app.vim.enter_normal();
             app.set_status(StatusKind::Info, "edit cancelled");
         }

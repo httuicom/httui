@@ -323,11 +323,10 @@ pub fn open_fence_edit_alias(app: &mut App) {
             return;
         }
     };
-    app.fence_edit = Some(crate::app::FenceEditState {
-        segment_idx,
-        kind: crate::app::FenceEditKind::Alias,
-        input: crate::vim::lineedit::LineEdit::from_str(prefill),
-    });
+    app.modal = Some(crate::modal::Modal::Prompt(
+        crate::modal::PromptKind::FenceEditAlias { segment_idx },
+        crate::vim::lineedit::LineEdit::from_str(prefill),
+    ));
     app.vim.mode = crate::vim::mode::Mode::FenceEdit;
     app.vim.reset_pending();
 }
@@ -339,58 +338,53 @@ pub fn open_fence_edit_alias(app: &mut App) {
 /// new value, drop the prompt, return to normal mode. On failure:
 /// the prompt stays open and the status bar surfaces the reason.
 pub fn confirm_fence_edit(app: &mut App) {
-    let Some(state) = app.fence_edit.as_ref() else {
+    let Some((kind, le)) = app.modal.as_ref().and_then(|m| m.as_prompt()) else {
         app.vim.enter_normal();
         return;
     };
-    let segment_idx = state.segment_idx;
-    let kind = state.kind;
-    let raw = state.input.as_str().trim().to_string();
+    let crate::modal::PromptKind::FenceEditAlias { segment_idx } = kind;
+    let raw = le.as_str().trim().to_string();
 
-    match kind {
-        crate::app::FenceEditKind::Alias => {
-            // Empty input = clear the alias (block becomes anonymous —
-            // valid; the block just stops being referencable as
-            // `{{alias.path}}`).
-            let new_alias: Option<String> = if raw.is_empty() {
-                None
-            } else {
-                let dup = app
-                    .document()
-                    .and_then(|d| validate_alias_unique(d, segment_idx, &raw).err());
-                if let Some(msg) = dup {
-                    app.set_status(StatusKind::Error, msg);
-                    return;
+    // Empty input = clear the alias (block becomes anonymous —
+    // valid; the block just stops being referencable as
+    // `{{alias.path}}`).
+    let new_alias: Option<String> = if raw.is_empty() {
+        None
+    } else {
+        let dup = app
+            .document()
+            .and_then(|d| validate_alias_unique(d, segment_idx, &raw).err());
+        if let Some(msg) = dup {
+            app.set_status(StatusKind::Error, msg);
+            return;
+        }
+        Some(raw)
+    };
+    let Some(doc) = app.tabs.active_document_mut() else {
+        return;
+    };
+    doc.snapshot();
+    if let Some(block) = doc.block_at_mut(segment_idx) {
+        // Mirror `block.alias` into `params.alias` so the
+        // serializer's roundtrip stays lossless (the parser
+        // reads from the info-string token, but other code
+        // paths read from `params`).
+        block.alias = new_alias.clone();
+        if let Some(obj) = block.params.as_object_mut() {
+            match &new_alias {
+                Some(a) => {
+                    obj.insert("alias".into(), serde_json::Value::String(a.clone()));
                 }
-                Some(raw)
-            };
-            let Some(doc) = app.tabs.active_document_mut() else {
-                return;
-            };
-            doc.snapshot();
-            if let Some(block) = doc.block_at_mut(segment_idx) {
-                // Mirror `block.alias` into `params.alias` so the
-                // serializer's roundtrip stays lossless (the parser
-                // reads from the info-string token, but other code
-                // paths read from `params`).
-                block.alias = new_alias.clone();
-                if let Some(obj) = block.params.as_object_mut() {
-                    match &new_alias {
-                        Some(a) => {
-                            obj.insert("alias".into(), serde_json::Value::String(a.clone()));
-                        }
-                        None => {
-                            obj.remove("alias");
-                        }
-                    }
+                None => {
+                    obj.remove("alias");
                 }
             }
         }
     }
 
-    app.fence_edit = None;
+    app.modal = None;
     app.vim.enter_normal();
-    app.set_status(StatusKind::Info, format!("{} updated", kind.label()));
+    app.set_status(StatusKind::Info, "alias updated");
 }
 
 /// Reject duplicate aliases inside the same document. `{{alias.path}}`

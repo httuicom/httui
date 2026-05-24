@@ -200,7 +200,6 @@ impl App {
         self.completion_popup = None;
         self.db_settings = None;
         self.content_search = None;
-        self.fence_edit = None;
         self.running_query = None;
         self.standard.anchor = None;
         self.vim.reset_pending();
