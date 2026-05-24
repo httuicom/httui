@@ -17,6 +17,9 @@ Post-0.4.0 work lands here.
 - **TUI**: auto-save (1s debounce after the last edit) in standard mode, plus an unconditional flush before quit so nothing is lost on `:q` or `Ctrl+C` shutdown.
 - **TUI**: inspectable keymap data layer (`input::map`) — every chord-to-Action binding for the standard profile lives in a single table; the vim profile's flat chords are listed documentary-style. Foundation for the Settings keymap UI in V9.
 - **TUI**: `/` in standard-mode prose opens the block-template picker (HTTP GET, HTTP POST JSON, SQLite query). Vim keeps the `gN` chord; both routes land on the same picker. Pressing Enter on a template splices the fence at the cursor and the parser promotes it to a block.
+- **TUI**: Variables + Environments management surface (`Alt+i` / `gV`) — master-detail page with the envs sidebar and a per-env vars table. Create/rename/delete envs and vars in place, toggle `is_secret` (values masked as `••••` in the list, raw in edit), `c` clones an env with a per-variable checkbox to pick which keys to copy. Reads/writes `<vault>/envs/*.toml` via `httui_core::EnvironmentsStore`; secret values are stored in the OS keychain.
+- **TUI**: numeric shortcuts `1`-`9` activate the env at that position from either the `gE` picker or anywhere in the Variables/Envs page (regardless of which pane is focused). After activating, focus lands on the new env's vars so the user can edit values right away.
+- **TUI**: per-variable "Used in N" panel — the Variables page shows where the selected var (`{{KEY}}` or `{{KEY.path}}`) is referenced across every `.md` in the vault, with file:line and a snippet. Powered by `httui_core::var_uses`.
 
 ### Changed
 
