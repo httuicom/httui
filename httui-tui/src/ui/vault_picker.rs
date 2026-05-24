@@ -135,7 +135,6 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
             ("n", "new"),
             ("c", "clone"),
             ("o", "open"),
-            ("s", "pending"),
         ]))
         .style(bg_style),
         verbs_area,
