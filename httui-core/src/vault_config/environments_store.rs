@@ -6,7 +6,7 @@
 //! tracking lives in the per-machine `user.toml` so the same shared
 //! vault can have different active envs on different machines.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -84,6 +84,14 @@ pub struct EnvironmentsStore {
     user_config_path: PathBuf,
     /// Per-env cache. Key is the env name (== filename stem).
     cache: RwLock<BTreeMap<String, CachedEnv>>,
+    /// Process-lifetime cache of secrets already resolved through the
+    /// keychain. Key is the canonical kc_key (`env:<env>:<var>`); value
+    /// is the raw secret. Without it, every HTTP/DB run triggers a
+    /// fresh keychain prompt on macOS (the OS only remembers "Always
+    /// Allow" for code-signed binaries, which dev builds aren't).
+    /// Invalidated on rotate/delete/rename so we never serve a stale
+    /// value.
+    secrets_cache: RwLock<HashMap<String, String>>,
 }
 
 impl EnvironmentsStore {
@@ -92,7 +100,46 @@ impl EnvironmentsStore {
             vault_root: vault_root.into(),
             user_config_path: user_config_path.into(),
             cache: RwLock::new(BTreeMap::new()),
+            secrets_cache: RwLock::new(HashMap::new()),
         })
+    }
+
+    /// Resolve a single keychain ref, consulting the in-process cache
+    /// first. Misses delegate to `resolve_value` and populate the cache
+    /// on success. Failures are not cached — a transient backend hiccup
+    /// shouldn't poison the entry.
+    async fn resolve_secret_cached(
+        &self,
+        kc_key: &str,
+        reference: &str,
+    ) -> Result<Option<String>, String> {
+        {
+            let cache = self.secrets_cache.read().await;
+            if let Some(value) = cache.get(kc_key) {
+                return Ok(Some(value.clone()));
+            }
+        }
+        let resolved = resolve_value(reference)?;
+        if let Some(value) = &resolved {
+            let mut cache = self.secrets_cache.write().await;
+            cache.insert(kc_key.to_string(), value.clone());
+        }
+        Ok(resolved)
+    }
+
+    async fn drop_cached_secret(&self, kc_key: &str) {
+        let mut cache = self.secrets_cache.write().await;
+        cache.remove(kc_key);
+    }
+
+    async fn update_cached_secret(&self, kc_key: &str, value: &str) {
+        let mut cache = self.secrets_cache.write().await;
+        cache.insert(kc_key.to_string(), value.to_string());
+    }
+
+    async fn drop_cached_secrets_with_prefix(&self, prefix: &str) {
+        let mut cache = self.secrets_cache.write().await;
+        cache.retain(|k, _| !k.starts_with(prefix));
     }
 
     fn envs_dir(&self) -> PathBuf {
@@ -172,6 +219,9 @@ impl EnvironmentsStore {
     pub async fn invalidate_cache(&self) {
         let mut cache = self.cache.write().await;
         cache.clear();
+        drop(cache);
+        let mut secrets = self.secrets_cache.write().await;
+        secrets.clear();
     }
 
     /// Read a single env's base file (no `.local` merge). Mutating
@@ -257,6 +307,8 @@ impl EnvironmentsStore {
                 let _ = delete_secret(&env_var_key(name, key));
             }
         }
+        self.drop_cached_secrets_with_prefix(&format!("env:{name}:"))
+            .await;
         std::fs::remove_file(&path).map_err(|e| format!("delete {}: {e}", path.display()))?;
         // Drop the local override file too so a stale `<name>.local.toml`
         // doesn't resurrect the env on next load.
@@ -305,9 +357,12 @@ impl EnvironmentsStore {
                 if let Ok(Some(value)) = get_secret(&kc_old) {
                     let _ = store_secret(&kc_new, &value);
                     let _ = delete_secret(&kc_old);
+                    self.update_cached_secret(&kc_new, &value).await;
                 }
             }
         }
+        self.drop_cached_secrets_with_prefix(&format!("env:{old_name}:"))
+            .await;
         std::fs::rename(&old_path, &new_path).map_err(|e| {
             format!(
                 "rename {} → {}: {e}",
@@ -388,7 +443,13 @@ impl EnvironmentsStore {
             });
         }
         for (key, reference) in &file.secrets {
-            let value = resolve_value(reference).ok().flatten().unwrap_or_default();
+            let kc_key = env_var_key(env_name, key);
+            let value = self
+                .resolve_secret_cached(&kc_key, reference)
+                .await
+                .ok()
+                .flatten()
+                .unwrap_or_default();
             out.push(EnvVariablePublic {
                 key: key.clone(),
                 value,
@@ -409,7 +470,11 @@ impl EnvironmentsStore {
             return Ok(Some(v.clone()));
         }
         if let Some(reference) = file.secrets.get(key) {
-            return resolve_value(reference).map_err(|e| format!("resolving secret '{key}': {e}"));
+            let kc_key = env_var_key(env_name, key);
+            return self
+                .resolve_secret_cached(&kc_key, reference)
+                .await
+                .map_err(|e| format!("resolving secret '{key}': {e}"));
         }
         Ok(None)
     }
@@ -454,11 +519,14 @@ impl EnvironmentsStore {
                 // If a same-named non-secret existed, remove it.
                 file.vars.remove(&key);
                 file.secrets.insert(key.clone(), reference);
+                self.update_cached_secret(&kc_key, &value).await;
             }
         } else {
             // If a same-named secret existed, drop the keychain entry.
             if file.secrets.remove(&key).is_some() {
-                let _ = delete_secret(&env_var_key(&env_name, &key));
+                let kc_key = env_var_key(&env_name, &key);
+                let _ = delete_secret(&kc_key);
+                self.drop_cached_secret(&kc_key).await;
             }
             file.vars.insert(key.clone(), value);
         }
@@ -485,7 +553,9 @@ impl EnvironmentsStore {
             ));
         }
         if removed_secret {
-            let _ = delete_secret(&env_var_key(env_name, key));
+            let kc_key = env_var_key(env_name, key);
+            let _ = delete_secret(&kc_key);
+            self.drop_cached_secret(&kc_key).await;
         }
         self.persist_env(env_name, file).await?;
         Ok(())
@@ -569,7 +639,7 @@ fn is_valid_env_name(name: &str) -> bool {
 #[allow(clippy::await_holding_lock)]
 mod tests {
     use super::*;
-    use crate::db::keychain::KEYCHAIN_TEST_LOCK;
+    use crate::db::keychain::{force_keychain_failure, KEYCHAIN_TEST_LOCK};
     use tempfile::TempDir;
 
     fn fresh_store() -> (Arc<EnvironmentsStore>, TempDir) {
@@ -845,8 +915,12 @@ mod tests {
             .unwrap();
 
         // Yank the keychain entry behind the reference; the TOML still
-        // has the {{keychain:…}} ref.
+        // has the {{keychain:…}} ref. invalidate_cache simulates a
+        // process restart — the in-memory secrets cache is populated by
+        // `set_var` above, so without invalidation list_vars_resolved
+        // would (correctly) hit the cache.
         let _ = delete_secret(&env_var_key(&env_name, "TOKEN"));
+        store.invalidate_cache().await;
 
         let vars = store.list_vars_resolved(&env_name).await.unwrap();
         let by_key: std::collections::HashMap<_, _> =
@@ -1213,8 +1287,13 @@ BASE_URL = "http://localhost"
             .unwrap();
 
         // Delete the keychain entry behind the reference; the TOML
-        // still has the {{keychain:...}} reference.
+        // still has the {{keychain:...}} reference. invalidate_cache
+        // mimics a process restart so the secrets cache (populated by
+        // set_var above) doesn't shield the missing entry — without
+        // invalidation, the cache hit would (correctly) return the
+        // stored value.
         let _ = delete_secret(&env_var_key(&env_name, "ORPHAN"));
+        store.invalidate_cache().await;
 
         let err = store
             .resolve_var(&env_name, "ORPHAN")
@@ -1347,5 +1426,146 @@ BASE_URL = "http://localhost"
             "list must not surface .local as separate env"
         );
         assert_eq!(envs[0].name, "staging");
+    }
+
+    #[tokio::test]
+    async fn secrets_cache_avoids_second_keychain_call() {
+        // The whole point of the in-memory secrets cache: after the
+        // first resolve, subsequent calls in the same process don't
+        // touch the keychain — which on macOS means no second prompt.
+        // Simulating that here: pre-seed, resolve once (populates
+        // cache), force every keychain call to error, resolve again,
+        // assert it still returns the original value.
+        let _guard = KEYCHAIN_TEST_LOCK.lock().unwrap();
+        let (store, _t) = fresh_store();
+        let env_name = unique_name("cache-hit");
+        store.create_env(&env_name).await.unwrap();
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "TOKEN".into(),
+                value: "v1".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+
+        // First resolve populates the cache. set_var also primes it
+        // on the write path, so this is belt-and-suspenders.
+        assert_eq!(
+            store.resolve_var(&env_name, "TOKEN").await.unwrap(),
+            Some("v1".into())
+        );
+
+        // From now on every keychain op errors. A cache miss would
+        // surface that error; a cache hit ignores the backend entirely.
+        force_keychain_failure(true);
+        let resolved = store.resolve_var(&env_name, "TOKEN").await;
+        let listed = store.list_vars_resolved(&env_name).await.unwrap();
+        force_keychain_failure(false);
+
+        assert_eq!(resolved.unwrap(), Some("v1".into()));
+        let by_key: std::collections::HashMap<_, _> =
+            listed.into_iter().map(|v| (v.key, v.value)).collect();
+        assert_eq!(by_key["TOKEN"], "v1");
+
+        let _ = delete_secret(&env_var_key(&env_name, "TOKEN"));
+    }
+
+    #[tokio::test]
+    async fn secrets_cache_refreshes_on_rotation() {
+        // set_var with a new value must update the cache in lockstep
+        // with the keychain — otherwise an immediate read would still
+        // serve the old value until something invalidated.
+        let _guard = KEYCHAIN_TEST_LOCK.lock().unwrap();
+        let (store, _t) = fresh_store();
+        let env_name = unique_name("cache-rotate");
+        store.create_env(&env_name).await.unwrap();
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "TOKEN".into(),
+                value: "old".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "TOKEN".into(),
+                value: "new".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+
+        // Block keychain so any cache miss would error. A correctly
+        // refreshed cache returns "new" without touching the backend.
+        force_keychain_failure(true);
+        let resolved = store.resolve_var(&env_name, "TOKEN").await;
+        force_keychain_failure(false);
+        assert_eq!(resolved.unwrap(), Some("new".into()));
+
+        let _ = delete_secret(&env_var_key(&env_name, "TOKEN"));
+    }
+
+    #[tokio::test]
+    async fn delete_env_clears_secrets_cache() {
+        // After delete_env, a recreated env with the same name and key
+        // must NOT serve the old cached value.
+        let _guard = KEYCHAIN_TEST_LOCK.lock().unwrap();
+        let (store, _t) = fresh_store();
+        let env_name = unique_name("cache-delete");
+        store.create_env(&env_name).await.unwrap();
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "TOKEN".into(),
+                value: "first".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+        // Touch the resolve path to populate the cache.
+        let _ = store.resolve_var(&env_name, "TOKEN").await;
+        store.delete_env(&env_name).await.unwrap();
+
+        // After delete_env nuked the cache prefix, force keychain off.
+        // Recreating + re-setting must populate from the new write,
+        // not return the old "first".
+        force_keychain_failure(true);
+        store.create_env(&env_name).await.unwrap();
+        let set_result = store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "TOKEN".into(),
+                value: "second".into(),
+                is_secret: true,
+            })
+            .await;
+        force_keychain_failure(false);
+        // set_var hits the keychain via ensure_keychain_ref → expected
+        // to error here, proving we're not relying on any leftover
+        // cache or sibling state.
+        assert!(set_result.is_err());
+
+        // And finally, with keychain back on, a fresh write writes the
+        // new value cleanly.
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "TOKEN".into(),
+                value: "second".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            store.resolve_var(&env_name, "TOKEN").await.unwrap(),
+            Some("second".into())
+        );
+
+        let _ = delete_secret(&env_var_key(&env_name, "TOKEN"));
     }
 }
