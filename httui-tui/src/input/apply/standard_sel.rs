@@ -158,6 +158,14 @@ pub fn insert_text_at_caret(app: &mut App, text: &str) {
         return;
     }
 
+    // If a modal with a focused text field is open, paste into the
+    // field instead of the editor below. Otherwise the user opens a
+    // form, types Ctrl+V expecting "paste URL into Git URL", and the
+    // text ends up in the markdown doc behind the modal.
+    if paste_into_active_modal_field(app, text) {
+        return;
+    }
+
     let range = app.standard.anchor.and_then(|a| selection_range(app, a));
 
     if let Some((seg, lo, hi)) = range {
@@ -227,6 +235,51 @@ pub fn insert_text_at_caret(app: &mut App, text: &str) {
 /// of the visual-overlay match, alongside the existing vim-overlay
 /// arms; the vim arms are deliberately NOT folded in here so Cenário 2
 /// stays byte-identical and this helper keeps a single responsibility.
+/// Try to paste `text` into the focused field of whichever vault
+/// sub-modal is open. Returns `true` when the paste landed in a
+/// modal (caller should skip the editor fallback), `false` when no
+/// modal owns the focus. Per-modal field tables stay here so adding
+/// a new form is one match arm, not a refactor across the apply
+/// router.
+fn paste_into_active_modal_field(app: &mut App, text: &str) -> bool {
+    use crate::app::{VaultCloneFormFocus, VaultCreateFormFocus};
+    use crate::modal::Modal;
+    let Some(modal) = app.modal.as_mut() else {
+        return false;
+    };
+    match modal {
+        Modal::VaultCreateForm(s) => {
+            let target = match s.focus {
+                VaultCreateFormFocus::Parent => &mut s.parent,
+                VaultCreateFormFocus::Name => &mut s.name,
+            };
+            for c in text.chars() {
+                target.insert_char(c);
+            }
+            true
+        }
+        Modal::VaultCloneForm(s) => {
+            let target = match s.focus {
+                VaultCloneFormFocus::Url => &mut s.url,
+                VaultCloneFormFocus::Parent => &mut s.parent,
+            };
+            for c in text.chars() {
+                target.insert_char(c);
+            }
+            true
+        }
+        Modal::VaultMissingSecrets(s) if s.editing => {
+            if let Some(row) = s.items.get_mut(s.selected) {
+                for c in text.chars() {
+                    row.value.insert_char(c);
+                }
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
 pub(crate) fn standard_overlay_anchor(
     editor_mode: crate::config::EditorMode,
     standard_anchor: Option<Cursor>,
