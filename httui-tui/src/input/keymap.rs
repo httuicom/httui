@@ -146,6 +146,12 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         spec("tree_toggle", "ctrl+b", Action::TreeToggle),
         spec("tab_next", "ctrl+pagedown", Action::TabNext),
         spec("tab_prev", "ctrl+pageup", Action::TabPrev),
+        // `Tab` / `Shift+Tab` reuse the same `TabNext`/`TabPrev`
+        // semantics as `gt`/`gT` and `Ctrl+PageDown`/`Up`: cycle the
+        // focused block's result-panel tab when the cursor is on the
+        // block, fall through to next/prev editor tab when in prose.
+        spec("tab_next_key", "tab", Action::TabNext),
+        spec("tab_prev_key", "shift+tab", Action::TabPrev),
         spec("save_all", "ctrl+alt+s", Action::WriteAll),
     ]
 }
@@ -222,7 +228,13 @@ fn macos_option_to_ascii(c: char) -> Option<char> {
     })
 }
 
-pub fn is_universal_action(action: Action) -> bool {
+/// Actions that fire regardless of the active editor profile (vim vs
+/// standard). They are bound only in `standard_keymap` — vim's mode
+/// parsers don't know them — so the Editor scope checks this list
+/// before delegating to the vim engine. Because the check lives in
+/// the Editor scope, modal/popup scopes naturally block these
+/// shortcuts when open (no leak by construction).
+pub fn is_editor_global_shortcut(action: Action) -> bool {
     matches!(
         action,
         Action::RunBlock

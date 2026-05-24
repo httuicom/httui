@@ -130,10 +130,15 @@ mod tests {
     fn unbound_keys_return_none() {
         // Esc → handled specially by `route_standard` (query cancel).
         assert_eq!(resolve(&km(), k(KeyCode::Esc)), None);
-        assert_eq!(resolve(&km(), k(KeyCode::Tab)), None);
         // F11 carries no default Standard binding (the runtime defaults
         // are `Alt+letter`, not F-keys).
         assert_eq!(resolve(&km(), k(KeyCode::F(11))), None);
+    }
+
+    #[test]
+    fn tab_and_shift_tab_resolve_to_tab_next_and_prev() {
+        assert_eq!(resolve(&km(), k(KeyCode::Tab)), Some(Action::TabNext));
+        assert_eq!(resolve(&km(), k(KeyCode::BackTab)), Some(Action::TabPrev));
     }
 
     // ───── tui-V2 vertical 2 / cenário 1 — `/` opens slash picker ─────

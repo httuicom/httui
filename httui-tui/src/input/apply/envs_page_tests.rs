@@ -200,6 +200,57 @@ async fn var_form_toggle_secret_and_focus_cycle() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn var_form_value_cursor_navigates_and_edits_mid_string() {
+    let (mut app, _d, _v) = app_fixture().await;
+    seed_env(&mut app, "dev").await;
+    apply_envs(&mut app, Action::OpenEnvsPage);
+    apply_envs(&mut app, Action::EnvsPageFocusVars);
+    apply_envs(&mut app, Action::OpenVarForm);
+    if let Some(Modal::VarForm(s)) = app.modal.as_mut() {
+        s.focus = VarFormFocus::Value;
+    }
+    for c in "abcde".chars() {
+        apply_envs(&mut app, Action::VarFormChar(c));
+    }
+    apply_envs(&mut app, Action::VarFormCursorLeft);
+    apply_envs(&mut app, Action::VarFormCursorLeft);
+    apply_envs(&mut app, Action::VarFormDelete);
+    apply_envs(&mut app, Action::VarFormChar('X'));
+    let Some(Modal::VarForm(f)) = app.modal.as_ref() else {
+        panic!("var form aberto");
+    };
+    assert_eq!(f.value.as_str(), "abcXe");
+
+    apply_envs(&mut app, Action::VarFormHome);
+    apply_envs(&mut app, Action::VarFormChar('!'));
+    apply_envs(&mut app, Action::VarFormEnd);
+    apply_envs(&mut app, Action::VarFormChar('?'));
+    let Some(Modal::VarForm(f)) = app.modal.as_ref() else {
+        panic!("var form aberto");
+    };
+    assert_eq!(f.value.as_str(), "!abcXe?");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn env_form_cursor_navigation_works() {
+    let (mut app, _d, _v) = app_fixture().await;
+    apply_envs(&mut app, Action::OpenEnvsPage);
+    apply_envs(&mut app, Action::OpenEnvForm);
+    for c in "prod".chars() {
+        apply_envs(&mut app, Action::EnvFormChar(c));
+    }
+    apply_envs(&mut app, Action::EnvFormCursorLeft);
+    apply_envs(&mut app, Action::EnvFormChar('X'));
+    apply_envs(&mut app, Action::EnvFormHome);
+    apply_envs(&mut app, Action::EnvFormDelete);
+    let Some(Modal::EnvForm(f)) = app.modal.as_ref() else {
+        panic!("env form aberto");
+    };
+    // "prod" → Left + 'X' = "proXd" → Home + Delete = drop leading 'p'.
+    assert_eq!(f.name.as_str(), "roXd");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn close_var_form_reopens_page() {
     let (mut app, _d, _v) = app_fixture().await;
     seed_env(&mut app, "dev").await;

@@ -54,6 +54,13 @@ pub(crate) fn apply_envs(app: &mut App, action: Action) {
         Action::EnvFormBackspace => with_env_form(app, |f| {
             f.name.delete_before();
         }),
+        Action::EnvFormDelete => with_env_form(app, |f| {
+            f.name.delete_after();
+        }),
+        Action::EnvFormCursorLeft => with_env_form(app, |f| f.name.move_left()),
+        Action::EnvFormCursorRight => with_env_form(app, |f| f.name.move_right()),
+        Action::EnvFormHome => with_env_form(app, |f| f.name.move_home()),
+        Action::EnvFormEnd => with_env_form(app, |f| f.name.move_end()),
         Action::EnvFormSubmit => env_form_submit(app),
         Action::OpenVarForm => open_var_form(app, false),
         Action::OpenVarEditForm => open_var_form(app, true),
@@ -75,6 +82,37 @@ pub(crate) fn apply_envs(app: &mut App, action: Action) {
                 }
                 VarFormFocus::Secret => {}
             };
+        }),
+        Action::VarFormDelete => with_var_form(app, |f| {
+            match f.focus {
+                VarFormFocus::Key => {
+                    f.key.delete_after();
+                }
+                VarFormFocus::Value => {
+                    f.value.delete_after();
+                }
+                VarFormFocus::Secret => {}
+            };
+        }),
+        Action::VarFormCursorLeft => with_var_form(app, |f| match f.focus {
+            VarFormFocus::Key => f.key.move_left(),
+            VarFormFocus::Value => f.value.move_left(),
+            VarFormFocus::Secret => {}
+        }),
+        Action::VarFormCursorRight => with_var_form(app, |f| match f.focus {
+            VarFormFocus::Key => f.key.move_right(),
+            VarFormFocus::Value => f.value.move_right(),
+            VarFormFocus::Secret => {}
+        }),
+        Action::VarFormHome => with_var_form(app, |f| match f.focus {
+            VarFormFocus::Key => f.key.move_home(),
+            VarFormFocus::Value => f.value.move_home(),
+            VarFormFocus::Secret => {}
+        }),
+        Action::VarFormEnd => with_var_form(app, |f| match f.focus {
+            VarFormFocus::Key => f.key.move_end(),
+            VarFormFocus::Value => f.value.move_end(),
+            VarFormFocus::Secret => {}
         }),
         Action::VarFormFocusNext => with_var_form(app, |f| f.focus = f.focus.next()),
         Action::VarFormFocusPrev => with_var_form(app, |f| f.focus = f.focus.prev()),

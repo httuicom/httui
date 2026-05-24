@@ -14,48 +14,21 @@
 //!
 //! Introduced by tui-V1 / fase 2 p5.
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::KeyEvent;
 
 use crate::app::App;
 use crate::config::EditorMode;
 
-/// Route one keystroke by the configured editor profile.
+/// Route one keystroke through the input focus stack.
 pub fn route(app: &mut App, key: KeyEvent) {
-    // Hot toggle (Action::ToggleEditorMode): the configured chord
-    // (`EditorConfig::toggle_mode_key`, default `f2`) flips
-    // `config.editor.mode` and resets transient input state in BOTH
-    // directions. Intercepted BEFORE the per-profile branch so the
-    // chord works regardless of the currently-active profile —
-    // `Vim::dispatch` would otherwise swallow it inside any modal
-    // state (e.g. Insert/Visual). The default is an F-key, not
-    // `Ctrl+Shift+M`: that chord is unreachable on terminals without
-    // the kitty keyboard protocol (tui-V03 / cenário 0).
-    if is_toggle_editor_mode(&app.config.editor.toggle_mode_key, key) {
-        toggle_editor_mode(app);
-        return;
-    }
-
-    if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {
-        if crate::input::keymap::is_universal_action(action) {
-            crate::input::dispatch::apply_action(app, action, false);
-            return;
-        }
-    }
-
-    match app.config.editor.mode {
-        // Literal passthrough — exactly the call the old
-        // `handle_key` made. Vim behaviour stays byte-identical; we
-        // deliberately do NOT branch inside `dispatch`.
-        EditorMode::Vim => crate::input::dispatch::dispatch(app, key),
-        EditorMode::Standard => route_standard(app, key),
-    }
+    crate::input::scope::dispatch(app, key);
 }
 
 /// `true` when `key` is the configured vim↔standard toggle chord.
 /// A malformed config value parses to `None` → the toggle is simply
 /// unbound (the user fixes the string in `config.toml`) rather than
 /// panicking. Pure helper so route-tests can drive it directly.
-fn is_toggle_editor_mode(toggle_key: &str, key: KeyEvent) -> bool {
+pub(crate) fn is_toggle_editor_mode(toggle_key: &str, key: KeyEvent) -> bool {
     crate::input::keychord::parse_key_chord(toggle_key)
         .map(|chord| chord.matches(key))
         .unwrap_or(false)
@@ -75,7 +48,7 @@ fn is_toggle_editor_mode(toggle_key: &str, key: KeyEvent) -> bool {
 /// through the new profile's path. `app.last_edit` is preserved
 /// because the toggle is a meta-action, not an edit: a pending
 /// auto-save debounce should still flush.
-fn toggle_editor_mode(app: &mut App) {
+pub(crate) fn toggle_editor_mode(app: &mut App) {
     app.config.editor.mode = match app.config.editor.mode {
         EditorMode::Standard => EditorMode::Vim,
         EditorMode::Vim => EditorMode::Standard,
@@ -89,36 +62,10 @@ fn toggle_editor_mode(app: &mut App) {
     }
 }
 
-/// Standard-mode path: minimal pre-filters mirrored from the top of
-/// `dispatch`, then decode + apply via the pure `standard::resolve`.
-fn route_standard(app: &mut App, key: KeyEvent) {
-    // Any keystroke clears the previous transient status message —
-    // same "press a key to dismiss" feel as the vim path.
-    app.clear_status();
-
-    // `Esc` while a query is running cancels it. fase 3 p3 moved
-    // query-cancel off `Ctrl+C` onto `Esc`; `Ctrl+C` in Standard is
-    // now contextual — copy an active selection, else quit the TUI
-    // (see the decode tail below). The vim path is untouched — it
-    // still cancels on `Ctrl+C` inside `dispatch` (Cenário 2
-    // byte-identical). `Esc` without a running query stays a no-op
-    // here: `standard::resolve` returns `None` for it, so the
-    // decode tail below does nothing.
-    if app.running_query.is_some() && key.code == KeyCode::Esc {
-        crate::commands::db::cancel_running_query(app);
-        return;
-    }
-
-    // The SQL completion popup intercepts navigation / accept /
-    // dismiss keys before the regular decode, exactly as `dispatch`
-    // does. Unmatched keys fall through to the standard decoder.
-    if app.completion_popup.is_some() {
-        if let Some(action) = crate::input::dispatch::parse_completion_popup_key(key) {
-            crate::input::dispatch::apply_action(app, action, false);
-            return;
-        }
-    }
-
+/// Standard-mode editor body: decode + apply via `standard::resolve`.
+/// Invoked by the `Editor` scope handler in `input::scope`; preempting
+/// scopes (modal, popup, query cancel, etc.) already had their chance.
+pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
     let Some(action) = crate::input::standard::resolve(&app.standard_keymap, key) else {
         return;
     };
@@ -201,7 +148,7 @@ mod tests {
     use super::*;
     use crate::config::Config;
     use crate::vault::ResolvedVault;
-    use crossterm::event::KeyModifiers;
+    use crossterm::event::{KeyCode, KeyModifiers};
     use httui_core::db::init_db;
     use tempfile::TempDir;
 
@@ -266,6 +213,61 @@ mod tests {
         let da = a.document().unwrap().to_markdown();
         let db = b.document().unwrap().to_markdown();
         assert_eq!(da, db, "route(Vim) must equal dispatch() byte-for-byte");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn modal_open_blocks_universal_actions_too() {
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        crate::input::apply::envs_page::apply_envs(
+            &mut app,
+            crate::input::action::Action::OpenEnvsPage,
+        );
+        crate::input::apply::envs_page::apply_envs(
+            &mut app,
+            crate::input::action::Action::OpenEnvForm,
+        );
+        let tab_count_before = app.tabs.tabs.len();
+        let tab_active_before = app.tabs.active;
+        route(&mut app, key(KeyCode::Tab));
+        route(&mut app, ctrl(KeyCode::PageDown));
+        assert_eq!(app.tabs.tabs.len(), tab_count_before);
+        assert_eq!(app.tabs.active, tab_active_before);
+        assert!(matches!(app.modal, Some(crate::modal::Modal::EnvForm(_))));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn modal_open_in_standard_swallows_unbound_keys() {
+        let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        crate::input::apply::envs_page::apply_envs(
+            &mut app,
+            crate::input::action::Action::OpenEnvsPage,
+        );
+        crate::input::apply::envs_page::apply_envs(
+            &mut app,
+            crate::input::action::Action::OpenEnvForm,
+        );
+        assert!(matches!(
+            app.modal,
+            Some(crate::modal::Modal::EnvForm(_))
+        ));
+        let before = app.document().unwrap().to_markdown();
+        route(&mut app, key(KeyCode::F(11)));
+        let after = app.document().unwrap().to_markdown();
+        assert_eq!(before, after, "F11 must not mutate the editor doc");
+        assert!(
+            matches!(app.modal, Some(crate::modal::Modal::EnvForm(_))),
+            "modal must stay open"
+        );
+
+        let tab_count_before = app.tabs.tabs.len();
+        let tab_active_before = app.tabs.active;
+        route(&mut app, key(KeyCode::Tab));
+        assert_eq!(app.tabs.tabs.len(), tab_count_before);
+        assert_eq!(app.tabs.active, tab_active_before, "Tab leaked to editor");
+        assert!(
+            matches!(app.modal, Some(crate::modal::Modal::EnvForm(_))),
+            "modal must stay open after Tab"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]

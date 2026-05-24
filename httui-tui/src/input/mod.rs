@@ -20,5 +20,6 @@ pub mod keymap;
 pub mod map;
 pub mod parser;
 pub mod route;
+pub mod scope;
 pub mod standard;
 pub mod types;

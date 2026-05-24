@@ -124,10 +124,12 @@ pub struct App {
     /// rebuild so subsequent opens skip the cost. Cleared by
     /// `:reindex` (when that lands) or a vault switch.
     pub content_search_index_built: bool,
-    /// Selected tab in the DB result panel. Single global state —
-    /// every block's result section uses the same selection. Cycled
-    /// via `gt` / `gT` while the cursor is on a result row.
-    pub db_result_tab: ResultPanelTab,
+    /// Per-block selected tab in the result panel. Keyed by `BlockId`
+    /// so cycling tabs in one block doesn't move tabs in unrelated
+    /// blocks. Missing entry → [`ResultPanelTab::default()`].
+    /// Cycled via `gt`/`gT` (or `Tab`/`Shift+Tab`) while the cursor
+    /// is on a result row.
+    pub result_tabs: std::collections::HashMap<crate::buffer::block::BlockId, ResultPanelTab>,
     /// `Some` while an inline fence-edit prompt is open (alias /
     /// limit / timeout). Mode flips to `Mode::FenceEdit` so dispatch
     /// routes typing into the prompt's `LineEdit`. Renders in the
@@ -215,7 +217,7 @@ impl App {
             active_env_name: None,
             content_search: None,
             content_search_index_built: false,
-            db_result_tab: ResultPanelTab::default(),
+            result_tabs: std::collections::HashMap::new(),
             fence_edit: None,
             file_watcher: None,
             connections_toml_watcher: None,

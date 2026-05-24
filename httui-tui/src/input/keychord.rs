@@ -44,7 +44,10 @@ impl KeyChord {
             return false;
         }
         match self.code {
-            KeyCode::Char(_) => true,
+            // Char + BackTab are inherently shift-bearing: terminals
+            // disagree on whether they also set `KeyModifiers::SHIFT`,
+            // so we accept either presentation.
+            KeyCode::Char(_) | KeyCode::BackTab => true,
             _ => key.modifiers.contains(KeyModifiers::SHIFT) == self.shift,
         }
     }
@@ -87,8 +90,20 @@ pub fn parse_key_chord(s: &str) -> Option<KeyChord> {
         }
     }
 
+    let code = code?;
+    // Normalize `shift+tab` → `BackTab` so the chord matches whether
+    // the terminal sends `KeyCode::BackTab` (most common) or
+    // `KeyCode::Tab` with `KeyModifiers::SHIFT`. `BackTab` is a one-of-
+    // a-kind code: by definition it IS Shift+Tab, so we drop the
+    // explicit shift bit here and let `matches` treat the modifier as
+    // implicit (mirrors how `Char` codes ignore shift).
+    let (code, shift) = if shift && matches!(code, KeyCode::Tab) {
+        (KeyCode::BackTab, false)
+    } else {
+        (code, shift)
+    };
     Some(KeyChord {
-        code: code?,
+        code,
         ctrl,
         alt,
         shift,

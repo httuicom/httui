@@ -64,6 +64,13 @@ impl TabBar {
         let idx = self.active;
         self.tabs.get_mut(idx)?.active_leaf_mut().document.as_mut()
     }
+
+    /// Immutable counterpart of [`Self::active_document_mut`]. Same
+    /// split-borrow rationale.
+    pub fn active_document(&self) -> Option<&crate::buffer::Document> {
+        let idx = self.active;
+        self.tabs.get(idx)?.active_leaf().document.as_ref()
+    }
 }
 
 #[cfg(test)]

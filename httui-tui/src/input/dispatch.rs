@@ -46,52 +46,23 @@ use crate::input::apply::navigation::should_prefetch;
 // (`apply_completion`, fase 1 p6b); only the three the `dispatch`
 // router itself still calls stay re-exported here.
 pub(crate) use crate::input::apply::completion::{
-    force_open_completion_popup, parse_completion_popup_key, refresh_completion_popup,
+    force_open_completion_popup, refresh_completion_popup,
 };
 
 /// Top-level vim key dispatcher. The app's `handle_key` delegates here.
 pub fn dispatch(app: &mut App, key: KeyEvent) {
-    app.clear_status();
-
-    // `Ctrl-C` while a query is running cancels it — runs before
-    // mode parsing so it works from anywhere (Normal, Modal, the
-    // middle of a chord). Other modes that bind Ctrl-C (modal close
-    // etc.) lose to it; the next key after the cancel completes
-    // returns control.
     use crossterm::event::{KeyCode, KeyModifiers};
-    if app.running_query.is_some()
-        && key.modifiers == KeyModifiers::CONTROL
-        && key.code == KeyCode::Char('c')
-    {
-        crate::commands::db::cancel_running_query(app);
-        return;
-    }
 
-    // `Ctrl+Space` in insert mode — manual trigger for the SQL
-    // completion popup. Lets the user browse the full dialect
-    // listing right after a space (where the auto-trigger has no
-    // prefix to chew on) or force-reopen a popup they just dismissed.
-    //
-    // Terminal quirk: most terminals report Ctrl+Space as KeyCode::
-    // Char(' ') with the CONTROL modifier set, but some emit the
-    // legacy NUL byte form (`Char('\0')`). Accept both.
+    // `Ctrl+Space` in insert mode opens the SQL completion popup.
+    // Terminal quirk: most terminals report Ctrl+Space as
+    // `KeyCode::Char(' ')` with CONTROL set, some emit the legacy
+    // NUL byte form (`Char('\0')`). Accept both.
     if app.vim.mode == Mode::Insert
         && key.modifiers.contains(KeyModifiers::CONTROL)
         && matches!(key.code, KeyCode::Char(' ') | KeyCode::Char('\0'))
     {
         force_open_completion_popup(app);
         return;
-    }
-
-    // Completion popup keys are intercepted before mode parsing so a
-    // user mid-typing (Mode::Insert) can navigate / accept / dismiss
-    // without leaving insert. Any unmatched key falls through to the
-    // mode parser; that re-filter happens in the trigger below.
-    if app.completion_popup.is_some() {
-        if let Some(action) = parse_completion_popup_key(key) {
-            apply_action(app, action, false);
-            return;
-        }
     }
 
     let action = match app.vim.mode {
@@ -308,12 +279,22 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::CloseEnvForm
         | Action::EnvFormChar(_)
         | Action::EnvFormBackspace
+        | Action::EnvFormDelete
+        | Action::EnvFormCursorLeft
+        | Action::EnvFormCursorRight
+        | Action::EnvFormHome
+        | Action::EnvFormEnd
         | Action::EnvFormSubmit
         | Action::OpenVarForm
         | Action::OpenVarEditForm
         | Action::CloseVarForm
         | Action::VarFormChar(_)
         | Action::VarFormBackspace
+        | Action::VarFormDelete
+        | Action::VarFormCursorLeft
+        | Action::VarFormCursorRight
+        | Action::VarFormHome
+        | Action::VarFormEnd
         | Action::VarFormFocusNext
         | Action::VarFormFocusPrev
         | Action::VarFormToggleSecret

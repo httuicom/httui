@@ -607,23 +607,37 @@ enum HttpHighlightState {
     Body,
 }
 
-/// Highlight the request line `METHOD URL`. METHOD gets a colored
-/// badge matching the toolbar; URL renders with `{{...}}` refs in
-/// cyan so they pop against the URL text.
+/// Render `METHOD URL` so total span width equals `line.chars().count()`.
+/// METHOD is a colored badge; URL renders with `{{...}}` refs in cyan.
+///
+/// Width invariant: cursors in the rope are positioned by byte offset,
+/// so any visual padding here (e.g. ` GET ` around the badge or an
+/// inserted separator space) would skew the cursor against what the
+/// user sees on screen. Tests in this module assert length-preservation;
+/// don't reintroduce padding.
 fn highlight_http_request_line(line: &str) -> Vec<Span<'static>> {
-    let mut parts = line.splitn(2, char::is_whitespace);
-    let method = parts.next().unwrap_or("").to_string();
-    let url_rest = parts.next().unwrap_or("").trim_start();
+    let split = line.find(char::is_whitespace).unwrap_or(line.len());
+    let (method, rest) = line.split_at(split);
     let mut spans: Vec<Span<'static>> = Vec::new();
     spans.push(Span::styled(
-        format!(" {method} "),
+        method.to_string(),
         Style::default()
-            .bg(method_color(&method))
+            .bg(method_color(method))
             .fg(Color::Black)
             .add_modifier(Modifier::BOLD),
     ));
-    spans.push(Span::raw(" "));
-    spans.extend(highlight_refs_in_text(url_rest));
+    if !rest.is_empty() {
+        let url_start = rest
+            .find(|c: char| !c.is_whitespace())
+            .unwrap_or(rest.len());
+        let (ws, url) = rest.split_at(url_start);
+        if !ws.is_empty() {
+            spans.push(Span::raw(ws.to_string()));
+        }
+        if !url.is_empty() {
+            spans.extend(highlight_refs_in_text(url));
+        }
+    }
     spans
 }
 
@@ -2261,6 +2275,41 @@ mod tests {
             .join("");
         assert!(first_text.contains("POST"));
         assert!(first_text.contains("https://api.test.com/login"));
+    }
+
+    #[test]
+    fn http_request_line_width_matches_source() {
+        // Rendered span widths must equal source.chars().count() —
+        // the cursor is positioned by byte offset, so any visual
+        // padding drifts the caret off the rope.
+        let line = "GET https://example.com/path";
+        let spans = highlight_http_request_line(line);
+        let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
+        assert_eq!(total, line.chars().count(), "spans={spans:?}");
+    }
+
+    #[test]
+    fn http_request_line_preserves_extra_whitespace() {
+        let line = "POST   https://api.example.com/users";
+        let spans = highlight_http_request_line(line);
+        let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
+        assert_eq!(total, line.chars().count(), "spans={spans:?}");
+    }
+
+    #[test]
+    fn http_request_line_preserves_width_with_refs() {
+        let line = "GET https://{{HOST}}/get";
+        let spans = highlight_http_request_line(line);
+        let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
+        assert_eq!(total, line.chars().count(), "spans={spans:?}");
+    }
+
+    #[test]
+    fn http_request_line_method_only() {
+        let line = "GET";
+        let spans = highlight_http_request_line(line);
+        let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
+        assert_eq!(total, line.chars().count());
     }
 
     #[test]

@@ -107,9 +107,11 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         || app.content_search.is_some()
         || app.modal.is_some();
 
-    // Snapshot the current result-panel tab so the render tree can
-    // pass it down without re-borrowing `app` at every level.
-    let result_tab_global = app.db_result_tab;
+    // Snapshot the per-block result-tab map so the render tree can
+    // read it without re-borrowing `app` at every level. Clone is
+    // cheap (`HashMap<BlockId, ResultPanelTab>` is small — one entry
+    // per executed block per session).
+    let result_tabs_snapshot = app.result_tabs.clone();
 
     // Capture the visual-selection overlay (only painted on the focused
     // leaf — the moving end of the selection is the cursor, the anchor
@@ -173,7 +175,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
                 visual_overlay,
                 &connection_names,
                 result_viewport_top,
-                result_tab_global,
+                &result_tabs_snapshot,
             );
         }
     } else {

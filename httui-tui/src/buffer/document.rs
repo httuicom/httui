@@ -354,6 +354,16 @@ impl Document {
         Some(yanked)
     }
 
+    /// Immutable handle to the block at `segment_idx`. Returns `None`
+    /// when the segment is prose or out of range. Mirrors
+    /// [`block_at_mut`](Self::block_at_mut).
+    pub fn block_at(&self, segment_idx: usize) -> Option<&BlockNode> {
+        match self.segments.get(segment_idx)? {
+            Segment::Block(b) => Some(b),
+            _ => None,
+        }
+    }
+
     /// Mutable handle to the block at `segment_idx`. Used by the run
     /// dispatcher to flip [`ExecutionState`] and stash `cached_result`.
     pub fn block_at_mut(&mut self, segment_idx: usize) -> Option<&mut BlockNode> {

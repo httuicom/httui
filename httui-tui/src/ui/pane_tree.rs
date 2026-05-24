@@ -34,7 +34,7 @@ pub(crate) fn render_pane_tree(
     visual_overlay: Option<VisualOverlay>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tab: crate::app::ResultPanelTab,
+    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
 ) {
     if area.width == 0 || area.height == 0 {
         return;
@@ -54,7 +54,7 @@ pub(crate) fn render_pane_tree(
                             search_pattern,
                             connection_names,
                             result_viewport_top,
-                            result_tab,
+                            result_tabs,
                         );
                     } else {
                         render_document_no_cursor(
@@ -65,7 +65,7 @@ pub(crate) fn render_pane_tree(
                             search_pattern,
                             connection_names,
                             result_viewport_top,
-                            result_tab,
+                            result_tabs,
                         );
                     }
                     // Selection highlight only on the focused leaf —
@@ -118,7 +118,7 @@ pub(crate) fn render_pane_tree(
                 visual_overlay,
                 connection_names,
                 result_viewport_top,
-                result_tab,
+                result_tabs,
             );
             render_pane_tree(
                 frame,
@@ -130,7 +130,7 @@ pub(crate) fn render_pane_tree(
                 visual_overlay,
                 connection_names,
                 result_viewport_top,
-                result_tab,
+                result_tabs,
             );
         }
     }
@@ -344,6 +344,8 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let names: ConnectionNamesAlias = HashMap::new();
         let mut rvt: HashMap<usize, u16> = HashMap::new();
+        let result_tabs: HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab> =
+            HashMap::new();
         terminal
             .draw(|f| {
                 render_pane_tree(
@@ -356,7 +358,7 @@ mod tests {
                     None,
                     &names,
                     &mut rvt,
-                    crate::app::ResultPanelTab::Result,
+                    &result_tabs,
                 );
             })
             .unwrap();
@@ -375,6 +377,8 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let names: ConnectionNamesAlias = HashMap::new();
         let mut rvt: HashMap<usize, u16> = HashMap::new();
+        let result_tabs: HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab> =
+            HashMap::new();
         terminal
             .draw(|f| {
                 render_pane_tree(
@@ -387,7 +391,7 @@ mod tests {
                     None,
                     &names,
                     &mut rvt,
-                    crate::app::ResultPanelTab::Result,
+                    &result_tabs,
                 );
             })
             .unwrap();

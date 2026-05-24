@@ -530,6 +530,11 @@ fn env_form_handle_key(key: KeyEvent) -> ModalOutcome {
         }
         (KeyModifiers::CONTROL, KeyCode::Char('v')) => ModalOutcome::Emit(Action::PasteSystem),
         (_, KeyCode::Enter) => ModalOutcome::Emit(Action::EnvFormSubmit),
+        (_, KeyCode::Left) => ModalOutcome::Emit(Action::EnvFormCursorLeft),
+        (_, KeyCode::Right) => ModalOutcome::Emit(Action::EnvFormCursorRight),
+        (_, KeyCode::Home) => ModalOutcome::Emit(Action::EnvFormHome),
+        (_, KeyCode::End) => ModalOutcome::Emit(Action::EnvFormEnd),
+        (_, KeyCode::Delete) => ModalOutcome::Emit(Action::EnvFormDelete),
         (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::EnvFormBackspace),
         (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
             ModalOutcome::Emit(Action::EnvFormChar(c))
@@ -551,6 +556,11 @@ fn var_form_handle_key(focus: VarFormFocus, key: KeyEvent) -> ModalOutcome {
         (KeyModifiers::NONE, KeyCode::Char(' ')) if focus == VarFormFocus::Secret => {
             ModalOutcome::Emit(Action::VarFormToggleSecret)
         }
+        (_, KeyCode::Left) => ModalOutcome::Emit(Action::VarFormCursorLeft),
+        (_, KeyCode::Right) => ModalOutcome::Emit(Action::VarFormCursorRight),
+        (_, KeyCode::Home) => ModalOutcome::Emit(Action::VarFormHome),
+        (_, KeyCode::End) => ModalOutcome::Emit(Action::VarFormEnd),
+        (_, KeyCode::Delete) => ModalOutcome::Emit(Action::VarFormDelete),
         (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::VarFormBackspace),
         (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
             if focus == VarFormFocus::Secret {

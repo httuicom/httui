@@ -19,7 +19,7 @@ pub(crate) fn render_document_no_cursor(
     search_pattern: Option<&str>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tab: crate::app::ResultPanelTab,
+    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
 ) {
     // Same logic as `render_document`, but skip the cursor draw step.
     // Used while the prompt is open so the terminal caret isn't fighting
@@ -42,7 +42,7 @@ pub(crate) fn render_document_no_cursor(
             search_pattern,
             connection_names,
             result_viewport_top,
-            result_tab,
+            result_tabs,
         );
     }
 }
@@ -57,7 +57,7 @@ fn render_segment_no_cursor(
     search_pattern: Option<&str>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tab: crate::app::ResultPanelTab,
+    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
 ) {
     let seg = match doc.segments().get(layout.segment_idx) {
         Some(s) => s,
@@ -92,6 +92,7 @@ fn render_segment_no_cursor(
             // a previous focus. Pass it through so the renderer keeps
             // the scroll position stable.
             let viewport_slot = result_viewport_top.get_mut(&layout.segment_idx);
+            let result_tab = result_tabs.get(&b.id).copied().unwrap_or_default();
             blocks::render_block_with_selection(
                 frame,
                 area,
@@ -115,7 +116,7 @@ pub(crate) fn render_document(
     search_pattern: Option<&str>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tab: crate::app::ResultPanelTab,
+    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
 ) {
     let layouts = layout_document(doc, area.width);
     let cursor = doc.cursor();
@@ -138,7 +139,7 @@ pub(crate) fn render_document(
             search_pattern,
             connection_names,
             result_viewport_top,
-            result_tab,
+            result_tabs,
         );
     }
 }
@@ -154,7 +155,7 @@ fn render_segment(
     search_pattern: Option<&str>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tab: crate::app::ResultPanelTab,
+    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
 ) {
     let seg = match doc.segments().get(layout.segment_idx) {
         Some(s) => s,
@@ -224,6 +225,7 @@ fn render_segment(
             } else {
                 result_viewport_top.get_mut(&layout.segment_idx)
             };
+            let result_tab = result_tabs.get(&b.id).copied().unwrap_or_default();
             blocks::render_block_with_selection(
                 frame,
                 area,
@@ -324,6 +326,8 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let names: Names = HashMap::new();
         let mut rvt: HashMap<usize, u16> = HashMap::new();
+        let result_tabs: HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab> =
+            HashMap::new();
         terminal
             .draw(|f| {
                 render_document(
@@ -334,7 +338,7 @@ mod tests {
                     pattern,
                     &names,
                     &mut rvt,
-                    crate::app::ResultPanelTab::Result,
+                    &result_tabs,
                 );
             })
             .unwrap();
@@ -356,6 +360,8 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let names: Names = HashMap::new();
         let mut rvt: HashMap<usize, u16> = HashMap::new();
+        let result_tabs: HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab> =
+            HashMap::new();
         terminal
             .draw(|f| {
                 render_document_no_cursor(
@@ -366,7 +372,7 @@ mod tests {
                     pattern,
                     &names,
                     &mut rvt,
-                    crate::app::ResultPanelTab::Result,
+                    &result_tabs,
                 );
             })
             .unwrap();

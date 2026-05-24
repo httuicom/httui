@@ -84,6 +84,43 @@ impl App {
         self.active_pane().map(|p| p.viewport_height).unwrap_or(0)
     }
 
+    // ----- result tabs (per-block) ---------------------------------------
+
+    /// Selected result tab for `block_id`. Missing entry → default
+    /// (`ResultPanelTab::Result`). Used by every render path that
+    /// paints a block's result panel.
+    pub fn result_tab_for(&self, block_id: crate::buffer::block::BlockId) -> crate::app::ResultPanelTab {
+        self.result_tabs.get(&block_id).copied().unwrap_or_default()
+    }
+
+    pub fn set_result_tab(
+        &mut self,
+        block_id: crate::buffer::block::BlockId,
+        tab: crate::app::ResultPanelTab,
+    ) {
+        self.result_tabs.insert(block_id, tab);
+    }
+
+    /// Cycle the result tab of the block under the cursor. `dir >= 0`
+    /// goes next, `dir < 0` goes prev. Works whenever the cursor is on
+    /// a block — whether the user is editing the request (`InBlock`)
+    /// or sitting in a result row (`InBlockResult`). No-op for `InProse`
+    /// so Tab/Shift+Tab don't fire outside any block.
+    pub fn cycle_result_tab_at_cursor(&mut self, dir: i32) {
+        let Some(doc) = self.document() else { return };
+        let segment_idx = match doc.cursor() {
+            crate::buffer::Cursor::InBlock { segment_idx, .. }
+            | crate::buffer::Cursor::InBlockResult { segment_idx, .. } => segment_idx,
+            crate::buffer::Cursor::InProse { .. } => return,
+        };
+        let Some(block_id) = doc.block_at(segment_idx).map(|b| b.id) else {
+            return;
+        };
+        let current = self.result_tab_for(block_id);
+        let next = if dir >= 0 { current.next() } else { current.prev() };
+        self.set_result_tab(block_id, next);
+    }
+
     // ----- viewport refresh ----------------------------------------------
 
     /// Re-anchor the viewport so the cursor stays visible after a
@@ -209,6 +246,85 @@ mod tests {
         );
         assert_eq!(app.viewport_height(), 9);
         assert_eq!(app.document_mut().map(|d| d.to_markdown()), Some(modal_md));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cycle_result_tab_only_affects_the_focused_block() {
+        let md = "```db-postgres alias=a connection=c\nSELECT 1\n```\n\
+                  \n\
+                  ```db-postgres alias=b connection=c\nSELECT 2\n```\n";
+        let (mut app, _d, _v) = app_fixture(md).await;
+        let (id_a, id_b) = {
+            let doc = app.tabs.active_document_mut().unwrap();
+            let mut ids = doc.block_ids();
+            (ids.next().unwrap(), ids.next().unwrap())
+        };
+        app.set_result_tab(id_b, crate::app::ResultPanelTab::Stats);
+        let seg_a = {
+            let doc = app.tabs.active_document_mut().unwrap();
+            doc.block_ids()
+                .enumerate()
+                .find(|(_, id)| *id == id_a)
+                .map(|(i, _)| i)
+                .unwrap()
+                + doc
+                    .segments()
+                    .iter()
+                    .take_while(|s| !matches!(s, crate::buffer::Segment::Block(_)))
+                    .count()
+        };
+        if let Some(doc) = app.tabs.active_document_mut() {
+            doc.set_cursor(crate::buffer::Cursor::InBlockResult {
+                segment_idx: seg_a,
+                row: 0,
+            });
+        }
+        app.cycle_result_tab_at_cursor(1);
+        assert_eq!(
+            app.result_tab_for(id_a),
+            crate::app::ResultPanelTab::Result.next(),
+        );
+        assert_eq!(app.result_tab_for(id_b), crate::app::ResultPanelTab::Stats);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cycle_result_tab_also_works_from_in_block_cursor() {
+        let md = "```db-postgres alias=a connection=c\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_fixture(md).await;
+        let id_a = app
+            .tabs
+            .active_document_mut()
+            .unwrap()
+            .block_ids()
+            .next()
+            .unwrap();
+        let seg_a = app
+            .tabs
+            .active_document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, crate::buffer::Segment::Block(_)))
+            .unwrap();
+        if let Some(doc) = app.tabs.active_document_mut() {
+            doc.set_cursor(crate::buffer::Cursor::InBlock {
+                segment_idx: seg_a,
+                offset: 0,
+            });
+        }
+        app.cycle_result_tab_at_cursor(1);
+        assert_eq!(
+            app.result_tab_for(id_a),
+            crate::app::ResultPanelTab::Result.next(),
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cycle_result_tab_noop_in_prose() {
+        let md = "just prose, no block here\n";
+        let (mut app, _d, _v) = app_fixture(md).await;
+        app.cycle_result_tab_at_cursor(1);
+        assert!(app.result_tabs.is_empty());
     }
 
     #[tokio::test(flavor = "multi_thread")]

@@ -1372,6 +1372,11 @@ pub fn handle_db_block_result(
                 let plan_value = serde_json::to_value(&response).ok();
                 let first_was_error =
                     matches!(response.results.first(), Some(DbResult::Error { .. }));
+                let block_id = app
+                    .tabs
+                    .active_document()
+                    .and_then(|d| d.block_at(segment_idx))
+                    .map(|b| b.id);
                 if let Some(doc) = app.tabs.active_document_mut() {
                     if let Some(b) = doc.block_at_mut(segment_idx) {
                         let target = b.cached_result.get_or_insert_with(|| {
@@ -1395,7 +1400,9 @@ pub fn handle_db_block_result(
                 } else {
                     // Auto-switch to the Plan tab so the user sees the
                     // result without an extra `gt`-cycle through tabs.
-                    app.db_result_tab = crate::app::ResultPanelTab::Plan;
+                    if let Some(id) = block_id {
+                        app.set_result_tab(id, crate::app::ResultPanelTab::Plan);
+                    }
                     app.set_status(
                         StatusKind::Info,
                         format!("plan · {}ms", response.stats.elapsed_ms),

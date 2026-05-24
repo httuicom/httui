@@ -79,17 +79,15 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
             }
         }
         Action::TabNext => {
-            // When the cursor sits on a result row, `gt` cycles
-            // the result-panel tab (Result → Messages → Plan →
-            // Stats → Result) instead of switching editor tabs —
-            // the editor-tab swap wouldn't be useful from inside a
-            // table, and the result-panel needs *some* keyboard
-            // affordance.
+            // Cursor on a block (request body or result row) cycles
+            // the block's result-panel tab. Cursor in prose falls
+            // through to editor-tab switch. Same for `gt`,
+            // `Ctrl+PageDown`, and `Tab`.
             if matches!(
                 app.document().map(|d| d.cursor()),
-                Some(Cursor::InBlockResult { .. })
+                Some(Cursor::InBlock { .. }) | Some(Cursor::InBlockResult { .. })
             ) {
-                app.db_result_tab = app.db_result_tab.next();
+                app.cycle_result_tab_at_cursor(1);
             } else {
                 app.next_tab();
                 app.refresh_viewport_for_cursor();
@@ -98,9 +96,9 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
         Action::TabPrev => {
             if matches!(
                 app.document().map(|d| d.cursor()),
-                Some(Cursor::InBlockResult { .. })
+                Some(Cursor::InBlock { .. }) | Some(Cursor::InBlockResult { .. })
             ) {
-                app.db_result_tab = app.db_result_tab.prev();
+                app.cycle_result_tab_at_cursor(-1);
             } else {
                 app.prev_tab();
                 app.refresh_viewport_for_cursor();
