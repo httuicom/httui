@@ -770,18 +770,51 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         Action::ReopenVaultMissingSecrets => {
             // From the picker (`Alt+; → s`) we close the picker
             // before re-scanning so the modal lands on top cleanly.
+            // resume_vault_picker stays set so Esc on the modal
+            // returns to the picker instead of the editor.
             if matches!(app.modal, Some(crate::modal::Modal::VaultPicker(_))) {
                 app.modal = None;
+                app.resume_vault_picker = true;
             }
             app.scan_pending_secrets();
             if app.pending_secrets.is_empty() {
                 app.set_status(StatusKind::Info, "nenhum secret pendente");
-                app.vim.enter_normal();
+                if app.resume_vault_picker {
+                    app.resume_vault_picker = false;
+                    let _ = open_vault_picker(app);
+                    if app.modal.is_none() {
+                        app.vim.enter_normal();
+                    }
+                } else {
+                    app.vim.enter_normal();
+                }
             } else {
                 app.open_pending_secrets_modal();
             }
         }
         _ => unreachable!("apply_pickers: variante fora do grupo"),
+    }
+}
+
+// ───────────── vault sub-modal back-stack helper ─────────────
+
+/// Dismiss the current sub-modal opened from the vault picker.
+/// When `app.resume_vault_picker` is set (chord-driven flow), reopen
+/// the picker so the user lands back at the menu instead of the
+/// editor. When unset (auto-open paths like the first-run secrets
+/// modal at startup), just close the modal.
+fn dismiss_sub_modal(app: &mut App) {
+    app.modal = None;
+    if app.resume_vault_picker {
+        app.resume_vault_picker = false;
+        let _ = open_vault_picker(app);
+        // If the picker fails to open (vault registry empty, etc),
+        // fall through to a clean normal-mode editor.
+        if app.modal.is_none() {
+            app.vim.enter_normal();
+        }
+    } else {
+        app.vim.enter_normal();
     }
 }
 
@@ -881,6 +914,7 @@ fn open_vault_create_form(app: &mut App) {
     let default_parent = std::env::var("HOME")
         .ok()
         .unwrap_or_else(|| ".".to_string());
+    app.resume_vault_picker = true;
     app.modal = Some(crate::modal::Modal::VaultCreateForm(
         crate::app::VaultCreateFormState {
             parent: LineEdit::from_str(default_parent),
@@ -895,9 +929,8 @@ fn open_vault_create_form(app: &mut App) {
 
 fn apply_close_vault_create_form(app: &mut App) {
     if matches!(app.modal, Some(crate::modal::Modal::VaultCreateForm(_))) {
-        app.modal = None;
+        dismiss_sub_modal(app);
     }
-    app.vim.enter_normal();
 }
 
 fn with_vault_create_form(app: &mut App, f: impl FnOnce(&mut crate::app::VaultCreateFormState)) {
@@ -958,6 +991,7 @@ fn open_vault_clone_form(app: &mut App) {
     let default_parent = std::env::var("HOME")
         .ok()
         .unwrap_or_else(|| ".".to_string());
+    app.resume_vault_picker = true;
     app.modal = Some(crate::modal::Modal::VaultCloneForm(
         crate::app::VaultCloneFormState {
             url: LineEdit::new(),
@@ -972,9 +1006,8 @@ fn open_vault_clone_form(app: &mut App) {
 
 fn apply_close_vault_clone_form(app: &mut App) {
     if matches!(app.modal, Some(crate::modal::Modal::VaultCloneForm(_))) {
-        app.modal = None;
+        dismiss_sub_modal(app);
     }
-    app.vim.enter_normal();
 }
 
 fn with_vault_clone_form(app: &mut App, f: impl FnOnce(&mut crate::app::VaultCloneFormState)) {
@@ -1045,6 +1078,7 @@ fn open_vault_open_picker(app: &mut App) -> Result<(), String> {
         .canonicalize()
         .map_err(|e| format!("resolve start dir {}: {e}", start.display()))?;
     let entries = read_dir_entries(&canonical)?;
+    app.resume_vault_picker = true;
     app.modal = Some(crate::modal::Modal::VaultOpenPicker(
         crate::app::VaultOpenPickerState {
             cwd: canonical,
@@ -1059,9 +1093,8 @@ fn open_vault_open_picker(app: &mut App) -> Result<(), String> {
 
 fn apply_close_vault_open_picker(app: &mut App) {
     if matches!(app.modal, Some(crate::modal::Modal::VaultOpenPicker(_))) {
-        app.modal = None;
+        dismiss_sub_modal(app);
     }
-    app.vim.enter_normal();
 }
 
 fn apply_move_vault_open_picker_cursor(app: &mut App, delta: i32) {
@@ -1151,9 +1184,8 @@ fn navigate_to(app: &mut App, target: Option<std::path::PathBuf>) {
 
 fn apply_close_vault_missing_secrets(app: &mut App) {
     if matches!(app.modal, Some(crate::modal::Modal::VaultMissingSecrets(_))) {
-        app.modal = None;
+        dismiss_sub_modal(app);
     }
-    app.vim.enter_normal();
 }
 
 fn apply_move_vault_missing_secrets_cursor(app: &mut App, delta: i32) {

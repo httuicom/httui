@@ -166,6 +166,12 @@ pub struct App {
     /// badge (slice 7) reads `.len()` for the "⚠ N pending" counter,
     /// and the first-run modal reads the list to render the form.
     pub pending_secrets: Vec<httui_core::vault_config::missing_secrets::MissingRef>,
+    /// V10: set to `true` while a sub-modal (Create/Clone/Open/Pending)
+    /// is open via the vault picker's verb chords. The sub-modal's
+    /// close handler reads this flag to decide whether to dismiss to
+    /// the editor (auto-opens) or re-open the picker on top
+    /// (chord-driven flow). Cleared in the same close handler.
+    pub resume_vault_picker: bool,
 }
 
 impl App {
@@ -223,6 +229,7 @@ impl App {
             connections_store,
             environments_store,
             pending_secrets: Vec::new(),
+            resume_vault_picker: false,
         };
         app.load_initial_document();
         app.refresh_active_env_name();
