@@ -223,24 +223,9 @@ pub fn insert_text_at_caret(app: &mut App, text: &str) {
     }
 }
 
-/// The Standard-mode selection anchor to paint, or `None` when no
-/// selection should be drawn. Pure + owned by the selection module
-/// (kept out of the `ui/mod.rs` legacy render monolith on purpose —
-/// that file is a pre-existing size/coverage debt and fase 3 must
-/// not grow it). The selection is always charwise in the non-modal
-/// model, so the renderer pairs this anchor with `linewise = false`.
-/// The moving end is the doc cursor, exactly like the vim overlay.
-///
-/// Wired into `ui/render_root.rs` (one call site) as the fallback arm
-/// of the visual-overlay match, alongside the existing vim-overlay
-/// arms; the vim arms are deliberately NOT folded in here so Cenário 2
-/// stays byte-identical and this helper keeps a single responsibility.
-/// Try to paste `text` into the focused field of whichever vault
-/// sub-modal is open. Returns `true` when the paste landed in a
-/// modal (caller should skip the editor fallback), `false` when no
-/// modal owns the focus. Per-modal field tables stay here so adding
-/// a new form is one match arm, not a refactor across the apply
-/// router.
+/// Route paste into the focused field of whichever modal is open.
+/// Returns `true` when the paste landed in a modal; caller skips the
+/// editor fallback. Adding a new form is one `match` arm.
 fn paste_into_active_modal_field(app: &mut App, text: &str) -> bool {
     use crate::app::{VarFormFocus, VaultCloneFormFocus, VaultCreateFormFocus};
     use crate::modal::Modal;
@@ -297,6 +282,9 @@ fn paste_into_active_modal_field(app: &mut App, text: &str) -> bool {
     }
 }
 
+/// Standard-mode selection anchor to paint, or `None` when there's
+/// no selection. The moving end is the doc cursor, like the vim
+/// overlay; selection is always charwise in the non-modal model.
 pub(crate) fn standard_overlay_anchor(
     editor_mode: crate::config::EditorMode,
     standard_anchor: Option<Cursor>,
