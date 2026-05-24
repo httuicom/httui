@@ -137,21 +137,9 @@ pub(crate) fn open_envs_page(app: &mut App) -> Result<(), String> {
             Ok::<_, String>((envs, active))
         })
     })?;
-    // Pre-load var counts (one read per env — cheap, TOML in cache).
     let envs: Vec<EnvSummary> = envs_pub
         .into_iter()
-        .map(|e| {
-            let count = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current()
-                    .block_on(store.list_vars(&e.name))
-                    .map(|v| v.len())
-                    .unwrap_or(0)
-            });
-            EnvSummary {
-                name: e.name,
-                var_count: count,
-            }
-        })
+        .map(|e| EnvSummary { name: e.name })
         .collect();
     // Pre-select o env ativo (falls back pro primeiro se nada ativo).
     let selected_env = active

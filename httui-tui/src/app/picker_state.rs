@@ -176,7 +176,6 @@ pub enum EnvsPaneFocus {
 #[derive(Debug, Clone)]
 pub struct EnvSummary {
     pub name: String,
-    pub var_count: usize,
 }
 
 #[derive(Debug, Clone)]
