@@ -6,7 +6,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
 mkdir -p .git/hooks
-for hook in pre-push pre-commit; do
+for hook in pre-push pre-commit commit-msg; do
     src="$REPO_ROOT/scripts/hooks/$hook"
     dst="$REPO_ROOT/.git/hooks/$hook"
     if [ -e "$dst" ] && [ ! -L "$dst" ]; then
