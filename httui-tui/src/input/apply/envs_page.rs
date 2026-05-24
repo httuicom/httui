@@ -134,13 +134,21 @@ pub(crate) fn open_envs_page(app: &mut App) -> Result<(), String> {
     } else {
         Vec::new()
     };
+    // Foco default vai pras vars quando há env (caso comum:
+    // user quer editar valores), e cai pra envs quando vazio
+    // (pra ter o "press n to add" sob a barra de foco).
+    let focus = if envs.is_empty() {
+        EnvsPaneFocus::Envs
+    } else {
+        EnvsPaneFocus::Vars
+    };
     app.modal = Some(crate::modal::Modal::EnvsPage(EnvsPageState {
         envs,
         active,
         selected_env: 0,
         vars,
         selected_var: 0,
-        focus: EnvsPaneFocus::Envs,
+        focus,
     }));
     app.vim.mode = Mode::Modal;
     app.vim.reset_pending();
