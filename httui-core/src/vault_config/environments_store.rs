@@ -58,6 +58,10 @@ pub struct SetVarInput {
     pub key: String,
     /// Raw value. For secret vars it's stored in the keychain and the
     /// TOML keeps only a `{{keychain:...}}` reference.
+    ///
+    /// Empty + `is_secret=true` is a sentinel: "preserve the existing
+    /// keychain entry" (same rule as connection passwords). It errors on
+    /// create because there's nothing to preserve.
     pub value: String,
     pub is_secret: bool,
 }
@@ -395,13 +399,27 @@ impl EnvironmentsStore {
             .ok_or_else(|| format!("environment '{env_name}' not found"))?;
 
         if is_secret {
-            // Move plaintext to keychain; write only the reference into
-            // the TOML.
-            let kc_key = env_var_key(&env_name, &key);
-            let reference = ensure_keychain_ref(&kc_key, &value)?;
-            // If a same-named non-secret existed, remove it.
-            file.vars.remove(&key);
-            file.secrets.insert(key.clone(), reference);
+            // Empty value means "keep the existing keychain entry" — same rule
+            // as connection passwords. The UI never exposes the secret in
+            // edit forms, so any edit that only touches key/is_secret/etc.
+            // submits value="". Treating that as a wipe would silently
+            // destroy the secret on save.
+            if value.is_empty() {
+                if let Some(existing_ref) = file.secrets.get(&key).cloned() {
+                    file.vars.remove(&key);
+                    file.secrets.insert(key.clone(), existing_ref);
+                } else {
+                    return Err("value is required for new secret".to_string());
+                }
+            } else {
+                // Move plaintext to keychain; write only the reference into
+                // the TOML.
+                let kc_key = env_var_key(&env_name, &key);
+                let reference = ensure_keychain_ref(&kc_key, &value)?;
+                // If a same-named non-secret existed, remove it.
+                file.vars.remove(&key);
+                file.secrets.insert(key.clone(), reference);
+            }
         } else {
             // If a same-named secret existed, drop the keychain entry.
             if file.secrets.remove(&key).is_some() {
@@ -621,6 +639,116 @@ mod tests {
 
         // Cleanup
         let _ = delete_secret(&env_var_key(&env_name, "ADMIN_TOKEN"));
+    }
+
+    #[tokio::test]
+    async fn editing_secret_with_empty_value_preserves_keychain() {
+        // Regression: V4 hotfix 2026-05-23. list_vars masks secrets as
+        // value="", so any edit that only touches key/is_secret submits
+        // value="" — previously that wiped the keychain entry on save.
+        let _guard = KEYCHAIN_TEST_LOCK.lock().unwrap();
+        let (store, _t) = fresh_store();
+        let env_name = unique_name("edit-empty");
+        store.create_env(&env_name).await.unwrap();
+
+        // Seed a real secret.
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "API_TOKEN".into(),
+                value: "real-secret-42".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+
+        // Simulate the UI re-saving with an empty value (form was opened
+        // for edit; list_vars never gave the real value to the form).
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "API_TOKEN".into(),
+                value: String::new(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+
+        // resolve_var must still return the original value.
+        let resolved = store
+            .resolve_var(&env_name, "API_TOKEN")
+            .await
+            .unwrap()
+            .expect("secret must still resolve");
+        assert_eq!(resolved, "real-secret-42");
+
+        // Cleanup
+        let _ = delete_secret(&env_var_key(&env_name, "API_TOKEN"));
+    }
+
+    #[tokio::test]
+    async fn creating_secret_with_empty_value_errors() {
+        // Companion to the preserve test: empty + is_secret on a brand-new
+        // key has nothing to preserve, so it must error instead of
+        // silently writing an empty-string secret.
+        let _guard = KEYCHAIN_TEST_LOCK.lock().unwrap();
+        let (store, _t) = fresh_store();
+        let env_name = unique_name("create-empty");
+        store.create_env(&env_name).await.unwrap();
+
+        let err = store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "BRAND_NEW".into(),
+                value: String::new(),
+                is_secret: true,
+            })
+            .await
+            .unwrap_err();
+        assert!(err.contains("value is required"));
+
+        // And the env file must not have a `BRAND_NEW` entry anywhere.
+        let vars = store.list_vars(&env_name).await.unwrap();
+        assert!(vars.iter().all(|v| v.key != "BRAND_NEW"));
+    }
+
+    #[tokio::test]
+    async fn editing_secret_with_new_value_overwrites_keychain() {
+        // Make sure the "empty preserves" path doesn't block legitimate
+        // rotations: re-saving with a non-empty value still rewrites the
+        // keychain entry to the new secret.
+        let _guard = KEYCHAIN_TEST_LOCK.lock().unwrap();
+        let (store, _t) = fresh_store();
+        let env_name = unique_name("rotate");
+        store.create_env(&env_name).await.unwrap();
+
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "ROT".into(),
+                value: "v1".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+        store
+            .set_var(SetVarInput {
+                env_name: env_name.clone(),
+                key: "ROT".into(),
+                value: "v2".into(),
+                is_secret: true,
+            })
+            .await
+            .unwrap();
+
+        let resolved = store
+            .resolve_var(&env_name, "ROT")
+            .await
+            .unwrap()
+            .expect("rotated secret must resolve");
+        assert_eq!(resolved, "v2");
+
+        let _ = delete_secret(&env_var_key(&env_name, "ROT"));
     }
 
     #[tokio::test]
