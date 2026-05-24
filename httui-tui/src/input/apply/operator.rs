@@ -547,6 +547,15 @@ pub(crate) fn return_from_visual(app: &mut App) {
 /// router routes only this group's variants here, so the
 /// `unreachable!` is a compile-time-backed invariant.
 pub(crate) fn apply_operator(app: &mut App, action: Action, recording: bool) {
+    // Read-only modals (db_row_detail / http_response_detail) host a
+    // vim-navigable view but never accept mutations. `is_blocked_in_modal`
+    // gates the Normal-mode parser, but once Visual mode kicks in, keys
+    // route through `parse_visual` which has no modal awareness. Drop
+    // mutating operators here as the last line of defense — yank still
+    // works (no doc mutation), delete/change/paste don't.
+    if is_readonly_modal_open(app) && is_doc_mutation(&action) {
+        return;
+    }
     match action {
         Action::EnterVisual => {
             if let Some(doc) = app.document() {
@@ -589,5 +598,125 @@ pub(crate) fn apply_operator(app: &mut App, action: Action, recording: bool) {
             apply_paste(app, pos, count, recording);
         }
         _ => unreachable!("apply_operator: variante fora do grupo"),
+    }
+}
+
+fn is_readonly_modal_open(app: &App) -> bool {
+    app.db_row_detail.is_some() || app.http_response_detail.is_some()
+}
+
+fn is_doc_mutation(action: &Action) -> bool {
+    use crate::input::types::Operator::{Change, Delete};
+    matches!(
+        action,
+        Action::VisualOperator(Change | Delete)
+            | Action::VisualPaste
+            | Action::OperatorMotion(Change | Delete, _, _)
+            | Action::OperatorLinewise(Change | Delete, _)
+            | Action::OperatorTextObject(Change | Delete, _, _)
+            | Action::Paste(_, _)
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{App, DbRowDetailState, HttpResponseDetailState};
+    use crate::buffer::Document;
+    use crate::config::Config;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use tempfile::TempDir;
+
+    async fn app_with_db_modal(content: &str) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        std::fs::write(vault.path().join("note.md"), "x\n").unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let mut app = App::new(Config::default(), resolved, pool);
+        app.db_row_detail = Some(DbRowDetailState {
+            segment_idx: 0,
+            row: 0,
+            title: "t".into(),
+            doc: Document::from_markdown(content).unwrap(),
+            viewport_height: 4,
+            viewport_top: 0,
+        });
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn visual_delete_in_db_row_detail_does_not_mutate() {
+        let (mut app, _d, _v) = app_with_db_modal("alpha beta\n").await;
+        let before = app.document().unwrap().to_markdown();
+        // Seed visual anchor + cursor so `apply_visual_operator` has
+        // a real range to act on.
+        let cur = app.document().unwrap().cursor();
+        app.vim.visual_anchor = Some(cur);
+        apply_operator(&mut app, Action::VisualOperator(Operator::Delete), false);
+        assert_eq!(app.document().unwrap().to_markdown(), before);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn visual_yank_in_db_row_detail_is_allowed() {
+        let (mut app, _d, _v) = app_with_db_modal("alpha beta\n").await;
+        let before = app.document().unwrap().to_markdown();
+        let cur = app.document().unwrap().cursor();
+        app.vim.visual_anchor = Some(cur);
+        apply_operator(&mut app, Action::VisualOperator(Operator::Yank), false);
+        // Yank doesn't mutate the doc but should land in the unnamed
+        // register. We only assert the doc invariant — the register
+        // path is covered by yank-specific tests.
+        assert_eq!(app.document().unwrap().to_markdown(), before);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn paste_in_http_response_detail_does_not_mutate() {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        std::fs::write(vault.path().join("note.md"), "x\n").unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let mut app = App::new(Config::default(), resolved, pool);
+        app.http_response_detail = Some(HttpResponseDetailState {
+            segment_idx: 0,
+            title: "t".into(),
+            doc: Document::from_markdown("status 200\n").unwrap(),
+            viewport_height: 4,
+            viewport_top: 0,
+        });
+        let before = app.document().unwrap().to_markdown();
+        apply_operator(
+            &mut app,
+            Action::Paste(PastePos::After, 1),
+            false,
+        );
+        assert_eq!(app.document().unwrap().to_markdown(), before);
+        let _ = vault;
+        let _ = data;
+    }
+
+    #[test]
+    fn is_doc_mutation_table() {
+        use Operator::{Change, Delete, Yank};
+        assert!(is_doc_mutation(&Action::VisualOperator(Delete)));
+        assert!(is_doc_mutation(&Action::VisualOperator(Change)));
+        assert!(!is_doc_mutation(&Action::VisualOperator(Yank)));
+        assert!(is_doc_mutation(&Action::VisualPaste));
+        assert!(is_doc_mutation(&Action::OperatorMotion(
+            Delete,
+            Motion::Right,
+            1
+        )));
+        assert!(!is_doc_mutation(&Action::OperatorMotion(
+            Yank,
+            Motion::Right,
+            1
+        )));
     }
 }
