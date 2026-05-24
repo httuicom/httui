@@ -2,9 +2,10 @@ use crate::app::{
     BlockHistoryState, BlockTemplatePickerState, ConnectionDeleteConfirmState,
     ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
     DbExportPickerState, DbRowDetailState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
-    EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState,
-    VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState, VaultCreateFormFocus,
-    VaultCreateFormState, VaultMissingSecretsState, VaultOpenPickerState, VaultPickerState,
+    EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, HttpResponseDetailState, TabPickerState,
+    VarDeleteConfirmState, VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState,
+    VaultCreateFormFocus, VaultCreateFormState, VaultMissingSecretsState, VaultOpenPickerState,
+    VaultPickerState,
 };
 use crate::config::EditorMode;
 use crate::vim::state::VimState;
@@ -95,6 +96,10 @@ pub enum Modal {
     /// the modal is allowed — the renderer paints while state is
     /// `Some`, regardless of `vim.mode`.
     DbRowDetail(DbRowDetailState),
+    /// HTTP response-detail modal. Mirrors `DbRowDetail`: status +
+    /// headers + body in a sub-`Document` driven by the vim motion
+    /// engine (read-only). `Ctrl-c` closes; `Y` copies the raw body.
+    HttpResponseDetail(HttpResponseDetailState),
 }
 
 #[derive(Debug)]
@@ -140,7 +145,7 @@ impl Modal {
             Modal::VaultCloneForm(s) => vault_clone_form_handle_key(s.focus, key),
             Modal::VaultOpenPicker(_) => vault_open_picker_handle_key(key),
             Modal::VaultMissingSecrets(s) => vault_missing_secrets_handle_key(s.editing, key),
-            Modal::DbRowDetail(_) => ModalOutcome::Continue,
+            Modal::DbRowDetail(_) | Modal::HttpResponseDetail(_) => ModalOutcome::Continue,
         }
     }
 
@@ -155,6 +160,7 @@ impl Modal {
     ) -> ModalOutcome {
         match self {
             Modal::DbRowDetail(_) => detail::db_row_handle_key(key, ctx),
+            Modal::HttpResponseDetail(_) => detail::http_response_handle_key(key, ctx),
             _ => self.handle_key(key),
         }
     }
@@ -171,6 +177,20 @@ impl Modal {
     pub fn as_db_row_detail_mut(&mut self) -> Option<&mut DbRowDetailState> {
         match self {
             Modal::DbRowDetail(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_http_response_detail(&self) -> Option<&HttpResponseDetailState> {
+        match self {
+            Modal::HttpResponseDetail(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_http_response_detail_mut(&mut self) -> Option<&mut HttpResponseDetailState> {
+        match self {
+            Modal::HttpResponseDetail(s) => Some(s),
             _ => None,
         }
     }

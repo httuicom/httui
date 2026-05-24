@@ -102,9 +102,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::HttpResponseDetail
             | Mode::ContentSearch
             | Mode::Modal
-    ) || app.http_response_detail.is_some()
-        || app.content_search.is_some()
-        || app.modal.is_some();
+    ) || app.content_search.is_some() || app.modal.is_some();
 
     // Snapshot the per-block result-tab map so the render tree can
     // read it without re-borrowing `app` at every level. Clone is
@@ -258,8 +256,8 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // HTTP response-detail modal — same paint-while-state-is-Some
     // rule as the DB row-detail modal so visual mode keeps the modal
     // up.
-    if let Some(state) = app.http_response_detail.as_mut() {
-        let visual = match (app.vim.mode, app.vim.visual_anchor) {
+    if let Some(state) = app.http_response_detail_mut() {
+        let visual = match (vim_mode, visual_anchor) {
             (Mode::Visual, Some(anchor)) => Some(VisualOverlay {
                 anchor,
                 linewise: false,
@@ -710,13 +708,15 @@ mod tests {
             segment_idx: 0,
             offset: 0,
         });
-        app.http_response_detail = Some(HttpResponseDetailState {
-            segment_idx: 0,
-            title: " 200 OK ".into(),
-            doc: sub_doc(),
-            viewport_height: 10,
-            viewport_top: 0,
-        });
+        app.modal = Some(crate::modal::Modal::HttpResponseDetail(
+            HttpResponseDetailState {
+                segment_idx: 0,
+                title: " 200 OK ".into(),
+                doc: sub_doc(),
+                viewport_height: 10,
+                viewport_top: 0,
+            },
+        ));
         let (text, _c) = render(&mut app, 70, 16);
         assert!(
             text.contains("status 200") || text.contains("body"),

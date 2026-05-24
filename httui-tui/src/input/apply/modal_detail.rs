@@ -311,13 +311,15 @@ pub(crate) fn apply_open_http_response_detail(app: &mut App) {
         Ok(d) => d,
         Err(_) => return,
     };
-    app.http_response_detail = Some(crate::app::HttpResponseDetailState {
-        segment_idx,
-        title,
-        doc: modal_doc,
-        viewport_height: 1,
-        viewport_top: 0,
-    });
+    app.modal = Some(crate::modal::Modal::HttpResponseDetail(
+        crate::app::HttpResponseDetailState {
+            segment_idx,
+            title,
+            doc: modal_doc,
+            viewport_height: 1,
+            viewport_top: 0,
+        },
+    ));
     app.vim.mode = Mode::HttpResponseDetail;
     app.vim.reset_pending();
 }
@@ -325,7 +327,9 @@ pub(crate) fn apply_open_http_response_detail(app: &mut App) {
 /// `Ctrl-c` inside the HTTP response-detail modal → drop the state
 /// and return to normal mode.
 pub(crate) fn apply_close_http_response_detail(app: &mut App) {
-    app.http_response_detail = None;
+    if matches!(app.modal, Some(crate::modal::Modal::HttpResponseDetail(_))) {
+        app.modal = None;
+    }
     app.vim.enter_normal();
 }
 
@@ -333,10 +337,11 @@ pub(crate) fn apply_close_http_response_detail(app: &mut App) {
 /// rendered modal text) to the clipboard. Falls back gracefully when
 /// the clipboard isn't reachable or no body is cached.
 pub(crate) fn apply_copy_http_response_body(app: &mut App) {
-    let Some(state) = app.http_response_detail.as_ref() else {
+    let Some(state) = app.http_response_detail() else {
         return;
     };
-    let Some(text) = http_response_raw_body(app, state.segment_idx) else {
+    let segment_idx = state.segment_idx;
+    let Some(text) = http_response_raw_body(app, segment_idx) else {
         app.set_status(StatusKind::Error, "no response body to copy");
         return;
     };

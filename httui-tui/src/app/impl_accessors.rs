@@ -42,7 +42,7 @@ impl App {
         if let Some(state) = self.db_row_detail() {
             return Some(&state.doc);
         }
-        if let Some(state) = self.http_response_detail.as_ref() {
+        if let Some(state) = self.http_response_detail() {
             return Some(&state.doc);
         }
         self.active_pane().and_then(|p| p.document.as_ref())
@@ -61,8 +61,8 @@ impl App {
         if self.db_row_detail().is_some() {
             return self.db_row_detail_mut().map(|s| &mut s.doc);
         }
-        if self.http_response_detail.is_some() {
-            return self.http_response_detail.as_mut().map(|s| &mut s.doc);
+        if self.http_response_detail().is_some() {
+            return self.http_response_detail_mut().map(|s| &mut s.doc);
         }
         self.active_pane_mut().and_then(|p| p.document.as_mut())
     }
@@ -78,7 +78,7 @@ impl App {
         if let Some(state) = self.db_row_detail() {
             return state.viewport_height;
         }
-        if let Some(state) = self.http_response_detail.as_ref() {
+        if let Some(state) = self.http_response_detail() {
             return state.viewport_height;
         }
         self.active_pane().map(|p| p.viewport_height).unwrap_or(0)
@@ -94,6 +94,14 @@ impl App {
 
     pub fn db_row_detail_mut(&mut self) -> Option<&mut crate::app::DbRowDetailState> {
         self.modal.as_mut().and_then(|m| m.as_db_row_detail_mut())
+    }
+
+    pub fn http_response_detail(&self) -> Option<&crate::app::HttpResponseDetailState> {
+        self.modal.as_ref().and_then(|m| m.as_http_response_detail())
+    }
+
+    pub fn http_response_detail_mut(&mut self) -> Option<&mut crate::app::HttpResponseDetailState> {
+        self.modal.as_mut().and_then(|m| m.as_http_response_detail_mut())
     }
 
     // ----- result tabs (per-block) ---------------------------------------
@@ -249,13 +257,15 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn document_redirects_to_http_response_detail_modal_while_open() {
         let (mut app, _d, _v) = app_fixture("editor body\n").await;
-        app.http_response_detail = Some(HttpResponseDetailState {
-            segment_idx: 0,
-            title: "resp".into(),
-            doc: detail_doc("HTTP MODAL\n"),
-            viewport_height: 9,
-            viewport_top: 0,
-        });
+        app.modal = Some(crate::modal::Modal::HttpResponseDetail(
+            HttpResponseDetailState {
+                segment_idx: 0,
+                title: "resp".into(),
+                doc: detail_doc("HTTP MODAL\n"),
+                viewport_height: 9,
+                viewport_top: 0,
+            },
+        ));
 
         let modal_md = detail_doc("HTTP MODAL\n").to_markdown();
         assert_eq!(

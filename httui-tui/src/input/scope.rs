@@ -36,9 +36,6 @@ pub enum ScopeKind {
     /// `app.content_search.is_some()` — full-text search panel.
     /// Always consumes.
     ContentSearch,
-    /// `app.http_response_detail.is_some()` — HTTP response-detail
-    /// modal. Always consumes.
-    HttpResponseDetail,
     /// `app.modal.is_some()` — every modal variant (forms, pickers,
     /// confirms, detail modals). The detail variants (`DbRowDetail`,
     /// `HttpResponseDetail`) host the vim engine over a read-only
@@ -86,9 +83,6 @@ pub fn active_scopes(app: &App) -> Vec<ScopeKind> {
     if app.content_search.is_some() {
         v.push(ScopeKind::ContentSearch);
     }
-    if app.http_response_detail.is_some() {
-        v.push(ScopeKind::HttpResponseDetail);
-    }
     if app.modal.is_some() {
         v.push(ScopeKind::Modal);
     }
@@ -129,7 +123,6 @@ fn handle_scope(kind: ScopeKind, app: &mut App, key: KeyEvent) -> KeyOutcome {
         ScopeKind::FenceEdit => handle_fence_edit(key),
         ScopeKind::DbSettings => handle_db_settings(key),
         ScopeKind::ContentSearch => handle_content_search(key),
-        ScopeKind::HttpResponseDetail => handle_http_response_detail(app, key),
         ScopeKind::Modal => handle_modal(app, key),
         ScopeKind::RunningQueryCatch => handle_running_query_catch(app, key),
     }
@@ -182,22 +175,6 @@ fn handle_db_settings(key: KeyEvent) -> KeyOutcome {
 /// Full-text content search panel. Parser is total.
 fn handle_content_search(key: KeyEvent) -> KeyOutcome {
     KeyOutcome::Effect(crate::input::parser::modals::parse_content_search(key))
-}
-
-/// HTTP response-detail modal — vim motions over a read-only doc. The
-/// modal owns the parser only while vim sits in `Mode::HttpResponseDetail`;
-/// transient modes (Visual / Search / CmdLine) and the entire standard
-/// profile are forwarded so the editor scope can drive the modal's
-/// sub-doc via `app.document_mut`'s redirect.
-fn handle_http_response_detail(app: &mut App, key: KeyEvent) -> KeyOutcome {
-    if app.config.editor.mode == crate::config::EditorMode::Standard {
-        return KeyOutcome::Forward;
-    }
-    if app.vim.mode != crate::vim::mode::Mode::HttpResponseDetail {
-        return KeyOutcome::Forward;
-    }
-    let action = crate::input::parser::modals::parse_http_response_detail(&mut app.vim, key);
-    KeyOutcome::Effect(action)
 }
 
 /// Running-query cancel — catches the profile-specific cancel chord.
@@ -356,13 +333,15 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn http_detail_modal_forwards_in_standard_profile() {
         let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
-        app.http_response_detail = Some(crate::app::HttpResponseDetailState {
-            segment_idx: 0,
-            title: "resp".into(),
-            doc: crate::buffer::Document::from_markdown("line1\nline2\n").unwrap(),
-            viewport_height: 4,
-            viewport_top: 0,
-        });
+        app.modal = Some(crate::modal::Modal::HttpResponseDetail(
+            crate::app::HttpResponseDetailState {
+                segment_idx: 0,
+                title: "resp".into(),
+                doc: crate::buffer::Document::from_markdown("line1\nline2\n").unwrap(),
+                viewport_height: 4,
+                viewport_top: 0,
+            },
+        ));
         app.vim.mode = crate::vim::mode::Mode::HttpResponseDetail;
         let before = app.document().unwrap().cursor();
         dispatch(&mut app, key(KeyCode::Down));

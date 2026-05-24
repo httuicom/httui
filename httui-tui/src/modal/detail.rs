@@ -43,3 +43,16 @@ pub(super) fn db_row_handle_key(key: KeyEvent, ctx: &mut ModalKeyCtx<'_>) -> Mod
     let action = crate::input::parser::modals::parse_db_row_detail(ctx.vim, key);
     ModalOutcome::Emit(action)
 }
+
+/// `Modal::HttpResponseDetail.handle_key_with_ctx` body. Mirrors
+/// [`db_row_handle_key`].
+pub(super) fn http_response_handle_key(key: KeyEvent, ctx: &mut ModalKeyCtx<'_>) -> ModalOutcome {
+    if matches!(ctx.editor_mode, EditorMode::Standard) {
+        return ModalOutcome::Forward;
+    }
+    if ctx.vim.mode != Mode::HttpResponseDetail {
+        return ModalOutcome::Forward;
+    }
+    let action = crate::input::parser::modals::parse_http_response_detail(ctx.vim, key);
+    ModalOutcome::Emit(action)
+}
