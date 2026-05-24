@@ -592,5 +592,9 @@ pub enum Action {
     VaultMissingSecretsBackspace,
     VaultMissingSecretsSave,
     VaultMissingSecretsSkip,
+    /// V10 slice 7: `s` inside the vault picker — re-scan and reopen
+    /// the first-run secrets modal (lets the user fill values that
+    /// were previously skipped, or address newly-added refs).
+    ReopenVaultMissingSecrets,
     Noop,
 }

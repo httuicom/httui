@@ -173,6 +173,9 @@ fn vault_picker_handle_key(key: KeyEvent) -> ModalOutcome {
     if let (KeyModifiers::NONE, KeyCode::Char('o')) = (key.modifiers, key.code) {
         return ModalOutcome::Emit(Action::OpenVaultOpenPicker);
     }
+    if let (KeyModifiers::NONE, KeyCode::Char('s')) = (key.modifiers, key.code) {
+        return ModalOutcome::Emit(Action::ReopenVaultMissingSecrets);
+    }
     match list_picker_key(key) {
         ListPickerKey::Up => ModalOutcome::Emit(Action::MoveVaultPickerCursor(-1)),
         ListPickerKey::Down => ModalOutcome::Emit(Action::MoveVaultPickerCursor(1)),
@@ -787,6 +790,15 @@ mod tests {
 
     fn empty_vault_create_form() -> Modal {
         Modal::VaultCreateForm(VaultCreateFormState::default())
+    }
+
+    #[test]
+    fn vault_picker_s_reopens_missing_secrets() {
+        let mut m = vault_picker(vec!["/a"]);
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('s'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::ReopenVaultMissingSecrets)
+        ));
     }
 
     #[test]

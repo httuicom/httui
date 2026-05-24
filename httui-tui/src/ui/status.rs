@@ -164,6 +164,20 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     spans.extend(running_chip);
     spans.extend(env_chip);
     spans.extend(conn_chip);
+    // V10 slice 7: pending-secrets badge. Only emits when the active
+    // vault has refs without a keychain entry; clicking is replaced
+    // by the `s` chord inside the vault picker (Alt+; → s reopens
+    // the first-run modal so the user can fill them in).
+    if !app.pending_secrets.is_empty() {
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(
+            format!(" ! {} secrets ", app.pending_secrets.len()),
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::LightYellow)
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
     spans.push(Span::raw(format!(
         " {file}{dirty_marker} · {block_count} blocks · {cursor_label} · vault: {vault} · theme: {}",
         app.config.theme

@@ -271,7 +271,8 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::VaultMissingSecretsChar(_)
         | Action::VaultMissingSecretsBackspace
         | Action::VaultMissingSecretsSave
-        | Action::VaultMissingSecretsSkip => {
+        | Action::VaultMissingSecretsSkip
+        | Action::ReopenVaultMissingSecrets => {
             crate::input::apply::pickers::apply_pickers(app, action, recording)
         }
         Action::OpenConnectionForm

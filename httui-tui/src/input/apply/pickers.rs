@@ -767,6 +767,20 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         }),
         Action::VaultMissingSecretsSave => apply_vault_missing_secrets_save(app),
         Action::VaultMissingSecretsSkip => apply_vault_missing_secrets_skip(app),
+        Action::ReopenVaultMissingSecrets => {
+            // From the picker (`Alt+; → s`) we close the picker
+            // before re-scanning so the modal lands on top cleanly.
+            if matches!(app.modal, Some(crate::modal::Modal::VaultPicker(_))) {
+                app.modal = None;
+            }
+            app.scan_pending_secrets();
+            if app.pending_secrets.is_empty() {
+                app.set_status(StatusKind::Info, "nenhum secret pendente");
+                app.vim.enter_normal();
+            } else {
+                app.open_pending_secrets_modal();
+            }
+        }
         _ => unreachable!("apply_pickers: variante fora do grupo"),
     }
 }
