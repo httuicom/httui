@@ -4,8 +4,16 @@
 //! each `Action` variant to the matching `apply_<group>` here.
 
 pub mod completion;
+/// V10 (tui-V10): connection picker handlers, split out of `pickers.rs`
+/// to keep that file under the 600-line size gate.
+pub mod connection_picker;
 /// V3 P3 (2026-05-23): create-connection form modal handlers.
 pub mod connection_form;
+/// V10 (tui-V10): environment picker handlers, split out of `pickers.rs`.
+pub mod env_picker;
+/// V10 (tui-V10): vault picker + sub-modals (create/clone/open/missing),
+/// split out of `pickers.rs`.
+pub mod vault_modals;
 /// V4 P5 (2026-05-23): handlers do clone-env form. Extraído de
 /// `envs_page` pra respeitar size limit do DoD.
 pub mod envs_clone;
