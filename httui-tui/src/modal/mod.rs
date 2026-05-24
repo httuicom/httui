@@ -117,6 +117,7 @@ fn vault_missing_secrets_handle_key(editing: bool, key: KeyEvent) -> ModalOutcom
             (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
                 ModalOutcome::Emit(Action::VaultMissingSecretsCancelEdit)
             }
+            (KeyModifiers::CONTROL, KeyCode::Char('v')) => ModalOutcome::Emit(Action::PasteSystem),
             (_, KeyCode::Enter) => ModalOutcome::Emit(Action::VaultMissingSecretsSave),
             (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::VaultMissingSecretsBackspace),
             (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
@@ -189,6 +190,7 @@ fn vault_create_form_handle_key(focus: VaultCreateFormFocus, key: KeyEvent) -> M
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
             ModalOutcome::Emit(Action::CloseVaultCreateForm)
         }
+        (KeyModifiers::CONTROL, KeyCode::Char('v')) => ModalOutcome::Emit(Action::PasteSystem),
         (_, KeyCode::Enter) => ModalOutcome::Emit(Action::VaultCreateFormSubmit),
         (_, KeyCode::Tab) | (_, KeyCode::Down) => {
             ModalOutcome::Emit(Action::VaultCreateFormFocusNext)
@@ -211,6 +213,7 @@ fn vault_clone_form_handle_key(focus: VaultCloneFormFocus, key: KeyEvent) -> Mod
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
             ModalOutcome::Emit(Action::CloseVaultCloneForm)
         }
+        (KeyModifiers::CONTROL, KeyCode::Char('v')) => ModalOutcome::Emit(Action::PasteSystem),
         (_, KeyCode::Enter) => ModalOutcome::Emit(Action::VaultCloneFormSubmit),
         (_, KeyCode::Tab) | (_, KeyCode::Down) => {
             ModalOutcome::Emit(Action::VaultCloneFormFocusNext)
