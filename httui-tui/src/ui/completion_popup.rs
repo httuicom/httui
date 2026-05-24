@@ -130,14 +130,9 @@ fn compute_popup_rect(
             .x
             .saturating_add(1)
             .saturating_add(state.anchor_offset as u16);
-        // +2 = chrome header (1) + footer/status row (1). DB blocks
-        // render with a top chrome (driver chip + RW + connection)
-        // BEFORE the body lines start, so `screen_top + 1` would
-        // land ON the cursor row (overlap). +2 anchors the popup
-        // one cell BELOW the cursor — IDE-style.
         let cursor_y = anchor
             .screen_top
-            .saturating_add(2)
+            .saturating_add(3)
             .saturating_add(state.anchor_line as u16);
 
         // Right-edge clamp: shift the popup left until it fits.
