@@ -218,6 +218,7 @@ fn macos_option_to_ascii(c: char) -> Option<char> {
         '¿' => '?', // Option+? — often Shift-1 variant
         '≈' => 'x', // Option+x
         '…' => '.', // Option+.
+        '∑' => 'w', // Option+w
         _ => return None,
     })
 }
@@ -321,6 +322,19 @@ mod tests {
         assert_eq!(
             lookup(&keymap, ev(KeyCode::Down, KeyModifiers::ALT)),
             Some(Action::JumpNextBlock),
+        );
+    }
+
+    #[test]
+    fn lookup_remaps_macos_option_w_to_alt_w() {
+        // V10 slice 8 hotfix: Option+w on macOS (Use Option as Meta
+        // OFF) emits `∑` without ALT. The unmap table must rewrite it
+        // back to Alt+w so OpenVaultPicker fires from the canonical
+        // chord rather than requiring the user to hold Shift.
+        let keymap = resolve_standard_keymap(&KeymapConfig::default());
+        assert_eq!(
+            lookup(&keymap, ev(KeyCode::Char('∑'), KeyModifiers::NONE)),
+            Some(Action::OpenVaultPicker),
         );
     }
 
