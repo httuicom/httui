@@ -31,6 +31,12 @@ pub(crate) fn action_needs_block_swap(action: &Action) -> bool {
             return false;
         }
     }
+    // Paste deliberately bypasses the swap: `paste()` already routes
+    // Cursor::InBlock straight to `paste_into_block`, which inserts
+    // into the block.raw rope directly and is linewise-aware. Letting
+    // the swap promote the block to Prose first would force the paste
+    // through the prose linewise path, which dropped pasted lines past
+    // the closing fence ("blank line after the block" bug).
     matches!(
         action,
         Action::Motion(..)
@@ -39,7 +45,6 @@ pub(crate) fn action_needs_block_swap(action: &Action) -> bool {
             | Action::OperatorTextObject(..)
             | Action::VisualOperator(_)
             | Action::VisualSwap
-            | Action::Paste(..)
             | Action::Undo
             | Action::Redo
             | Action::RepeatChange(_)
