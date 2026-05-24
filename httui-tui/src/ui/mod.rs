@@ -37,6 +37,7 @@ mod status;
 mod tab_picker;
 mod tabs;
 mod tree;
+mod vault_create_form;
 mod vault_picker;
 
 pub use render_root::render;

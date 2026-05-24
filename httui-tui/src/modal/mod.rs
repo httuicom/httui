@@ -3,7 +3,7 @@ use crate::app::{
     ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
     DbExportPickerState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
     EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState,
-    VarFormFocus, VarFormState, VaultPickerState,
+    VarFormFocus, VarFormState, VaultCreateFormFocus, VaultCreateFormState, VaultPickerState,
 };
 
 /// V4 P5: clone-env form key handler (extraído pra respeitar size limit).
@@ -55,6 +55,10 @@ pub enum Modal {
     /// registry. Confirm chama `App::switch_vault` (in-place swap).
     /// Aberto por Alt+W (configurável via keymap.toml).
     VaultPicker(VaultPickerState),
+    /// V10 slice 4: form de criação de vault. Aberto por `n` dentro
+    /// do VaultPicker. Submit faz mkdir + git init + scaffold +
+    /// switch_vault (in-place).
+    VaultCreateForm(VaultCreateFormState),
 }
 
 #[derive(Debug)]
@@ -84,17 +88,46 @@ impl Modal {
             Modal::EnvDeleteConfirm(_) | Modal::VarDeleteConfirm(_) => env_or_var_confirm_handle_key(key),
             Modal::EnvCloneForm(s) => clone_form::env_clone_form_handle_key(s.focus, key),
             Modal::VaultPicker(_) => vault_picker_handle_key(key),
+            Modal::VaultCreateForm(s) => vault_create_form_handle_key(s.focus, key),
         }
     }
 }
 
 fn vault_picker_handle_key(key: KeyEvent) -> ModalOutcome {
+    // Sub-mode verbs (composes "vault" as the entry point with verbs
+    // n=new / o=open / c=clone inside it — same shape as
+    // ConnectionsPage: n=new, D=delete).
+    if let (KeyModifiers::NONE, KeyCode::Char('n')) = (key.modifiers, key.code) {
+        return ModalOutcome::Emit(Action::OpenVaultCreateForm);
+    }
     match list_picker_key(key) {
         ListPickerKey::Up => ModalOutcome::Emit(Action::MoveVaultPickerCursor(-1)),
         ListPickerKey::Down => ModalOutcome::Emit(Action::MoveVaultPickerCursor(1)),
         ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseVaultPicker),
         ListPickerKey::Confirm => ModalOutcome::Emit(Action::ConfirmVaultPicker),
         ListPickerKey::Other => ModalOutcome::Continue,
+    }
+}
+
+fn vault_create_form_handle_key(focus: VaultCreateFormFocus, key: KeyEvent) -> ModalOutcome {
+    let KeyEvent { code, modifiers, .. } = key;
+    let _ = focus;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::CloseVaultCreateForm)
+        }
+        (_, KeyCode::Enter) => ModalOutcome::Emit(Action::VaultCreateFormSubmit),
+        (_, KeyCode::Tab) | (_, KeyCode::Down) => {
+            ModalOutcome::Emit(Action::VaultCreateFormFocusNext)
+        }
+        (_, KeyCode::BackTab) | (_, KeyCode::Up) => {
+            ModalOutcome::Emit(Action::VaultCreateFormFocusPrev)
+        }
+        (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::VaultCreateFormBackspace),
+        (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
+            ModalOutcome::Emit(Action::VaultCreateFormChar(c))
+        }
+        _ => ModalOutcome::Continue,
     }
 }
 
@@ -643,6 +676,51 @@ mod tests {
         assert!(matches!(
             m.handle_key(k(KeyCode::Char('c'), KeyModifiers::CONTROL)),
             ModalOutcome::Emit(Action::CloseVaultPicker)
+        ));
+    }
+
+    #[test]
+    fn vault_picker_n_opens_create_form() {
+        // V10 slice 4: composição "vault" + verbo. `n` dentro do picker
+        // dispara o form de criação. Mesmo padrão de ConnectionsPage.
+        let mut m = vault_picker(vec!["/a"]);
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('n'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenVaultCreateForm)
+        ));
+    }
+
+    fn empty_vault_create_form() -> Modal {
+        Modal::VaultCreateForm(VaultCreateFormState::default())
+    }
+
+    #[test]
+    fn vault_create_form_routes_typing_and_navigation() {
+        let mut m = empty_vault_create_form();
+        // Char insertion.
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('a'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultCreateFormChar('a'))
+        ));
+        // Backspace.
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Backspace, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultCreateFormBackspace)
+        ));
+        // Tab cycles focus forward.
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Tab, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultCreateFormFocusNext)
+        ));
+        // Enter submits.
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultCreateFormSubmit)
+        ));
+        // Esc cancels.
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CloseVaultCreateForm)
         ));
     }
 }

@@ -701,6 +701,23 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         Action::CloseVaultPicker => apply_close_vault_picker(app),
         Action::MoveVaultPickerCursor(delta) => apply_move_vault_picker_cursor(app, delta),
         Action::ConfirmVaultPicker => apply_confirm_vault_picker(app),
+        Action::OpenVaultCreateForm => open_vault_create_form(app),
+        Action::CloseVaultCreateForm => apply_close_vault_create_form(app),
+        Action::VaultCreateFormFocusNext => with_vault_create_form(app, |f| f.focus = f.focus.next()),
+        Action::VaultCreateFormFocusPrev => with_vault_create_form(app, |f| f.focus = f.focus.prev()),
+        Action::VaultCreateFormChar(c) => with_vault_create_form(app, |f| match f.focus {
+            crate::app::VaultCreateFormFocus::Parent => f.parent.insert_char(c),
+            crate::app::VaultCreateFormFocus::Name => f.name.insert_char(c),
+        }),
+        Action::VaultCreateFormBackspace => with_vault_create_form(app, |f| match f.focus {
+            crate::app::VaultCreateFormFocus::Parent => {
+                f.parent.delete_before();
+            }
+            crate::app::VaultCreateFormFocus::Name => {
+                f.name.delete_before();
+            }
+        }),
+        Action::VaultCreateFormSubmit => apply_vault_create_form_submit(app),
         _ => unreachable!("apply_pickers: variante fora do grupo"),
     }
 }
@@ -789,5 +806,84 @@ pub(crate) fn apply_confirm_vault_picker(app: &mut App) {
     match app.switch_vault(std::path::PathBuf::from(&target)) {
         Ok(()) => app.set_status(StatusKind::Info, format!("vault → {target}")),
         Err(e) => app.set_status(StatusKind::Error, format!("switch vault: {e}")),
+    }
+}
+
+// ───────────── vault create form (V10 slice 4) ─────────────
+
+/// Open the Create form. Default parent is `$HOME` so the user just
+/// needs to pick a name; can be edited if they want a different root.
+fn open_vault_create_form(app: &mut App) {
+    use crate::vim::lineedit::LineEdit;
+    let default_parent = std::env::var("HOME")
+        .ok()
+        .unwrap_or_else(|| ".".to_string());
+    app.modal = Some(crate::modal::Modal::VaultCreateForm(
+        crate::app::VaultCreateFormState {
+            parent: LineEdit::from_str(default_parent),
+            name: LineEdit::new(),
+            focus: crate::app::VaultCreateFormFocus::Name,
+            error: None,
+        },
+    ));
+    app.vim.mode = Mode::Modal;
+    app.vim.reset_pending();
+}
+
+fn apply_close_vault_create_form(app: &mut App) {
+    if matches!(app.modal, Some(crate::modal::Modal::VaultCreateForm(_))) {
+        app.modal = None;
+    }
+    app.vim.enter_normal();
+}
+
+fn with_vault_create_form(app: &mut App, f: impl FnOnce(&mut crate::app::VaultCreateFormState)) {
+    if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_mut() {
+        f(s);
+    }
+}
+
+/// Validate + scaffold + switch. Errors stay inline on the form so
+/// the user can fix and resubmit. Success closes the modal and the
+/// status bar reflects the new active vault.
+fn apply_vault_create_form_submit(app: &mut App) {
+    let (parent_raw, name) = if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_ref() {
+        (s.parent.as_str().to_string(), s.name.as_str().trim().to_string())
+    } else {
+        return;
+    };
+    if name.is_empty() {
+        if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_mut() {
+            s.error = Some("name is required".into());
+        }
+        return;
+    }
+    let parent_expanded = crate::vault::expand_tilde(parent_raw.trim());
+    let parent_path = std::path::PathBuf::from(&parent_expanded);
+    if !parent_path.is_dir() {
+        if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_mut() {
+            s.error = Some(format!("parent must be a directory: {parent_expanded}"));
+        }
+        return;
+    }
+    let outcome = match httui_core::vault_config::create::create_new_vault(&parent_path, &name) {
+        Ok(o) => o,
+        Err(e) => {
+            if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_mut() {
+                s.error = Some(format!("create vault: {e}"));
+            }
+            return;
+        }
+    };
+    app.modal = None;
+    app.vim.enter_normal();
+    let target = outcome.destination.clone();
+    let display = target.display().to_string();
+    match app.switch_vault(target) {
+        Ok(()) => app.set_status(StatusKind::Info, format!("vault criado → {display}")),
+        Err(e) => app.set_status(
+            StatusKind::Error,
+            format!("vault criado em {display} mas switch falhou: {e}"),
+        ),
     }
 }

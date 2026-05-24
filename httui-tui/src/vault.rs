@@ -76,7 +76,7 @@ fn prompt_for_vault() -> TuiResult<PathBuf> {
 
 /// `~/foo` → `/Users/joao/foo`. Only the leading `~/` is expanded;
 /// `~user` (other-user shorthand) is intentionally not supported.
-fn expand_tilde(s: &str) -> String {
+pub fn expand_tilde(s: &str) -> String {
     if let Some(rest) = s.strip_prefix("~/") {
         if let Ok(home) = std::env::var("HOME") {
             return format!("{home}/{rest}");

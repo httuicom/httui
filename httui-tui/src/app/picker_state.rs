@@ -439,6 +439,38 @@ pub struct VaultPickerState {
     pub active: Option<String>,
 }
 
+/// V10 slice 4: Create form opened by `n` inside the vault picker.
+/// Submits to `httui_core::vault_config::create::create_new_vault`,
+/// then triggers `App::switch_vault` so the new workspace becomes
+/// active in-place. Validates parent exists and is a directory.
+#[derive(Debug, Default)]
+pub struct VaultCreateFormState {
+    pub parent: crate::vim::lineedit::LineEdit,
+    pub name: crate::vim::lineedit::LineEdit,
+    pub focus: VaultCreateFormFocus,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum VaultCreateFormFocus {
+    #[default]
+    Parent,
+    Name,
+}
+
+impl VaultCreateFormFocus {
+    pub fn next(self) -> Self {
+        match self {
+            VaultCreateFormFocus::Parent => VaultCreateFormFocus::Name,
+            VaultCreateFormFocus::Name => VaultCreateFormFocus::Parent,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        self.next()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

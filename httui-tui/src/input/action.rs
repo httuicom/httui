@@ -555,5 +555,14 @@ pub enum Action {
     /// `Enter` inside the vault picker — `App::switch_vault` for the
     /// highlighted path.
     ConfirmVaultPicker,
+    /// V10 slice 4: `n` inside the vault picker — open Create form.
+    OpenVaultCreateForm,
+    CloseVaultCreateForm,
+    VaultCreateFormFocusNext,
+    VaultCreateFormFocusPrev,
+    VaultCreateFormChar(char),
+    VaultCreateFormBackspace,
+    /// `Enter` in the Create form — create + switch_vault.
+    VaultCreateFormSubmit,
     Noop,
 }
