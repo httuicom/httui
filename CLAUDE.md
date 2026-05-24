@@ -37,7 +37,23 @@ cargo clippy --workspace           # Rust linter (all crates)
 # Dev utilities
 make wipe-config                   # Apaga config persistente do app (notes.db, user.toml, WebKit cache).
                                    # Mantém keychain. Útil pra voltar ao empty state entre testes manuais.
+make setup-hooks                   # Install local git hooks (pre-commit / pre-push / commit-msg).
 ```
+
+## Commit style
+
+Enforced by `scripts/hooks/commit-msg` (installed via `make setup-hooks`):
+
+- Subject only — NO body, NO `-m "..."` follow-ups for "context".
+- Conventional Commits subject (`feat(tui): ...`, `refactor: ...`).
+- No internal planning vocabulary: `V<n>`, `tui-V<n>`, `vertical[- ]<n>`,
+  `slice`, `fase`/`phase`, `cenario`/`cenário`, `p<n>`. Those live in
+  `docs-llm/`, not in `git log`.
+- No AI-assistant attribution: `Generated with`, `Co-Authored-By: Claude`, 🤖.
+- Subject ≤ 72 chars.
+
+Bypass with `--no-verify` only with explicit owner approval. Iterative
+fix commits should be squashed (`git reset --soft HEAD~N` + re-commit).
 
 ## Empty-state + first-run flow
 
