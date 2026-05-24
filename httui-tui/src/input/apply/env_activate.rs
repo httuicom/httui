@@ -47,3 +47,63 @@ pub(crate) fn apply_activate_env_by_index(app: &mut App, idx: usize) {
     }
     app.set_status(StatusKind::Info, format!("env: {name}"));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use tempfile::TempDir;
+
+    async fn app_fixture() -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        std::fs::write(vault.path().join("note.md"), "stub\n").unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        (App::new(Config::default(), resolved, pool), data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn idx_zero_is_noop() {
+        let (mut app, _d, _v) = app_fixture().await;
+        apply_activate_env_by_index(&mut app, 0);
+        assert!(app.active_env_name.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn idx_out_of_range_sets_info_status() {
+        let (mut app, _d, _v) = app_fixture().await;
+        apply_activate_env_by_index(&mut app, 3);
+        assert!(app.status_message.is_some());
+        assert!(app.active_env_name.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn activate_existing_env_by_index() {
+        let (mut app, _d, _v) = app_fixture().await;
+        app.environments_store.create_env("alpha").await.unwrap();
+        app.environments_store.create_env("beta").await.unwrap();
+        apply_activate_env_by_index(&mut app, 2);
+        assert_eq!(app.active_env_name.as_deref(), Some("beta"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn activate_dismisses_envs_page_modal() {
+        let (mut app, _d, _v) = app_fixture().await;
+        app.environments_store.create_env("alpha").await.unwrap();
+        // Abre a page primeiro.
+        crate::input::apply::envs_page::apply_envs(
+            &mut app,
+            crate::input::action::Action::OpenEnvsPage,
+        );
+        assert!(matches!(app.modal, Some(crate::modal::Modal::EnvsPage(_))));
+        apply_activate_env_by_index(&mut app, 1);
+        // Reabre EnvsPage com active atualizado (não fica None).
+        assert!(matches!(app.modal, Some(crate::modal::Modal::EnvsPage(_))));
+        assert_eq!(app.active_env_name.as_deref(), Some("alpha"));
+    }
+}

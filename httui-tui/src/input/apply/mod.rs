@@ -12,6 +12,10 @@ pub mod envs_clone;
 /// V4 P6 (2026-05-23): activate-env-by-index handler.
 pub mod env_activate;
 pub mod envs_page;
+/// V4 débito-de-cobertura (2026-05-23): tests integrados que cobrem
+/// envs_page + envs_clone via App+EnvironmentsStore reais (tempdir).
+#[cfg(test)]
+mod envs_page_tests;
 pub mod misc;
 pub mod modal_detail;
 pub mod navigation;
