@@ -32,9 +32,10 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Op
     };
     let outer = Block::default()
         .borders(Borders::ALL)
+        .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg)
-        .border_style(Style::default().fg(Color::LightMagenta).bg(Color::Black));
+        .border_style(Style::default().fg(crate::ui::palette::BORDER).bg(Color::Black));
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
@@ -131,7 +132,7 @@ fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
                 Span::styled(
                     shortcut,
                     Style::default()
-                        .fg(Color::LightMagenta)
+                        .fg(crate::ui::palette::ACCENT)
                         .add_modifier(Modifier::DIM),
                 ),
             ]))
@@ -276,6 +277,7 @@ pub fn render_env_form(frame: &mut Frame, editor_area: Rect, state: &EnvFormStat
     let title = if state.editing.is_some() { " Rename env " } else { " New env " };
     let outer = Block::default()
         .borders(Borders::ALL)
+        .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg)
         .border_style(Style::default().fg(Color::LightYellow).bg(Color::Black));
@@ -329,6 +331,7 @@ pub fn render_var_form(frame: &mut Frame, editor_area: Rect, state: &VarFormStat
     };
     let outer = Block::default()
         .borders(Borders::ALL)
+        .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg)
         .border_style(Style::default().fg(Color::LightYellow).bg(Color::Black));
@@ -434,6 +437,7 @@ fn confirm_popup(frame: &mut Frame, editor_area: Rect, title: &str, prompt: &str
     fill(frame, area, bg);
     let outer = Block::default()
         .borders(Borders::ALL)
+        .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title.to_string())
         .style(bg)
         .border_style(Style::default().fg(Color::LightRed).bg(Color::Black));

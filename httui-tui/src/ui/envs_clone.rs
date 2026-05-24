@@ -28,6 +28,7 @@ pub fn render_env_clone_form(
     let title = format!(" Clone env · from {} ", state.source);
     let outer = Block::default()
         .borders(Borders::ALL)
+        .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg)
         .border_style(Style::default().fg(Color::LightYellow).bg(Color::Black));

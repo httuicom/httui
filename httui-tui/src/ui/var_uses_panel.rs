@@ -25,7 +25,7 @@ pub(super) fn render_var_uses_panel(frame: &mut Frame, area: Rect, state: &EnvsP
     let header = Line::from(Span::styled(
         header_label,
         Style::default()
-            .fg(Color::LightMagenta)
+            .fg(crate::ui::palette::ACCENT)
             .add_modifier(Modifier::BOLD),
     ));
     let mut lines: Vec<Line<'static>> = vec![header];
