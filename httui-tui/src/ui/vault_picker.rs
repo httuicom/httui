@@ -109,33 +109,46 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
     ));
     frame.render_stateful_widget(list, body_area, &mut list_state);
 
-    let chip_key = Style::default()
-        .bg(Color::LightMagenta)
-        .fg(Color::Black)
+    // Minimal hint footer: bold accent key, dim label, `·` separator.
+    // No coloured background blocks — they read as noise once you
+    // have 4+ chips on screen.
+    let key_style = Style::default()
+        .fg(crate::ui::palette::ACCENT)
         .add_modifier(Modifier::BOLD);
-    let chip_label = Style::default().fg(Color::Gray);
+    let label_style = Style::default().fg(Color::DarkGray);
+    let sep_style = Style::default().fg(Color::DarkGray);
+    let hint = |pairs: &[(&str, &str)]| {
+        let mut spans: Vec<Span<'static>> = Vec::with_capacity(pairs.len() * 4);
+        for (i, (key, label)) in pairs.iter().enumerate() {
+            if i > 0 {
+                spans.push(Span::styled("  ·  ".to_string(), sep_style));
+            }
+            spans.push(Span::styled((*key).to_string(), key_style));
+            spans.push(Span::raw(" "));
+            spans.push(Span::styled((*label).to_string(), label_style));
+        }
+        Line::from(spans)
+    };
 
-    let verbs = Line::from(vec![
-        Span::styled(" n ", chip_key),
-        Span::styled(" new   ", chip_label),
-        Span::styled(" c ", chip_key),
-        Span::styled(" clone   ", chip_label),
-        Span::styled(" o ", chip_key),
-        Span::styled(" open   ", chip_label),
-        Span::styled(" s ", chip_key),
-        Span::styled(" secrets ", chip_label),
-    ]);
-    frame.render_widget(Paragraph::new(verbs).style(bg_style), verbs_area);
-
-    let nav = Line::from(vec![
-        Span::styled(" jk ", chip_key),
-        Span::styled(" navigate   ", chip_label),
-        Span::styled(" Enter ", chip_key),
-        Span::styled(" switch   ", chip_label),
-        Span::styled(" Esc ", chip_key),
-        Span::styled(" close ", chip_label),
-    ]);
-    frame.render_widget(Paragraph::new(nav).style(bg_style), nav_area);
+    frame.render_widget(
+        Paragraph::new(hint(&[
+            ("n", "new"),
+            ("c", "clone"),
+            ("o", "open"),
+            ("s", "secrets"),
+        ]))
+        .style(bg_style),
+        verbs_area,
+    );
+    frame.render_widget(
+        Paragraph::new(hint(&[
+            ("jk", "navigate"),
+            ("Enter", "switch"),
+            ("Esc", "close"),
+        ]))
+        .style(bg_style),
+        nav_area,
+    );
 }
 
 /// Width fits the longest path (clamped 40..area.width-2). Height
