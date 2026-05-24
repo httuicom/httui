@@ -439,6 +439,35 @@ pub struct VaultPickerState {
     pub active: Option<String>,
 }
 
+/// V10 slice 3: directory navigator opened by `o` inside the vault
+/// picker. Lists the current dir's children (`..` always at the top,
+/// then sorted dirs, then `.toml`-bearing vaults). Navigation:
+/// Enter on a dir descends, Enter on a vault activates (switch_vault),
+/// Backspace ascends, Esc closes.
+#[derive(Debug)]
+pub struct VaultOpenPickerState {
+    pub cwd: std::path::PathBuf,
+    pub entries: Vec<VaultOpenEntry>,
+    pub selected: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct VaultOpenEntry {
+    pub name: String,
+    pub kind: VaultOpenEntryKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VaultOpenEntryKind {
+    /// Synthetic `..` entry — always at top, ascends one level.
+    Parent,
+    /// Plain directory — Enter descends into it.
+    Directory,
+    /// Directory with vault markers (httui_core::vault_config::scaffold::is_vault).
+    /// Enter activates via App::switch_vault.
+    Vault,
+}
+
 /// V10 slice 5: Clone form opened by `c` inside the vault picker.
 /// Submits to `httui_core::git::clone::git_clone(url, Some(parent))`,
 /// then triggers `App::switch_vault` so the cloned repo becomes

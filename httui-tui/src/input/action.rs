@@ -573,5 +573,15 @@ pub enum Action {
     VaultCloneFormBackspace,
     /// `Enter` in the Clone form — git_clone + switch_vault.
     VaultCloneFormSubmit,
+    /// V10 slice 3: `o` inside the vault picker — open directory
+    /// navigator.
+    OpenVaultOpenPicker,
+    CloseVaultOpenPicker,
+    MoveVaultOpenPickerCursor(i32),
+    /// `Enter` inside the open picker — descend into the highlighted
+    /// directory, or `switch_vault` if it's a vault root.
+    VaultOpenPickerEnter,
+    /// `Backspace` inside the open picker — ascend one level.
+    VaultOpenPickerUp,
     Noop,
 }

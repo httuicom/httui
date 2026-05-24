@@ -39,6 +39,7 @@ mod tabs;
 mod tree;
 mod vault_clone_form;
 mod vault_create_form;
+mod vault_open_picker;
 mod vault_picker;
 
 pub use render_root::render;

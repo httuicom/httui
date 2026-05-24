@@ -258,7 +258,12 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::VaultCloneFormFocusPrev
         | Action::VaultCloneFormChar(_)
         | Action::VaultCloneFormBackspace
-        | Action::VaultCloneFormSubmit => {
+        | Action::VaultCloneFormSubmit
+        | Action::OpenVaultOpenPicker
+        | Action::CloseVaultOpenPicker
+        | Action::MoveVaultOpenPickerCursor(_)
+        | Action::VaultOpenPickerEnter
+        | Action::VaultOpenPickerUp => {
             crate::input::apply::pickers::apply_pickers(app, action, recording)
         }
         Action::OpenConnectionForm

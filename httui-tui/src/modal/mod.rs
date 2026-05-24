@@ -4,7 +4,7 @@ use crate::app::{
     DbExportPickerState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
     EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState,
     VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState,
-    VaultCreateFormFocus, VaultCreateFormState, VaultPickerState,
+    VaultCreateFormFocus, VaultCreateFormState, VaultOpenPickerState, VaultPickerState,
 };
 
 /// V4 P5: clone-env form key handler (extraído pra respeitar size limit).
@@ -63,6 +63,10 @@ pub enum Modal {
     /// V10 slice 5: form de clone. Aberto por `c` dentro do
     /// VaultPicker. Submit faz git clone + switch_vault.
     VaultCloneForm(VaultCloneFormState),
+    /// V10 slice 3: navegador de diretório. Aberto por `o` dentro
+    /// do VaultPicker. Enter num dir desce; Enter num vault ativa
+    /// (switch_vault); Backspace sobe um nível; Esc fecha.
+    VaultOpenPicker(VaultOpenPickerState),
 }
 
 #[derive(Debug)]
@@ -94,7 +98,22 @@ impl Modal {
             Modal::VaultPicker(_) => vault_picker_handle_key(key),
             Modal::VaultCreateForm(s) => vault_create_form_handle_key(s.focus, key),
             Modal::VaultCloneForm(s) => vault_clone_form_handle_key(s.focus, key),
+            Modal::VaultOpenPicker(_) => vault_open_picker_handle_key(key),
         }
+    }
+}
+
+fn vault_open_picker_handle_key(key: KeyEvent) -> ModalOutcome {
+    let KeyEvent { code, modifiers, .. } = key;
+    if let (_, KeyCode::Backspace) = (modifiers, code) {
+        return ModalOutcome::Emit(Action::VaultOpenPickerUp);
+    }
+    match list_picker_key(key) {
+        ListPickerKey::Up => ModalOutcome::Emit(Action::MoveVaultOpenPickerCursor(-1)),
+        ListPickerKey::Down => ModalOutcome::Emit(Action::MoveVaultOpenPickerCursor(1)),
+        ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseVaultOpenPicker),
+        ListPickerKey::Confirm => ModalOutcome::Emit(Action::VaultOpenPickerEnter),
+        ListPickerKey::Other => ModalOutcome::Continue,
     }
 }
 
@@ -107,6 +126,9 @@ fn vault_picker_handle_key(key: KeyEvent) -> ModalOutcome {
     }
     if let (KeyModifiers::NONE, KeyCode::Char('c')) = (key.modifiers, key.code) {
         return ModalOutcome::Emit(Action::OpenVaultCloneForm);
+    }
+    if let (KeyModifiers::NONE, KeyCode::Char('o')) = (key.modifiers, key.code) {
+        return ModalOutcome::Emit(Action::OpenVaultOpenPicker);
     }
     match list_picker_key(key) {
         ListPickerKey::Up => ModalOutcome::Emit(Action::MoveVaultPickerCursor(-1)),
@@ -722,6 +744,44 @@ mod tests {
 
     fn empty_vault_create_form() -> Modal {
         Modal::VaultCreateForm(VaultCreateFormState::default())
+    }
+
+    #[test]
+    fn vault_picker_o_opens_open_picker() {
+        let mut m = vault_picker(vec!["/a"]);
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('o'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenVaultOpenPicker)
+        ));
+    }
+
+    fn vault_open_picker() -> Modal {
+        Modal::VaultOpenPicker(VaultOpenPickerState {
+            cwd: std::path::PathBuf::from("/tmp"),
+            entries: Vec::new(),
+            selected: 0,
+        })
+    }
+
+    #[test]
+    fn vault_open_picker_routes_navigation() {
+        let mut m = vault_open_picker();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('j'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::MoveVaultOpenPickerCursor(1))
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Backspace, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultOpenPickerUp)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultOpenPickerEnter)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CloseVaultOpenPicker)
+        ));
     }
 
     #[test]

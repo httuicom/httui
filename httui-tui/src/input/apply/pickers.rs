@@ -735,6 +735,15 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
             }
         }),
         Action::VaultCloneFormSubmit => apply_vault_clone_form_submit(app),
+        Action::OpenVaultOpenPicker => {
+            if let Err(msg) = open_vault_open_picker(app) {
+                app.set_status(StatusKind::Error, msg);
+            }
+        }
+        Action::CloseVaultOpenPicker => apply_close_vault_open_picker(app),
+        Action::MoveVaultOpenPickerCursor(delta) => apply_move_vault_open_picker_cursor(app, delta),
+        Action::VaultOpenPickerEnter => apply_vault_open_picker_enter(app),
+        Action::VaultOpenPickerUp => apply_vault_open_picker_up(app),
         _ => unreachable!("apply_pickers: variante fora do grupo"),
     }
 }
@@ -982,4 +991,166 @@ fn apply_vault_clone_form_submit(app: &mut App) {
             format!("vault clonado em {display} mas switch falhou: {e}"),
         ),
     }
+}
+
+// ───────────── vault open picker (V10 slice 3) ─────────────
+
+/// Open the directory navigator rooted at `$HOME` (or `.` when HOME
+/// isn't set). The user can Enter to descend, Backspace to ascend,
+/// Enter on a vault root to switch into it.
+fn open_vault_open_picker(app: &mut App) -> Result<(), String> {
+    let start = std::env::var("HOME")
+        .ok()
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.is_dir())
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let canonical = start
+        .canonicalize()
+        .map_err(|e| format!("resolve start dir {}: {e}", start.display()))?;
+    let entries = read_dir_entries(&canonical)?;
+    app.modal = Some(crate::modal::Modal::VaultOpenPicker(
+        crate::app::VaultOpenPickerState {
+            cwd: canonical,
+            entries,
+            selected: 0,
+        },
+    ));
+    app.vim.mode = Mode::Modal;
+    app.vim.reset_pending();
+    Ok(())
+}
+
+fn apply_close_vault_open_picker(app: &mut App) {
+    if matches!(app.modal, Some(crate::modal::Modal::VaultOpenPicker(_))) {
+        app.modal = None;
+    }
+    app.vim.enter_normal();
+}
+
+fn apply_move_vault_open_picker_cursor(app: &mut App, delta: i32) {
+    let Some(crate::modal::Modal::VaultOpenPicker(state)) = app.modal.as_mut() else {
+        return;
+    };
+    if state.entries.is_empty() {
+        return;
+    }
+    let last = state.entries.len() as i64 - 1;
+    let next = (state.selected as i64)
+        .saturating_add(delta as i64)
+        .clamp(0, last);
+    state.selected = next as usize;
+}
+
+/// Enter: descend into the highlighted dir, ascend if `..`, or
+/// switch_vault when the entry is a vault root.
+fn apply_vault_open_picker_enter(app: &mut App) {
+    let (cwd, entry) = match app.modal.as_ref() {
+        Some(crate::modal::Modal::VaultOpenPicker(s)) => match s.entries.get(s.selected).cloned() {
+            Some(e) => (s.cwd.clone(), e),
+            None => return,
+        },
+        _ => return,
+    };
+    use crate::app::VaultOpenEntryKind;
+    match entry.kind {
+        VaultOpenEntryKind::Parent => navigate_to(app, cwd.parent().map(|p| p.to_path_buf())),
+        VaultOpenEntryKind::Directory => {
+            let target = cwd.join(&entry.name);
+            navigate_to(app, Some(target));
+        }
+        VaultOpenEntryKind::Vault => {
+            let target = cwd.join(&entry.name);
+            app.modal = None;
+            app.vim.enter_normal();
+            let display = target.display().to_string();
+            match app.switch_vault(target) {
+                Ok(()) => app.set_status(StatusKind::Info, format!("vault → {display}")),
+                Err(e) => app.set_status(StatusKind::Error, format!("switch vault: {e}")),
+            }
+        }
+    }
+}
+
+fn apply_vault_open_picker_up(app: &mut App) {
+    let cwd = match app.modal.as_ref() {
+        Some(crate::modal::Modal::VaultOpenPicker(s)) => s.cwd.clone(),
+        _ => return,
+    };
+    navigate_to(app, cwd.parent().map(|p| p.to_path_buf()));
+}
+
+/// Shared helper: re-read entries for `target` and update the picker
+/// state. No-op when `target` is `None` (already at filesystem root).
+fn navigate_to(app: &mut App, target: Option<std::path::PathBuf>) {
+    let Some(target) = target else { return };
+    let canonical = match target.canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            app.set_status(
+                StatusKind::Error,
+                format!("dir {}: {e}", target.display()),
+            );
+            return;
+        }
+    };
+    if !canonical.is_dir() {
+        return;
+    }
+    let entries = match read_dir_entries(&canonical) {
+        Ok(es) => es,
+        Err(e) => {
+            app.set_status(StatusKind::Error, e);
+            return;
+        }
+    };
+    if let Some(crate::modal::Modal::VaultOpenPicker(state)) = app.modal.as_mut() {
+        state.cwd = canonical;
+        state.entries = entries;
+        state.selected = 0;
+    }
+}
+
+/// Read the dir as a `[.., dirs..]` listing. Hidden files (starting
+/// with `.`) are skipped because the picker is for choosing
+/// workspaces, not browsing dotfiles. Dirs containing the vault
+/// markers (`runbooks/`, `.httui/`) are flagged as `Vault` so Enter
+/// activates them; the rest are plain Directory.
+fn read_dir_entries(path: &std::path::Path) -> Result<Vec<crate::app::VaultOpenEntry>, String> {
+    use crate::app::{VaultOpenEntry, VaultOpenEntryKind};
+    let read = std::fs::read_dir(path).map_err(|e| format!("read dir {}: {e}", path.display()))?;
+    let mut dirs: Vec<VaultOpenEntry> = Vec::new();
+    for entry in read.flatten() {
+        let ftype = match entry.file_type() {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        if !ftype.is_dir() {
+            continue;
+        }
+        let name = match entry.file_name().into_string() {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        if name.starts_with('.') {
+            continue;
+        }
+        let kind = if httui_core::vault_config::scaffold::is_vault(&entry.path()) {
+            VaultOpenEntryKind::Vault
+        } else {
+            VaultOpenEntryKind::Directory
+        };
+        dirs.push(VaultOpenEntry { name, kind });
+    }
+    dirs.sort_by(|a, b| a.name.cmp(&b.name));
+    // Synthetic `..` at the top — present unless we're at the
+    // filesystem root (no parent).
+    let mut out = Vec::with_capacity(dirs.len() + 1);
+    if path.parent().is_some() {
+        out.push(VaultOpenEntry {
+            name: "..".to_string(),
+            kind: VaultOpenEntryKind::Parent,
+        });
+    }
+    out.extend(dirs);
+    Ok(out)
 }
