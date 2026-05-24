@@ -37,10 +37,10 @@ mod status;
 mod tab_picker;
 mod tabs;
 mod tree;
-mod vault_clone_form;
-mod vault_create_form;
+pub(crate) mod vault_clone_form;
+pub(crate) mod vault_create_form;
 mod vault_missing_secrets;
-mod vault_open_picker;
+pub(crate) mod vault_open_picker;
 mod vault_picker;
 
 pub use render_root::render;

@@ -157,6 +157,85 @@ fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vim::lineedit::LineEdit;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    fn dump(terminal: &Terminal<TestBackend>) -> String {
+        let buf = terminal.backend().buffer();
+        let mut out = String::new();
+        for y in 0..buf.area.height {
+            for x in 0..buf.area.width {
+                if let Some(cell) = buf.cell((x, y)) {
+                    out.push_str(cell.symbol());
+                }
+            }
+            out.push('\n');
+        }
+        out
+    }
+
+    fn state_with(parent: &str, name: &str, focus: VaultCreateFormFocus, error: Option<&str>)
+        -> VaultCreateFormState
+    {
+        VaultCreateFormState {
+            parent: LineEdit::from_str(parent),
+            name: LineEdit::from_str(name),
+            focus,
+            error: error.map(|s| s.to_string()),
+        }
+    }
+
+    #[test]
+    fn render_paints_title_labels_and_footer() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state_with("/tmp", "demo", VaultCreateFormFocus::Name, None);
+        terminal.draw(|f| {
+            render(f, f.area(), &s);
+        }).unwrap();
+        let painted = dump(&terminal);
+        assert!(painted.contains("Create vault"), "title present");
+        assert!(painted.contains("Parent dir"), "parent label present");
+        assert!(painted.contains("Name"), "name label present");
+        assert!(painted.contains("cycle field"), "footer hint present");
+    }
+
+    #[test]
+    fn render_shows_error_line_when_set() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state_with("/tmp", "demo", VaultCreateFormFocus::Name, Some("boom"));
+        terminal.draw(|f| {
+            render(f, f.area(), &s);
+        }).unwrap();
+        let painted = dump(&terminal);
+        assert!(painted.contains("error: boom"), "error line painted");
+    }
+
+    #[test]
+    fn render_shows_hint_when_field_empty() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state_with("", "", VaultCreateFormFocus::Parent, None);
+        terminal.draw(|f| {
+            render(f, f.area(), &s);
+        }).unwrap();
+        let painted = dump(&terminal);
+        assert!(painted.contains("my-vault"), "name placeholder visible");
+    }
+
+    #[test]
+    fn render_returns_cursor_at_end_of_focused_field() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state_with("/tmp", "abc", VaultCreateFormFocus::Name, None);
+        let mut cursor = None;
+        terminal.draw(|f| {
+            cursor = render(f, f.area(), &s);
+        }).unwrap();
+        assert!(cursor.is_some(), "cursor reported for focused field");
+    }
 
     #[test]
     fn centered_rect_clamps_within_area() {

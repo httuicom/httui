@@ -951,4 +951,254 @@ mod tests {
             ModalOutcome::Emit(Action::CloseVaultCreateForm)
         ));
     }
+
+    // ───────────── tui-V10: coverage gaps in adjacent handlers
+    // (connection delete confirm, connections page, db confirm run). ─────
+
+    #[test]
+    fn connection_delete_confirm_routes_y_n_and_cancel() {
+        let mut m = Modal::ConnectionDeleteConfirm(ConnectionDeleteConfirmState {
+            name: String::new(),
+        });
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('y'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::ConfirmConnectionDelete)
+        ));
+        let mut m = Modal::ConnectionDeleteConfirm(ConnectionDeleteConfirmState {
+            name: String::new(),
+        });
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('n'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CancelConnectionDelete)
+        ));
+        let mut m = Modal::ConnectionDeleteConfirm(ConnectionDeleteConfirmState {
+            name: String::new(),
+        });
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CancelConnectionDelete)
+        ));
+        let mut m = Modal::ConnectionDeleteConfirm(ConnectionDeleteConfirmState {
+            name: String::new(),
+        });
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::ConfirmConnectionDelete)
+        ));
+    }
+
+    fn connections_page_modal() -> Modal {
+        Modal::Connections(ConnectionsPageState::default())
+    }
+
+    #[test]
+    fn connections_page_routes_action_chords() {
+        let mut m = connections_page_modal();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('n'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenConnectionForm)
+        ));
+        let mut m = connections_page_modal();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('e'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenConnectionEditForm)
+        ));
+        let mut m = connections_page_modal();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('t'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::TestSelectedConnection)
+        ));
+        let mut m = connections_page_modal();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('D'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenConnectionDeleteConfirm)
+        ));
+        let mut m = connections_page_modal();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Down, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::MoveConnectionsPageCursor(1))
+        ));
+        let mut m = connections_page_modal();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CloseConnectionsPage)
+        ));
+    }
+
+    #[test]
+    fn envs_page_routes_navigation_and_action_chords() {
+        let envs_focus = || EnvsPaneFocus::Envs;
+        let vars_focus = || EnvsPaneFocus::Vars;
+        // Tab toggles focus.
+        assert!(matches!(
+            envs_page_handle_key(envs_focus(), k(KeyCode::Tab, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::EnvsPageFocusToggle)
+        ));
+        // h/l switch panes.
+        assert!(matches!(
+            envs_page_handle_key(vars_focus(), k(KeyCode::Char('h'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::EnvsPageFocusEnvs)
+        ));
+        assert!(matches!(
+            envs_page_handle_key(envs_focus(), k(KeyCode::Char('l'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::EnvsPageFocusVars)
+        ));
+        // j/k move within the focused pane.
+        assert!(matches!(
+            envs_page_handle_key(envs_focus(), k(KeyCode::Char('j'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::EnvsPageMoveEnvCursor(1))
+        ));
+        assert!(matches!(
+            envs_page_handle_key(vars_focus(), k(KeyCode::Char('k'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::EnvsPageMoveVarCursor(-1))
+        ));
+        // Per-pane n/e/D/c verbs.
+        assert!(matches!(
+            envs_page_handle_key(envs_focus(), k(KeyCode::Char('n'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenEnvForm)
+        ));
+        assert!(matches!(
+            envs_page_handle_key(vars_focus(), k(KeyCode::Char('n'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenVarForm)
+        ));
+        assert!(matches!(
+            envs_page_handle_key(envs_focus(), k(KeyCode::Char('e'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenEnvEditForm)
+        ));
+        assert!(matches!(
+            envs_page_handle_key(envs_focus(), k(KeyCode::Char('D'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenEnvDeleteConfirm)
+        ));
+        assert!(matches!(
+            envs_page_handle_key(envs_focus(), k(KeyCode::Char('c'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenEnvCloneForm)
+        ));
+        assert!(matches!(
+            envs_page_handle_key(envs_focus(), k(KeyCode::Char('a'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::EnvsPageActivateEnv)
+        ));
+        // Esc closes.
+        assert!(matches!(
+            envs_page_handle_key(envs_focus(), k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CloseEnvsPage)
+        ));
+        // 1-9 activate env by index (works in either focus).
+        match envs_page_handle_key(envs_focus(), k(KeyCode::Char('3'), KeyModifiers::NONE)) {
+            ModalOutcome::Emit(Action::ActivateEnvByIndex(3)) => {}
+            other => panic!("expected ActivateEnvByIndex(3), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn env_form_routes_typing_save_and_cancel() {
+        assert!(matches!(
+            env_form_handle_key(k(KeyCode::Char('a'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::EnvFormChar('a'))
+        ));
+        assert!(matches!(
+            env_form_handle_key(k(KeyCode::Backspace, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::EnvFormBackspace)
+        ));
+        assert!(matches!(
+            env_form_handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::EnvFormSubmit)
+        ));
+        assert!(matches!(
+            env_form_handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CloseEnvForm)
+        ));
+        assert!(matches!(
+            env_form_handle_key(k(KeyCode::Char('v'), KeyModifiers::CONTROL)),
+            ModalOutcome::Emit(Action::PasteSystem)
+        ));
+    }
+
+    #[test]
+    fn var_form_routes_typing_focus_and_secret_toggle() {
+        assert!(matches!(
+            var_form_handle_key(VarFormFocus::Key, k(KeyCode::Char('x'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VarFormChar('x'))
+        ));
+        assert!(matches!(
+            var_form_handle_key(VarFormFocus::Value, k(KeyCode::Tab, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VarFormFocusNext)
+        ));
+        assert!(matches!(
+            var_form_handle_key(VarFormFocus::Key, k(KeyCode::BackTab, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VarFormFocusPrev)
+        ));
+        assert!(matches!(
+            var_form_handle_key(VarFormFocus::Secret, k(KeyCode::Char(' '), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VarFormToggleSecret)
+        ));
+        // Char on Secret focus is inert.
+        assert!(matches!(
+            var_form_handle_key(VarFormFocus::Secret, k(KeyCode::Char('z'), KeyModifiers::NONE)),
+            ModalOutcome::Continue
+        ));
+        assert!(matches!(
+            var_form_handle_key(VarFormFocus::Key, k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VarFormSubmit)
+        ));
+        assert!(matches!(
+            var_form_handle_key(VarFormFocus::Key, k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CloseVarForm)
+        ));
+    }
+
+    #[test]
+    fn env_or_var_confirm_routes_y_n_enter_esc() {
+        assert!(matches!(
+            env_or_var_confirm_handle_key(k(KeyCode::Char('y'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::ConfirmEnvOrVarDelete)
+        ));
+        assert!(matches!(
+            env_or_var_confirm_handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::ConfirmEnvOrVarDelete)
+        ));
+        assert!(matches!(
+            env_or_var_confirm_handle_key(k(KeyCode::Char('n'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CancelEnvOrVarDelete)
+        ));
+        assert!(matches!(
+            env_or_var_confirm_handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CancelEnvOrVarDelete)
+        ));
+    }
+
+    #[test]
+    fn db_confirm_run_routes_y_n_and_enter() {
+        let mut m = Modal::DbConfirmRun(DbConfirmRunState {
+            segment_idx: 0,
+            reason: String::new(),
+        });
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('y'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::ConfirmDbRun)
+        ));
+        let mut m = Modal::DbConfirmRun(DbConfirmRunState {
+            segment_idx: 0,
+            reason: String::new(),
+        });
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::ConfirmDbRun)
+        ));
+        let mut m = Modal::DbConfirmRun(DbConfirmRunState {
+            segment_idx: 0,
+            reason: String::new(),
+        });
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('n'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CancelDbRun)
+        ));
+        let mut m = Modal::DbConfirmRun(DbConfirmRunState {
+            segment_idx: 0,
+            reason: String::new(),
+        });
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CancelDbRun)
+        ));
+    }
 }

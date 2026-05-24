@@ -152,6 +152,84 @@ fn centered_rect(area: Rect, width: u16, height: u16) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vim::lineedit::LineEdit;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    fn dump(terminal: &Terminal<TestBackend>) -> String {
+        let buf = terminal.backend().buffer();
+        let mut out = String::new();
+        for y in 0..buf.area.height {
+            for x in 0..buf.area.width {
+                if let Some(cell) = buf.cell((x, y)) {
+                    out.push_str(cell.symbol());
+                }
+            }
+            out.push('\n');
+        }
+        out
+    }
+
+    fn state_with(url: &str, parent: &str, focus: VaultCloneFormFocus, error: Option<&str>)
+        -> VaultCloneFormState
+    {
+        VaultCloneFormState {
+            url: LineEdit::from_str(url),
+            parent: LineEdit::from_str(parent),
+            focus,
+            error: error.map(|s| s.to_string()),
+        }
+    }
+
+    #[test]
+    fn render_paints_title_labels_and_footer() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state_with("https://x.git", "/tmp", VaultCloneFormFocus::Url, None);
+        terminal.draw(|f| {
+            render(f, f.area(), &s);
+        }).unwrap();
+        let painted = dump(&terminal);
+        assert!(painted.contains("Clone vault"));
+        assert!(painted.contains("Git URL"));
+        assert!(painted.contains("Parent dir"));
+        assert!(painted.contains("cycle field"));
+    }
+
+    #[test]
+    fn render_shows_error_when_set() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state_with("", "/tmp", VaultCloneFormFocus::Url, Some("nope"));
+        terminal.draw(|f| {
+            render(f, f.area(), &s);
+        }).unwrap();
+        assert!(dump(&terminal).contains("error: nope"));
+    }
+
+    #[test]
+    fn render_shows_hint_for_empty_fields() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state_with("", "", VaultCloneFormFocus::Parent, None);
+        terminal.draw(|f| {
+            render(f, f.area(), &s);
+        }).unwrap();
+        let painted = dump(&terminal);
+        assert!(painted.contains("https://github.com"), "url placeholder visible");
+    }
+
+    #[test]
+    fn render_returns_cursor_for_focused_field() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state_with("g", "/tmp", VaultCloneFormFocus::Url, None);
+        let mut cursor = None;
+        terminal.draw(|f| {
+            cursor = render(f, f.area(), &s);
+        }).unwrap();
+        assert!(cursor.is_some());
+    }
 
     #[test]
     fn centered_rect_clamps_within_area() {

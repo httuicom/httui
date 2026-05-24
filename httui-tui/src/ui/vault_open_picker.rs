@@ -153,6 +153,22 @@ fn compute_popup_rect(area: Rect, state: &VaultOpenPickerState) -> Rect {
 mod tests {
     use super::*;
     use crate::app::{VaultOpenEntry, VaultOpenEntryKind};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    fn dump(terminal: &Terminal<TestBackend>) -> String {
+        let buf = terminal.backend().buffer();
+        let mut out = String::new();
+        for y in 0..buf.area.height {
+            for x in 0..buf.area.width {
+                if let Some(cell) = buf.cell((x, y)) {
+                    out.push_str(cell.symbol());
+                }
+            }
+            out.push('\n');
+        }
+        out
+    }
 
     fn state(entries: &[(&str, VaultOpenEntryKind)]) -> VaultOpenPickerState {
         VaultOpenPickerState {
@@ -189,5 +205,37 @@ mod tests {
         let popup = compute_popup_rect(area, &s);
         assert!(popup.width <= area.width.saturating_sub(2));
         assert!(popup.width >= 50, "minimum clamp must hold");
+    }
+
+    #[test]
+    fn render_paints_title_entries_and_footer() {
+        let backend = TestBackend::new(100, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state(&[
+            ("..", VaultOpenEntryKind::Parent),
+            ("docs", VaultOpenEntryKind::Directory),
+            ("notes-vault", VaultOpenEntryKind::Vault),
+        ]);
+        terminal.draw(|f| {
+            render(f, f.area(), &s);
+        }).unwrap();
+        let painted = dump(&terminal);
+        assert!(painted.contains("Open vault"));
+        assert!(painted.contains("docs"));
+        assert!(painted.contains("notes-vault"));
+        assert!(painted.contains("vault"), "marker suffix present");
+        assert!(painted.contains("navigate"));
+    }
+
+    #[test]
+    fn render_handles_empty_entries_list() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let s = state(&[]);
+        terminal.draw(|f| {
+            render(f, f.area(), &s);
+        }).unwrap();
+        let painted = dump(&terminal);
+        assert!(painted.contains("Open vault"));
     }
 }

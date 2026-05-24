@@ -210,6 +210,22 @@ mod tests {
     use super::*;
     use crate::app::MissingSecretRow;
     use httui_core::vault_config::missing_secrets::MissingKind;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    fn dump(terminal: &Terminal<TestBackend>) -> String {
+        let buf = terminal.backend().buffer();
+        let mut out = String::new();
+        for y in 0..buf.area.height {
+            for x in 0..buf.area.width {
+                if let Some(cell) = buf.cell((x, y)) {
+                    out.push_str(cell.symbol());
+                }
+            }
+            out.push('\n');
+        }
+        out
+    }
 
     fn row(label: &str) -> MissingSecretRow {
         MissingSecretRow {
@@ -219,6 +235,83 @@ mod tests {
             value: crate::vim::lineedit::LineEdit::new(),
             saved: false,
         }
+    }
+
+    fn row_with_value(label: &str, val: &str) -> MissingSecretRow {
+        let mut r = row(label);
+        r.value = crate::vim::lineedit::LineEdit::from_str(val);
+        r
+    }
+
+    #[test]
+    fn render_paints_title_and_footer_in_browse_mode() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = VaultMissingSecretsState {
+            items: vec![row("API_TOKEN"), row("DB_PWD")],
+            selected: 0,
+            editing: false,
+        };
+        terminal.draw(|f| {
+            render(f, f.area(), &state);
+        }).unwrap();
+        let painted = dump(&terminal);
+        assert!(painted.contains("Pending secrets"));
+        assert!(painted.contains("API_TOKEN"));
+        assert!(painted.contains("DB_PWD"));
+        assert!(painted.contains("navigate"));
+    }
+
+    #[test]
+    fn render_in_editing_mode_shows_save_footer_and_cursor() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = VaultMissingSecretsState {
+            items: vec![row_with_value("TOKEN", "abc")],
+            selected: 0,
+            editing: true,
+        };
+        let mut cursor = None;
+        terminal.draw(|f| {
+            cursor = render(f, f.area(), &state);
+        }).unwrap();
+        assert!(cursor.is_some(), "cursor reported in editing mode");
+        let painted = dump(&terminal);
+        assert!(painted.contains("save"));
+        assert!(painted.contains("•"), "value masked with bullets");
+    }
+
+    #[test]
+    fn render_shows_empty_hint_when_value_empty_and_not_editing() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let state = VaultMissingSecretsState {
+            items: vec![row("TOKEN")],
+            selected: 0,
+            editing: false,
+        };
+        terminal.draw(|f| {
+            render(f, f.area(), &state);
+        }).unwrap();
+        assert!(dump(&terminal).contains("(empty"));
+    }
+
+    #[test]
+    fn render_marks_saved_rows_with_check() {
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut saved_row = row("TOKEN");
+        saved_row.saved = true;
+        let state = VaultMissingSecretsState {
+            items: vec![saved_row],
+            selected: 0,
+            editing: false,
+        };
+        terminal.draw(|f| {
+            render(f, f.area(), &state);
+        }).unwrap();
+        let painted = dump(&terminal);
+        assert!(painted.contains("✓"), "saved marker present");
     }
 
     #[test]
