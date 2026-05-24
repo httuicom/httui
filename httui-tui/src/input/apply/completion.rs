@@ -56,7 +56,9 @@ pub(crate) fn force_open_completion_popup(app: &mut App) {
 /// the popup, manual opens it with the full dialect listing.
 pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) {
     let Some(doc) = app.document() else {
-        app.completion_popup = None;
+        if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
         return;
     };
     let Cursor::InBlock {
@@ -64,15 +66,21 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
         offset: raw_offset,
     } = doc.cursor()
     else {
-        app.completion_popup = None;
+        if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
         return;
     };
     let Some(seg) = doc.segments().get(segment_idx) else {
-        app.completion_popup = None;
+        if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
         return;
     };
     let Segment::Block(block) = seg else {
-        app.completion_popup = None;
+        if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
         return;
     };
     // Ref completion (`{{...}}`) works in HTTP and DB; SQL completion
@@ -80,7 +88,9 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
     let is_db = block.is_db();
     let is_http = block.is_http();
     if !is_db && !is_http {
-        app.completion_popup = None;
+        if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
         return;
     }
     // The completion engine speaks body `(line, col)` — convert the
@@ -89,7 +99,9 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
     let (line, offset) = match crate::buffer::block::raw_section_at(&block.raw, raw_offset) {
         crate::buffer::block::RawSection::Body { line, col } => (line, col),
         _ => {
-            app.completion_popup = None;
+            if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
             return;
         }
     };
@@ -101,7 +113,9 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
         match block.params.get("query").and_then(|v| v.as_str()) {
             Some(s) => s.to_string(),
             None => {
-                app.completion_popup = None;
+                if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
                 return;
             }
         }
@@ -132,32 +146,37 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
             &env_vars,
         );
         if items.is_empty() {
-            app.completion_popup = None;
+            if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
             return;
         }
         let prior_label = app
-            .completion_popup
-            .as_ref()
+            .completion_popup()
             .and_then(|p| p.items.get(p.selected))
             .map(|i| i.label.clone());
         let selected = prior_label
             .and_then(|lbl| items.iter().position(|i| i.label == lbl))
             .unwrap_or(0);
-        app.completion_popup = Some(crate::app::CompletionPopupState {
-            segment_idx,
-            items,
-            selected,
-            anchor_line: line,
-            anchor_offset: ref_detect.anchor_offset,
-            prefix: ref_detect.prefix,
-        });
+        app.modal = Some(crate::modal::Modal::CompletionPopup(
+            crate::app::CompletionPopupState {
+                segment_idx,
+                items,
+                selected,
+                anchor_line: line,
+                anchor_offset: ref_detect.anchor_offset,
+                prefix: ref_detect.prefix,
+            },
+        ));
         return;
     }
 
     // Outside `{{...}}`, only DB blocks have an SQL completion path —
     // HTTP / other kinds close the popup.
     if !is_db {
-        app.completion_popup = None;
+        if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
         return;
     }
 
@@ -169,7 +188,9 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
         Some(p) => p,
         None if allow_empty_prefix => (offset, String::new()),
         None => {
-            app.completion_popup = None;
+            if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
             return;
         }
     };
@@ -208,28 +229,31 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
     let items =
         crate::sql_completion::complete(dialect, &prefix, context, schema_tables.as_deref());
     if items.is_empty() {
-        app.completion_popup = None;
+        if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
         return;
     }
     // Preserve the previous selection's label so re-filtering on a
     // longer prefix doesn't reset the highlight to the top — useful
     // when the user is typing toward a known target.
     let prior_label = app
-        .completion_popup
-        .as_ref()
+        .completion_popup()
         .and_then(|p| p.items.get(p.selected))
         .map(|i| i.label.clone());
     let selected = prior_label
         .and_then(|lbl| items.iter().position(|i| i.label == lbl))
         .unwrap_or(0);
-    app.completion_popup = Some(crate::app::CompletionPopupState {
-        segment_idx,
-        items,
-        selected,
-        anchor_line: line,
-        anchor_offset,
-        prefix,
-    });
+    app.modal = Some(crate::modal::Modal::CompletionPopup(
+        crate::app::CompletionPopupState {
+            segment_idx,
+            items,
+            selected,
+            anchor_line: line,
+            anchor_offset,
+            prefix,
+        },
+    ));
 }
 
 // All DB-domain helpers (`build_db_executor_params`,
@@ -274,7 +298,7 @@ pub(crate) fn apply_cancel_db_run(app: &mut App) {
 }
 
 pub(crate) fn apply_completion_next(app: &mut App) {
-    let Some(state) = app.completion_popup.as_mut() else {
+    let Some(state) = app.completion_popup_mut() else {
         return;
     };
     if state.items.is_empty() {
@@ -284,7 +308,7 @@ pub(crate) fn apply_completion_next(app: &mut App) {
 }
 
 pub(crate) fn apply_completion_prev(app: &mut App) {
-    let Some(state) = app.completion_popup.as_mut() else {
+    let Some(state) = app.completion_popup_mut() else {
         return;
     };
     if state.items.is_empty() {
@@ -298,7 +322,9 @@ pub(crate) fn apply_completion_prev(app: &mut App) {
 }
 
 pub(crate) fn apply_completion_dismiss(app: &mut App) {
-    app.completion_popup = None;
+    if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+            app.modal = None;
+        }
 }
 
 /// Splice the selected item's label in place of the prefix word at
@@ -306,8 +332,12 @@ pub(crate) fn apply_completion_dismiss(app: &mut App) {
 /// (which clears the partial word in the body), then insert each
 /// char of the label. Cursor lands at the end of the inserted text.
 pub(crate) fn apply_completion_accept(app: &mut App) {
-    let Some(state) = app.completion_popup.take() else {
-        return;
+    let state = match app.modal.take() {
+        Some(crate::modal::Modal::CompletionPopup(s)) => s,
+        other => {
+            app.modal = other;
+            return;
+        }
     };
     let Some(item) = state.items.get(state.selected).cloned() else {
         return;
@@ -400,8 +430,7 @@ mod tests {
         rebuild_completion_popup(&mut app, /* allow_empty_prefix = */ true);
 
         let popup = app
-            .completion_popup
-            .as_ref()
+            .completion_popup()
             .expect("popup should open for {{ context in HTTP block");
         assert_eq!(popup.segment_idx, block_idx);
         assert!(
@@ -442,7 +471,7 @@ mod tests {
 
         rebuild_completion_popup(&mut app, true);
         assert!(
-            app.completion_popup.is_none(),
+            app.completion_popup().is_none(),
             "HTTP plain text shouldn't open the SQL popup"
         );
     }

@@ -91,11 +91,6 @@ pub struct App {
     /// synchronously and falls back to "loading…" when the entry is
     /// absent. See `crate::schema` for the cache + dedup model.
     pub schema_cache: crate::schema::SchemaCache,
-    /// `Some` while the SQL completion popup is open. Created by the
-    /// dispatcher after a typing-relevant action lands in a DB block
-    /// body; cleared on Accept/Dismiss or when the prefix becomes
-    /// empty.
-    pub completion_popup: Option<CompletionPopupState>,
     /// `Some` while the block-settings modal is open (`gs` chord).
     /// Mode flips to `Mode::DbSettings` so dispatch routes typing
     /// into the focused LineEdit. Renders independently of mode —
@@ -191,7 +186,6 @@ impl App {
             running_query: None,
             result_viewport_top: std::collections::HashMap::new(),
             schema_cache: crate::schema::SchemaCache::new(),
-            completion_popup: None,
             db_settings: None,
             active_env_name: None,
             content_search_index_built: false,

@@ -21,11 +21,6 @@ pub enum ScopeKind {
     /// Bottom of the stack. Vim or Standard engine handles the key
     /// based on `app.config.editor.mode`. Always present.
     Editor,
-    /// `app.completion_popup.is_some()` — SQL completion overlay.
-    /// Filters nav/accept/dismiss keys; everything else Forwards to
-    /// the editor (the user types into the doc and the popup re-
-    /// computes against the new prefix).
-    CompletionPopup,
     /// `app.db_settings.is_some()` — DB block settings popup
     /// (limit/timeout). Always consumes.
     DbSettings,
@@ -64,9 +59,6 @@ pub enum KeyOutcome {
 pub fn active_scopes(app: &App) -> Vec<ScopeKind> {
     let mut v = vec![ScopeKind::Editor];
     // Order below = stacking order (bottom → top). Top wins.
-    if app.completion_popup.is_some() {
-        v.push(ScopeKind::CompletionPopup);
-    }
     if app.db_settings.is_some() {
         v.push(ScopeKind::DbSettings);
     }
@@ -106,7 +98,6 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
 fn handle_scope(kind: ScopeKind, app: &mut App, key: KeyEvent) -> KeyOutcome {
     match kind {
         ScopeKind::Editor => handle_editor(app, key),
-        ScopeKind::CompletionPopup => handle_completion_popup(key),
         ScopeKind::DbSettings => handle_db_settings(key),
         ScopeKind::Modal => handle_modal(app, key),
         ScopeKind::RunningQueryCatch => handle_running_query_catch(app, key),
@@ -133,16 +124,6 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
     KeyOutcome::Consumed
 }
 
-/// Completion popup — overlay filter. Returns `Effect` for the
-/// nav/accept/dismiss keys it cares about, `Forward` for everything
-/// else (so the user keeps typing into the editor and the post-
-/// action hook refreshes the popup against the new prefix).
-fn handle_completion_popup(key: KeyEvent) -> KeyOutcome {
-    match crate::input::apply::completion::parse_completion_popup_key(key) {
-        Some(action) => KeyOutcome::Effect(action),
-        None => KeyOutcome::Forward,
-    }
-}
 
 /// DB block settings popup (limit/timeout). Parser is total — every
 /// key maps to an action.

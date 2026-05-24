@@ -197,7 +197,6 @@ impl App {
         // Drop transient overlays so nothing dangles a pointer into
         // the old buffer / connection.
         self.modal = None;
-        self.completion_popup = None;
         self.db_settings = None;
         self.running_query = None;
         self.standard.anchor = None;
@@ -380,7 +379,6 @@ mod tests {
         std::fs::write(vault_b.path().join("welcome.md"), "# B\n").unwrap();
 
         // Plant transient session state — switch_vault must wipe it.
-        app.completion_popup = None; // already none, but assert later
         app.last_run_anchor = Some(super::LastRunAnchor {
             file_path: std::path::PathBuf::from("note.md"),
             segment_idx: 0,

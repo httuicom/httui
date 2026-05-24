@@ -1,11 +1,12 @@
 use crate::app::{
-    BlockHistoryState, BlockTemplatePickerState, ConnectionDeleteConfirmState,
-    ConnectionFormState, ConnectionPickerState, ConnectionsPageState, ContentSearchState,
-    DbConfirmRunState, DbExportPickerState, DbRowDetailState, EnvCloneFormState,
-    EnvDeleteConfirmState, EnvFormState, EnvironmentPickerState, EnvsPageState, EnvsPaneFocus,
-    HttpResponseDetailState, TabPickerState, VarDeleteConfirmState, VarFormFocus, VarFormState,
-    VaultCloneFormFocus, VaultCloneFormState, VaultCreateFormFocus, VaultCreateFormState,
-    VaultMissingSecretsState, VaultOpenPickerState, VaultPickerState,
+    BlockHistoryState, BlockTemplatePickerState, CompletionPopupState,
+    ConnectionDeleteConfirmState, ConnectionFormState, ConnectionPickerState,
+    ConnectionsPageState, ContentSearchState, DbConfirmRunState, DbExportPickerState,
+    DbRowDetailState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
+    EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, HttpResponseDetailState, TabPickerState,
+    VarDeleteConfirmState, VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState,
+    VaultCreateFormFocus, VaultCreateFormState, VaultMissingSecretsState, VaultOpenPickerState,
+    VaultPickerState,
 };
 use crate::config::EditorMode;
 use crate::vim::state::VimState;
@@ -113,6 +114,12 @@ pub enum Modal {
     /// in the vault. Owns query buffer + filtered candidate list +
     /// selection cursor.
     QuickOpen(crate::vim::quickopen::QuickOpen),
+    /// SQL completion overlay — opens while the cursor is inside a DB
+    /// block body during insert mode. Returns
+    /// [`ModalOutcome::Forward`] for any key it doesn't bind so the
+    /// editor below keeps typing into the doc; the post-action hook
+    /// refreshes the popup against the new prefix.
+    CompletionPopup(CompletionPopupState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -182,6 +189,12 @@ impl Modal {
             Modal::QuickOpen(_) => ModalOutcome::Emit(
                 crate::input::parser::lineedit::parse_quickopen(key),
             ),
+            Modal::CompletionPopup(_) => {
+                match crate::input::apply::completion::parse_completion_popup_key(key) {
+                    Some(action) => ModalOutcome::Emit(action),
+                    None => ModalOutcome::Forward,
+                }
+            }
         }
     }
 
@@ -271,6 +284,20 @@ impl Modal {
     pub fn as_quickopen_mut(&mut self) -> Option<&mut crate::vim::quickopen::QuickOpen> {
         match self {
             Modal::QuickOpen(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_completion_popup(&self) -> Option<&CompletionPopupState> {
+        match self {
+            Modal::CompletionPopup(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_completion_popup_mut(&mut self) -> Option<&mut CompletionPopupState> {
+        match self {
+            Modal::CompletionPopup(s) => Some(s),
             _ => None,
         }
     }

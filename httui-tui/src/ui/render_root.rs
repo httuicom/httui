@@ -308,7 +308,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // re-filtered). Anchored below the focused DB block; falls back
     // above or centered if no room. Painted last so it floats above
     // the editor cursor and any earlier overlays.
-    if let Some(state) = app.completion_popup.as_ref() {
+    if let Some(state) = app.completion_popup() {
         let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         completion_popup::render(frame, editor_area, state, anchor);
     }
@@ -789,7 +789,7 @@ mod tests {
         let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
         let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
         open_doc(&mut app, src);
-        app.completion_popup = Some(CompletionPopupState {
+        app.modal = Some(crate::modal::Modal::CompletionPopup(CompletionPopupState {
             segment_idx: 0,
             items: vec![crate::sql_completion::CompletionItem {
                 label: "SELECT".into(),
@@ -800,7 +800,7 @@ mod tests {
             anchor_line: 0,
             anchor_offset: 0,
             prefix: "SEL".into(),
-        });
+        }));
         let (text, _c) = render(&mut app, 70, 16);
         assert!(text.contains("SELECT"), "got: {text:?}");
     }

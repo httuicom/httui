@@ -120,6 +120,14 @@ impl App {
         self.modal.as_mut().and_then(|m| m.as_quickopen_mut())
     }
 
+    pub fn completion_popup(&self) -> Option<&crate::app::CompletionPopupState> {
+        self.modal.as_ref().and_then(|m| m.as_completion_popup())
+    }
+
+    pub fn completion_popup_mut(&mut self) -> Option<&mut crate::app::CompletionPopupState> {
+        self.modal.as_mut().and_then(|m| m.as_completion_popup_mut())
+    }
+
     // ----- result tabs (per-block) ---------------------------------------
 
     /// Selected result tab for `block_id`. Missing entry → default
