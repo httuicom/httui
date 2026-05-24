@@ -564,5 +564,14 @@ pub enum Action {
     VaultCreateFormBackspace,
     /// `Enter` in the Create form — create + switch_vault.
     VaultCreateFormSubmit,
+    /// V10 slice 5: `c` inside the vault picker — open Clone form.
+    OpenVaultCloneForm,
+    CloseVaultCloneForm,
+    VaultCloneFormFocusNext,
+    VaultCloneFormFocusPrev,
+    VaultCloneFormChar(char),
+    VaultCloneFormBackspace,
+    /// `Enter` in the Clone form — git_clone + switch_vault.
+    VaultCloneFormSubmit,
     Noop,
 }

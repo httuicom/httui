@@ -718,6 +718,23 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
             }
         }),
         Action::VaultCreateFormSubmit => apply_vault_create_form_submit(app),
+        Action::OpenVaultCloneForm => open_vault_clone_form(app),
+        Action::CloseVaultCloneForm => apply_close_vault_clone_form(app),
+        Action::VaultCloneFormFocusNext => with_vault_clone_form(app, |f| f.focus = f.focus.next()),
+        Action::VaultCloneFormFocusPrev => with_vault_clone_form(app, |f| f.focus = f.focus.prev()),
+        Action::VaultCloneFormChar(c) => with_vault_clone_form(app, |f| match f.focus {
+            crate::app::VaultCloneFormFocus::Url => f.url.insert_char(c),
+            crate::app::VaultCloneFormFocus::Parent => f.parent.insert_char(c),
+        }),
+        Action::VaultCloneFormBackspace => with_vault_clone_form(app, |f| match f.focus {
+            crate::app::VaultCloneFormFocus::Url => {
+                f.url.delete_before();
+            }
+            crate::app::VaultCloneFormFocus::Parent => {
+                f.parent.delete_before();
+            }
+        }),
+        Action::VaultCloneFormSubmit => apply_vault_clone_form_submit(app),
         _ => unreachable!("apply_pickers: variante fora do grupo"),
     }
 }
@@ -884,6 +901,85 @@ fn apply_vault_create_form_submit(app: &mut App) {
         Err(e) => app.set_status(
             StatusKind::Error,
             format!("vault criado em {display} mas switch falhou: {e}"),
+        ),
+    }
+}
+
+// ───────────── vault clone form (V10 slice 5) ─────────────
+
+fn open_vault_clone_form(app: &mut App) {
+    use crate::vim::lineedit::LineEdit;
+    let default_parent = std::env::var("HOME")
+        .ok()
+        .unwrap_or_else(|| ".".to_string());
+    app.modal = Some(crate::modal::Modal::VaultCloneForm(
+        crate::app::VaultCloneFormState {
+            url: LineEdit::new(),
+            parent: LineEdit::from_str(default_parent),
+            focus: crate::app::VaultCloneFormFocus::Url,
+            error: None,
+        },
+    ));
+    app.vim.mode = Mode::Modal;
+    app.vim.reset_pending();
+}
+
+fn apply_close_vault_clone_form(app: &mut App) {
+    if matches!(app.modal, Some(crate::modal::Modal::VaultCloneForm(_))) {
+        app.modal = None;
+    }
+    app.vim.enter_normal();
+}
+
+fn with_vault_clone_form(app: &mut App, f: impl FnOnce(&mut crate::app::VaultCloneFormState)) {
+    if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_mut() {
+        f(s);
+    }
+}
+
+/// Validate URL + parent → git_clone → switch_vault. Errors inline.
+fn apply_vault_clone_form_submit(app: &mut App) {
+    let (url, parent_raw) =
+        if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_ref() {
+            (
+                s.url.as_str().trim().to_string(),
+                s.parent.as_str().to_string(),
+            )
+        } else {
+            return;
+        };
+    if url.is_empty() {
+        if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_mut() {
+            s.error = Some("URL is required".into());
+        }
+        return;
+    }
+    let parent_expanded = crate::vault::expand_tilde(parent_raw.trim());
+    let parent_path = std::path::PathBuf::from(&parent_expanded);
+    if !parent_path.is_dir() {
+        if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_mut() {
+            s.error = Some(format!("parent must be a directory: {parent_expanded}"));
+        }
+        return;
+    }
+    let outcome = match httui_core::git::clone::git_clone(&url, Some(&parent_path)) {
+        Ok(o) => o,
+        Err(e) => {
+            if let Some(crate::modal::Modal::VaultCloneForm(s)) = app.modal.as_mut() {
+                s.error = Some(format!("clone: {e}"));
+            }
+            return;
+        }
+    };
+    app.modal = None;
+    app.vim.enter_normal();
+    let target = outcome.destination.clone();
+    let display = target.display().to_string();
+    match app.switch_vault(target) {
+        Ok(()) => app.set_status(StatusKind::Info, format!("vault clonado → {display}")),
+        Err(e) => app.set_status(
+            StatusKind::Error,
+            format!("vault clonado em {display} mas switch falhou: {e}"),
         ),
     }
 }

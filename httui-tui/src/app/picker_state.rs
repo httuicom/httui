@@ -439,6 +439,38 @@ pub struct VaultPickerState {
     pub active: Option<String>,
 }
 
+/// V10 slice 5: Clone form opened by `c` inside the vault picker.
+/// Submits to `httui_core::git::clone::git_clone(url, Some(parent))`,
+/// then triggers `App::switch_vault` so the cloned repo becomes
+/// the active workspace in-place.
+#[derive(Debug, Default)]
+pub struct VaultCloneFormState {
+    pub url: crate::vim::lineedit::LineEdit,
+    pub parent: crate::vim::lineedit::LineEdit,
+    pub focus: VaultCloneFormFocus,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum VaultCloneFormFocus {
+    #[default]
+    Url,
+    Parent,
+}
+
+impl VaultCloneFormFocus {
+    pub fn next(self) -> Self {
+        match self {
+            VaultCloneFormFocus::Url => VaultCloneFormFocus::Parent,
+            VaultCloneFormFocus::Parent => VaultCloneFormFocus::Url,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        self.next()
+    }
+}
+
 /// V10 slice 4: Create form opened by `n` inside the vault picker.
 /// Submits to `httui_core::vault_config::create::create_new_vault`,
 /// then triggers `App::switch_vault` so the new workspace becomes

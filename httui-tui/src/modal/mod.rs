@@ -3,7 +3,8 @@ use crate::app::{
     ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
     DbExportPickerState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
     EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState,
-    VarFormFocus, VarFormState, VaultCreateFormFocus, VaultCreateFormState, VaultPickerState,
+    VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState,
+    VaultCreateFormFocus, VaultCreateFormState, VaultPickerState,
 };
 
 /// V4 P5: clone-env form key handler (extraído pra respeitar size limit).
@@ -59,6 +60,9 @@ pub enum Modal {
     /// do VaultPicker. Submit faz mkdir + git init + scaffold +
     /// switch_vault (in-place).
     VaultCreateForm(VaultCreateFormState),
+    /// V10 slice 5: form de clone. Aberto por `c` dentro do
+    /// VaultPicker. Submit faz git clone + switch_vault.
+    VaultCloneForm(VaultCloneFormState),
 }
 
 #[derive(Debug)]
@@ -89,6 +93,7 @@ impl Modal {
             Modal::EnvCloneForm(s) => clone_form::env_clone_form_handle_key(s.focus, key),
             Modal::VaultPicker(_) => vault_picker_handle_key(key),
             Modal::VaultCreateForm(s) => vault_create_form_handle_key(s.focus, key),
+            Modal::VaultCloneForm(s) => vault_clone_form_handle_key(s.focus, key),
         }
     }
 }
@@ -99,6 +104,9 @@ fn vault_picker_handle_key(key: KeyEvent) -> ModalOutcome {
     // ConnectionsPage: n=new, D=delete).
     if let (KeyModifiers::NONE, KeyCode::Char('n')) = (key.modifiers, key.code) {
         return ModalOutcome::Emit(Action::OpenVaultCreateForm);
+    }
+    if let (KeyModifiers::NONE, KeyCode::Char('c')) = (key.modifiers, key.code) {
+        return ModalOutcome::Emit(Action::OpenVaultCloneForm);
     }
     match list_picker_key(key) {
         ListPickerKey::Up => ModalOutcome::Emit(Action::MoveVaultPickerCursor(-1)),
@@ -126,6 +134,28 @@ fn vault_create_form_handle_key(focus: VaultCreateFormFocus, key: KeyEvent) -> M
         (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::VaultCreateFormBackspace),
         (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
             ModalOutcome::Emit(Action::VaultCreateFormChar(c))
+        }
+        _ => ModalOutcome::Continue,
+    }
+}
+
+fn vault_clone_form_handle_key(focus: VaultCloneFormFocus, key: KeyEvent) -> ModalOutcome {
+    let KeyEvent { code, modifiers, .. } = key;
+    let _ = focus;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::CloseVaultCloneForm)
+        }
+        (_, KeyCode::Enter) => ModalOutcome::Emit(Action::VaultCloneFormSubmit),
+        (_, KeyCode::Tab) | (_, KeyCode::Down) => {
+            ModalOutcome::Emit(Action::VaultCloneFormFocusNext)
+        }
+        (_, KeyCode::BackTab) | (_, KeyCode::Up) => {
+            ModalOutcome::Emit(Action::VaultCloneFormFocusPrev)
+        }
+        (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::VaultCloneFormBackspace),
+        (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
+            ModalOutcome::Emit(Action::VaultCloneFormChar(c))
         }
         _ => ModalOutcome::Continue,
     }
@@ -692,6 +722,46 @@ mod tests {
 
     fn empty_vault_create_form() -> Modal {
         Modal::VaultCreateForm(VaultCreateFormState::default())
+    }
+
+    #[test]
+    fn vault_picker_c_opens_clone_form() {
+        // V10 slice 5: composição "vault" + verbo. `c` dispara o
+        // form de clone, complementando `n` (Create).
+        let mut m = vault_picker(vec!["/a"]);
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('c'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::OpenVaultCloneForm)
+        ));
+    }
+
+    fn empty_vault_clone_form() -> Modal {
+        Modal::VaultCloneForm(VaultCloneFormState::default())
+    }
+
+    #[test]
+    fn vault_clone_form_routes_typing_and_navigation() {
+        let mut m = empty_vault_clone_form();
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('a'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultCloneFormChar('a'))
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Backspace, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultCloneFormBackspace)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Tab, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultCloneFormFocusNext)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultCloneFormSubmit)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CloseVaultCloneForm)
+        ));
     }
 
     #[test]

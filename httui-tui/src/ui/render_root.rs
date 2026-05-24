@@ -17,7 +17,7 @@ use super::{
     connection_form, connection_picker, connections_page, content_search, db_confirm_run,
     db_export_picker, db_row_detail, db_settings_modal, envs_page, environment_picker, fence_edit,
     help, http_response_detail, quickopen, render_empty_state_inline, render_pane_tree, status,
-    tab_picker, tabs, tree, vault_create_form, vault_picker, VisualOverlay,
+    tab_picker, tabs, tree, vault_clone_form, vault_create_form, vault_picker, VisualOverlay,
 };
 
 pub fn render(frame: &mut Frame, app: &mut App) {
@@ -343,6 +343,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // V10 slice 4: vault create form (opened by `n` inside the picker).
     if let Some(crate::modal::Modal::VaultCreateForm(state)) = app.modal.as_ref() {
         if let Some((cx, cy)) = vault_create_form::render(frame, editor_area, state) {
+            frame.set_cursor_position((cx, cy));
+        }
+    }
+
+    // V10 slice 5: vault clone form (opened by `c` inside the picker).
+    if let Some(crate::modal::Modal::VaultCloneForm(state)) = app.modal.as_ref() {
+        if let Some((cx, cy)) = vault_clone_form::render(frame, editor_area, state) {
             frame.set_cursor_position((cx, cy));
         }
     }
