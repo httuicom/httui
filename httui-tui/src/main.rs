@@ -12,6 +12,7 @@ mod clipboard;
 mod commands;
 mod config;
 mod document_loader;
+mod empty_state;
 mod error;
 mod event;
 mod fs_watch;
@@ -59,7 +60,10 @@ async fn run(cli: Cli) -> TuiResult<()> {
         .await
         .map_err(|e| TuiError::Config(format!("init database at {data_dir:?}: {e}")))?;
 
-    let resolved = vault::resolve(&pool).await?;
+    let resolved = match vault::resolve(&pool).await? {
+        Some(v) => v,
+        None => empty_state::run(&pool).await?,
+    };
 
     app::run(cfg, config_path, resolved, pool).await
 }
