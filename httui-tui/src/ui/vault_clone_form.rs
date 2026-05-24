@@ -1,4 +1,4 @@
-//! V10 slice 5 — Clone vault form. URL + parent dir, submit clones
+//! Clone vault form. URL + parent dir, submit clones
 //! the repo via `httui_core::git::clone::git_clone` and switches
 //! the active workspace in-place.
 

@@ -427,7 +427,7 @@ pub struct EnvironmentEntry {
     pub name: String,
 }
 
-/// V10: open instance of the vault picker. Lists every vault path
+/// open instance of the vault picker. Lists every vault path
 /// registered in the SQLite app registry plus a marker for the
 /// currently-active one. Confirm calls `App::switch_vault` so the
 /// running TUI swaps in-place. Entries are absolute paths; the
@@ -439,7 +439,7 @@ pub struct VaultPickerState {
     pub active: Option<String>,
 }
 
-/// V10 slice 6: first-run secrets modal. Opens automatically after
+/// first-run secrets modal. Opens automatically after
 /// `App::switch_vault` when `scan_missing_secrets` returns refs that
 /// have no entry in the local keychain.
 ///
@@ -461,14 +461,14 @@ pub struct MissingSecretRow {
     pub label: String,
     /// Kept in the row for future grouping in the UI (connection vs
     /// env). Not consumed yet — silenced to avoid the dead-code
-    /// warning while V10 slice 7 (badge) hasn't landed.
+    /// warning while  (badge) hasn't landed.
     #[allow(dead_code)]
     pub kind: httui_core::vault_config::missing_secrets::MissingKind,
     pub value: crate::vim::lineedit::LineEdit,
     pub saved: bool,
 }
 
-/// V10 slice 3: directory navigator opened by `o` inside the vault
+/// directory navigator opened by `o` inside the vault
 /// picker. Lists the current dir's children (`..` always at the top,
 /// then sorted dirs, then `.toml`-bearing vaults). Navigation:
 /// Enter on a dir descends, Enter on a vault activates (switch_vault),
@@ -497,7 +497,7 @@ pub enum VaultOpenEntryKind {
     Vault,
 }
 
-/// V10 slice 5: Clone form opened by `c` inside the vault picker.
+/// Clone form opened by `c` inside the vault picker.
 /// Submits to `httui_core::git::clone::git_clone(url, Some(parent))`,
 /// then triggers `App::switch_vault` so the cloned repo becomes
 /// the active workspace in-place.
@@ -529,7 +529,7 @@ impl VaultCloneFormFocus {
     }
 }
 
-/// V10 slice 4: Create form opened by `n` inside the vault picker.
+/// Create form opened by `n` inside the vault picker.
 /// Submits to `httui_core::vault_config::create::create_new_vault`,
 /// then triggers `App::switch_vault` so the new workspace becomes
 /// active in-place. Validates parent exists and is a directory.

@@ -544,7 +544,7 @@ pub enum Action {
     /// keymap table in [`crate::input::map`] can name the binding
     /// without needing a parallel `MetaAction` enum. Fase 6 p2.
     ToggleEditorMode,
-    /// V10 slice 8: open the vault picker (lists workspaces from the
+    /// open the vault picker (lists workspaces from the
     /// SQLite app registry). Default binding `Alt+W`; configurable
     /// via keymap.toml.
     OpenVaultPicker,
@@ -555,7 +555,7 @@ pub enum Action {
     /// `Enter` inside the vault picker — `App::switch_vault` for the
     /// highlighted path.
     ConfirmVaultPicker,
-    /// V10 slice 4: `n` inside the vault picker — open Create form.
+    /// `n` inside the vault picker — open Create form.
     OpenVaultCreateForm,
     CloseVaultCreateForm,
     VaultCreateFormFocusNext,
@@ -564,7 +564,7 @@ pub enum Action {
     VaultCreateFormBackspace,
     /// `Enter` in the Create form — create + switch_vault.
     VaultCreateFormSubmit,
-    /// V10 slice 5: `c` inside the vault picker — open Clone form.
+    /// `c` inside the vault picker — open Clone form.
     OpenVaultCloneForm,
     CloseVaultCloneForm,
     VaultCloneFormFocusNext,
@@ -573,7 +573,7 @@ pub enum Action {
     VaultCloneFormBackspace,
     /// `Enter` in the Clone form — git_clone + switch_vault.
     VaultCloneFormSubmit,
-    /// V10 slice 3: `o` inside the vault picker — open directory
+    /// `o` inside the vault picker — open directory
     /// navigator.
     OpenVaultOpenPicker,
     CloseVaultOpenPicker,
@@ -583,7 +583,7 @@ pub enum Action {
     VaultOpenPickerEnter,
     /// `Backspace` inside the open picker — ascend one level.
     VaultOpenPickerUp,
-    /// V10 slice 6: first-run secrets modal actions.
+    /// first-run secrets modal actions.
     CloseVaultMissingSecrets,
     MoveVaultMissingSecretsCursor(i32),
     VaultMissingSecretsEnterEdit,

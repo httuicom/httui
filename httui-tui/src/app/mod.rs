@@ -160,13 +160,13 @@ pub struct App {
     /// per-machine `user.toml` so the same vault can be opened
     /// from desktop/TUI side-by-side with separate "current env".
     pub environments_store: Arc<httui_core::vault_config::EnvironmentsStore>,
-    /// V10 slice 6: `{{keychain:...}}` references found in the active
+    /// `{{keychain:...}}` references found in the active
     /// vault that have no entry in the local keychain. Repopulated
     /// after every `switch_vault` and at `App::new`. The status-bar
-    /// badge (slice 7) reads `.len()` for the "⚠ N pending" counter,
+    /// badge reads `.len()` for the "⚠ N pending" counter,
     /// and the first-run modal reads the list to render the form.
     pub pending_secrets: Vec<httui_core::vault_config::missing_secrets::MissingRef>,
-    /// V10: set to `true` while a sub-modal (Create/Clone/Open/Pending)
+    /// set to `true` while a sub-modal (Create/Clone/Open/Pending)
     /// is open via the vault picker's verb chords. The sub-modal's
     /// close handler reads this flag to decide whether to dismiss to
     /// the editor (auto-opens) or re-open the picker on top

@@ -75,7 +75,7 @@ impl App {
         self.status_message = None;
     }
 
-    /// V10 slice 6: re-scan the active vault for `{{keychain:...}}`
+    /// re-scan the active vault for `{{keychain:...}}`
     /// refs with no entry in the local keychain. Repopulates
     /// `pending_secrets`. Backend failures collapse to an empty list
     /// (the badge UX is "no pending" rather than blocking startup).
@@ -85,7 +85,7 @@ impl App {
         self.pending_secrets = scan_missing_secrets(&self.vault_path, &Keychain).unwrap_or_default();
     }
 
-    /// V10 slice 6: open the first-run modal when there are pending
+    /// open the first-run modal when there are pending
     /// secrets. No-op when the list is empty or when another modal is
     /// already on screen (avoids stomping over an open picker).
     pub fn open_pending_secrets_modal(&mut self) {
@@ -228,9 +228,9 @@ impl App {
             super::event_loop::sync_envs_dir_watcher(self);
         }
 
-        // V10 slice 6: surface pending secrets for the new vault.
+        // surface pending secrets for the new vault.
         // The modal opens automatically when there's something to
-        // prompt; status-bar badge (slice 7) picks up the count.
+        // prompt; status-bar badge picks up the count.
         self.scan_pending_secrets();
         self.open_pending_secrets_modal();
 

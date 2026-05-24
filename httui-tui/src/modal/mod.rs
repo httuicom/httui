@@ -52,22 +52,22 @@ pub enum Modal {
     /// Aberto por `c` na EnvsPage com focus Envs. Cria env destino +
     /// bulk set_var apenas das vars marcadas (default: todas ON).
     EnvCloneForm(EnvCloneFormState),
-    /// V10 slice 8: lista os vaults registrados no SQLite app
+    /// lista os vaults registrados no SQLite app
     /// registry. Confirm chama `App::switch_vault` (in-place swap).
     /// Aberto por Alt+W (configurável via keymap.toml).
     VaultPicker(VaultPickerState),
-    /// V10 slice 4: form de criação de vault. Aberto por `n` dentro
+    /// form de criação de vault. Aberto por `n` dentro
     /// do VaultPicker. Submit faz mkdir + git init + scaffold +
     /// switch_vault (in-place).
     VaultCreateForm(VaultCreateFormState),
-    /// V10 slice 5: form de clone. Aberto por `c` dentro do
+    /// form de clone. Aberto por `c` dentro do
     /// VaultPicker. Submit faz git clone + switch_vault.
     VaultCloneForm(VaultCloneFormState),
-    /// V10 slice 3: navegador de diretório. Aberto por `o` dentro
+    /// navegador de diretório. Aberto por `o` dentro
     /// do VaultPicker. Enter num dir desce; Enter num vault ativa
     /// (switch_vault); Backspace sobe um nível; Esc fecha.
     VaultOpenPicker(VaultOpenPickerState),
-    /// V10 slice 6: first-run secrets modal. Aberto automaticamente
+    /// first-run secrets modal. Aberto automaticamente
     /// após switch_vault quando scan_missing_secrets retorna refs
     /// sem entrada no keychain local. Tab/jk navega, type edita
     /// value, Enter salva, `s` skip, Esc fecha.
@@ -781,7 +781,7 @@ mod tests {
 
     #[test]
     fn vault_picker_n_opens_create_form() {
-        // V10 slice 4: composição "vault" + verbo. `n` dentro do picker
+        // composição "vault" + verbo. `n` dentro do picker
         // dispara o form de criação. Mesmo padrão de ConnectionsPage.
         let mut m = vault_picker(vec!["/a"]);
         assert!(matches!(
@@ -884,7 +884,7 @@ mod tests {
 
     #[test]
     fn vault_picker_c_opens_clone_form() {
-        // V10 slice 5: composição "vault" + verbo. `c` dispara o
+        // composição "vault" + verbo. `c` dispara o
         // form de clone, complementando `n` (Create).
         let mut m = vault_picker(vec!["/a"]);
         assert!(matches!(

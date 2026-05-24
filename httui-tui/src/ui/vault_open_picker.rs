@@ -1,4 +1,4 @@
-//! V10 slice 3 — directory navigator. Lists the current directory's
+//! directory navigator. Lists the current directory's
 //! children with `..` always on top; vault roots are marked so the
 //! user knows which entries activate vs which just descend.
 

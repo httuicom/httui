@@ -326,7 +326,7 @@ mod tests {
 
     #[test]
     fn lookup_finds_vault_picker_on_alt_semicolon() {
-        // V10 slice 8 hotfix 3: tested chord migration — Alt+W and
+        //  hotfix 3: tested chord migration — Alt+W and
         // Alt+K both got intercepted by the user's terminal host
         // (WezTerm). Alt+; passes through; lockdown the binding
         // here so future keymap refactors don't silently drop it.

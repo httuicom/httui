@@ -1,4 +1,4 @@
-//! V10 slice 6 — first-run secrets modal. Lists every missing
+//! first-run secrets modal. Lists every missing
 //! `{{keychain:...}}` reference in the active vault with an inline
 //! input. Browse with jk/Tab; Enter (or `e`) starts editing the
 //! focused row; Enter again saves to the keychain; `s` skips

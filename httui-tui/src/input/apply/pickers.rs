@@ -795,12 +795,12 @@ fn dismiss_sub_modal(app: &mut App) {
     }
 }
 
-// ───────────── vault picker (V10 slice 8 — Alt+W) ─────────────
+// ───────────── vault picker (Alt+W) ─────────────
 
 /// Open the vault picker. Reads every path registered via
 /// `httui_core::vaults::list_vaults` and marks the active one with
 /// `active`. Returns an error if the registry is empty (the
-/// empty-state — slice 2 — handles first-run; the picker is a tool
+/// empty-state — — handles first-run; the picker is a tool
 /// for users who already have at least one vault).
 pub(crate) fn open_vault_picker(app: &mut App) -> Result<(), String> {
     let pool = app.pool_manager.app_pool().clone();
@@ -882,7 +882,7 @@ pub(crate) fn apply_confirm_vault_picker(app: &mut App) {
     }
 }
 
-// ───────────── vault create form (V10 slice 4) ─────────────
+// ───────────── vault create form ─────────────
 
 /// Open the Create form. Default parent is `$HOME` so the user just
 /// needs to pick a name; can be edited if they want a different root.
@@ -961,7 +961,7 @@ fn apply_vault_create_form_submit(app: &mut App) {
     }
 }
 
-// ───────────── vault clone form (V10 slice 5) ─────────────
+// ───────────── vault clone form ─────────────
 
 fn open_vault_clone_form(app: &mut App) {
     use crate::vim::lineedit::LineEdit;
@@ -1040,7 +1040,7 @@ fn apply_vault_clone_form_submit(app: &mut App) {
     }
 }
 
-// ───────────── vault open picker (V10 slice 3) ─────────────
+// ───────────── vault open picker ─────────────
 
 /// Open the directory navigator rooted at `$HOME` (or `.` when HOME
 /// isn't set). The user can Enter to descend, Backspace to ascend,
@@ -1157,7 +1157,7 @@ fn navigate_to(app: &mut App, target: Option<std::path::PathBuf>) {
     }
 }
 
-// ───────────── vault missing-secrets modal (V10 slice 6) ─────────────
+// ───────────── vault missing-secrets modal ─────────────
 
 fn apply_close_vault_missing_secrets(app: &mut App) {
     if matches!(app.modal, Some(crate::modal::Modal::VaultMissingSecrets(_))) {

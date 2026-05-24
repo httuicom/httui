@@ -336,31 +336,31 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         environment_picker::render(frame, editor_area, state);
     }
 
-    // V10 slice 8: vault picker — same wider variant of the env picker.
+    // vault picker — same wider variant of the env picker.
     if let Some(crate::modal::Modal::VaultPicker(state)) = app.modal.as_ref() {
         vault_picker::render(frame, editor_area, state);
     }
 
-    // V10 slice 4: vault create form (opened by `n` inside the picker).
+    // vault create form (opened by `n` inside the picker).
     if let Some(crate::modal::Modal::VaultCreateForm(state)) = app.modal.as_ref() {
         if let Some((cx, cy)) = vault_create_form::render(frame, editor_area, state) {
             frame.set_cursor_position((cx, cy));
         }
     }
 
-    // V10 slice 5: vault clone form (opened by `c` inside the picker).
+    // vault clone form (opened by `c` inside the picker).
     if let Some(crate::modal::Modal::VaultCloneForm(state)) = app.modal.as_ref() {
         if let Some((cx, cy)) = vault_clone_form::render(frame, editor_area, state) {
             frame.set_cursor_position((cx, cy));
         }
     }
 
-    // V10 slice 3: directory navigator (opened by `o` inside the picker).
+    // directory navigator (opened by `o` inside the picker).
     if let Some(crate::modal::Modal::VaultOpenPicker(state)) = app.modal.as_ref() {
         vault_open_picker::render(frame, editor_area, state);
     }
 
-    // V10 slice 6: first-run secrets modal (opened automatically
+    // first-run secrets modal (opened automatically
     // after switch_vault / startup when there are missing refs).
     if let Some(crate::modal::Modal::VaultMissingSecrets(state)) = app.modal.as_ref() {
         if let Some((cx, cy)) = vault_missing_secrets::render(frame, editor_area, state) {

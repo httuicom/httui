@@ -1,4 +1,4 @@
-//! V10 slice 4 — Create vault form. Two inputs (parent dir, name) and
+//! Create vault form. Two inputs (parent dir, name) and
 //! an error line, in a small centered popup. Submit triggers
 //! `create_new_vault` + `switch_vault`; Esc cancels back to the
 //! VaultPicker context (closes the form; the picker is not

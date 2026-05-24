@@ -60,7 +60,7 @@ pub async fn run(
     app.envs_dir_watcher = Some(crate::fs_watch::FileWatcher::new(sender));
     sync_envs_dir_watcher(&mut app);
 
-    // V10 slice 6: on startup, surface the first-run secrets modal
+    // on startup, surface the first-run secrets modal
     // when the active vault has `{{keychain:...}}` refs with no
     // local keychain entry. `scan_pending_secrets` already ran in
     // `App::new`; here we just open the modal — wire_event_sender
