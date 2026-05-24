@@ -544,7 +544,9 @@ pub(crate) fn open_environment_picker(app: &mut App) -> Result<(), String> {
         })
     })?;
     if entries.is_empty() {
-        return Err("no environments registered yet".into());
+        // No envs yet — instead of dead-ending with a status error,
+        // hand the user the EnvsPage where they can create one.
+        return super::envs_page::open_envs_page(app);
     }
     // TOML keys envs by name so `id == name`. Preserves the legacy
     // EnvironmentEntry shape so the renderer and confirm path keep
