@@ -175,22 +175,44 @@ pub fn insert_text_at_caret(app: &mut App, text: &str) {
         return;
     }
 
-    let Some(Cursor::InProse {
-        segment_idx,
-        offset,
-    }) = app.document().map(|d| d.cursor())
-    else {
-        return;
-    };
-    if let Some(doc) = app.document_mut() {
-        doc.snapshot();
-        let n = doc.insert_text_in_segment(segment_idx, offset, text);
-        doc.set_cursor(Cursor::InProse {
+    match app.document().map(|d| d.cursor()) {
+        Some(Cursor::InProse {
             segment_idx,
-            offset: offset + n,
-        });
+            offset,
+        }) => {
+            if let Some(doc) = app.document_mut() {
+                doc.snapshot();
+                let n = doc.insert_text_in_segment(segment_idx, offset, text);
+                doc.set_cursor(Cursor::InProse {
+                    segment_idx,
+                    offset: offset + n,
+                });
+            }
+            app.refresh_viewport_for_cursor();
+        }
+        Some(Cursor::InBlock {
+            segment_idx,
+            offset,
+        }) => {
+            if let Some(doc) = app.document_mut() {
+                doc.snapshot();
+                if let Some(b) = doc.block_at_mut(segment_idx) {
+                    let total = b.raw.len_chars();
+                    let off = offset.min(total);
+                    b.raw.insert(off, text);
+                    b.reparse_from_raw();
+                    let n = text.chars().count();
+                    doc.set_cursor(Cursor::InBlock {
+                        segment_idx,
+                        offset: off + n,
+                    });
+                    doc.mark_dirty();
+                }
+            }
+            app.refresh_viewport_for_cursor();
+        }
+        Some(Cursor::InBlockResult { .. }) | None => {}
     }
-    app.refresh_viewport_for_cursor();
 }
 
 /// The Standard-mode selection anchor to paint, or `None` when no
@@ -445,6 +467,64 @@ mod tests {
         let before = app.document().unwrap().to_markdown();
         insert_text_at_caret(&mut app, "");
         assert_eq!(app.document().unwrap().to_markdown(), before);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn paste_inside_block_inserts_into_raw() {
+        // Regression: Ctrl+V (and any path through insert_text_at_caret)
+        // was a no-op when the cursor was inside an executable block —
+        // the function only matched Cursor::InProse. Now it writes
+        // straight to block.raw and reparses.
+        let md = "lead\n\n```http alias=req\nGET https://x\n```\n\ntail\n";
+        let (mut app, _d, _v) = app_with(md).await;
+
+        let block_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, crate::buffer::Segment::Block(_)))
+            .expect("test fixture should contain a block");
+
+        // Place the cursor inside the body line, right after "GET ".
+        let raw_before = match app.document().unwrap().segments().get(block_idx) {
+            Some(crate::buffer::Segment::Block(b)) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        let body_offset = raw_before
+            .find("GET ")
+            .map(|i| i + "GET ".len())
+            .expect("fixture must contain a GET line");
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: body_offset,
+        });
+
+        insert_text_at_caret(&mut app, "XYZ");
+
+        let cursor = app.document().unwrap().cursor();
+        match cursor {
+            Cursor::InBlock {
+                segment_idx,
+                offset,
+            } => {
+                assert_eq!(segment_idx, block_idx);
+                assert_eq!(offset, body_offset + 3, "cursor must advance by len(XYZ)");
+            }
+            other => panic!("cursor should stay in block, got {other:?}"),
+        }
+        let raw_after = match app.document().unwrap().segments().get(block_idx) {
+            Some(crate::buffer::Segment::Block(b)) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        assert!(
+            raw_after.contains("GET XYZhttps://x"),
+            "XYZ should land between GET and the URL: {raw_after:?}"
+        );
+        // Surrounding prose untouched.
+        let md_after = app.document().unwrap().to_markdown();
+        assert!(md_after.starts_with("lead\n"));
+        assert!(md_after.contains("tail"));
     }
 
     #[tokio::test(flavor = "multi_thread")]
