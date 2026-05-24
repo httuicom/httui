@@ -72,6 +72,12 @@ Mounted in `AppShell` when `vaultPath === null`:
   (`cloneVault`, `createVault`, `saveSecret`), re-exported from
   `commands.ts`. Backend modules: `httui-core::git::clone`,
   `httui-core::vault_config::create`, `vault_config_commands.rs`.
+- **TUI parity:** `httui-tui` has the same empty-state on first run —
+  `httui-tui/src/empty_state/` owns its own alt screen + event loop and
+  reuses the existing `ui/vault_*` widgets plus
+  `vault::helpers::{submit_create, submit_clone, read_dir_entries}`.
+  Pending-secrets modal + status-bar badge live in the same code paths
+  as the in-app vault picker (`Alt+K` → `n`/`c`/`o`).
 
 ## Architecture
 

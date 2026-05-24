@@ -20,8 +20,13 @@ Post-0.4.0 work lands here.
 - **TUI**: Variables + Environments management surface (`Alt+i` / `gV`) — master-detail page with the envs sidebar and a per-env vars table. Create/rename/delete envs and vars in place, toggle `is_secret` (values masked as `••••` in the list, raw in edit), `c` clones an env with a per-variable checkbox to pick which keys to copy. Reads/writes `<vault>/envs/*.toml` via `httui_core::EnvironmentsStore`; secret values are stored in the OS keychain.
 - **TUI**: numeric shortcuts `1`-`9` activate the env at that position from either the `gE` picker or anywhere in the Variables/Envs page (regardless of which pane is focused). After activating, focus lands on the new env's vars so the user can edit values right away.
 - **TUI**: per-variable "Used in N" panel — the Variables page shows where the selected var (`{{KEY}}` or `{{KEY.path}}`) is referenced across every `.md` in the vault, with file:line and a snippet. Powered by `httui_core::var_uses`.
+- **TUI**: empty-state on first run — when no vault is registered the binary opens a ratatui screen with three cards (Open / Clone / Create) instead of a stdin prompt. Open browses a directory tree by keyboard, Clone runs `git clone` into a chosen parent, Create scaffolds a fresh vault with `git init`. The chosen vault is persisted and the workbench opens normally.
+- **TUI**: pending-secrets first-run modal — when switching to a vault whose `{{keychain:X}}` references have no entry in the OS keychain, a modal lists each missing key with an inline input. Enter saves to the keychain, `s` skips (leaving the badge on the status bar), Esc dismisses. A "⚠ N pending" badge surfaces remaining items and can reopen the modal.
+- **Build**: `commit-msg` git hook enforces the project commit style (subject only, ≤72 chars, no internal planning vocabulary, no AI-assistant attribution). Install with `make setup-hooks`.
 
 ### Changed
+
+- **TUI**: vault picker now exposes inline Create / Clone / Open sub-modals via `n` / `c` / `o` chords, replacing the previous `:set-vault <path>` ex-command-only path. The same widgets back the empty-state cards.
 
 - **TUI**: Backspace at a segment boundary (start of a block's body, or start of any segment when the previous one has content) now crosses into the previous segment instead of bailing silently. The buffer behaves like a flat rope: deleting the boundary `\n` merges segments, and if the deletion makes a block's fence stop parsing the block is automatically demoted to plain prose so the renderer shows the text. Undo coalesces a run of cross-boundary deletes into a single step, same as in-segment deletes.
 
