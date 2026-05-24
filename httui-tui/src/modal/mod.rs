@@ -2,7 +2,7 @@ use crate::app::{
     BlockHistoryState, BlockTemplatePickerState, CompletionPopupState,
     ConnectionDeleteConfirmState, ConnectionFormState, ConnectionPickerState,
     ConnectionsPageState, ContentSearchState, DbConfirmRunState, DbExportPickerState,
-    DbRowDetailState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
+    DbRowDetailState, DbSettingsState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
     EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, HttpResponseDetailState, TabPickerState,
     VarDeleteConfirmState, VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState,
     VaultCreateFormFocus, VaultCreateFormState, VaultMissingSecretsState, VaultOpenPickerState,
@@ -120,6 +120,10 @@ pub enum Modal {
     /// editor below keeps typing into the doc; the post-action hook
     /// refreshes the popup against the new prefix.
     CompletionPopup(CompletionPopupState),
+    /// DB block settings popup (`gs`). Tab / arrows cycle the focused
+    /// LineEdit (`row_limit` / `timeout_ms`); typing routes into the
+    /// focused field.
+    DbSettings(DbSettingsState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -195,6 +199,9 @@ impl Modal {
                     None => ModalOutcome::Forward,
                 }
             }
+            Modal::DbSettings(_) => ModalOutcome::Emit(
+                crate::input::parser::modals::parse_db_settings_modal(key),
+            ),
         }
     }
 
@@ -298,6 +305,20 @@ impl Modal {
     pub fn as_completion_popup_mut(&mut self) -> Option<&mut CompletionPopupState> {
         match self {
             Modal::CompletionPopup(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_db_settings(&self) -> Option<&DbSettingsState> {
+        match self {
+            Modal::DbSettings(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_db_settings_mut(&mut self) -> Option<&mut DbSettingsState> {
+        match self {
+            Modal::DbSettings(s) => Some(s),
             _ => None,
         }
     }

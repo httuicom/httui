@@ -21,9 +21,6 @@ pub enum ScopeKind {
     /// Bottom of the stack. Vim or Standard engine handles the key
     /// based on `app.config.editor.mode`. Always present.
     Editor,
-    /// `app.db_settings.is_some()` — DB block settings popup
-    /// (limit/timeout). Always consumes.
-    DbSettings,
     /// `app.modal.is_some()` — every modal variant (forms, pickers,
     /// confirms, detail modals). The detail variants (`DbRowDetail`,
     /// `HttpResponseDetail`) host the vim engine over a read-only
@@ -59,9 +56,6 @@ pub enum KeyOutcome {
 pub fn active_scopes(app: &App) -> Vec<ScopeKind> {
     let mut v = vec![ScopeKind::Editor];
     // Order below = stacking order (bottom → top). Top wins.
-    if app.db_settings.is_some() {
-        v.push(ScopeKind::DbSettings);
-    }
     if app.modal.is_some() {
         v.push(ScopeKind::Modal);
     }
@@ -98,7 +92,6 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
 fn handle_scope(kind: ScopeKind, app: &mut App, key: KeyEvent) -> KeyOutcome {
     match kind {
         ScopeKind::Editor => handle_editor(app, key),
-        ScopeKind::DbSettings => handle_db_settings(key),
         ScopeKind::Modal => handle_modal(app, key),
         ScopeKind::RunningQueryCatch => handle_running_query_catch(app, key),
     }
@@ -124,12 +117,6 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
     KeyOutcome::Consumed
 }
 
-
-/// DB block settings popup (limit/timeout). Parser is total — every
-/// key maps to an action.
-fn handle_db_settings(key: KeyEvent) -> KeyOutcome {
-    KeyOutcome::Effect(crate::input::parser::modals::parse_db_settings_modal(key))
-}
 
 /// Running-query cancel — catches the profile-specific cancel chord.
 /// `Ctrl+C` in vim, `Esc` in standard. Everything else `Forward`s so

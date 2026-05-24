@@ -85,37 +85,37 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
         Action::DbSettingsFocusNext => crate::commands::db::db_settings_focus_step(app, 1),
         Action::DbSettingsFocusPrev => crate::commands::db::db_settings_focus_step(app, -1),
         Action::DbSettingsChar(c) => {
-            if let Some(s) = app.db_settings.as_mut() {
+            if let Some(s) = app.db_settings_mut() {
                 s.focused_input_mut().insert_char(c);
             }
         }
         Action::DbSettingsBackspace => {
-            if let Some(s) = app.db_settings.as_mut() {
+            if let Some(s) = app.db_settings_mut() {
                 s.focused_input_mut().delete_before();
             }
         }
         Action::DbSettingsDelete => {
-            if let Some(s) = app.db_settings.as_mut() {
+            if let Some(s) = app.db_settings_mut() {
                 s.focused_input_mut().delete_after();
             }
         }
         Action::DbSettingsCursorLeft => {
-            if let Some(s) = app.db_settings.as_mut() {
+            if let Some(s) = app.db_settings_mut() {
                 s.focused_input_mut().move_left();
             }
         }
         Action::DbSettingsCursorRight => {
-            if let Some(s) = app.db_settings.as_mut() {
+            if let Some(s) = app.db_settings_mut() {
                 s.focused_input_mut().move_right();
             }
         }
         Action::DbSettingsCursorHome => {
-            if let Some(s) = app.db_settings.as_mut() {
+            if let Some(s) = app.db_settings_mut() {
                 s.focused_input_mut().move_home();
             }
         }
         Action::DbSettingsCursorEnd => {
-            if let Some(s) = app.db_settings.as_mut() {
+            if let Some(s) = app.db_settings_mut() {
                 s.focused_input_mut().move_end();
             }
         }

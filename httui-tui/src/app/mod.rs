@@ -91,11 +91,6 @@ pub struct App {
     /// synchronously and falls back to "loading…" when the entry is
     /// absent. See `crate::schema` for the cache + dedup model.
     pub schema_cache: crate::schema::SchemaCache,
-    /// `Some` while the block-settings modal is open (`gs` chord).
-    /// Mode flips to `Mode::DbSettings` so dispatch routes typing
-    /// into the focused LineEdit. Renders independently of mode —
-    /// any `Some` value paints it.
-    pub db_settings: Option<DbSettingsState>,
     /// Name of the currently-active environment, if any. Cached on
     /// startup (and after a future env switch) so the status bar can
     /// render the chip without an async hop on every redraw. `None`
@@ -186,7 +181,6 @@ impl App {
             running_query: None,
             result_viewport_top: std::collections::HashMap::new(),
             schema_cache: crate::schema::SchemaCache::new(),
-            db_settings: None,
             active_env_name: None,
             content_search_index_built: false,
             result_tabs: std::collections::HashMap::new(),

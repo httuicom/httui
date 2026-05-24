@@ -128,6 +128,14 @@ impl App {
         self.modal.as_mut().and_then(|m| m.as_completion_popup_mut())
     }
 
+    pub fn db_settings(&self) -> Option<&crate::app::DbSettingsState> {
+        self.modal.as_ref().and_then(|m| m.as_db_settings())
+    }
+
+    pub fn db_settings_mut(&mut self) -> Option<&mut crate::app::DbSettingsState> {
+        self.modal.as_mut().and_then(|m| m.as_db_settings_mut())
+    }
+
     // ----- result tabs (per-block) ---------------------------------------
 
     /// Selected result tab for `block_id`. Missing entry → default

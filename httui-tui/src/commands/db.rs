@@ -1999,23 +1999,25 @@ pub fn open_db_settings_modal(app: &mut App) -> Result<(), String> {
         input: crate::vim::lineedit::LineEdit::from_str(timeout_str),
     });
 
-    app.db_settings = Some(crate::app::DbSettingsState {
+    app.modal = Some(crate::modal::Modal::DbSettings(crate::app::DbSettingsState {
         segment_idx,
         fields,
         focus: 0,
-    });
+    }));
     app.vim.mode = crate::vim::mode::Mode::DbSettings;
     app.vim.reset_pending();
     Ok(())
 }
 
 pub fn close_db_settings_modal(app: &mut App) {
-    app.db_settings = None;
+    if matches!(app.modal, Some(crate::modal::Modal::DbSettings(_))) {
+        app.modal = None;
+    }
     app.vim.enter_normal();
 }
 
 pub fn db_settings_focus_step(app: &mut App, delta: i32) {
-    let Some(state) = app.db_settings.as_mut() else {
+    let Some(state) = app.db_settings_mut() else {
         return;
     };
     if delta >= 0 {
@@ -2034,7 +2036,7 @@ pub fn db_settings_focus_step(app: &mut App, delta: i32) {
 /// failure (label included in the error so the user knows which
 /// field needs attention).
 pub fn confirm_db_settings_modal(app: &mut App) {
-    let Some(state) = app.db_settings.as_ref() else {
+    let Some(state) = app.db_settings() else {
         app.vim.enter_normal();
         return;
     };
@@ -2064,7 +2066,9 @@ pub fn confirm_db_settings_modal(app: &mut App) {
     }
 
     // All inputs validated — close the modal and persist.
-    app.db_settings = None;
+    if matches!(app.modal, Some(crate::modal::Modal::DbSettings(_))) {
+        app.modal = None;
+    }
     app.vim.enter_normal();
 
     if let Some(doc) = app.tabs.active_document_mut() {

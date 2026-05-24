@@ -197,7 +197,6 @@ impl App {
         // Drop transient overlays so nothing dangles a pointer into
         // the old buffer / connection.
         self.modal = None;
-        self.db_settings = None;
         self.running_query = None;
         self.standard.anchor = None;
         self.vim.reset_pending();

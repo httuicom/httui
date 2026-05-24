@@ -331,7 +331,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Settings modal — opened by `gs` over a DB block. Two-input
     // form (limit + timeout) with Tab focus cycle. Anchored above
     // the block; falls back below or centered when no headroom.
-    if let Some(state) = app.db_settings.as_ref() {
+    if let Some(state) = app.db_settings() {
         let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
         db_settings_modal::render(frame, editor_area, state, anchor);
     }
@@ -840,7 +840,7 @@ mod tests {
         let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
         let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
         open_doc(&mut app, src);
-        app.db_settings = Some(DbSettingsState {
+        app.modal = Some(crate::modal::Modal::DbSettings(DbSettingsState {
             segment_idx: 0,
             fields: vec![SettingsField {
                 label: "Limit",
@@ -848,7 +848,7 @@ mod tests {
                 input: crate::vim::lineedit::LineEdit::from_str("100"),
             }],
             focus: 0,
-        });
+        }));
         let (text, _c) = render(&mut app, 70, 16);
         assert!(
             text.contains("Limit") || text.contains("100"),
