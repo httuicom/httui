@@ -402,6 +402,11 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     if let Some(crate::modal::Modal::VarDeleteConfirm(state)) = app.modal.as_ref() {
         envs_page::render_var_delete_confirm(frame, editor_area, state);
     }
+    if let Some(crate::modal::Modal::EnvCloneForm(state)) = app.modal.as_ref() {
+        if let Some((cx, cy)) = crate::ui::envs_clone::render_env_clone_form(frame, editor_area, state) {
+            frame.set_cursor_position((cx, cy));
+        }
+    }
 }
 
 #[cfg(test)]

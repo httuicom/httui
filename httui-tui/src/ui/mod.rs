@@ -10,6 +10,8 @@ mod connection_picker;
 mod connection_delete_confirm;
 mod connection_form;
 mod connections_page;
+/// V4 P5: clone-env form renderer (extraído de envs_page).
+mod envs_clone;
 mod envs_page;
 mod content_search;
 mod cursor;

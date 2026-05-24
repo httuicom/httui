@@ -1,10 +1,13 @@
 use crate::app::{
     BlockHistoryState, BlockTemplatePickerState, ConnectionDeleteConfirmState,
     ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
-    DbExportPickerState, EnvDeleteConfirmState, EnvFormState, EnvironmentPickerState,
-    EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState, VarFormFocus,
-    VarFormState,
+    DbExportPickerState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
+    EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState,
+    VarFormFocus, VarFormState,
 };
+
+/// V4 P5: clone-env form key handler (extraído pra respeitar size limit).
+mod clone_form;
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -40,6 +43,10 @@ pub enum Modal {
     EnvDeleteConfirm(EnvDeleteConfirmState),
     /// V4 P4: destructive confirm pra delete var.
     VarDeleteConfirm(VarDeleteConfirmState),
+    /// V4 P5 (2026-05-23): clone env form com checkboxes por var.
+    /// Aberto por `c` na EnvsPage com focus Envs. Cria env destino +
+    /// bulk set_var apenas das vars marcadas (default: todas ON).
+    EnvCloneForm(EnvCloneFormState),
 }
 
 #[derive(Debug)]
@@ -67,6 +74,7 @@ impl Modal {
             Modal::EnvForm(_) => env_form_handle_key(key),
             Modal::VarForm(s) => var_form_handle_key(s.focus, key),
             Modal::EnvDeleteConfirm(_) | Modal::VarDeleteConfirm(_) => env_or_var_confirm_handle_key(key),
+            Modal::EnvCloneForm(s) => clone_form::env_clone_form_handle_key(s.focus, key),
         }
     }
 }
@@ -338,6 +346,11 @@ fn envs_page_handle_key(focus: EnvsPaneFocus, key: KeyEvent) -> ModalOutcome {
                 Action::OpenVarDeleteConfirm
             })
         }
+        // V4 P5: `c` na env-focused page → clone env form. No-op em
+        // vars focus (clone é por-env, não por-var).
+        (KeyModifiers::NONE, KeyCode::Char('c')) if focus == EnvsPaneFocus::Envs => {
+            ModalOutcome::Emit(Action::OpenEnvCloneForm)
+        }
         _ => ModalOutcome::Continue,
     }
 }
@@ -497,4 +510,6 @@ mod tests {
             ModalOutcome::Continue
         ));
     }
+
+    // V4 P5: tests do clone form ficam em `modal/clone_form.rs`.
 }

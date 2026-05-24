@@ -410,6 +410,16 @@ pub enum Action {
     OpenVarDeleteConfirm,
     ConfirmEnvOrVarDelete,
     CancelEnvOrVarDelete,
+    // V4 P5: clone env form.
+    OpenEnvCloneForm,
+    CloseEnvCloneForm,
+    EnvCloneFormChar(char),
+    EnvCloneFormBackspace,
+    EnvCloneFormFocusToggle,
+    EnvCloneFormMoveVarCursor(i32),
+    EnvCloneFormToggleVar,
+    EnvCloneFormToggleAll,
+    EnvCloneFormSubmit,
 
     /// Read-only listing of the chord vocabulary grouped by section.
     /// Mnemonic: `g`-prefix family + `?` = "help".

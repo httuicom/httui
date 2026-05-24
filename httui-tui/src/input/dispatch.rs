@@ -289,7 +289,16 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::OpenEnvDeleteConfirm
         | Action::OpenVarDeleteConfirm
         | Action::ConfirmEnvOrVarDelete
-        | Action::CancelEnvOrVarDelete => {
+        | Action::CancelEnvOrVarDelete
+        | Action::OpenEnvCloneForm
+        | Action::CloseEnvCloneForm
+        | Action::EnvCloneFormChar(_)
+        | Action::EnvCloneFormBackspace
+        | Action::EnvCloneFormFocusToggle
+        | Action::EnvCloneFormMoveVarCursor(_)
+        | Action::EnvCloneFormToggleVar
+        | Action::EnvCloneFormToggleAll
+        | Action::EnvCloneFormSubmit => {
             crate::input::apply::envs_page::apply_envs(app, action)
         }
         Action::JumpNextBlock

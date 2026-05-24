@@ -169,7 +169,7 @@ fn render_var_table(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
 
 fn render_hint(frame: &mut Frame, area: Rect, focus: EnvsPaneFocus) {
     let body = match focus {
-        EnvsPaneFocus::Envs => " Tab vars · j/k · a activate · n new env · e edit · D delete · Esc ",
+        EnvsPaneFocus::Envs => " Tab vars · j/k · a activate · n new · e edit · c clone · D delete · Esc ",
         EnvsPaneFocus::Vars => " Tab envs · j/k · n new var · e edit · D delete · Esc ",
     };
     let p = Paragraph::new(Span::styled(
@@ -182,7 +182,7 @@ fn render_hint(frame: &mut Frame, area: Rect, focus: EnvsPaneFocus) {
     frame.render_widget(p, area);
 }
 
-fn truncate(s: &str, n: usize) -> String {
+pub(super) fn truncate(s: &str, n: usize) -> String {
     if s.chars().count() <= n {
         s.to_string()
     } else {
@@ -190,7 +190,7 @@ fn truncate(s: &str, n: usize) -> String {
     }
 }
 
-fn fill(frame: &mut Frame, area: Rect, style: Style) {
+pub(super) fn fill(frame: &mut Frame, area: Rect, style: Style) {
     let buf = frame.buffer_mut();
     for y in area.y..area.y.saturating_add(area.height) {
         for x in area.x..area.x.saturating_add(area.width) {
@@ -212,7 +212,7 @@ fn fill_col(frame: &mut Frame, area: Rect, sym: &str, fg: Color) {
     }
 }
 
-fn centered(area: Rect, w: u16, h: u16) -> Rect {
+pub(super) fn centered(area: Rect, w: u16, h: u16) -> Rect {
     let w = w.min(area.width.saturating_sub(2));
     let h = h.min(area.height.saturating_sub(2));
     let x = area.x + (area.width.saturating_sub(w)) / 2;
@@ -378,6 +378,9 @@ pub fn render_var_delete_confirm(frame: &mut Frame, area: Rect, state: &VarDelet
     );
 }
 
+// V4 P5: render_env_clone_form e render_clone_var_list moved to
+// `ui/envs_clone.rs` (size limit).
+
 fn confirm_popup(frame: &mut Frame, editor_area: Rect, title: &str, prompt: &str) {
     let area = centered(editor_area, 56, 7);
     let bg = Style::default().bg(Color::Black).fg(Color::White);
@@ -412,4 +415,27 @@ fn confirm_popup(frame: &mut Frame, editor_area: Rect, title: &str, prompt: &str
     ];
     let p = Paragraph::new(lines).style(bg).wrap(Wrap { trim: false });
     frame.render_widget(p, inner);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    #[test]
+    fn hint_envs_focus_mentions_clone() {
+        let backend = TestBackend::new(80, 1);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                render_hint(f, Rect::new(0, 0, 80, 1), EnvsPaneFocus::Envs);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        let line: String = (0..80)
+            .map(|x| buf.cell((x, 0)).unwrap().symbol().to_string())
+            .collect();
+        assert!(line.contains("c clone"), "hint envs deve conter 'c clone': {line:?}");
+    }
 }

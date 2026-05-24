@@ -240,6 +240,38 @@ impl VarFormFocus {
     }
 }
 
+/// V4 P5: linha do checklist de vars no clone form. `checked=true`
+/// significa "copie esta var para o env destino"; default ON pra
+/// todas as vars do env source.
+#[derive(Debug, Clone)]
+pub struct CloneVarRow {
+    pub key: String,
+    pub value: String,
+    pub is_secret: bool,
+    pub checked: bool,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum EnvCloneFormFocus {
+    #[default]
+    Name,
+    Vars,
+}
+
+/// V4 P5: clone-env form. Aberto por `c` na env-focused EnvsPage.
+/// `name` = LineEdit do nome destino; `vars` = checklist de vars do
+/// source (default todas ON). `Tab` alterna foco Name↔Vars; em Vars,
+/// `j`/`k` navegam, `space` toggla. `Enter` cria env + bulk set_var.
+#[derive(Debug, Default)]
+pub struct EnvCloneFormState {
+    pub source: String,
+    pub name: crate::vim::lineedit::LineEdit,
+    pub vars: Vec<CloneVarRow>,
+    pub selected_var: usize,
+    pub focus: EnvCloneFormFocus,
+    pub error: Option<String>,
+}
+
 #[derive(Debug)]
 pub struct EnvDeleteConfirmState {
     pub name: String,

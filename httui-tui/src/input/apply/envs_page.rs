@@ -84,6 +84,40 @@ pub(crate) fn apply_envs(app: &mut App, action: Action) {
             // Reopen envs page (cheap reload).
             let _ = open_envs_page(app);
         }
+        Action::OpenEnvCloneForm => super::envs_clone::open_env_clone_form(app),
+        Action::CloseEnvCloneForm => {
+            close_form_and_reopen(app, |m| matches!(m, Some(crate::modal::Modal::EnvCloneForm(_))));
+        }
+        Action::EnvCloneFormChar(c) => super::envs_clone::with_clone_form(app, |f| f.name.insert_char(c)),
+        Action::EnvCloneFormBackspace => super::envs_clone::with_clone_form(app, |f| {
+            f.name.delete_before();
+        }),
+        Action::EnvCloneFormFocusToggle => super::envs_clone::with_clone_form(app, |f| {
+            use crate::app::EnvCloneFormFocus;
+            f.focus = match f.focus {
+                EnvCloneFormFocus::Name => EnvCloneFormFocus::Vars,
+                EnvCloneFormFocus::Vars => EnvCloneFormFocus::Name,
+            };
+        }),
+        Action::EnvCloneFormMoveVarCursor(d) => super::envs_clone::with_clone_form(app, |f| {
+            if f.vars.is_empty() {
+                return;
+            }
+            let last = f.vars.len() as i64 - 1;
+            f.selected_var = ((f.selected_var as i64 + d as i64).clamp(0, last)) as usize;
+        }),
+        Action::EnvCloneFormToggleVar => super::envs_clone::with_clone_form(app, |f| {
+            if let Some(row) = f.vars.get_mut(f.selected_var) {
+                row.checked = !row.checked;
+            }
+        }),
+        Action::EnvCloneFormToggleAll => super::envs_clone::with_clone_form(app, |f| {
+            let any_unchecked = f.vars.iter().any(|v| !v.checked);
+            for row in &mut f.vars {
+                row.checked = any_unchecked;
+            }
+        }),
+        Action::EnvCloneFormSubmit => super::envs_clone::env_clone_form_submit(app),
         _ => unreachable!("apply_envs: variante fora do grupo"),
     }
 }
@@ -462,5 +496,19 @@ fn close_form_and_reopen(app: &mut App, is_form: impl Fn(&Option<crate::modal::M
     }
     app.modal = None;
     let _ = open_envs_page(app);
+}
+
+/// Helper compartilhado com `envs_clone`: re-focus o env recém-criado
+/// na EnvsPage por nome (no-op se não encontrar).
+pub(super) fn with_page_select_env(app: &mut App, name: &str) {
+    with_page(app, |s| {
+        if let Some(idx) = s.envs.iter().position(|e| e.name == name) {
+            s.selected_env = idx;
+        }
+    });
+}
+
+pub(super) fn reload_vars_export(app: &mut App) {
+    reload_vars(app);
 }
 
