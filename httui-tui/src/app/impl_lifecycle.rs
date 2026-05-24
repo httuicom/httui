@@ -75,6 +75,45 @@ impl App {
         self.status_message = None;
     }
 
+    /// V10 slice 6: re-scan the active vault for `{{keychain:...}}`
+    /// refs with no entry in the local keychain. Repopulates
+    /// `pending_secrets`. Backend failures collapse to an empty list
+    /// (the badge UX is "no pending" rather than blocking startup).
+    pub fn scan_pending_secrets(&mut self) {
+        use httui_core::secrets::Keychain;
+        use httui_core::vault_config::missing_secrets::scan_missing_secrets;
+        self.pending_secrets = scan_missing_secrets(&self.vault_path, &Keychain).unwrap_or_default();
+    }
+
+    /// V10 slice 6: open the first-run modal when there are pending
+    /// secrets. No-op when the list is empty or when another modal is
+    /// already on screen (avoids stomping over an open picker).
+    pub fn open_pending_secrets_modal(&mut self) {
+        if self.pending_secrets.is_empty() || self.modal.is_some() {
+            return;
+        }
+        let items = self
+            .pending_secrets
+            .iter()
+            .map(|r| crate::app::MissingSecretRow {
+                keychain_key: r.keychain_key.clone(),
+                label: r.label.clone(),
+                kind: r.kind,
+                value: crate::vim::lineedit::LineEdit::new(),
+                saved: false,
+            })
+            .collect();
+        self.modal = Some(crate::modal::Modal::VaultMissingSecrets(
+            crate::app::VaultMissingSecretsState {
+                items,
+                selected: 0,
+                editing: false,
+            },
+        ));
+        self.vim.mode = crate::vim::mode::Mode::Modal;
+        self.vim.reset_pending();
+    }
+
     /// Swap the entire vault-dependent surface in-place. Used by V10
     /// (vault picker / empty-state Open/Clone/Create) so the user
     /// changes workspace without restarting the binary.
@@ -188,6 +227,12 @@ impl App {
             self.envs_dir_watcher = Some(crate::fs_watch::FileWatcher::new(sender));
             super::event_loop::sync_envs_dir_watcher(self);
         }
+
+        // V10 slice 6: surface pending secrets for the new vault.
+        // The modal opens automatically when there's something to
+        // prompt; status-bar badge (slice 7) picks up the count.
+        self.scan_pending_secrets();
+        self.open_pending_secrets_modal();
 
         Ok(())
     }

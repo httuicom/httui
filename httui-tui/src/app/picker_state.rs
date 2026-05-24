@@ -439,6 +439,35 @@ pub struct VaultPickerState {
     pub active: Option<String>,
 }
 
+/// V10 slice 6: first-run secrets modal. Opens automatically after
+/// `App::switch_vault` when `scan_missing_secrets` returns refs that
+/// have no entry in the local keychain.
+///
+/// UX: a list with each missing reference + an inline value input.
+/// Tab/jk navigate; type to edit the focused row's value; Enter saves
+/// to keychain (removes from `pending`); `s` skips (stays in pending
+/// so the status-bar badge surfaces it later); Esc/Ctrl-C dismisses
+/// (skipped rows remain in pending).
+#[derive(Debug)]
+pub struct VaultMissingSecretsState {
+    pub items: Vec<MissingSecretRow>,
+    pub selected: usize,
+    pub editing: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct MissingSecretRow {
+    pub keychain_key: String,
+    pub label: String,
+    /// Kept in the row for future grouping in the UI (connection vs
+    /// env). Not consumed yet — silenced to avoid the dead-code
+    /// warning while V10 slice 7 (badge) hasn't landed.
+    #[allow(dead_code)]
+    pub kind: httui_core::vault_config::missing_secrets::MissingKind,
+    pub value: crate::vim::lineedit::LineEdit,
+    pub saved: bool,
+}
+
 /// V10 slice 3: directory navigator opened by `o` inside the vault
 /// picker. Lists the current dir's children (`..` always at the top,
 /// then sorted dirs, then `.toml`-bearing vaults). Navigation:

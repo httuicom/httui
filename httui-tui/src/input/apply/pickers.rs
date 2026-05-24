@@ -744,6 +744,29 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         Action::MoveVaultOpenPickerCursor(delta) => apply_move_vault_open_picker_cursor(app, delta),
         Action::VaultOpenPickerEnter => apply_vault_open_picker_enter(app),
         Action::VaultOpenPickerUp => apply_vault_open_picker_up(app),
+        Action::CloseVaultMissingSecrets => apply_close_vault_missing_secrets(app),
+        Action::MoveVaultMissingSecretsCursor(delta) => {
+            apply_move_vault_missing_secrets_cursor(app, delta)
+        }
+        Action::VaultMissingSecretsEnterEdit => with_missing_secrets(app, |s| s.editing = true),
+        Action::VaultMissingSecretsCancelEdit => with_missing_secrets(app, |s| {
+            s.editing = false;
+            if let Some(row) = s.items.get_mut(s.selected) {
+                row.value = crate::vim::lineedit::LineEdit::new();
+            }
+        }),
+        Action::VaultMissingSecretsChar(c) => with_missing_secrets(app, |s| {
+            if let Some(row) = s.items.get_mut(s.selected) {
+                row.value.insert_char(c);
+            }
+        }),
+        Action::VaultMissingSecretsBackspace => with_missing_secrets(app, |s| {
+            if let Some(row) = s.items.get_mut(s.selected) {
+                row.value.delete_before();
+            }
+        }),
+        Action::VaultMissingSecretsSave => apply_vault_missing_secrets_save(app),
+        Action::VaultMissingSecretsSkip => apply_vault_missing_secrets_skip(app),
         _ => unreachable!("apply_pickers: variante fora do grupo"),
     }
 }
@@ -1108,6 +1131,108 @@ fn navigate_to(app: &mut App, target: Option<std::path::PathBuf>) {
         state.entries = entries;
         state.selected = 0;
     }
+}
+
+// ───────────── vault missing-secrets modal (V10 slice 6) ─────────────
+
+fn apply_close_vault_missing_secrets(app: &mut App) {
+    if matches!(app.modal, Some(crate::modal::Modal::VaultMissingSecrets(_))) {
+        app.modal = None;
+    }
+    app.vim.enter_normal();
+}
+
+fn apply_move_vault_missing_secrets_cursor(app: &mut App, delta: i32) {
+    let Some(crate::modal::Modal::VaultMissingSecrets(state)) = app.modal.as_mut() else {
+        return;
+    };
+    if state.items.is_empty() {
+        return;
+    }
+    let last = state.items.len() as i64 - 1;
+    let next = (state.selected as i64)
+        .saturating_add(delta as i64)
+        .clamp(0, last);
+    state.selected = next as usize;
+    state.editing = false;
+}
+
+fn with_missing_secrets(
+    app: &mut App,
+    f: impl FnOnce(&mut crate::app::VaultMissingSecretsState),
+) {
+    if let Some(crate::modal::Modal::VaultMissingSecrets(s)) = app.modal.as_mut() {
+        f(s);
+    }
+}
+
+/// Enter while editing — push the entered value into the keychain
+/// and drop the row from `pending_secrets`. Closes the modal when
+/// nothing pending is left.
+fn apply_vault_missing_secrets_save(app: &mut App) {
+    let (key, value) = {
+        let Some(crate::modal::Modal::VaultMissingSecrets(state)) = app.modal.as_ref() else {
+            return;
+        };
+        let Some(row) = state.items.get(state.selected) else {
+            return;
+        };
+        (row.keychain_key.clone(), row.value.as_str().to_string())
+    };
+    if value.is_empty() {
+        app.set_status(StatusKind::Error, "value cannot be empty");
+        return;
+    }
+    if let Err(e) = httui_core::db::keychain::store_secret(&key, &value) {
+        app.set_status(StatusKind::Error, format!("keychain store: {e}"));
+        return;
+    }
+    // Remove the saved key from the pending list.
+    app.pending_secrets.retain(|r| r.keychain_key != key);
+    let modal_drop = {
+        let Some(crate::modal::Modal::VaultMissingSecrets(state)) = app.modal.as_mut() else {
+            return;
+        };
+        if let Some(row) = state.items.get_mut(state.selected) {
+            row.saved = true;
+            row.value = crate::vim::lineedit::LineEdit::new();
+        }
+        state.editing = false;
+        // Find the next unsaved row; if there's none, signal close.
+        let next_unsaved = state
+            .items
+            .iter()
+            .enumerate()
+            .find(|(_, r)| !r.saved)
+            .map(|(i, _)| i);
+        match next_unsaved {
+            Some(i) => {
+                state.selected = i;
+                false
+            }
+            None => true,
+        }
+    };
+    if modal_drop {
+        app.modal = None;
+        app.vim.enter_normal();
+        app.set_status(StatusKind::Info, "todos os secrets salvos");
+    }
+}
+
+/// `s` in browse mode — mark current row as skipped (just advance to
+/// the next item). The pending list isn't touched; the badge in the
+/// status bar surfaces it later.
+fn apply_vault_missing_secrets_skip(app: &mut App) {
+    let Some(crate::modal::Modal::VaultMissingSecrets(state)) = app.modal.as_mut() else {
+        return;
+    };
+    if state.items.is_empty() {
+        return;
+    }
+    let last = state.items.len() as i64 - 1;
+    let next = ((state.selected as i64).saturating_add(1)).clamp(0, last);
+    state.selected = next as usize;
 }
 
 /// Read the dir as a `[.., dirs..]` listing. Hidden files (starting

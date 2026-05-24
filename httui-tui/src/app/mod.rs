@@ -160,6 +160,12 @@ pub struct App {
     /// per-machine `user.toml` so the same vault can be opened
     /// from desktop/TUI side-by-side with separate "current env".
     pub environments_store: Arc<httui_core::vault_config::EnvironmentsStore>,
+    /// V10 slice 6: `{{keychain:...}}` references found in the active
+    /// vault that have no entry in the local keychain. Repopulated
+    /// after every `switch_vault` and at `App::new`. The status-bar
+    /// badge (slice 7) reads `.len()` for the "⚠ N pending" counter,
+    /// and the first-run modal reads the list to render the form.
+    pub pending_secrets: Vec<httui_core::vault_config::missing_secrets::MissingRef>,
 }
 
 impl App {
@@ -216,9 +222,11 @@ impl App {
             modal: None,
             connections_store,
             environments_store,
+            pending_secrets: Vec::new(),
         };
         app.load_initial_document();
         app.refresh_active_env_name();
+        app.scan_pending_secrets();
         app
     }
 

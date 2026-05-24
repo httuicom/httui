@@ -3,8 +3,8 @@ use crate::app::{
     ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
     DbExportPickerState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
     EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState,
-    VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState,
-    VaultCreateFormFocus, VaultCreateFormState, VaultOpenPickerState, VaultPickerState,
+    VarFormFocus, VarFormState, VaultCloneFormFocus, VaultCloneFormState, VaultCreateFormFocus,
+    VaultCreateFormState, VaultMissingSecretsState, VaultOpenPickerState, VaultPickerState,
 };
 
 /// V4 P5: clone-env form key handler (extraído pra respeitar size limit).
@@ -67,6 +67,11 @@ pub enum Modal {
     /// do VaultPicker. Enter num dir desce; Enter num vault ativa
     /// (switch_vault); Backspace sobe um nível; Esc fecha.
     VaultOpenPicker(VaultOpenPickerState),
+    /// V10 slice 6: first-run secrets modal. Aberto automaticamente
+    /// após switch_vault quando scan_missing_secrets retorna refs
+    /// sem entrada no keychain local. Tab/jk navega, type edita
+    /// value, Enter salva, `s` skip, Esc fecha.
+    VaultMissingSecrets(VaultMissingSecretsState),
 }
 
 #[derive(Debug)]
@@ -99,7 +104,45 @@ impl Modal {
             Modal::VaultCreateForm(s) => vault_create_form_handle_key(s.focus, key),
             Modal::VaultCloneForm(s) => vault_clone_form_handle_key(s.focus, key),
             Modal::VaultOpenPicker(_) => vault_open_picker_handle_key(key),
+            Modal::VaultMissingSecrets(s) => vault_missing_secrets_handle_key(s.editing, key),
         }
+    }
+}
+
+fn vault_missing_secrets_handle_key(editing: bool, key: KeyEvent) -> ModalOutcome {
+    let KeyEvent { code, modifiers, .. } = key;
+    if editing {
+        return match (modifiers, code) {
+            (_, KeyCode::Esc) => ModalOutcome::Emit(Action::VaultMissingSecretsCancelEdit),
+            (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+                ModalOutcome::Emit(Action::VaultMissingSecretsCancelEdit)
+            }
+            (_, KeyCode::Enter) => ModalOutcome::Emit(Action::VaultMissingSecretsSave),
+            (_, KeyCode::Backspace) => ModalOutcome::Emit(Action::VaultMissingSecretsBackspace),
+            (mods, KeyCode::Char(c)) if !mods.contains(KeyModifiers::CONTROL) => {
+                ModalOutcome::Emit(Action::VaultMissingSecretsChar(c))
+            }
+            _ => ModalOutcome::Continue,
+        };
+    }
+    // Browse mode.
+    match (modifiers, code) {
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::CloseVaultMissingSecrets)
+        }
+        (_, KeyCode::Down) | (KeyModifiers::NONE, KeyCode::Char('j')) | (_, KeyCode::Tab) => {
+            ModalOutcome::Emit(Action::MoveVaultMissingSecretsCursor(1))
+        }
+        (_, KeyCode::Up) | (KeyModifiers::NONE, KeyCode::Char('k')) | (_, KeyCode::BackTab) => {
+            ModalOutcome::Emit(Action::MoveVaultMissingSecretsCursor(-1))
+        }
+        (_, KeyCode::Enter) | (KeyModifiers::NONE, KeyCode::Char('e')) => {
+            ModalOutcome::Emit(Action::VaultMissingSecretsEnterEdit)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('s')) => {
+            ModalOutcome::Emit(Action::VaultMissingSecretsSkip)
+        }
+        _ => ModalOutcome::Continue,
     }
 }
 
@@ -752,6 +795,56 @@ mod tests {
         assert!(matches!(
             m.handle_key(k(KeyCode::Char('o'), KeyModifiers::NONE)),
             ModalOutcome::Emit(Action::OpenVaultOpenPicker)
+        ));
+    }
+
+    fn vault_missing_secrets(editing: bool) -> Modal {
+        Modal::VaultMissingSecrets(VaultMissingSecretsState {
+            items: Vec::new(),
+            selected: 0,
+            editing,
+        })
+    }
+
+    #[test]
+    fn vault_missing_secrets_browse_routes_navigation() {
+        let mut m = vault_missing_secrets(false);
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('j'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::MoveVaultMissingSecretsCursor(1))
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultMissingSecretsEnterEdit)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('s'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultMissingSecretsSkip)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CloseVaultMissingSecrets)
+        ));
+    }
+
+    #[test]
+    fn vault_missing_secrets_editing_routes_typing_and_save() {
+        let mut m = vault_missing_secrets(true);
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('a'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultMissingSecretsChar('a'))
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Backspace, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultMissingSecretsBackspace)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultMissingSecretsSave)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::VaultMissingSecretsCancelEdit)
         ));
     }
 

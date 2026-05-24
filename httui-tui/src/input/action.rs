@@ -583,5 +583,14 @@ pub enum Action {
     VaultOpenPickerEnter,
     /// `Backspace` inside the open picker — ascend one level.
     VaultOpenPickerUp,
+    /// V10 slice 6: first-run secrets modal actions.
+    CloseVaultMissingSecrets,
+    MoveVaultMissingSecretsCursor(i32),
+    VaultMissingSecretsEnterEdit,
+    VaultMissingSecretsCancelEdit,
+    VaultMissingSecretsChar(char),
+    VaultMissingSecretsBackspace,
+    VaultMissingSecretsSave,
+    VaultMissingSecretsSkip,
     Noop,
 }

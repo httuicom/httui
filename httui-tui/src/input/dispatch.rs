@@ -263,7 +263,15 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::CloseVaultOpenPicker
         | Action::MoveVaultOpenPickerCursor(_)
         | Action::VaultOpenPickerEnter
-        | Action::VaultOpenPickerUp => {
+        | Action::VaultOpenPickerUp
+        | Action::CloseVaultMissingSecrets
+        | Action::MoveVaultMissingSecretsCursor(_)
+        | Action::VaultMissingSecretsEnterEdit
+        | Action::VaultMissingSecretsCancelEdit
+        | Action::VaultMissingSecretsChar(_)
+        | Action::VaultMissingSecretsBackspace
+        | Action::VaultMissingSecretsSave
+        | Action::VaultMissingSecretsSkip => {
             crate::input::apply::pickers::apply_pickers(app, action, recording)
         }
         Action::OpenConnectionForm
