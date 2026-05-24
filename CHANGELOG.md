@@ -23,12 +23,25 @@ Post-0.4.0 work lands here.
 - **TUI**: empty-state on first run — when no vault is registered the binary opens a ratatui screen with three cards (Open / Clone / Create) instead of a stdin prompt. Open browses a directory tree by keyboard, Clone runs `git clone` into a chosen parent, Create scaffolds a fresh vault with `git init`. The chosen vault is persisted and the workbench opens normally.
 - **TUI**: pending-secrets first-run modal — when switching to a vault whose `{{keychain:X}}` references have no entry in the OS keychain, a modal lists each missing key with an inline input. Enter saves to the keychain, `s` skips (leaving the badge on the status bar), Esc dismisses. A "⚠ N pending" badge surfaces remaining items and can reopen the modal.
 - **Build**: `commit-msg` git hook enforces the project commit style (subject only, ≤72 chars, no internal planning vocabulary, no AI-assistant attribution). Install with `make setup-hooks`.
+- **TUI**: HTTP result panel renames the four legacy DB-shaped tabs to `Body / Headers / Cookies / Timing` and adds a fifth `Raw` tab that paints the response as the wire HTTP-message (status line + headers + blank + body). Cycle with `gt`/`gT` or `Tab`/`Shift+Tab`.
+- **TUI**: HTTP body viewer now picks a highlighter from the `Content-Type` response header — JSON (existing), XML, HTML (basic), plain otherwise.
+- **TUI**: HTTP requests stream through `execute_streamed`. The status bar shows live `↓ X kB · Y s` while the body is being received, so multi-MB downloads no longer look frozen.
+- **TUI**: Tab/Shift+Tab cycle the focused block's result-panel tab (Body→Headers→Cookies→Timing→Raw on HTTP, four tabs on DB). Per-block state — cycling one block no longer drags every other block's tab along.
+- **TUI**: VarForm / EnvForm fields support inline cursor navigation — Left/Right/Home/End move the caret, Delete forward-deletes, Backspace continues to back-delete.
 
 ### Changed
 
 - **TUI**: vault picker now exposes inline Create / Clone / Open sub-modals via `n` / `c` / `o` chords, replacing the previous `:set-vault <path>` ex-command-only path. The same widgets back the empty-state cards.
 
 - **TUI**: Backspace at a segment boundary (start of a block's body, or start of any segment when the previous one has content) now crosses into the previous segment instead of bailing silently. The buffer behaves like a flat rope: deleting the boundary `\n` merges segments, and if the deletion makes a block's fence stop parsing the block is automatically demoted to plain prose so the renderer shows the text. Undo coalesces a run of cross-boundary deletes into a single step, same as in-segment deletes.
+- **TUI**: input routing now goes through an explicit focus stack (`input::scope`). Modals/popups/pickers consume keys by default; unmapped keys never leak to the editor underneath. Replaces a flat priority-ordered chain that allowed Tab and other "universal" actions to fire through an open modal.
+
+### Fixed
+
+- **TUI**: HTTP block method badge no longer offsets the cursor — typing on the URL line previously landed two columns off because the badge rendered wider than the source text.
+- **TUI**: keys typed inside an open modal no longer reach the editor behind it (e.g. Tab inside a form switching the editor's tabs).
+- **TUI**: arrow keys move the cursor inside the row-detail / response-detail modals when running in standard profile (previously only vim motions were routed there).
+- **TUI**: vim visual operators inside the read-only detail modals stay read-only — `va{d` selects but cannot delete; `va{y` still yanks normally.
 
 ## [0.4.0] - 2026-05-18
 
