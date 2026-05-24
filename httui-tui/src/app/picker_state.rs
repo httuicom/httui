@@ -427,6 +427,18 @@ pub struct EnvironmentEntry {
     pub name: String,
 }
 
+/// V10: open instance of the vault picker. Lists every vault path
+/// registered in the SQLite app registry plus a marker for the
+/// currently-active one. Confirm calls `App::switch_vault` so the
+/// running TUI swaps in-place. Entries are absolute paths; the
+/// renderer prettifies (`~/...` collapsing) at paint time.
+#[derive(Debug)]
+pub struct VaultPickerState {
+    pub entries: Vec<String>,
+    pub selected: usize,
+    pub active: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

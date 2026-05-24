@@ -693,6 +693,101 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         }
         Action::MoveTabPickerCursor(delta) => apply_move_tab_picker_cursor(app, delta),
         Action::ConfirmTabPicker => apply_confirm_tab_picker(app),
+        Action::OpenVaultPicker => {
+            if let Err(msg) = open_vault_picker(app) {
+                app.set_status(StatusKind::Error, msg);
+            }
+        }
+        Action::CloseVaultPicker => apply_close_vault_picker(app),
+        Action::MoveVaultPickerCursor(delta) => apply_move_vault_picker_cursor(app, delta),
+        Action::ConfirmVaultPicker => apply_confirm_vault_picker(app),
         _ => unreachable!("apply_pickers: variante fora do grupo"),
+    }
+}
+
+// ───────────── vault picker (V10 slice 8 — Alt+W) ─────────────
+
+/// Open the vault picker. Reads every path registered via
+/// `httui_core::vaults::list_vaults` and marks the active one with
+/// `active`. Returns an error if the registry is empty (the
+/// empty-state — slice 2 — handles first-run; the picker is a tool
+/// for users who already have at least one vault).
+pub(crate) fn open_vault_picker(app: &mut App) -> Result<(), String> {
+    let pool = app.pool_manager.app_pool().clone();
+    let (entries, active) = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(async {
+            let vs = httui_core::vaults::list_vaults(&pool)
+                .await
+                .map_err(|e| format!("list vaults: {e}"))?;
+            let active = httui_core::vaults::get_active_vault(&pool)
+                .await
+                .ok()
+                .flatten();
+            Ok::<_, String>((vs, active))
+        })
+    })?;
+    if entries.is_empty() {
+        return Err("nenhum vault registrado ainda".into());
+    }
+    let selected = active
+        .as_deref()
+        .and_then(|a| entries.iter().position(|v| v == a))
+        .unwrap_or(0);
+    app.modal = Some(crate::modal::Modal::VaultPicker(
+        crate::app::VaultPickerState {
+            entries,
+            selected,
+            active,
+        },
+    ));
+    app.vim.mode = Mode::Modal;
+    app.vim.reset_pending();
+    Ok(())
+}
+
+pub(crate) fn apply_close_vault_picker(app: &mut App) {
+    if matches!(app.modal, Some(crate::modal::Modal::VaultPicker(_))) {
+        app.modal = None;
+    }
+    app.vim.enter_normal();
+}
+
+pub(crate) fn apply_move_vault_picker_cursor(app: &mut App, delta: i32) {
+    let Some(crate::modal::Modal::VaultPicker(state)) = app.modal.as_mut() else {
+        return;
+    };
+    if state.entries.is_empty() {
+        return;
+    }
+    let last = state.entries.len() as i64 - 1;
+    let next = (state.selected as i64)
+        .saturating_add(delta as i64)
+        .clamp(0, last);
+    state.selected = next as usize;
+}
+
+/// `Enter` in the vault picker — call `App::switch_vault` for the
+/// highlighted path. No-op (just close) when the highlighted entry is
+/// already active.
+pub(crate) fn apply_confirm_vault_picker(app: &mut App) {
+    let state = match app.modal.take() {
+        Some(crate::modal::Modal::VaultPicker(s)) => s,
+        other => {
+            app.modal = other;
+            app.vim.enter_normal();
+            return;
+        }
+    };
+    app.vim.enter_normal();
+    let Some(target) = state.entries.get(state.selected).cloned() else {
+        return;
+    };
+    if state.active.as_deref() == Some(target.as_str()) {
+        app.set_status(StatusKind::Info, format!("já no vault {target}"));
+        return;
+    }
+    match app.switch_vault(std::path::PathBuf::from(&target)) {
+        Ok(()) => app.set_status(StatusKind::Info, format!("vault → {target}")),
+        Err(e) => app.set_status(StatusKind::Error, format!("switch vault: {e}")),
     }
 }

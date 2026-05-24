@@ -3,7 +3,7 @@ use crate::app::{
     ConnectionFormState, ConnectionPickerState, ConnectionsPageState, DbConfirmRunState,
     DbExportPickerState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
     EnvironmentPickerState, EnvsPageState, EnvsPaneFocus, TabPickerState, VarDeleteConfirmState,
-    VarFormFocus, VarFormState,
+    VarFormFocus, VarFormState, VaultPickerState,
 };
 
 /// V4 P5: clone-env form key handler (extraído pra respeitar size limit).
@@ -51,6 +51,10 @@ pub enum Modal {
     /// Aberto por `c` na EnvsPage com focus Envs. Cria env destino +
     /// bulk set_var apenas das vars marcadas (default: todas ON).
     EnvCloneForm(EnvCloneFormState),
+    /// V10 slice 8: lista os vaults registrados no SQLite app
+    /// registry. Confirm chama `App::switch_vault` (in-place swap).
+    /// Aberto por Alt+W (configurável via keymap.toml).
+    VaultPicker(VaultPickerState),
 }
 
 #[derive(Debug)]
@@ -79,7 +83,18 @@ impl Modal {
             Modal::VarForm(s) => var_form_handle_key(s.focus, key),
             Modal::EnvDeleteConfirm(_) | Modal::VarDeleteConfirm(_) => env_or_var_confirm_handle_key(key),
             Modal::EnvCloneForm(s) => clone_form::env_clone_form_handle_key(s.focus, key),
+            Modal::VaultPicker(_) => vault_picker_handle_key(key),
         }
+    }
+}
+
+fn vault_picker_handle_key(key: KeyEvent) -> ModalOutcome {
+    match list_picker_key(key) {
+        ListPickerKey::Up => ModalOutcome::Emit(Action::MoveVaultPickerCursor(-1)),
+        ListPickerKey::Down => ModalOutcome::Emit(Action::MoveVaultPickerCursor(1)),
+        ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseVaultPicker),
+        ListPickerKey::Confirm => ModalOutcome::Emit(Action::ConfirmVaultPicker),
+        ListPickerKey::Other => ModalOutcome::Continue,
     }
 }
 
@@ -583,5 +598,51 @@ mod tests {
             focus,
             var_uses: Vec::new(),
         })
+    }
+
+    fn vault_picker(entries: Vec<&str>) -> Modal {
+        Modal::VaultPicker(VaultPickerState {
+            entries: entries.into_iter().map(String::from).collect(),
+            selected: 0,
+            active: None,
+        })
+    }
+
+    #[test]
+    fn vault_picker_jk_arrows_navigate() {
+        let mut m = vault_picker(vec!["/a", "/b"]);
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('j'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::MoveVaultPickerCursor(1))
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Down, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::MoveVaultPickerCursor(1))
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('k'), KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::MoveVaultPickerCursor(-1))
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Up, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::MoveVaultPickerCursor(-1))
+        ));
+    }
+
+    #[test]
+    fn vault_picker_enter_confirms_esc_closes() {
+        let mut m = vault_picker(vec!["/a"]);
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::ConfirmVaultPicker)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+            ModalOutcome::Emit(Action::CloseVaultPicker)
+        ));
+        assert!(matches!(
+            m.handle_key(k(KeyCode::Char('c'), KeyModifiers::CONTROL)),
+            ModalOutcome::Emit(Action::CloseVaultPicker)
+        ));
     }
 }

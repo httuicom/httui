@@ -240,7 +240,11 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::OpenTabPicker
         | Action::CloseTabPicker
         | Action::MoveTabPickerCursor(_)
-        | Action::ConfirmTabPicker => {
+        | Action::ConfirmTabPicker
+        | Action::OpenVaultPicker
+        | Action::CloseVaultPicker
+        | Action::MoveVaultPickerCursor(_)
+        | Action::ConfirmVaultPicker => {
             crate::input::apply::pickers::apply_pickers(app, action, recording)
         }
         Action::OpenConnectionForm

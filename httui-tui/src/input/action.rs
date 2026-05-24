@@ -544,5 +544,16 @@ pub enum Action {
     /// keymap table in [`crate::input::map`] can name the binding
     /// without needing a parallel `MetaAction` enum. Fase 6 p2.
     ToggleEditorMode,
+    /// V10 slice 8: open the vault picker (lists workspaces from the
+    /// SQLite app registry). Default binding `Alt+W`; configurable
+    /// via keymap.toml.
+    OpenVaultPicker,
+    /// `Esc` / `Ctrl-C` inside the vault picker — close.
+    CloseVaultPicker,
+    /// `j` / `k` / arrows / Ctrl-n / Ctrl-p inside the vault picker.
+    MoveVaultPickerCursor(i32),
+    /// `Enter` inside the vault picker — `App::switch_vault` for the
+    /// highlighted path.
+    ConfirmVaultPicker,
     Noop,
 }
