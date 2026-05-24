@@ -139,7 +139,7 @@ pub fn standard_actions() -> Vec<ActionSpec> {
             Action::OpenConnectionsPage,
         ),
         spec("open_envs_page", "alt+i", Action::OpenEnvsPage),
-        spec("open_vault_picker", "alt+w", Action::OpenVaultPicker),
+        spec("open_vault_picker", "alt+k", Action::OpenVaultPicker),
         spec("quick_open", "ctrl+p", Action::EnterQuickOpen),
         spec("content_search", "ctrl+f", Action::OpenContentSearch),
         // Workspace.
@@ -218,7 +218,7 @@ fn macos_option_to_ascii(c: char) -> Option<char> {
         '¿' => '?', // Option+? — often Shift-1 variant
         '≈' => 'x', // Option+x
         '…' => '.', // Option+.
-        '∑' => 'w', // Option+w
+        '˚' => 'k', // Option+k
         _ => return None,
     })
 }
@@ -326,14 +326,15 @@ mod tests {
     }
 
     #[test]
-    fn lookup_remaps_macos_option_w_to_alt_w() {
-        // V10 slice 8 hotfix: Option+w on macOS (Use Option as Meta
-        // OFF) emits `∑` without ALT. The unmap table must rewrite it
-        // back to Alt+w so OpenVaultPicker fires from the canonical
-        // chord rather than requiring the user to hold Shift.
+    fn lookup_remaps_macos_option_k_to_alt_k() {
+        // V10 slice 8 hotfix 2: terminal hosts (WezTerm + others)
+        // commonly grab `Alt+W` themselves as a close-tab shortcut,
+        // so the picker moved to `Alt+K`. Option+k on macOS (Use
+        // Option as Meta OFF) emits `˚` without ALT — the unmap
+        // table rewrites it back to Alt+k so OpenVaultPicker fires.
         let keymap = resolve_standard_keymap(&KeymapConfig::default());
         assert_eq!(
-            lookup(&keymap, ev(KeyCode::Char('∑'), KeyModifiers::NONE)),
+            lookup(&keymap, ev(KeyCode::Char('˚'), KeyModifiers::NONE)),
             Some(Action::OpenVaultPicker),
         );
     }
