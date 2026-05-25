@@ -145,6 +145,13 @@ pub struct App {
     /// the editor (auto-opens) or re-open the picker on top
     /// (chord-driven flow). Cleared in the same close handler.
     pub resume_vault_picker: bool,
+    /// Auto-exec chain: ordered list of `segment_idx`s queued to run
+    /// in sequence (deepest deps first, target last). Populated by
+    /// `commands::refs::start_run_chain` after the dep collector; each
+    /// `handle_*_block_result` pops the head on success and dispatches
+    /// the next via `advance_run_chain`. Errors / cancels clear the
+    /// queue so the user fixes the dep before retrying.
+    pub run_chain: Vec<usize>,
 }
 
 impl App {
@@ -197,6 +204,7 @@ impl App {
             environments_store,
             pending_secrets: Vec::new(),
             resume_vault_picker: false,
+            run_chain: Vec::new(),
         };
         app.load_initial_document();
         app.refresh_active_env_name();

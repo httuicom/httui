@@ -175,6 +175,8 @@ pub fn handle_http_block_result(
         }
     }
 
+    let success = outcome.is_ok();
+
     // Persist a metadata-only history row when the block has both a
     // file path on disk and an alias — without an alias the history
     // table has no stable key to group runs under, so anonymous
@@ -188,6 +190,12 @@ pub fn handle_http_block_result(
         request_size,
         outcome,
     );
+
+    // Auto-exec chain advance: if this block was a queued dep,
+    // dispatch the next link; if it was the target, the chain is
+    // now empty. Failures abort the chain (the failed block stays
+    // Error and the user fixes it before retrying).
+    crate::commands::refs::on_block_complete(app, segment_idx, success);
 }
 
 /// Best-effort lookup of the active tab's document path, formatted

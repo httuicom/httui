@@ -4,7 +4,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::app::{App, StatusKind};
 use crate::buffer::block::ExecutionState;
-use crate::buffer::{Cursor, Segment};
+use crate::buffer::Segment;
 
 use super::{
     compute_db_cache_hash, db_summary_from_value, is_cacheable_query, is_unscoped_destructive,
@@ -96,45 +96,12 @@ pub fn summarize_db_response(resp: &httui_core::executor::db::types::DbResponse)
 /// back to the main loop, which folds the outcome into the block
 /// via `handle_db_block_result`.
 pub fn apply_run_block(app: &mut App) {
-    if app.running_query.is_some() {
-        app.set_status(
-            StatusKind::Info,
-            "another block is already running — Ctrl-C to cancel",
-        );
-        return;
-    }
-
-    let Some(doc) = app.document() else { return };
-    let Cursor::InBlock { segment_idx, .. } = doc.cursor() else {
-        app.set_status(
-            StatusKind::Info,
-            "no block at cursor (place cursor on a block first)",
-        );
-        return;
-    };
-    let block_type = match doc.segments().get(segment_idx) {
-        Some(Segment::Block(b)) => b.block_type.clone(),
-        _ => return,
-    };
-
-    if block_type == "http" {
-        crate::commands::http::apply_run_http_block(app, segment_idx);
-        return;
-    }
-    if block_type.starts_with("db-") || block_type == "db" {
-        run_db_block_inner(
-            app,
-            segment_idx,
-            /* force_unscoped = */ false,
-            None,
-            /* as_explain = */ false,
-        );
-        return;
-    }
-    app.set_status(
-        StatusKind::Info,
-        format!("`{block_type}` blocks aren't runnable yet"),
-    );
+    // The user-facing run entry point: collects dependencies via
+    // `commands::refs::start_run_chain` (auto-exec) and dispatches
+    // the first link. Each `handle_*_block_result` advances the
+    // chain on success or aborts it on error. Dedup + cycle defence
+    // live in the collector.
+    crate::commands::refs::apply_run_block(app);
 }
 
 /// Run the DB block at `segment_idx`. Shared entry for the
@@ -156,7 +123,7 @@ pub fn apply_run_block(app: &mut App) {
 /// - tags the spawn `RunningKind::Explain` so the result handler
 ///   merges into `cached_result["plan"]` and auto-switches to the
 ///   Plan tab.
-pub(crate) fn run_db_block_inner(
+pub fn run_db_block_inner(
     app: &mut App,
     segment_idx: usize,
     force_unscoped: bool,

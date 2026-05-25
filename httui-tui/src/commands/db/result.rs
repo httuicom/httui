@@ -42,6 +42,11 @@ pub fn handle_db_block_result(
 
     use crate::event::DbBlockResultKind;
     use httui_core::executor::db::types::DbResult;
+    // Track success specifically for the Run path so the chain
+    // advance hook below can pop the queue head only when the dep
+    // really produced a usable cached_result. Set inside the Ok/Err
+    // arms once we know whether the response carried a Result::Error.
+    let mut run_success: Option<bool> = None;
     match kind {
         DbBlockResultKind::Run => match outcome {
             Ok(response) => {
@@ -97,6 +102,7 @@ pub fn handle_db_block_result(
                 } else {
                     app.set_status(StatusKind::Info, summary);
                 }
+                run_success = Some(!first_was_error);
             }
             Err(msg) => {
                 // Without a synthetic result the panel stays empty and
@@ -138,6 +144,7 @@ pub fn handle_db_block_result(
                     );
                 }
                 app.set_status(StatusKind::Error, msg);
+                run_success = Some(false);
             }
         },
         DbBlockResultKind::LoadMore => match outcome {
@@ -244,6 +251,16 @@ pub fn handle_db_block_result(
                 app.set_status(StatusKind::Error, format!("explain: {msg}"));
             }
         },
+    }
+
+    // Auto-exec chain advance — only for the Run path (LoadMore /
+    // Explain are user-initiated and never participate in the chain).
+    // `run_success` carries the per-statement error nuance: a response
+    // whose first result is `DbResult::Error` is `Ok(...)` at the
+    // executor layer but a failure for downstream blocks because no
+    // cached_result is available to resolve against.
+    if let Some(success) = run_success {
+        crate::commands::refs::on_block_complete(app, segment_idx, success);
     }
 }
 
