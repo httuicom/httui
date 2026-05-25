@@ -129,7 +129,10 @@ pub(super) fn http_footer_spans(
 ///   after blank:           body — JSON highlight when the text
 ///                          parses as JSON; plain otherwise
 ///   leading `#` lines:     dim grey (comments, ignored by parser)
-fn highlight_http_message(text: &str) -> Vec<Line<'static>> {
+fn highlight_http_message(
+    text: &str,
+    error_refs: &std::collections::HashSet<String>,
+) -> Vec<Line<'static>> {
     let lines: Vec<&str> = text.lines().collect();
     let mut out: Vec<Line<'static>> = Vec::with_capacity(lines.len());
     let mut state = HttpHighlightState::PreRequest;
@@ -151,7 +154,7 @@ fn highlight_http_message(text: &str) -> Vec<Line<'static>> {
                     )));
                     continue;
                 }
-                out.push(Line::from(highlight_http_request_line(line)));
+                out.push(Line::from(highlight_http_request_line(line, error_refs)));
                 state = HttpHighlightState::Headers;
             }
             HttpHighlightState::Headers => {
@@ -168,10 +171,10 @@ fn highlight_http_message(text: &str) -> Vec<Line<'static>> {
                     continue;
                 }
                 if line.trim_start().starts_with('?') || line.trim_start().starts_with('&') {
-                    out.push(Line::from(highlight_http_query_continuation(line)));
+                    out.push(Line::from(highlight_http_query_continuation(line, error_refs)));
                     continue;
                 }
-                out.push(Line::from(highlight_http_header_line(line)));
+                out.push(Line::from(highlight_http_header_line(line, error_refs)));
             }
             HttpHighlightState::Body => {
                 // Try JSON-aware highlighting on each body line. The
@@ -200,7 +203,10 @@ enum HttpHighlightState {
 /// inserted separator space) would skew the cursor against what the
 /// user sees on screen. Tests in this module assert length-preservation;
 /// don't reintroduce padding.
-fn highlight_http_request_line(line: &str) -> Vec<Span<'static>> {
+fn highlight_http_request_line(
+    line: &str,
+    error_refs: &std::collections::HashSet<String>,
+) -> Vec<Span<'static>> {
     let split = line.find(char::is_whitespace).unwrap_or(line.len());
     let (method, rest) = line.split_at(split);
     let mut spans: Vec<Span<'static>> = Vec::new();
@@ -220,7 +226,7 @@ fn highlight_http_request_line(line: &str) -> Vec<Span<'static>> {
             spans.push(Span::raw(ws.to_string()));
         }
         if !url.is_empty() {
-            spans.extend(highlight_refs_in_text(url));
+            spans.extend(highlight_refs_in_text(url, error_refs));
         }
     }
     spans
@@ -228,7 +234,10 @@ fn highlight_http_request_line(line: &str) -> Vec<Span<'static>> {
 
 /// Highlight a header row `Key: value` — key cyan, separator dim,
 /// value plain (with refs cyan when present).
-fn highlight_http_header_line(line: &str) -> Vec<Span<'static>> {
+fn highlight_http_header_line(
+    line: &str,
+    error_refs: &std::collections::HashSet<String>,
+) -> Vec<Span<'static>> {
     if let Some(colon) = line.find(':') {
         let key = &line[..colon];
         let rest = &line[colon + 1..];
@@ -236,7 +245,7 @@ fn highlight_http_header_line(line: &str) -> Vec<Span<'static>> {
             Span::styled(key.to_string(), Style::default().fg(Color::Cyan)),
             Span::styled(":".to_string(), Style::default().fg(Color::DarkGray)),
         ];
-        spans.extend(highlight_refs_in_text(rest));
+        spans.extend(highlight_refs_in_text(rest, error_refs));
         spans
     } else {
         vec![Span::raw(line.to_string())]
@@ -245,7 +254,10 @@ fn highlight_http_header_line(line: &str) -> Vec<Span<'static>> {
 
 /// Highlight `?key=value` / `&key=value` continuation rows used by
 /// the parser to extend the URL's query string.
-fn highlight_http_query_continuation(line: &str) -> Vec<Span<'static>> {
+fn highlight_http_query_continuation(
+    line: &str,
+    error_refs: &std::collections::HashSet<String>,
+) -> Vec<Span<'static>> {
     let prefix_len = line.len() - line.trim_start().len();
     let prefix = &line[..prefix_len];
     let rest = line[prefix_len..]
@@ -268,49 +280,22 @@ fn highlight_http_query_continuation(line: &str) -> Vec<Span<'static>> {
             "=".to_string(),
             Style::default().fg(Color::DarkGray),
         ));
-        spans.extend(highlight_refs_in_text(&body[eq + 1..]));
+        spans.extend(highlight_refs_in_text(&body[eq + 1..], error_refs));
     } else {
         spans.push(Span::raw(body.to_string()));
     }
     spans
 }
 
-/// Walk `text` emitting plain spans for normal characters and
-/// cyan-styled spans for `{{ref}}` placeholders. Used by URL /
-/// header values / body so refs visibly stand out from regular
-/// text. Unmatched `{{` (mid-edit) renders as plain text.
-fn highlight_refs_in_text(text: &str) -> Vec<Span<'static>> {
-    let mut spans: Vec<Span<'static>> = Vec::new();
-    let bytes = text.as_bytes();
-    let mut i = 0usize;
-    let mut buf = String::new();
-    while i < bytes.len() {
-        if i + 1 < bytes.len() && bytes[i] == b'{' && bytes[i + 1] == b'{' {
-            // Find matching `}}`.
-            if let Some(close) = (i + 2..bytes.len().saturating_sub(1))
-                .find(|&j| bytes[j] == b'}' && bytes[j + 1] == b'}')
-            {
-                if !buf.is_empty() {
-                    spans.push(Span::raw(std::mem::take(&mut buf)));
-                }
-                let chunk = &text[i..close + 2];
-                spans.push(Span::styled(
-                    chunk.to_string(),
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ));
-                i = close + 2;
-                continue;
-            }
-        }
-        buf.push(bytes[i] as char);
-        i += 1;
-    }
-    if !buf.is_empty() {
-        spans.push(Span::raw(buf));
-    }
-    spans
+/// Thin shim over the shared `ref_highlight::highlight_refs` so HTTP
+/// rendering decorates refs the same way DB rendering does. Pass an
+/// empty `error_refs` for blocks that ran clean; pass the failed-ref
+/// set parsed from the run error to paint that ref red inline.
+fn highlight_refs_in_text(
+    text: &str,
+    error_refs: &std::collections::HashSet<String>,
+) -> Vec<Span<'static>> {
+    super::ref_highlight::highlight_refs(text, error_refs)
 }
 
 /// Pull the path + query out of an HTTP URL. Returns `/` when the
@@ -426,7 +411,13 @@ pub(super) fn render_http_inner(
         if body.is_empty() {
             http_body(b)
         } else {
-            highlight_http_message(&body)
+            let error_refs = match &b.state {
+                crate::buffer::block::ExecutionState::Error(msg) => {
+                    super::ref_highlight::parse_error_refs(msg)
+                }
+                _ => std::collections::HashSet::new(),
+            };
+            highlight_http_message(&body, &error_refs)
         }
     } else {
         http_body(b)
@@ -1081,7 +1072,7 @@ mod tests {
         // the cursor is positioned by byte offset, so any visual
         // padding drifts the caret off the rope.
         let line = "GET https://example.com/path";
-        let spans = highlight_http_request_line(line);
+        let spans = highlight_http_request_line(line, &std::collections::HashSet::new());
         let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
         assert_eq!(total, line.chars().count(), "spans={spans:?}");
     }
@@ -1089,7 +1080,7 @@ mod tests {
     #[test]
     fn http_request_line_preserves_extra_whitespace() {
         let line = "POST   https://api.example.com/users";
-        let spans = highlight_http_request_line(line);
+        let spans = highlight_http_request_line(line, &std::collections::HashSet::new());
         let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
         assert_eq!(total, line.chars().count(), "spans={spans:?}");
     }
@@ -1097,7 +1088,7 @@ mod tests {
     #[test]
     fn http_request_line_preserves_width_with_refs() {
         let line = "GET https://{{HOST}}/get";
-        let spans = highlight_http_request_line(line);
+        let spans = highlight_http_request_line(line, &std::collections::HashSet::new());
         let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
         assert_eq!(total, line.chars().count(), "spans={spans:?}");
     }
@@ -1105,7 +1096,7 @@ mod tests {
     #[test]
     fn http_request_line_method_only() {
         let line = "GET";
-        let spans = highlight_http_request_line(line);
+        let spans = highlight_http_request_line(line, &std::collections::HashSet::new());
         let total: usize = spans.iter().map(|s| s.content.chars().count()).sum();
         assert_eq!(total, line.chars().count());
     }

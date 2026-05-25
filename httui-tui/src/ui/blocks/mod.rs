@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use crate::buffer::block::{BlockNode, ExecutionState};
 
 mod http_panel;
+mod ref_highlight;
 
 /// Lookup `connection_id → human_name` so DB block footers can show
 /// `connection: prod-db` instead of a UUID. Empty map = render the
@@ -484,6 +485,37 @@ fn raw_body_text(b: &BlockNode) -> String {
     body.join("\n")
 }
 
+/// Walk a `Vec<Span>` (e.g. SQL keyword highlight output) and split
+/// out any `{{ref}}` placeholder spans so they pick up the ref style
+/// instead of the underlying keyword colour. Preserves the source
+/// background/modifiers on the non-ref pieces.
+fn overlay_refs_on_spans(
+    spans: Vec<Span<'static>>,
+    error_refs: &std::collections::HashSet<String>,
+) -> Vec<Span<'static>> {
+    let mut out: Vec<Span<'static>> = Vec::new();
+    for span in spans {
+        if !span.content.contains("{{") {
+            out.push(span);
+            continue;
+        }
+        let base_style = span.style;
+        let pieces = ref_highlight::highlight_refs(&span.content, error_refs);
+        for mut piece in pieces {
+            // Preserve the SQL highlighter's background / modifiers
+            // on the non-ref text by merging the ref style on top of
+            // the original span style.
+            if piece.style == Style::default() {
+                piece.style = base_style;
+            } else {
+                piece.style = base_style.patch(piece.style);
+            }
+            out.push(piece);
+        }
+    }
+    out
+}
+
 /// Paint a faint bg over `area` to signal "cursor lives here". Used
 /// when the cursor enters the HTTP response panel via `j` — without
 /// it nothing changes visually (HTTP has no selected-row highlight
@@ -608,6 +640,19 @@ fn render_db_inner(
 
     if show_input {
         let mut sql_lines_styled = super::sql_highlight::highlight(query);
+        // Overlay `{{ref}}` decoration on top of SQL keyword
+        // highlighting. The SQL highlighter doesn't know about refs,
+        // so we re-walk each line and split out placeholder spans.
+        // Refs whose alias matches the current run error get the
+        // error style — RF-07 inline equivalent.
+        let error_refs = match &b.state {
+            ExecutionState::Error(msg) => ref_highlight::parse_error_refs(msg),
+            _ => std::collections::HashSet::new(),
+        };
+        sql_lines_styled = sql_lines_styled
+            .into_iter()
+            .map(|spans| overlay_refs_on_spans(spans, &error_refs))
+            .collect();
         if let Some((err_line, _err_col)) = error_position(b) {
             if let Some(target) = (err_line as usize)
                 .checked_sub(1)
