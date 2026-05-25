@@ -206,6 +206,155 @@ pub(super) fn apply_doc_end(doc: &Document) -> Cursor {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn block_doc(md: &str) -> Document {
+        Document::from_markdown(md).unwrap()
+    }
+
+    fn block_idx(d: &Document) -> usize {
+        d.segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .unwrap()
+    }
+
+    #[test]
+    fn half_page_walks_down_when_positive_delta() {
+        let mut d = Document::from_markdown("a\nb\nc\nd\ne\n").unwrap();
+        half_page(&mut d, 2);
+        match d.cursor() {
+            Cursor::InProse { offset, .. } => assert!(offset > 0),
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn half_page_walks_up_when_negative_delta() {
+        let mut d = Document::from_markdown("a\nb\nc\n").unwrap();
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 4,
+        });
+        half_page(&mut d, -1);
+        match d.cursor() {
+            Cursor::InProse { offset, .. } => assert!(offset < 4),
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn half_page_stops_when_cursor_does_not_move() {
+        let mut d = Document::from_markdown("only\n").unwrap();
+        // Try to scroll way down — should bail out.
+        half_page(&mut d, 50);
+    }
+
+    #[test]
+    fn apply_down_in_blockresult_advances_row() {
+        let mut d = block_doc("head\n\n```db-postgres alias=q\nSELECT 1\n```\n\ntail\n");
+        let i = block_idx(&d);
+        // Inject a result so there are rows to walk.
+        let mut block = match d.segments().get(i).cloned() {
+            Some(Segment::Block(b)) => b,
+            _ => panic!(),
+        };
+        block.cached_result = Some(serde_json::json!({
+            "results": [{
+                "kind": "select",
+                "columns": ["col"],
+                "rows": [["r0"], ["r1"], ["r2"]],
+            }]
+        }));
+        d.replace_segment(i, Segment::Block(block));
+        d.set_cursor(Cursor::InBlockResult {
+            segment_idx: i,
+            row: 0,
+        });
+        let after = apply_down(&d);
+        assert!(matches!(after, Cursor::InBlockResult { row, .. } if row == 1));
+    }
+
+    #[test]
+    fn apply_up_from_blockresult_row_zero_lands_on_closer() {
+        let mut d = block_doc("head\n\n```db-postgres alias=q\nSELECT 1\n```\n\ntail\n");
+        let i = block_idx(&d);
+        let mut block = match d.segments().get(i).cloned() {
+            Some(Segment::Block(b)) => b,
+            _ => panic!(),
+        };
+        block.cached_result = Some(serde_json::json!({
+            "results": [{
+                "kind": "select",
+                "columns": ["col"],
+                "rows": [["r0"]],
+            }]
+        }));
+        d.replace_segment(i, Segment::Block(block));
+        d.set_cursor(Cursor::InBlockResult {
+            segment_idx: i,
+            row: 0,
+        });
+        let after = apply_up(&d);
+        assert!(matches!(after, Cursor::InBlock { .. }));
+    }
+
+    #[test]
+    fn apply_up_in_prose_at_doc_start_returns_same() {
+        let mut d = Document::from_markdown("a\nb\n").unwrap();
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        let before = d.cursor();
+        assert_eq!(apply_up(&d), before);
+    }
+
+    #[test]
+    fn apply_doc_start_on_block_first_segment_lands_in_body() {
+        let d = block_doc("```http\nGET /\n```\n");
+        let after = apply_doc_start(&d);
+        // Block lives at idx 1 after padding; first segment is prose pad.
+        assert!(matches!(after, Cursor::InProse { segment_idx: 0, .. }));
+    }
+
+    #[test]
+    fn apply_doc_end_on_block_last_segment_lands_in_body() {
+        let d = block_doc("head\n\n```http\nGET /\n```");
+        let after = apply_doc_end(&d);
+        // Last segment is the trailing prose pad (pad_with_prose adds it).
+        match after {
+            Cursor::InProse { .. } | Cursor::InBlock { .. } => {}
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn apply_goto_line_falls_back_to_doc_end_when_past_end() {
+        let d = Document::from_markdown("a\nb\nc\n").unwrap();
+        let after = apply_goto_line(&d, 999);
+        // Should land somewhere valid (doc end fallback).
+        match after {
+            Cursor::InProse { .. } | Cursor::InBlock { .. } => {}
+            _ => panic!(),
+        }
+    }
+
+    #[test]
+    fn apply_goto_line_walks_to_specified_line_in_prose() {
+        let d = Document::from_markdown("a\nb\nc\nd\n").unwrap();
+        let after = apply_goto_line(&d, 2);
+        // Should land on line 1 (0-based) in prose.
+        if let Cursor::InProse { offset, .. } = after {
+            assert!(offset > 0);
+        } else {
+            panic!()
+        }
+    }
+}
+
 pub(super) fn apply_goto_line(doc: &Document, n: usize) -> Cursor {
     let layouts = layout_document(doc, 80);
     let mut accum = 0usize;

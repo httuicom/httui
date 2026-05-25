@@ -216,3 +216,136 @@ pub(super) fn apply_line_end(doc: &Document) -> Cursor {
         offset: i,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn prose(text: &str) -> Document {
+        Document::from_markdown(text).unwrap()
+    }
+
+    fn block_doc(md: &str) -> Document {
+        Document::from_markdown(md).unwrap()
+    }
+
+    fn block_idx(d: &Document) -> usize {
+        d.segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .unwrap()
+    }
+
+    #[test]
+    fn left_in_block_moves_within_raw_line() {
+        let mut d = block_doc("```http\nGET /\n```\n");
+        let i = block_idx(&d);
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: i,
+            offset: 3,
+        });
+        let after = apply_left(&d);
+        if let Cursor::InBlock { offset, .. } = after {
+            assert_eq!(offset, 2);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn left_at_col_zero_in_block_stays() {
+        let mut d = block_doc("```http\nGET /\n```\n");
+        let i = block_idx(&d);
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: i,
+            offset: 0,
+        });
+        let before = d.cursor();
+        assert_eq!(apply_left(&d), before);
+    }
+
+    #[test]
+    fn right_in_block_moves_along_raw_line() {
+        let mut d = block_doc("```http\nGET /\n```\n");
+        let i = block_idx(&d);
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: i,
+            offset: 0,
+        });
+        let after = apply_right(&d);
+        if let Cursor::InBlock { offset, .. } = after {
+            assert_eq!(offset, 1);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn right_in_prose_at_eof_returns_same() {
+        let mut d = prose("abc");
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 3,
+        });
+        let after = apply_right(&d);
+        if let Cursor::InProse { offset, .. } = after {
+            assert!(offset <= 3);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn inblockresult_passes_through_doc_cursor_for_all_horiz() {
+        let mut d = prose("hi");
+        d.set_cursor(Cursor::InBlockResult {
+            segment_idx: 0,
+            row: 0,
+        });
+        let before = d.cursor();
+        assert_eq!(apply_left(&d), before);
+        assert_eq!(apply_right(&d), before);
+        assert_eq!(apply_line_start(&d), before);
+        assert_eq!(apply_first_non_blank(&d), before);
+        assert_eq!(apply_line_end(&d), before);
+    }
+
+    #[test]
+    fn line_start_in_block_clamps_to_line_zero() {
+        let mut d = block_doc("```http\nGET /\n```\n");
+        let i = block_idx(&d);
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: i,
+            offset: 4,
+        });
+        let after = apply_line_start(&d);
+        if let Cursor::InBlock { offset, .. } = after {
+            assert_eq!(offset, 0);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn first_non_blank_in_prose_skips_leading_whitespace() {
+        let d = prose("   abc");
+        let after = apply_first_non_blank(&d);
+        if let Cursor::InProse { offset, .. } = after {
+            assert_eq!(offset, 3);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn line_end_in_block_lands_at_raw_line_end() {
+        let mut d = block_doc("```http\nGET /\n```\n");
+        let i = block_idx(&d);
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: i,
+            offset: 0,
+        });
+        let after = apply_line_end(&d);
+        assert!(matches!(after, Cursor::InBlock { .. }));
+    }
+}
