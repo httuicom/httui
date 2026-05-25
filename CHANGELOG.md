@@ -28,6 +28,9 @@ Post-0.4.0 work lands here.
 - **TUI**: HTTP requests stream through `execute_streamed`. The status bar shows live `↓ X kB · Y s` while the body is being received, so multi-MB downloads no longer look frozen.
 - **TUI**: Tab/Shift+Tab cycle the focused block's result-panel tab (Body→Headers→Cookies→Timing→Raw on HTTP, four tabs on DB). Per-block state — cycling one block no longer drags every other block's tab along.
 - **TUI**: VarForm / EnvForm fields support inline cursor navigation — Left/Right/Home/End move the caret, Delete forward-deletes, Backspace continues to back-delete.
+- **TUI**: per-connection session host/port override on the Connections page — press `o` to open the override form (prefilled with the connection's stored host/port), `O` to clear. Active overrides surface a `TEMP` amber badge in the sidebar and an amber "Session override (TEMP)" section in the detail pane. In-memory only — never persisted, disappears on restart. Cache is bypassed while an override is active (same SQL against staging vs prod won't share a cache slot).
+- **TUI**: DB blocks that error now keep the error message inside the result panel (instead of only on the status bar that scrolls away on the next keystroke). Pressing Enter anywhere in the SQL body of an errored block opens the detail modal so the message can be navigated and copied.
+- **TUI**: MySQL connections now negotiate `utf8mb4`, and numeric/decimal/timestamp/JSON columns decode into their natural JSON types instead of strings.
 
 ### Changed
 
