@@ -9,7 +9,7 @@
     "dev": "bun run src/index.ts"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.1.0"
+    "@anthropic-ai/claude-agent-sdk": "^0.3.150"
   },
   "devDependencies": {
     "@types/node": "^25.8.0",
