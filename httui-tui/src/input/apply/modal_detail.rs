@@ -43,8 +43,16 @@ pub(crate) fn apply_open_result_detail(app: &mut App) {
 /// modal's first keystroke.
 pub(crate) fn apply_open_db_row_detail(app: &mut App) {
     let Some(doc) = app.document() else { return };
-    let Cursor::InBlockResult { segment_idx, row } = doc.cursor() else {
-        return;
+    // `InBlock` opens only when the block is in error — the error
+    // panel has no rows for the cursor to land on, so `InBlockResult`
+    // is unreachable from inside the SQL body. Normal selects fall
+    // through to InsertNewline / vim no-op.
+    let cursor = doc.cursor();
+    let segment_idx = match cursor {
+        Cursor::InBlockResult { segment_idx, .. } | Cursor::InBlock { segment_idx, .. } => {
+            segment_idx
+        }
+        _ => return,
     };
     let Some(seg) = doc.segments().get(segment_idx) else {
         return;
@@ -53,10 +61,36 @@ pub(crate) fn apply_open_db_row_detail(app: &mut App) {
     if !block.is_db() {
         return;
     }
-    let title = build_db_row_modal_title(block, row);
-    let body_text = match build_db_row_body_text(block, row) {
-        Some(t) => t,
-        None => return,
+    let is_error = matches!(
+        block
+            .cached_result
+            .as_ref()
+            .and_then(|v| v.get("results"))
+            .and_then(|v| v.as_array())
+            .and_then(|a| a.first())
+            .and_then(|r| r.get("kind"))
+            .and_then(|v| v.as_str()),
+        Some("error")
+    );
+    if matches!(cursor, Cursor::InBlock { .. }) && !is_error {
+        return;
+    }
+    let row = match cursor {
+        Cursor::InBlockResult { row, .. } => row,
+        _ => 0,
+    };
+    let title = if is_error {
+        build_db_error_modal_title(block)
+    } else {
+        build_db_row_modal_title(block, row)
+    };
+    let body_text = if is_error {
+        build_db_error_body_text(block)
+    } else {
+        match build_db_row_body_text(block, row) {
+            Some(t) => t,
+            None => return,
+        }
     };
     // Build a Document from the body text. `from_markdown` of plain
     // text yields a single Prose segment, which is exactly what we
@@ -175,6 +209,43 @@ pub(crate) fn build_db_row_body_text(block: &BlockNode, row: usize) -> Option<St
         }
     }
     Some(out)
+}
+
+pub(crate) fn build_db_error_modal_title(block: &BlockNode) -> String {
+    match block.alias.as_deref() {
+        Some(alias) => format!(" Error · {} ", alias),
+        None => " Error ".to_string(),
+    }
+}
+
+/// Falls back to a placeholder when the payload is malformed — keeps
+/// the modal openable so the user is never stuck.
+pub(crate) fn build_db_error_body_text(block: &BlockNode) -> String {
+    let first = block
+        .cached_result
+        .as_ref()
+        .and_then(|v| v.get("results"))
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first());
+    let Some(first) = first else {
+        return "(no error payload)".to_string();
+    };
+    let message = first
+        .get("message")
+        .and_then(|v| v.as_str())
+        .unwrap_or("(no message)");
+    let loc = match (
+        first.get("line").and_then(|v| v.as_u64()),
+        first.get("column").and_then(|v| v.as_u64()),
+    ) {
+        (Some(l), Some(c)) => Some(format!(" at {l}:{c}")),
+        (Some(l), None) => Some(format!(" at line {l}")),
+        _ => None,
+    };
+    match loc {
+        Some(suffix) => format!("{message}\n\n[position]{suffix}"),
+        None => message.to_string(),
+    }
 }
 
 /// Plain-text rendering of a JSON value for the body. Strings that

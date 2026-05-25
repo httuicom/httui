@@ -20,7 +20,7 @@ const POPUP_WIDTH: u16 = 64;
 /// Tall enough for the full detail pane (header + Connection + Auth +
 /// Options + Description + Used in up to 6 refs) without clipping
 /// on a default 24-row terminal it still leaves a margin around it.
-const POPUP_HEIGHT: u16 = 28;
+const POPUP_HEIGHT: u16 = 32;
 const SIDEBAR_COLS: u16 = 22;
 
 pub fn render(
@@ -28,6 +28,7 @@ pub fn render(
     editor_area: Rect,
     state: &ConnectionsPageState,
     schema_cache: &SchemaCache,
+    session_overrides: &crate::session_overrides::ConnectionOverrideStore,
 ) {
     let area = centered_rect(editor_area);
     let bg_style = Style::default().bg(Color::Black).fg(Color::White);
@@ -70,13 +71,19 @@ pub fn render(
         ])
         .split(rows[0]);
 
-    render_sidebar(frame, body[0], state, bg_style);
+    render_sidebar(frame, body[0], state, session_overrides, bg_style);
     render_divider(frame, body[1], bg_style);
-    render_detail(frame, body[2], state, schema_cache, bg_style);
+    render_detail(frame, body[2], state, schema_cache, session_overrides, bg_style);
     render_hint(frame, rows[1], bg_style);
 }
 
-fn render_sidebar(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, bg: Style) {
+fn render_sidebar(
+    frame: &mut Frame,
+    area: Rect,
+    state: &ConnectionsPageState,
+    overrides: &crate::session_overrides::ConnectionOverrideStore,
+    bg: Style,
+) {
     if state.connections.is_empty() {
         let empty = Paragraph::new(vec![
             Line::from(""),
@@ -103,7 +110,7 @@ fn render_sidebar(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, b
         .iter()
         .map(|c| {
             let (chip_label, chip_color) = driver_chip(&c.driver);
-            let line = Line::from(vec![
+            let mut spans = vec![
                 Span::raw(" "),
                 Span::styled(
                     format!(" {chip_label} "),
@@ -114,8 +121,18 @@ fn render_sidebar(frame: &mut Frame, area: Rect, state: &ConnectionsPageState, b
                 ),
                 Span::raw(" "),
                 Span::styled(c.name.clone(), Style::default().fg(Color::White)),
-            ]);
-            ListItem::new(line)
+            ];
+            if overrides.is_active(&c.name) {
+                spans.push(Span::raw("  "));
+                spans.push(Span::styled(
+                    " TEMP ",
+                    Style::default()
+                        .bg(crate::ui::palette::AMBER)
+                        .fg(crate::ui::palette::AMBER_FG_ON_AMBER_BG)
+                        .add_modifier(Modifier::BOLD),
+                ));
+            }
+            ListItem::new(Line::from(spans))
         })
         .collect();
 
@@ -149,6 +166,7 @@ fn render_detail(
     area: Rect,
     state: &ConnectionsPageState,
     schema_cache: &SchemaCache,
+    overrides: &crate::session_overrides::ConnectionOverrideStore,
     bg: Style,
 ) {
     let Some(detail) = state.connections.get(state.selected) else {
@@ -159,6 +177,9 @@ fn render_detail(
     };
 
     let mut lines = detail_lines(detail);
+    // Always rendered (even empty) so the `(none)` state and the
+    // chord affordance stay discoverable.
+    lines.extend(session_override_lines(&detail.name, overrides));
     // V3 P5.1: vault-grep refs.
     lines.extend(used_in_lines(&state.uses));
     // V3 P5.2: schema preview — sync read of the in-memory cache;
@@ -388,7 +409,7 @@ fn centered_rect(area: Rect) -> Rect {
 }
 
 fn render_hint(frame: &mut Frame, area: Rect, _bg: Style) {
-    let hint = " j/k nav · n new · e edit · t test · D del · Esc close ";
+    let hint = " jk nav · n/e/t/D · o set · O clear · Esc close ";
     let para = Paragraph::new(Span::styled(
         hint,
         Style::default()
@@ -397,6 +418,59 @@ fn render_hint(frame: &mut Frame, area: Rect, _bg: Style) {
             .add_modifier(Modifier::ITALIC),
     ));
     frame.render_widget(para, area);
+}
+
+/// Header is always rendered (even with no override set) for
+/// affordance discoverability. Active values are amber so the
+/// non-persistent state pops at a glance.
+fn session_override_lines(
+    connection_name: &str,
+    overrides: &crate::session_overrides::ConnectionOverrideStore,
+) -> Vec<Line<'static>> {
+    let amber = crate::ui::palette::AMBER;
+    let header = Line::from(Span::styled(
+        "── Session override (TEMP) ",
+        Style::default().fg(amber).add_modifier(Modifier::BOLD),
+    ));
+    let mut out = vec![Line::from(""), header];
+    match overrides.get(connection_name) {
+        Some(ov) if !ov.is_empty() => {
+            let host = ov.host.as_deref().unwrap_or("—");
+            let port = ov
+                .port
+                .map(|p| p.to_string())
+                .unwrap_or_else(|| "—".into());
+            out.push(Line::from(vec![
+                Span::styled(
+                    format!("{:<10}", "host"),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(
+                    host.to_string(),
+                    Style::default().fg(amber).add_modifier(Modifier::BOLD),
+                ),
+            ]));
+            out.push(Line::from(vec![
+                Span::styled(
+                    format!("{:<10}", "port"),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(
+                    port,
+                    Style::default().fg(amber).add_modifier(Modifier::BOLD),
+                ),
+            ]));
+        }
+        _ => {
+            out.push(Line::from(Span::styled(
+                "(none) — press `o` to set, `O` to clear",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )));
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -432,9 +506,10 @@ mod tests {
     ) -> String {
         let backend = TestBackend::new(w, h);
         let mut terminal = Terminal::new(backend).unwrap();
+        let overrides = crate::session_overrides::ConnectionOverrideStore::default();
         terminal
             .draw(|f| {
-                render(f, Rect::new(0, 0, w, h), state, cache);
+                render(f, Rect::new(0, 0, w, h), state, cache, &overrides);
             })
             .unwrap();
         let buf = terminal.backend().buffer().clone();
@@ -545,8 +620,10 @@ mod tests {
             ..Default::default()
         };
         let text = render_page(&state, 80, 24);
-        assert!(text.contains("j/k nav"));
+        assert!(text.contains("jk nav"));
         assert!(text.contains("Esc close"));
+        assert!(text.contains("o set"));
+        assert!(text.contains("O clear"));
     }
 
     #[test]

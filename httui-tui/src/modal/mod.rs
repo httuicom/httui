@@ -523,6 +523,12 @@ fn connections_page_handle_key(key: KeyEvent) -> ModalOutcome {
         (KeyModifiers::NONE, KeyCode::Char('t')) => {
             return ModalOutcome::Emit(Action::TestSelectedConnection);
         }
+        (KeyModifiers::NONE, KeyCode::Char('o')) => {
+            return ModalOutcome::Emit(Action::OpenSessionOverrideForm);
+        }
+        (mods, KeyCode::Char('O')) if !mods.contains(KeyModifiers::CONTROL) => {
+            return ModalOutcome::Emit(Action::ClearSessionOverride);
+        }
         // Capital D — matches the picker's destructive chord style
         // (lowercase 'd' would conflict with vim's `dd` reflex).
         (mods, KeyCode::Char('D')) if !mods.contains(KeyModifiers::CONTROL) => {

@@ -419,10 +419,11 @@ pub(super) fn validate_pool_config(conn: &Connection) -> Result<(), String> {
 }
 
 /// Sanitize connection errors to prevent leaking credentials in sqlx error messages.
+/// The full `e` is intentionally not logged anywhere from this crate — `eprintln!`
+/// breaks any TUI consumer (raw stderr paints over ratatui cells), and `tracing`
+/// isn't pulled in here. Callers that need diagnostics should wrap the result and
+/// route into their own log sink.
 fn sanitize_connection_error(driver: &str, e: sqlx::Error) -> String {
-    #[cfg(debug_assertions)]
-    eprintln!("[db] {} connection error: {e}", driver);
-
     match &e {
         sqlx::Error::PoolTimedOut => format!("Connection to {driver} timed out"),
         sqlx::Error::Configuration(_) => format!("Invalid {driver} configuration"),

@@ -178,7 +178,16 @@ fn handle_app_event(app: &mut App, ev: AppEvent) -> bool {
             app.sync_file_watcher();
         }
         AppEvent::Paste(text) => {
-            crate::input::apply::standard_sel::insert_text_at_caret(app, &text);
+            // Doc handler would swallow the paste; prompts (single-line
+            // LineEdit) need direct routing. Control chars are stripped
+            // because single-line inputs can't represent them.
+            if let Some((_, le)) = app.modal.as_mut().and_then(|m| m.as_prompt_mut()) {
+                for ch in text.chars().filter(|c| !c.is_control()) {
+                    le.insert_char(ch);
+                }
+            } else {
+                crate::input::apply::standard_sel::insert_text_at_caret(app, &text);
+            }
         }
         AppEvent::Resize(_, _) => {}
         AppEvent::Tick => {}

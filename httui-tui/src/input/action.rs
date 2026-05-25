@@ -367,6 +367,13 @@ pub enum Action {
     /// pre-filled with the highlighted entry. Submit calls
     /// `store.update` instead of `store.create`.
     OpenConnectionEditForm,
+    /// Open the connection form in session-override mode. Writes into
+    /// `App.session_overrides`; the underlying connection is never
+    /// mutated.
+    OpenSessionOverrideForm,
+    /// Drop any active session override on the highlighted connection.
+    /// No-op when none is set.
+    ClearSessionOverride,
     /// V3 P4.3: `t` on the Connections page — try to open a pool
     /// for the highlighted connection and execute the dialect's
     /// "ping" query. Surfaces ok/err inline on the status bar

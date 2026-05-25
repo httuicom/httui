@@ -65,6 +65,8 @@ pub struct App {
     /// in DB block footers instead of a raw UUID. Refreshed by
     /// `App::refresh_connection_names`.
     pub connection_names: std::collections::HashMap<String, String>,
+    /// TEMPORARY host:port overrides per connection id. Never persisted.
+    pub session_overrides: crate::session_overrides::ConnectionOverrideStore,
     /// Sender for the main loop's `AppEvent` channel — handed to
     /// spawned async tasks (currently the DB executor) so they can
     /// notify the loop when their work completes. Optional so unit
@@ -175,6 +177,7 @@ impl App {
             should_quit: false,
             pool_manager,
             connection_names,
+            session_overrides: crate::session_overrides::ConnectionOverrideStore::default(),
             event_sender: None,
             running_query: None,
             result_viewport_top: std::collections::HashMap::new(),

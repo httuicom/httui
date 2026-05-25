@@ -46,6 +46,10 @@ pub struct ConnectionFormState {
     /// Used by the renderer to title the popup and by the submit
     /// handler to pick the right store action.
     pub editing: Option<String>,
+    /// When `true`, submit writes into `App.session_overrides` instead
+    /// of `store.update`; the underlying connection is never mutated.
+    /// Implies `editing.is_some()`.
+    pub is_session_override: bool,
 }
 
 impl ConnectionFormState {
@@ -95,6 +99,7 @@ impl ConnectionFormState {
             focus: ConnectionFormFocus::Name,
             error: None,
             editing: Some(detail.name.clone()),
+            is_session_override: false,
         }
     }
 }

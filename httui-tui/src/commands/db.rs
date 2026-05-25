@@ -740,6 +740,7 @@ pub fn build_db_executor_params(
     offset: u64,
     limit: u64,
     timeout_ms: Option<u64>,
+    session_override: Option<&crate::session_overrides::ConnectionOverride>,
 ) -> serde_json::Value {
     serde_json::json!({
         "connection_id": connection_id,
@@ -752,6 +753,10 @@ pub fn build_db_executor_params(
         // which falls through to the connection's default timeout
         // and ultimately the 30 s fallback in `execute_with_cancel`.
         "timeout_ms": timeout_ms,
+        // `None` ⇒ both fields serialize as `null` and the executor
+        // leaves `HostPortOverride` unset (base pool, untouched).
+        "session_host_override": session_override.and_then(|o| o.host.clone()),
+        "session_port_override": session_override.and_then(|o| o.port).map(|p| p as i64),
     })
 }
 
@@ -1050,7 +1055,11 @@ pub(crate) fn run_db_block_inner(
     // produce different plans across runs as the planner re-costs).
     // Caching it would either pollute the main query's cache slot
     // or need a separate slot, neither of which is worth shipping.
-    let cache_key: Option<(String, String)> = if as_explain {
+    // Override changes the target server — same SQL against staging
+    // vs prod must NOT share a cache slot. Bypass while active; the
+    // original hash resolves normally once cleared.
+    let has_override = app.session_overrides.is_active(&connection_id);
+    let cache_key: Option<(String, String)> = if as_explain || has_override {
         None
     } else {
         let file_path: Option<String> = app
@@ -1159,6 +1168,7 @@ fn spawn_db_query(
         return;
     };
     let executor = httui_core::executor::db::DbExecutor::new(app.pool_manager.clone());
+    let session_override = app.session_overrides.get(&connection_id).cloned();
     let params = build_db_executor_params(
         &connection_id,
         &query,
@@ -1166,6 +1176,7 @@ fn spawn_db_query(
         offset,
         limit,
         timeout_ms,
+        session_override.as_ref(),
     );
     let token_for_task = token.clone();
     let kind_for_task = kind;
@@ -1289,10 +1300,27 @@ pub fn handle_db_block_result(
                 }
             }
             Err(msg) => {
+                // Without a synthetic result the panel stays empty and
+                // the error is only on the status bar — which scrolls
+                // off on the next keystroke.
+                let synthetic = httui_core::executor::db::types::DbResponse {
+                    results: vec![httui_core::executor::db::types::DbResult::Error {
+                        message: msg.clone(),
+                        line: None,
+                        column: None,
+                    }],
+                    messages: Vec::new(),
+                    plan: None,
+                    stats: httui_core::executor::db::types::DbStats {
+                        elapsed_ms: 0,
+                        rows_streamed: None,
+                    },
+                };
+                let value = serde_json::to_value(&synthetic).ok();
                 if let Some(doc) = app.tabs.active_document_mut() {
                     if let Some(b) = doc.block_at_mut(segment_idx) {
                         b.state = ExecutionState::Error(msg.clone());
-                        b.cached_result = None;
+                        b.cached_result = value;
                     }
                 }
                 if let Some(meta) = history_meta.as_ref() {
@@ -2845,8 +2873,26 @@ mod tests {
         // `timeout=NNNN` token in the fence flows here as
         // `Some(NNNN)`. Executor's `DbParams.timeout_ms` reads it
         // verbatim and wraps the run in `tokio::time::timeout`.
-        let params = build_db_executor_params("conn-1", "SELECT 1", &[], 0, 100, Some(500));
+        let params = build_db_executor_params("conn-1", "SELECT 1", &[], 0, 100, Some(500), None);
         assert_eq!(params["timeout_ms"], 500);
+    }
+
+    #[test]
+    fn executor_params_emits_null_override_when_absent() {
+        let params = build_db_executor_params("conn-1", "SELECT 1", &[], 0, 100, None, None);
+        assert!(params["session_host_override"].is_null());
+        assert!(params["session_port_override"].is_null());
+    }
+
+    #[test]
+    fn executor_params_forwards_session_override() {
+        let ov = crate::session_overrides::ConnectionOverride {
+            host: Some("db.staging".into()),
+            port: Some(15432),
+        };
+        let params = build_db_executor_params("pg", "SELECT 1", &[], 0, 100, None, Some(&ov));
+        assert_eq!(params["session_host_override"], "db.staging");
+        assert_eq!(params["session_port_override"], 15432);
     }
 
     #[test]
@@ -2854,7 +2900,7 @@ mod tests {
         // No fence token → field serializes as `null`. Executor
         // falls back to the connection's default timeout (and then
         // to 30s if there's no override either).
-        let params = build_db_executor_params("conn-1", "SELECT 1", &[], 0, 100, None);
+        let params = build_db_executor_params("conn-1", "SELECT 1", &[], 0, 100, None, None);
         assert!(params["timeout_ms"].is_null());
     }
 
@@ -2863,7 +2909,7 @@ mod tests {
         // Bind values land as a JSON array in the same position
         // the executor reads them. Sanity check on the wire shape.
         let binds = vec![serde_json::json!(7), serde_json::json!("alice")];
-        let params = build_db_executor_params("conn-1", "SELECT ?, ?", &binds, 0, 50, None);
+        let params = build_db_executor_params("conn-1", "SELECT ?, ?", &binds, 0, 50, None, None);
         assert_eq!(params["bind_values"][0], 7);
         assert_eq!(params["bind_values"][1], "alice");
         assert_eq!(params["fetch_size"], 50);

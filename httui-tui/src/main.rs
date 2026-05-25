@@ -20,6 +20,7 @@ mod input;
 mod modal;
 mod pane;
 mod schema;
+mod session_overrides;
 mod sql_completion;
 mod terminal;
 mod tree;

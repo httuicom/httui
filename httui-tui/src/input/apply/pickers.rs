@@ -41,28 +41,59 @@ pub(crate) fn open_connections_page(app: &mut App) -> Result<(), String> {
             description: c.description,
         })
         .collect();
+    // Land on the connection of the focused DB block so the page
+    // opens scoped to what the user is editing.
+    let initial_selected = preferred_connection_index(app, &connections).unwrap_or(0);
     let vault_root = app.vault_path.clone();
-    let first_name = connections.first().map(|c| c.name.clone());
-    let uses = first_name
+    let preferred_name = connections.get(initial_selected).map(|c| c.name.clone());
+    let uses = preferred_name
         .as_deref()
         .map(|n| httui_core::connection_uses::find_connection_uses(&vault_root, n))
         .unwrap_or_default();
     app.modal = Some(crate::modal::Modal::Connections(
         crate::app::ConnectionsPageState {
             connections,
-            selected: 0,
+            selected: initial_selected,
             uses,
         },
     ));
     app.vim.mode = Mode::Modal;
     app.vim.reset_pending();
-    // V3 P5.2: kick off the schema introspection in the background;
-    // the renderer reads from `app.schema_cache` and shows "loading…"
-    // until `AppEvent::SchemaLoaded` lands and rerenders.
-    if let Some(name) = first_name {
+    // Async: renderer paints "loading…" until `SchemaLoaded` lands.
+    if let Some(name) = preferred_name {
         app.ensure_schema_loaded(&name);
     }
     Ok(())
+}
+
+/// `None` when the cursor isn't on a DB block or the block's
+/// `connection=` doesn't match any entry.
+fn preferred_connection_index(
+    app: &App,
+    connections: &[crate::app::ConnectionDetail],
+) -> Option<usize> {
+    use crate::buffer::{Cursor, Segment};
+    let doc = app.document()?;
+    let segment_idx = match doc.cursor() {
+        Cursor::InBlock { segment_idx, .. } | Cursor::InBlockResult { segment_idx, .. } => {
+            segment_idx
+        }
+        _ => return None,
+    };
+    let block = match doc.segments().get(segment_idx)? {
+        Segment::Block(b) if b.is_db() => b,
+        _ => return None,
+    };
+    let raw = block
+        .params
+        .get("connection_id")
+        .or_else(|| block.params.get("connection"))
+        .and_then(|v| v.as_str())?;
+    let resolved =
+        crate::commands::db::resolve_connection_id_sync(raw, &app.connection_names);
+    connections
+        .iter()
+        .position(|c| c.name == resolved || c.name == raw)
 }
 
 /// V3 P5.1: recompute `state.uses` for the currently-selected entry.
@@ -84,6 +115,52 @@ pub(crate) fn apply_close_connections_page(app: &mut App) {
         app.modal = None;
     }
     app.vim.enter_normal();
+}
+
+/// Opens the connection form in session-override mode, prefilled with
+/// the active override (else the stored host/port). Submit writes
+/// into `app.session_overrides`; the underlying connection is never
+/// mutated.
+pub(crate) fn apply_open_session_override_form(app: &mut App) {
+    let detail = match app.modal.as_ref() {
+        Some(crate::modal::Modal::Connections(s)) => s.connections.get(s.selected).cloned(),
+        _ => return,
+    };
+    let Some(detail) = detail else { return };
+    let active = app.session_overrides.get(&detail.name).cloned();
+    let mut form_state = crate::app::ConnectionFormState::for_edit(&detail);
+    form_state.is_session_override = true;
+    if let Some(ov) = active {
+        form_state.host = ov
+            .host
+            .map(crate::vim::lineedit::LineEdit::from_str)
+            .unwrap_or_default();
+        form_state.port = ov
+            .port
+            .map(|p| crate::vim::lineedit::LineEdit::from_str(p.to_string()))
+            .unwrap_or_default();
+    }
+    form_state.focus = crate::app::ConnectionFormFocus::Host;
+    app.modal = Some(crate::modal::Modal::ConnectionForm(form_state));
+    app.vim.mode = Mode::Modal;
+    app.vim.reset_pending();
+}
+
+/// No-op when no override is set on the highlighted connection.
+pub(crate) fn apply_clear_session_override(app: &mut App) {
+    let name = match app.modal.as_ref() {
+        Some(crate::modal::Modal::Connections(s)) => {
+            s.connections.get(s.selected).map(|c| c.name.clone())
+        }
+        _ => None,
+    };
+    let Some(name) = name else { return };
+    if app.session_overrides.is_active(&name) {
+        app.session_overrides.clear(&name);
+        app.set_status(StatusKind::Info, format!("session override cleared · {name}"));
+    } else {
+        app.set_status(StatusKind::Info, format!("no override on {name}"));
+    }
 }
 
 pub(crate) fn apply_move_connections_page_cursor(app: &mut App, delta: i32) {
@@ -363,6 +440,8 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         Action::MoveConnectionsPageCursor(delta) => {
             apply_move_connections_page_cursor(app, delta)
         }
+        Action::OpenSessionOverrideForm => apply_open_session_override_form(app),
+        Action::ClearSessionOverride => apply_clear_session_override(app),
         Action::OpenBlockTemplatePicker => {
             app.modal = Some(crate::modal::Modal::BlockTemplatePicker(
                 crate::app::BlockTemplatePickerState::new(),

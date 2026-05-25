@@ -47,9 +47,11 @@ pub fn render(
         }
     }
 
-    let title = match state.editing.as_deref() {
-        Some(name) => format!(" Edit connection · {name} "),
-        None => " New connection ".to_string(),
+    let title = match (state.is_session_override, state.editing.as_deref()) {
+        (true, Some(name)) => format!(" Session override (TEMP) · {name} "),
+        (true, None) => " Session override (TEMP) ".to_string(),
+        (false, Some(name)) => format!(" Edit connection · {name} "),
+        (false, None) => " New connection ".to_string(),
     };
     let outer = Block::default()
         .borders(Borders::ALL)

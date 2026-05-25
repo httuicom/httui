@@ -136,6 +136,10 @@ pub(crate) fn apply_form_submit(app: &mut App) {
         return;
     };
 
+    if state.is_session_override {
+        return submit_session_override(app);
+    }
+
     let name = state.name.as_str().trim().to_string();
     if name.is_empty() {
         set_form_error(app, "name is required");
@@ -229,6 +233,47 @@ pub(crate) fn apply_form_submit(app: &mut App) {
         }
         Err(e) => set_form_error(app, &e),
     }
+}
+
+/// Empty host AND port clears the entry.
+fn submit_session_override(app: &mut App) {
+    let Some(state) = form_state_ref(app) else {
+        return;
+    };
+    let name = state
+        .editing
+        .clone()
+        .unwrap_or_else(|| state.name.as_str().trim().to_string());
+    if name.is_empty() {
+        set_form_error(app, "no connection target for override");
+        return;
+    }
+    let host = trimmed_opt(&state.host);
+    let port_raw = state.port.as_str().trim().to_string();
+    let port = parse_port_opt(&port_raw);
+    if !port_raw.is_empty() && port.is_none() {
+        set_form_error(app, "port must be a number (1-65535)");
+        return;
+    }
+    let ov = crate::session_overrides::ConnectionOverride { host, port };
+    let status_msg = if ov.is_empty() {
+        app.session_overrides.clear(&name);
+        format!("session override cleared · {name}")
+    } else {
+        let desc = format!(
+            "{}{}",
+            ov.host.as_deref().unwrap_or(""),
+            ov.port.map(|p| format!(":{p}")).unwrap_or_default()
+        );
+        app.session_overrides.set(&name, ov);
+        format!("session override · {name} → {desc}")
+    };
+    apply_close_connection_form(app);
+    if let Err(msg) = crate::input::apply::pickers::open_connections_page(app) {
+        app.set_status(StatusKind::Error, msg);
+        return;
+    }
+    app.set_status(StatusKind::Info, status_msg);
 }
 
 // ---------- helpers ------------------------------------------------------

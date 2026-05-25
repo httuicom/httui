@@ -11,3 +11,9 @@ pub const BORDER: Color = Color::Rgb(110, 140, 175);
 /// Centralizar evita o uso ad-hoc de `LightMagenta`/`LightCyan`
 /// que se traduz de forma diferente em cada tema.
 pub const ACCENT: Color = Color::Rgb(130, 170, 220);
+
+/// Âmbar quente para sinalizar estado temporário/ephemero (badge
+/// TEMP, valores de session override). Visível sobre fundos escuros
+/// e não compete com Color::Red (que é exclusivo pra erros).
+pub const AMBER: Color = Color::Rgb(255, 176, 0);
+pub const AMBER_FG_ON_AMBER_BG: Color = Color::Rgb(20, 14, 0);

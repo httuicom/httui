@@ -81,18 +81,16 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
         action
     };
 
-    // Standard parity for vim's `Enter`-on-result-row → row detail:
-    // cursor parked in a DB block's result table + Enter opens the
-    // row detail modal. The grid is read-only so InsertNewline would
-    // be a no-op anyway; intercepting here gives standard users the
-    // same affordance vim has via `parse_normal`.
-    let action = if matches!(action, Action::InsertNewline)
-        && matches!(
-            app.document().map(|d| d.cursor()),
-            Some(crate::buffer::Cursor::InBlockResult { .. })
-        )
-    {
-        Action::OpenDbRowDetail
+    // Grid is read-only so InsertNewline would be a no-op; intercept
+    // it to open row detail. Same remap for error blocks — the error
+    // panel has no rows for the cursor to land on, so we accept Enter
+    // from inside the SQL body too.
+    let action = if matches!(action, Action::InsertNewline) {
+        if cursor_in_db_block_result_or_error(app) {
+            Action::OpenDbRowDetail
+        } else {
+            action
+        }
     } else {
         action
     };
@@ -132,6 +130,36 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
             crate::input::dispatch::apply_action(app, action, /* recording = */ true);
         }
         _ => crate::input::dispatch::apply_action(app, action, /* recording = */ true),
+    }
+}
+
+/// True for a real result row, or anywhere inside a DB block whose
+/// cached result is an error (error panel has no rows to land on).
+fn cursor_in_db_block_result_or_error(app: &App) -> bool {
+    use crate::buffer::{Cursor, Segment};
+    let Some(doc) = app.document() else { return false };
+    match doc.cursor() {
+        Cursor::InBlockResult { .. } => true,
+        Cursor::InBlock { segment_idx, .. } => {
+            let Some(Segment::Block(block)) = doc.segments().get(segment_idx) else {
+                return false;
+            };
+            if !block.is_db() {
+                return false;
+            }
+            matches!(
+                block
+                    .cached_result
+                    .as_ref()
+                    .and_then(|v| v.get("results"))
+                    .and_then(|v| v.as_array())
+                    .and_then(|a| a.first())
+                    .and_then(|r| r.get("kind"))
+                    .and_then(|v| v.as_str()),
+                Some("error")
+            )
+        }
+        _ => false,
     }
 }
 

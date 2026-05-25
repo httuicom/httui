@@ -211,6 +211,8 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::OpenConnectionsPage
         | Action::CloseConnectionsPage
         | Action::MoveConnectionsPageCursor(_)
+        | Action::OpenSessionOverrideForm
+        | Action::ClearSessionOverride
         | Action::OpenBlockTemplatePicker
         | Action::CloseBlockTemplatePicker
         | Action::MoveBlockTemplatePickerCursor(_)

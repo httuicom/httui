@@ -1,12 +1,9 @@
 //! Exit-time safety-net flush.
 //!
-//! Tick-driven auto-save was removed (V6 audit decision): the watcher
-//! race with external writes (git, MCP, scripts) and the principle of
-//! "disk = what stays" make explicit `Ctrl+S` / `:w` the only paths
-//! that persist to disk. `flush_all_dirty` survives only as a crash-
-//! avoidance hook on graceful exit — `Ctrl+C`/`:q` flush every dirty
-//! tab once, mirroring the serialize+write+mark_clean sequence in
-//! `vim::ex::execute(_, ExCmd::Write)`.
+//! No tick-driven auto-save: external writers (git, MCP, scripts)
+//! race with watchers, so disk-state is owned exclusively by
+//! explicit `Ctrl+S` / `:w`. `flush_all_dirty` is a crash-avoidance
+//! hook for graceful exit only.
 
 use super::App;
 
