@@ -549,6 +549,21 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn paste_into_prompt_routes_to_lineedit_and_strips_control_chars() {
+        let (mut app, _d, _v) = app_fixture("body\n").await;
+        let doc_before = app.document().unwrap().to_markdown();
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::Cmdline,
+            crate::vim::lineedit::LineEdit::new(),
+        ));
+        let cont = handle_app_event(&mut app, AppEvent::Paste("hello\tworld\n!".into()));
+        assert!(cont);
+        let (_, le) = app.modal.as_ref().unwrap().as_prompt().unwrap();
+        assert_eq!(le.as_str(), "helloworld!");
+        assert_eq!(app.document().unwrap().to_markdown(), doc_before);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn resize_is_a_noop_that_continues() {
         let (mut app, _d, _v) = app_fixture("body\n").await;
         let before = app.document().unwrap().to_markdown();

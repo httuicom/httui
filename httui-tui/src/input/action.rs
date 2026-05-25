@@ -1,7 +1,6 @@
-//! The keypress-decoded `Action` set. Every input profile (standard /
-//! vim) decodes raw keystrokes into this enum; `vim::dispatch`
-//! interprets it against the app. Mechanically moved out of
-//! `vim/parser.rs` (tui-v2 vertical 1, fase 1 p1) with no logic change.
+//! Keypress-decoded `Action` set. Input profiles (standard, vim)
+//! decode raw keystrokes into this enum; `vim::dispatch` interprets
+//! it against the app.
 
 use crate::input::types::{
     InsertPos, Motion, Operator, PastePos, ScrollPos, TextObject, WindowCmd,
@@ -228,11 +227,8 @@ pub enum Action {
     /// `n`/`Esc`/`Ctrl+C` while the confirm modal is up — close
     /// the modal without running.
     CancelDbRun,
-    /// `gx` chord on a DB block — open the export-format picker
-    /// popup. Mnemonic: `g`-prefixed "go" family extended with
-    /// `gx` = goto eXport. Dispatch validates the cursor on a
-    /// db-* block with at least one select row before opening; on
-    /// a non-DB / empty-result position it surfaces a status hint.
+    /// Open the export-format picker. Dispatch requires the cursor
+    /// on a db-* block with ≥1 select row.
     OpenDbExportPicker,
     /// `Esc` / `Ctrl-C` inside the export picker — close without
     /// copying anything to the clipboard.
@@ -246,10 +242,8 @@ pub enum Action {
     /// popup on success; on failure (no clipboard) keeps the popup
     /// open and shows the error in the status line.
     ConfirmDbExportPicker,
-    /// `gs` chord on a DB block — open the settings modal (limit +
-    /// timeout). Memory `project_tui_block_settings_modal.md`: a
-    /// single modal with multiple inputs, NOT chord-per-field. Tab
-    /// cycles the focused input; Enter saves all; Esc cancels.
+    /// Open the settings modal (limit + timeout). Tab cycles inputs,
+    /// Enter saves all, Esc cancels.
     OpenDbSettingsModal,
     /// `<Esc>` / `<C-c>` inside the settings modal — close without
     /// writing back to the block.
@@ -335,10 +329,8 @@ pub enum Action {
     /// `j` / `k` / arrows inside the Connections page — move the
     /// selection by `i32` (clamps at the ends).
     MoveConnectionsPageCursor(i32),
-    /// `n` in the Connections page — open the inline create form
-    /// modal (V3 P3, 2026-05-23). Submits via `store.create`; on
-    /// success the page list reloads and the new entry stays
-    /// selected.
+    /// Open the inline create form. On success the page list
+    /// reloads and the new entry stays selected.
     OpenConnectionForm,
     CloseConnectionForm,
     /// Tab/Down → next; Shift-Tab/Up → prev. Wraps both directions.
@@ -363,9 +355,8 @@ pub enum Action {
     ConnectionFormToggleReadonly,
     /// Enter — validate + `store.create`. Failure surfaces inline.
     ConnectionFormSubmit,
-    /// V3 P4.2: `e` on the Connections page — open the form
-    /// pre-filled with the highlighted entry. Submit calls
-    /// `store.update` instead of `store.create`.
+    /// Open the form prefilled with the highlighted entry. Submit
+    /// calls `store.update` instead of `store.create`.
     OpenConnectionEditForm,
     /// Open the connection form in session-override mode. Writes into
     /// `App.session_overrides`; the underlying connection is never
@@ -374,13 +365,10 @@ pub enum Action {
     /// Drop any active session override on the highlighted connection.
     /// No-op when none is set.
     ClearSessionOverride,
-    /// V3 P4.3: `t` on the Connections page — try to open a pool
-    /// for the highlighted connection and execute the dialect's
-    /// "ping" query. Surfaces ok/err inline on the status bar
-    /// with latency.
+    /// Try the pool + dialect "ping" against the highlighted
+    /// connection. Surfaces ok/err + latency on the status bar.
     TestSelectedConnection,
-    /// V3 P4: `D` on the Connections page — open delete-confirm
-    /// modal for the highlighted entry.
+    /// Open the delete-confirm modal for the highlighted entry.
     OpenConnectionDeleteConfirm,
     /// `y`/`Enter` in the confirm modal — call `store.delete` and
     /// reload the Connections page list. Failures surface as status
@@ -389,7 +377,6 @@ pub enum Action {
     /// `n`/`Esc` in the confirm modal — close without deleting,
     /// reopen the page in the previous state.
     CancelConnectionDelete,
-    // V4 P2-P4: Vars + Envs page actions.
     OpenEnvsPage,
     CloseEnvsPage,
     EnvsPageFocusToggle,
@@ -427,7 +414,6 @@ pub enum Action {
     OpenVarDeleteConfirm,
     ConfirmEnvOrVarDelete,
     CancelEnvOrVarDelete,
-    // V4 P5: clone env form.
     OpenEnvCloneForm,
     CloseEnvCloneForm,
     EnvCloneFormChar(char),
@@ -437,9 +423,9 @@ pub enum Action {
     EnvCloneFormToggleVar,
     EnvCloneFormToggleAll,
     EnvCloneFormSubmit,
-    /// V4 P6: ativa o env de índice 1..9 (1-based) dentro do
-    /// EnvsPage focus=Envs ou do environment_picker. Modal-only —
-    /// sem conflito com vim count-prefix.
+    /// Activate the env at 1-based index 1..9 inside the EnvsPage
+    /// (focus=Envs) or the environment_picker. Modal-only — no
+    /// conflict with vim count-prefix.
     ActivateEnvByIndex(usize),
 
     /// Read-only listing of the chord vocabulary grouped by section.
@@ -493,20 +479,15 @@ pub enum Action {
     ///
     /// The applier (`apply::standard_delete`) handles segment-boundary
     /// crossing as plain text: when `offset == 0` the keystroke walks
-    /// into the previous segment and deletes its last char from there
-    /// (rope-flat semantics, per V2 decision). If the deletion makes a
-    /// block's `raw` unparseable, the block is demoted to a `Prose`
-    /// segment so the renderer shows the text instead of an
-    /// inconsistent block widget. Added by tui-V2 / vertical 2
-    /// (cenário 4).
+    /// into the previous segment and deletes its last char from there.
+    /// If the deletion makes a block's `raw` unparseable the block is
+    /// demoted to `Prose` so the renderer shows the text instead of an
+    /// inconsistent block widget.
     DeleteBackwardStandard,
-    /// Standard-mode `/` key. Context-aware in `apply/slash.rs`:
-    /// in prose, inserts `/` and opens the block-template picker
-    /// (paridade com slash-commands do desktop); in a block / block
-    /// result, inserts `/` literally so URLs and paths stay typeable.
-    /// Vim's `/` continues to mean "open search prompt" via
-    /// `EnterSearch(false)` — this variant is decoded only by
-    /// `input::standard::resolve`. Added by tui-V2 / vertical 2.
+    /// Context-aware `/`: prose inserts `/` and opens the
+    /// block-template picker; inside a block or block result, inserts
+    /// `/` literally so URLs and paths stay typeable. Vim's `/`
+    /// continues to mean "open search prompt" via `EnterSearch(false)`.
     SlashKey,
     /// `gb` chord — open the tab picker. Lists every open tab by
     /// its focused-leaf path; Enter switches the active tab to the
