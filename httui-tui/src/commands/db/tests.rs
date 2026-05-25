@@ -422,6 +422,24 @@ fn resolve_block_refs_unknown_alias_errors() {
 }
 
 #[test]
+fn resolve_block_refs_block_alias_wins_over_env_var_with_same_name() {
+    // RF-04 precedence: when `{{X}}` could match both an upstream
+    // block aliased `X` and an env var `X`, the block wins. Mirrors
+    // desktop `references.ts` resolve order (block-first).
+    let md =
+        "```http alias=token\nGET /\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
+    let mut doc = make_doc(md);
+    let blocks = block_indices(&doc);
+    set_cache(&mut doc, blocks[0], serde_json::json!("from-block"));
+    let env = env_map(&[("token", "from-env")]);
+    let (sql, binds) =
+        resolve_block_refs(doc.segments(), blocks[1], "SELECT {{token}}", &env)
+            .expect("resolves");
+    assert_eq!(sql, "SELECT ?");
+    assert_eq!(binds, vec![serde_json::json!("from-block")]);
+}
+
+#[test]
 fn resolve_block_refs_preserves_query_when_no_refs_present() {
     let md = "```db-postgres alias=q\nSELECT 1\n```\n";
     let doc = make_doc(md);
