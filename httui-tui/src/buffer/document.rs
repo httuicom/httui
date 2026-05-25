@@ -433,11 +433,21 @@ impl Document {
                 };
                 let off = offset.min(b.raw.len_chars());
                 b.raw.insert_char(off, ch);
-                b.reparse_from_raw();
-                self.cursor = Cursor::InBlock {
-                    segment_idx,
-                    offset: off + 1,
-                };
+                let still_block = b.reparse_from_raw();
+                let new_offset = off + 1;
+                if still_block {
+                    self.cursor = Cursor::InBlock {
+                        segment_idx,
+                        offset: new_offset,
+                    };
+                } else {
+                    let text = b.raw.to_string();
+                    self.replace_segment(segment_idx, Segment::Prose(Rope::from_str(&text)));
+                    self.cursor = Cursor::InProse {
+                        segment_idx,
+                        offset: new_offset,
+                    };
+                }
                 self.dirty = true;
             }
             // Result rows are read-only — typing in the table is a no-op.
@@ -486,11 +496,21 @@ impl Document {
                     return;
                 }
                 b.raw.remove(offset - 1..offset);
-                b.reparse_from_raw();
-                self.cursor = Cursor::InBlock {
-                    segment_idx,
-                    offset: offset - 1,
-                };
+                let still_block = b.reparse_from_raw();
+                let new_offset = offset - 1;
+                if still_block {
+                    self.cursor = Cursor::InBlock {
+                        segment_idx,
+                        offset: new_offset,
+                    };
+                } else {
+                    let text = b.raw.to_string();
+                    self.replace_segment(segment_idx, Segment::Prose(Rope::from_str(&text)));
+                    self.cursor = Cursor::InProse {
+                        segment_idx,
+                        offset: new_offset,
+                    };
+                }
                 self.dirty = true;
             }
             Cursor::InBlockResult { .. } => {}
@@ -520,7 +540,18 @@ impl Document {
                 };
                 if offset < b.raw.len_chars() {
                     b.raw.remove(offset..offset + 1);
-                    b.reparse_from_raw();
+                    let still_block = b.reparse_from_raw();
+                    if !still_block {
+                        let text = b.raw.to_string();
+                        self.replace_segment(
+                            segment_idx,
+                            Segment::Prose(Rope::from_str(&text)),
+                        );
+                        self.cursor = Cursor::InProse {
+                            segment_idx,
+                            offset,
+                        };
+                    }
                     self.dirty = true;
                 }
             }
@@ -1489,6 +1520,61 @@ mod tests {
         assert!(
             new_ids.iter().all(|id| std::iter::once(id).count() == 1),
             "no duplicate IDs"
+        );
+    }
+
+    // ─── fence-break dissolves block to prose ─────────────────────
+
+    #[test]
+    fn insert_into_fence_opener_dissolves_block_to_prose() {
+        // User edits the ``` opener so the fence is no longer valid.
+        // The block must demote back to Segment::Prose so the renderer
+        // stops treating broken markdown as an executable block.
+        let mut d = Document::from_markdown(ONLY_HTTP).expect("parse");
+        let block_idx = d
+            .segments
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("block");
+        // Park cursor inside the opener (offset 0 = before the first `).
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: 0,
+        });
+        d.insert_char_at_cursor('x');
+        assert!(
+            matches!(d.segments.get(block_idx), Some(Segment::Prose(_))),
+            "block must dissolve to prose when fence opener breaks; got {:?}",
+            d.segments.get(block_idx),
+        );
+        // Cursor must follow into the prose variant.
+        match d.cursor {
+            Cursor::InProse { segment_idx, .. } => {
+                assert_eq!(segment_idx, block_idx);
+            }
+            other => panic!("cursor must be InProse after dissolve; got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn delete_inside_fence_opener_dissolves_block_to_prose() {
+        // Backspace inside the fence opener breaks the ``` count
+        // (three → two). Same demote semantic as the insert path.
+        let mut d = Document::from_markdown(ONLY_HTTP).expect("parse");
+        let block_idx = d
+            .segments
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("block");
+        // Position past the first ` so backspace removes it.
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: 1,
+        });
+        d.delete_char_before_cursor();
+        assert!(
+            matches!(d.segments.get(block_idx), Some(Segment::Prose(_))),
+            "block must dissolve to prose when fence opener breaks"
         );
     }
 }
