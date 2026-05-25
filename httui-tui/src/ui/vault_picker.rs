@@ -218,4 +218,75 @@ mod tests {
         assert!(popup.width <= area.width.saturating_sub(2));
         assert!(popup.width >= 50, "minimum clamp must hold");
     }
+
+    fn render_with(state: &VaultPickerState) {
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                render(
+                    f,
+                    Rect {
+                        x: 0,
+                        y: 0,
+                        width: 80,
+                        height: 24,
+                    },
+                    state,
+                );
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn render_smoke_empty_state() {
+        let state = VaultPickerState {
+            entries: vec![],
+            selected: 0,
+            active: None,
+        };
+        render_with(&state);
+    }
+
+    #[test]
+    fn render_smoke_with_entries_and_selection() {
+        let state = VaultPickerState {
+            entries: vec![
+                "/home/u/vault-a".into(),
+                "/home/u/vault-b".into(),
+                "/home/u/vault-c".into(),
+            ],
+            selected: 1,
+            active: Some("/home/u/vault-b".into()),
+        };
+        render_with(&state);
+    }
+
+    #[test]
+    fn render_smoke_long_list_overflow() {
+        let entries: Vec<String> = (0..40).map(|i| format!("/v/path-{i}")).collect();
+        let state = VaultPickerState {
+            entries,
+            selected: 25,
+            active: None,
+        };
+        render_with(&state);
+    }
+
+    #[test]
+    fn collapse_home_replaces_user_dir_with_tilde() {
+        let home = std::env::var("HOME").unwrap_or_default();
+        if home.is_empty() {
+            return;
+        }
+        let p = format!("{home}/foo/bar");
+        let s = collapse_home(&p);
+        assert!(s.starts_with("~/"), "got: {s}");
+    }
+
+    #[test]
+    fn collapse_home_preserves_non_home_paths() {
+        let s = collapse_home("/etc/foo");
+        assert_eq!(s, "/etc/foo");
+    }
 }

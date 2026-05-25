@@ -122,3 +122,74 @@ fn centered_rect(area: Rect, percent_x: u16, percent_y: u16) -> Rect {
         height: popup_h,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::vim::quickopen::QuickOpen;
+
+    fn draw_with(qo: &QuickOpen) -> (u16, u16) {
+        let backend = ratatui::backend::TestBackend::new(80, 24);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        let mut result = (0, 0);
+        terminal
+            .draw(|f| {
+                result = render(
+                    f,
+                    Rect {
+                        x: 0,
+                        y: 0,
+                        width: 80,
+                        height: 24,
+                    },
+                    qo,
+                );
+            })
+            .unwrap();
+        result
+    }
+
+    #[test]
+    fn render_smoke_empty_query() {
+        let qo = QuickOpen::default();
+        draw_with(&qo);
+    }
+
+    #[test]
+    fn render_smoke_with_files_and_query() {
+        let mut qo = QuickOpen::default();
+        qo.reset(vec![
+            "notes/a.md".into(),
+            "notes/b.md".into(),
+            "scripts/x.md".into(),
+        ]);
+        draw_with(&qo);
+    }
+
+    #[test]
+    fn render_smoke_with_many_files_overflows_viewport() {
+        let mut qo = QuickOpen::default();
+        qo.reset((0..50).map(|i| format!("file{i}.md")).collect());
+        qo.selected = 30;
+        draw_with(&qo);
+    }
+
+    #[test]
+    fn render_smoke_with_no_matches() {
+        let qo = QuickOpen::default();
+        draw_with(&qo);
+    }
+
+    #[test]
+    fn centered_rect_sizes_proportionally() {
+        let area = Rect {
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 50,
+        };
+        let r = centered_rect(area, 80, 60);
+        assert_eq!(r.width, 80);
+        assert_eq!(r.height, 30);
+    }
+}
