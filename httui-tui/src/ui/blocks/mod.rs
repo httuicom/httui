@@ -91,16 +91,17 @@ pub fn render_block_with_selection(
         return;
     }
 
-    // HTTP blocks paint the fence closer themselves — between the
-    // raw request and the response panel, so the ` ``` ` line
-    // visually fences the editable region only (the response panel
-    // belongs to the card chrome, not to the markdown source).
-    let http_owns_closer = b.is_http();
+    // HTTP and DB blocks paint the fence closer themselves —
+    // between the editable region and the result panel — so the
+    // ` ``` ` line visually fences only the source the user edits.
+    // The result panel belongs to the card chrome, not to the
+    // markdown source.
+    let block_owns_closer = b.is_http() || b.is_db();
 
-    // Carve fence rows when the cursor is on, just below header
-    // and just above footer. For HTTP only the header is carved
-    // here; the closer is positioned by `render_http_inner` between
-    // raw input and response panel.
+    // Carve fence rows when the cursor is on, just below header and
+    // just above footer. When the block owns its own closer (HTTP /
+    // DB) we carve only the header here; the closer is positioned by
+    // the per-kind inner renderer between raw input and result panel.
     if selected && middle.height >= 2 {
         let fence_header_rect = Rect {
             x: middle.x,
@@ -109,7 +110,7 @@ pub fn render_block_with_selection(
             height: 1,
         };
         render_fence_header_row(frame, fence_header_rect, b);
-        if !http_owns_closer {
+        if !block_owns_closer {
             let fence_closer_rect = Rect {
                 x: middle.x,
                 y: middle.y.saturating_add(middle.height.saturating_sub(1)),
@@ -578,10 +579,18 @@ fn render_db_inner(
     } else {
         0
     };
+    // Mirror HTTP: paint the closer fence row between the editable
+    // region (SQL) and the result table whenever the cursor is on
+    // the block. `render_block_with_selection` reserves the row by
+    // gating its own carve on `block_owns_closer` (DB now owns it).
+    let closer_height = if selected && show_input { 1 } else { 0 };
 
     let mut constraints: Vec<Constraint> = Vec::new();
     if show_input {
         constraints.push(Constraint::Length(sql_lines));
+    }
+    if closer_height > 0 {
+        constraints.push(Constraint::Length(closer_height));
     }
     if table_height > 0 {
         constraints.push(Constraint::Length(table_height));
@@ -616,6 +625,11 @@ fn render_db_inner(
                 .collect::<Vec<_>>(),
         );
         frame.render_widget(sql_para, chunks[idx]);
+        idx += 1;
+    }
+
+    if closer_height > 0 {
+        render_fence_closer_row(frame, chunks[idx], b);
         idx += 1;
     }
 
@@ -674,6 +688,12 @@ fn render_db_inner(
                             .add_modifier(Modifier::BOLD),
                     );
                     frame.render_stateful_widget(table, content_rect, &mut state);
+                } else if let Some(lines) = build_error_lines(b) {
+                    // Error result (DbResult::Error or a synthetic from
+                    // a driver-level failure): paint the message inline
+                    // so the user doesn't depend on the scrolling
+                    // status bar to see what broke.
+                    frame.render_widget(Paragraph::new(lines), content_rect);
                 }
             }
             crate::app::ResultPanelTab::Messages => {
@@ -1021,6 +1041,7 @@ fn is_numeric_type(ty: &str) -> bool {
 /// number of rows. The viewport stays at most `MAX_VISIBLE_ROWS` tall;
 /// extra rows live in the (scrollable) result set, not in the card.
 fn db_result_table_height(b: &BlockNode) -> u16 {
+    const ERROR_PANEL_ROWS: u16 = 6;
     let Some(result) = b.cached_result.as_ref() else {
         return 0;
     };
@@ -1028,7 +1049,15 @@ fn db_result_table_height(b: &BlockNode) -> u16 {
     let Some(first) = results.and_then(|a| a.first()) else {
         return 0;
     };
-    if first.get("kind").and_then(|v| v.as_str()) != Some("select") {
+    let kind = first.get("kind").and_then(|v| v.as_str()).unwrap_or("");
+    // Errors get a fixed-height slot so the inline banner has room.
+    // Stays in lockstep with `buffer::layout::db_table_height`.
+    if kind == "error" {
+        let multi = results.map(|a| a.len() > 1).unwrap_or(false);
+        let chrome_extra = 2 + if multi { 1 } else { 0 };
+        return ERROR_PANEL_ROWS + chrome_extra;
+    }
+    if kind != "select" {
         return 0;
     }
     let row_count = first
@@ -1230,6 +1259,57 @@ fn render_result_tab_bar_for(
         spans.push(Span::raw("    "));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+/// Pull a `DbResult::Error` (kind == "error") off `results[0]` and
+/// format it as a red banner block. Returns `None` when the first
+/// result isn't an error (Result tab keeps its normal rendering path).
+fn build_error_lines(b: &BlockNode) -> Option<Vec<Line<'static>>> {
+    let first = b
+        .cached_result
+        .as_ref()?
+        .get("results")?
+        .as_array()?
+        .first()?;
+    if first.get("kind").and_then(|v| v.as_str()) != Some("error") {
+        return None;
+    }
+    let message = first
+        .get("message")
+        .and_then(|v| v.as_str())
+        .unwrap_or("(no message)")
+        .to_string();
+    let loc = match (
+        first.get("line").and_then(|v| v.as_u64()),
+        first.get("column").and_then(|v| v.as_u64()),
+    ) {
+        (Some(l), Some(c)) => Some(format!(" at {l}:{c}")),
+        (Some(l), None) => Some(format!(" at line {l}")),
+        _ => None,
+    };
+    let header_text = match loc {
+        Some(suffix) => format!("error{suffix}"),
+        None => "error".to_string(),
+    };
+    let mut lines = vec![
+        Line::from(""),
+        Line::from(Span::styled(
+            format!("  ✖ {header_text}"),
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+    ];
+    // Wrap long messages naturally by splitting on newlines; ratatui's
+    // `Paragraph` will soft-wrap each `Line` against the content rect.
+    for chunk in message.lines() {
+        lines.push(Line::from(Span::styled(
+            format!("  {chunk}"),
+            Style::default().fg(Color::White),
+        )));
+    }
+    Some(lines)
 }
 
 /// Render content for the Messages tab — pulls `messages[]` off the

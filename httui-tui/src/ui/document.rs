@@ -270,17 +270,17 @@ fn render_segment(
                                 .saturating_add(1)
                                 .saturating_add(col as u16)
                                 .min(max_x);
-                            // HTTP blocks paint the closer between
-                            // raw input and response panel — its row
-                            // is `area.y + 3 + request_height`
-                            // (border + header bar + fence header +
-                            // request lines). All other block types
-                            // paint the closer one row above the
-                            // footer bar.
-                            let y = if b.is_http() {
-                                let request_height =
+                            // HTTP and DB blocks paint the closer
+                            // between raw input and the result
+                            // panel — its row is `area.y + 3 +
+                            // body_lines` (border + header bar +
+                            // fence header + body). Other block
+                            // types still paint the closer one row
+                            // above the footer bar.
+                            let y = if b.is_http() || b.is_db() {
+                                let body_height =
                                     crate::buffer::block::body_line_count(&b.raw).max(1) as u16;
-                                area.y.saturating_add(3 + request_height)
+                                area.y.saturating_add(3 + body_height)
                             } else {
                                 area.y.saturating_add(area.height.saturating_sub(3))
                             };

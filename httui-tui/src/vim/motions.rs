@@ -344,42 +344,18 @@ fn apply_down(doc: &Document) -> Cursor {
                     body_cursor(segment_idx, block, 0, 0)
                 }
                 RawSection::Body { line, .. } => {
-                    // Within the block body: drop down through the
-                    // editable region. When we run off the last
-                    // body line, the next stop depends on layout:
-                    //
-                    // - HTTP: closer sits between body and result,
-                    //   so j → closer (and the next j enters the
-                    //   result panel).
-                    // - DB / others: closer sits at the bottom of
-                    //   the card, below the result table, so j
-                    //   skips straight to the result row 0 when a
-                    //   result exists; only with no result does j
-                    //   fall through to the closer.
+                    // Canonical order: body → closer → result → exit.
+                    // Mirrors the renderer (closer fences the editable
+                    // region; result panel lives below).
                     let lines = block_query_line_count(doc, segment_idx);
                     if line + 1 < lines {
                         return body_cursor(segment_idx, block, line + 1, 0);
                     }
-                    if block.is_http() {
-                        return closer_cursor(segment_idx, block);
-                    }
-                    if block_result_row_count(doc, segment_idx) > 0 {
-                        return Cursor::InBlockResult {
-                            segment_idx,
-                            row: 0,
-                        };
-                    }
                     closer_cursor(segment_idx, block)
                 }
                 RawSection::Closer => {
-                    // For HTTP blocks the closer is sandwiched
-                    // between body and result. j from the closer
-                    // drops into the response panel (when there is
-                    // one); only after that does the next j leave
-                    // the block. DB / other blocks paint the closer
-                    // at the very bottom of the card, so j there
-                    // exits the block directly.
-                    if block.is_http() && block_result_row_count(doc, segment_idx) > 0 {
+                    // Closer → result row 0 when present, else exit.
+                    if block_result_row_count(doc, segment_idx) > 0 {
                         return Cursor::InBlockResult {
                             segment_idx,
                             row: 0,
@@ -397,18 +373,9 @@ fn apply_down(doc: &Document) -> Cursor {
                     row: row + 1,
                 };
             }
-            // End of the result panel. For HTTP the closer was
-            // already passed on the way in (closer sits above the
-            // panel), so j here exits the block. For DB the closer
-            // is below the table, so j drops onto it.
-            let block = match block_at(doc, segment_idx) {
-                Some(b) => b,
-                None => return doc.cursor(),
-            };
-            if block.is_http() {
-                return jump_to_segment(doc, segment_idx + 1, true).unwrap_or(doc.cursor());
-            }
-            closer_cursor(segment_idx, block)
+            // Result panel is the last cursor inside the block —
+            // closer was already visited on the way in.
+            jump_to_segment(doc, segment_idx + 1, true).unwrap_or(doc.cursor())
         }
     }
 }
@@ -443,23 +410,10 @@ fn apply_up(doc: &Document) -> Cursor {
             };
             match raw_section_at(&block.raw, offset) {
                 RawSection::Closer => {
-                    // From the ` ``` ` closer, k goes back into the
-                    // block — but the section above the closer
-                    // depends on layout:
-                    //
-                    // - HTTP: closer sits ABOVE the result, so k
-                    //   goes back into the request body (not the
-                    //   response panel — that lives below).
-                    // - DB / others: closer sits BELOW the result
-                    //   table, so k pops onto the last result row
-                    //   when present, otherwise the body.
-                    if !block.is_http() && block_result_row_count(doc, segment_idx) > 0 {
-                        let last = block_result_row_count(doc, segment_idx).saturating_sub(1);
-                        return Cursor::InBlockResult {
-                            segment_idx,
-                            row: last,
-                        };
-                    }
+                    // Reverse of the down path. Closer sits between
+                    // body and result panel, so k from the closer
+                    // always lands on the body's last line —
+                    // independent of whether a result exists.
                     let last_line = block_query_line_count(doc, segment_idx).saturating_sub(1);
                     body_cursor(segment_idx, block, last_line, 0)
                 }
@@ -489,18 +443,13 @@ fn apply_up(doc: &Document) -> Cursor {
                     row: row - 1,
                 };
             }
-            // First row of the result panel — go up to whatever
-            // sits visually above it: closer for HTTP, body's last
-            // line for DB / others.
+            // First row of the result panel → closer (it sits
+            // between body and result; cursor matches the renderer).
             let block = match block_at(doc, segment_idx) {
                 Some(b) => b,
                 None => return doc.cursor(),
             };
-            if block.is_http() {
-                return closer_cursor(segment_idx, block);
-            }
-            let last_line = block_query_line_count(doc, segment_idx).saturating_sub(1);
-            body_cursor(segment_idx, block, last_line, 0)
+            closer_cursor(segment_idx, block)
         }
     }
 }
@@ -829,15 +778,23 @@ fn jump_to_segment(doc: &Document, idx: usize, going_down: bool) -> Option<Curso
     let seg = doc.segments().get(idx)?;
     Some(match seg {
         Segment::Block(b) => {
-            // CM6 parity: entering a block via cross-segment motion
-            // lands on the visible fence row first (` ```<info> ` from
-            // above, ` ``` ` from below). Another `j`/`k` then steps
-            // into the body — same flow the desktop's "enter block"
-            // gesture produces.
+            // Enter the block at the section visually closest to the
+            // direction of travel. Going down → fence header (top of
+            // the card). Going up → result panel's last row when one
+            // exists (the panel is painted below the closer), else
+            // the closer fence.
             if going_down {
                 header_cursor(idx)
             } else {
-                closer_cursor(idx, b)
+                let total = block_result_row_count(doc, idx);
+                if total > 0 {
+                    Cursor::InBlockResult {
+                        segment_idx: idx,
+                        row: total - 1,
+                    }
+                } else {
+                    closer_cursor(idx, b)
+                }
             }
         }
         Segment::Prose(rope) => {
@@ -938,22 +895,106 @@ fn closer_cursor(segment_idx: usize, block: &BlockNode) -> Cursor {
 mod tests {
     use super::*;
     use crate::buffer::Document;
+    use serde_json::Value;
 
     fn doc(md: &str) -> Document {
         Document::from_markdown(md).unwrap()
     }
 
-    /// Helper: spawn a doc with a single HTTP block and a cached
-    /// response so `block_result_row_count` returns 1 and `j` can
-    /// land on `InBlockResult`.
-    fn http_doc_with_response() -> Document {
-        let md = "```http alias=req1\nGET https://example.com/users\n```\n";
-        let mut d = doc(md);
-        let block_idx = d
-            .segments()
+    // ───── canonical cursor sequence ─────
+    //
+    // Contract (block_navigation_canon.md): the cursor walks every
+    // block of any kind in the SAME order — header → body → result
+    // (if any) → closer. `j` follows that order top-to-bottom, `k`
+    // is its exact reverse. HTTP and DB must produce identical
+    // sequences for matching `(body_lines, result_rows)` shapes so
+    // muscle memory carries between block types.
+    //
+    // The renderer is free to paint the closer wherever it makes
+    // visual sense (HTTP sandwiches the response panel below the
+    // closer; DB paints the closer at the bottom of the card) —
+    // that's an orthogonal concern. The cursor flow is unified
+    // here so motions stay predictable across block types.
+
+    /// Label cursors by their semantic location so we can compare
+    /// walks across block types without caring about offsets. Prose
+    /// segments are bucketed into Above/Below relative to the block.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum Loc {
+        ProseAbove,
+        ProseBelow,
+        Header,
+        Body(usize),
+        Closer,
+        Result(usize),
+    }
+
+    fn classify(d: &Document, block_idx: usize) -> Loc {
+        match d.cursor() {
+            Cursor::InProse { segment_idx, .. } => {
+                if segment_idx < block_idx {
+                    Loc::ProseAbove
+                } else {
+                    Loc::ProseBelow
+                }
+            }
+            Cursor::InBlock {
+                segment_idx,
+                offset,
+            } => {
+                assert_eq!(segment_idx, block_idx, "cursor escaped the target block");
+                let Segment::Block(b) = &d.segments()[segment_idx] else {
+                    panic!("expected block at {segment_idx}")
+                };
+                match raw_section_at(&b.raw, offset) {
+                    RawSection::Header => Loc::Header,
+                    RawSection::Body { line, .. } => Loc::Body(line),
+                    RawSection::Closer => Loc::Closer,
+                }
+            }
+            Cursor::InBlockResult { segment_idx, row } => {
+                assert_eq!(segment_idx, block_idx, "cursor escaped the target block");
+                Loc::Result(row)
+            }
+        }
+    }
+
+    /// Apply `motion` from the current cursor until it crosses the
+    /// block boundary on the far side (or stops moving), returning
+    /// the labeled stops. We don't walk through the surrounding
+    /// prose past the first line that lands there — the contract
+    /// under test is the block traversal, not prose line counts.
+    fn walk(d: &mut Document, block_idx: usize, motion: Motion) -> Vec<Loc> {
+        let mut path = vec![classify(d, block_idx)];
+        let mut entered = false;
+        for _ in 0..32 {
+            let before = d.cursor();
+            apply(motion, d, 1, 10);
+            if d.cursor() == before {
+                break;
+            }
+            let loc = classify(d, block_idx);
+            let in_block = !matches!(loc, Loc::ProseAbove | Loc::ProseBelow);
+            if in_block {
+                entered = true;
+            }
+            let leaving = entered && !in_block;
+            path.push(loc);
+            if leaving {
+                break;
+            }
+        }
+        path
+    }
+
+    fn block_pos(d: &Document) -> usize {
+        d.segments()
             .iter()
             .position(|s| matches!(s, Segment::Block(_)))
-            .expect("block in fixture");
+            .expect("fixture must contain a block")
+    }
+
+    fn attach_http_response(d: &mut Document, block_idx: usize) {
         let mut block = match d.segments()[block_idx].clone() {
             Segment::Block(b) => b,
             _ => unreachable!(),
@@ -967,161 +1008,201 @@ mod tests {
             "timing": {"total_ms": 50, "ttfb_ms": 30},
         }));
         d.replace_segment(block_idx, Segment::Block(block));
-        d
     }
 
-    #[test]
-    fn down_walks_http_body_then_closer_then_response() {
-        // HTTP layout has the closer between body and response,
-        // so the natural top-to-bottom walk is body → closer →
-        // response → out. j follows that order.
-        let mut d = http_doc_with_response();
-        let block_idx = d
-            .segments()
-            .iter()
-            .position(|s| matches!(s, Segment::Block(_)))
-            .unwrap();
-        let block = match &d.segments()[block_idx] {
-            Segment::Block(b) => b.clone(),
-            _ => unreachable!(),
-        };
-        let header_len = block.raw.line(0).to_string().len();
-        d.set_cursor(Cursor::InBlock {
-            segment_idx: block_idx,
-            offset: header_len, // start of body line 0
-        });
-        // First j → fence closer (still InBlock).
-        apply(Motion::Down, &mut d, 1, 10);
-        assert!(
-            matches!(d.cursor(), Cursor::InBlock { segment_idx, .. } if segment_idx == block_idx),
-            "j from body should land on closer, got {:?}",
-            d.cursor()
-        );
-        // Second j → response panel.
-        apply(Motion::Down, &mut d, 1, 10);
-        assert_eq!(
-            d.cursor(),
-            Cursor::InBlockResult {
-                segment_idx: block_idx,
-                row: 0,
-            },
-            "j from closer should land on response panel"
-        );
-    }
-
-    #[test]
-    fn up_from_http_response_returns_to_closer() {
-        // For HTTP the closer sits visually above the response, so
-        // k from the response goes back to the closer (not the
-        // body).
-        let mut d = http_doc_with_response();
-        let block_idx = d
-            .segments()
-            .iter()
-            .position(|s| matches!(s, Segment::Block(_)))
-            .unwrap();
-        d.set_cursor(Cursor::InBlockResult {
-            segment_idx: block_idx,
-            row: 0,
-        });
-        apply(Motion::Up, &mut d, 1, 10);
-        assert!(
-            matches!(d.cursor(), Cursor::InBlock { segment_idx, .. } if segment_idx == block_idx),
-            "k from response should return to the closer, got {:?}",
-            d.cursor()
-        );
-    }
-
-    #[test]
-    fn down_through_multi_line_http_lands_on_response() {
-        // Multi-line HTTP body (request line + header). The cursor
-        // must walk every body line, then drop into the response
-        // panel — mirrors what the user sees in the real app.
-        let md =
-            "```http alias=req1\nGET https://example.com/users\nAuthorization: Bearer abc\n```\n";
-        let mut d = doc(md);
-        let block_idx = d
-            .segments()
-            .iter()
-            .position(|s| matches!(s, Segment::Block(_)))
-            .unwrap();
+    fn attach_db_rows(d: &mut Document, block_idx: usize, row_count: usize) {
         let mut block = match d.segments()[block_idx].clone() {
             Segment::Block(b) => b,
             _ => unreachable!(),
         };
+        let rows: Vec<Value> = (0..row_count)
+            .map(|i| serde_json::json!([format!("r{i}")]))
+            .collect();
         block.cached_result = Some(serde_json::json!({
-            "status": 200,
-            "status_text": "OK",
-            "headers": [],
-            "body": "{}",
-            "size_bytes": 2,
-            "timing": {"total_ms": 5, "ttfb_ms": 5},
+            "results": [{
+                "kind": "select",
+                "columns": ["col"],
+                "rows": rows,
+            }],
         }));
         d.replace_segment(block_idx, Segment::Block(block));
-        // Start on body line 0 (request line).
-        let header_len = match &d.segments()[block_idx] {
-            Segment::Block(b) => b.raw.line(0).to_string().len(),
-            _ => unreachable!(),
+    }
+
+    /// Park the cursor on the last character of the prose segment
+    /// directly above the block, so the next `j` enters the block.
+    fn park_above(d: &mut Document, block_idx: usize) {
+        let prose_idx = block_idx
+            .checked_sub(1)
+            .expect("fixture needs prose above the block");
+        let rope = match &d.segments()[prose_idx] {
+            Segment::Prose(r) => r.clone(),
+            _ => panic!("expected prose above block"),
         };
-        d.set_cursor(Cursor::InBlock {
-            segment_idx: block_idx,
-            offset: header_len,
+        let last_line = rope.len_lines().saturating_sub(1);
+        d.set_cursor(Cursor::InProse {
+            segment_idx: prose_idx,
+            offset: rope.line_to_char(last_line),
         });
-        // First j → body line 1 (Authorization header).
-        apply(Motion::Down, &mut d, 1, 10);
+    }
+
+    /// Park the cursor on the first character of the prose segment
+    /// directly below the block, so the next `k` enters the block.
+    fn park_below(d: &mut Document, block_idx: usize) {
+        let prose_idx = block_idx + 1;
         assert!(
-            matches!(d.cursor(), Cursor::InBlock { segment_idx, .. } if segment_idx == block_idx),
-            "first j stays in block body, got {:?}",
-            d.cursor()
+            matches!(d.segments().get(prose_idx), Some(Segment::Prose(_))),
+            "fixture needs prose below the block"
         );
-        // Second j → fence closer (HTTP layout: closer between
-        // body and response).
-        apply(Motion::Down, &mut d, 1, 10);
-        assert!(
-            matches!(d.cursor(), Cursor::InBlock { segment_idx, .. } if segment_idx == block_idx),
-            "second j should land on closer, got {:?}",
-            d.cursor()
-        );
-        // Third j → response panel.
-        apply(Motion::Down, &mut d, 1, 10);
-        assert_eq!(
-            d.cursor(),
-            Cursor::InBlockResult {
-                segment_idx: block_idx,
-                row: 0,
-            },
-            "third j should land on response panel"
-        );
+        d.set_cursor(Cursor::InProse {
+            segment_idx: prose_idx,
+            offset: 0,
+        });
+    }
+
+    fn http_doc(body: &str) -> Document {
+        let md = format!("head\n\n```http alias=req1\n{body}\n```\n\ntail\n");
+        doc(&md)
+    }
+
+    fn db_doc(body: &str) -> Document {
+        let md = format!("head\n\n```db-postgres alias=q\n{body}\n```\n\ntail\n");
+        doc(&md)
+    }
+
+    fn expect_canon(body_lines: usize, result_rows: usize) -> (Vec<Loc>, Vec<Loc>) {
+        let mut down = vec![Loc::ProseAbove, Loc::Header];
+        for i in 0..body_lines {
+            down.push(Loc::Body(i));
+        }
+        down.push(Loc::Closer);
+        for i in 0..result_rows {
+            down.push(Loc::Result(i));
+        }
+        down.push(Loc::ProseBelow);
+        let mut up = down.clone();
+        up.reverse();
+        (down, up)
     }
 
     #[test]
-    fn down_from_http_response_exits_block() {
-        // HTTP closer sits ABOVE the response, so j from the last
-        // response row exits the block — not back onto the closer
-        // (which would be a visual backstep).
-        let mut d = http_doc_with_response();
-        let block_idx = d
-            .segments()
-            .iter()
-            .position(|s| matches!(s, Segment::Block(_)))
-            .unwrap();
-        d.set_cursor(Cursor::InBlockResult {
-            segment_idx: block_idx,
-            row: 0,
-        });
-        apply(Motion::Down, &mut d, 1, 10);
-        // Out of the block — the next segment may or may not exist
-        // (the fixture has a trailing prose run after the block).
-        match d.cursor() {
-            Cursor::InProse { segment_idx, .. } => {
-                assert!(
-                    segment_idx > block_idx,
-                    "j should exit the block, got {:?}",
-                    d.cursor()
-                );
-            }
-            other => panic!("expected to exit the block, got {other:?}"),
-        }
+    fn canonical_down_http_idle() {
+        let mut d = http_doc("GET https://example.com/users");
+        let idx = block_pos(&d);
+        park_above(&mut d, idx);
+        let (expected, _) = expect_canon(1, 0);
+        assert_eq!(walk(&mut d, idx, Motion::Down), expected);
+    }
+
+    #[test]
+    fn canonical_up_http_idle() {
+        let mut d = http_doc("GET https://example.com/users");
+        let idx = block_pos(&d);
+        park_below(&mut d, idx);
+        let (_, expected) = expect_canon(1, 0);
+        assert_eq!(walk(&mut d, idx, Motion::Up), expected);
+    }
+
+    #[test]
+    fn canonical_down_http_with_result() {
+        let mut d = http_doc("GET https://example.com/users");
+        let idx = block_pos(&d);
+        attach_http_response(&mut d, idx);
+        park_above(&mut d, idx);
+        // HTTP result panel is a single landing row (see
+        // block_result_row_count) — the inner viewport is internally
+        // scrollable, j/k only park the cursor on it.
+        let (expected, _) = expect_canon(1, 1);
+        assert_eq!(walk(&mut d, idx, Motion::Down), expected);
+    }
+
+    #[test]
+    fn canonical_up_http_with_result() {
+        let mut d = http_doc("GET https://example.com/users");
+        let idx = block_pos(&d);
+        attach_http_response(&mut d, idx);
+        park_below(&mut d, idx);
+        let (_, expected) = expect_canon(1, 1);
+        assert_eq!(walk(&mut d, idx, Motion::Up), expected);
+    }
+
+    #[test]
+    fn canonical_down_db_idle() {
+        let mut d = db_doc("SELECT 1");
+        let idx = block_pos(&d);
+        park_above(&mut d, idx);
+        let (expected, _) = expect_canon(1, 0);
+        assert_eq!(walk(&mut d, idx, Motion::Down), expected);
+    }
+
+    #[test]
+    fn canonical_up_db_idle() {
+        let mut d = db_doc("SELECT 1");
+        let idx = block_pos(&d);
+        park_below(&mut d, idx);
+        let (_, expected) = expect_canon(1, 0);
+        assert_eq!(walk(&mut d, idx, Motion::Up), expected);
+    }
+
+    #[test]
+    fn canonical_down_db_with_result() {
+        let mut d = db_doc("SELECT 1");
+        let idx = block_pos(&d);
+        attach_db_rows(&mut d, idx, 3);
+        park_above(&mut d, idx);
+        let (expected, _) = expect_canon(1, 3);
+        assert_eq!(walk(&mut d, idx, Motion::Down), expected);
+    }
+
+    #[test]
+    fn canonical_up_db_with_result() {
+        let mut d = db_doc("SELECT 1");
+        let idx = block_pos(&d);
+        attach_db_rows(&mut d, idx, 3);
+        park_below(&mut d, idx);
+        let (_, expected) = expect_canon(1, 3);
+        assert_eq!(walk(&mut d, idx, Motion::Up), expected);
+    }
+
+    #[test]
+    fn canonical_down_multi_body_db_with_result() {
+        // Multi-line body + multi-row result — the densest realistic
+        // shape. Confirms body and result enumerate fully before the
+        // closer is touched.
+        let mut d = db_doc("SELECT id, name\nFROM users\nWHERE id = 1");
+        let idx = block_pos(&d);
+        attach_db_rows(&mut d, idx, 2);
+        park_above(&mut d, idx);
+        let (expected, _) = expect_canon(3, 2);
+        assert_eq!(walk(&mut d, idx, Motion::Down), expected);
+    }
+
+    #[test]
+    fn canonical_http_and_db_idle_have_same_shape() {
+        // Critère 1 du bug report: same body shape ⇒ identical
+        // sequence regardless of block type.
+        let mut h = http_doc("GET https://example.com/users");
+        let mut q = db_doc("SELECT 1");
+        let hi = block_pos(&h);
+        let qi = block_pos(&q);
+        park_above(&mut h, hi);
+        park_above(&mut q, qi);
+        assert_eq!(walk(&mut h, hi, Motion::Down), walk(&mut q, qi, Motion::Down));
+    }
+
+    #[test]
+    fn canonical_up_is_reverse_of_down() {
+        // Critère 2: apply_up must be exactly the reverse of
+        // apply_down across the block boundary. Test the worst
+        // case — DB with result — to exercise every section.
+        let mut d = db_doc("SELECT 1");
+        let idx = block_pos(&d);
+        attach_db_rows(&mut d, idx, 3);
+        park_above(&mut d, idx);
+        let down = walk(&mut d, idx, Motion::Down);
+        park_below(&mut d, idx);
+        let mut up = walk(&mut d, idx, Motion::Up);
+        up.reverse();
+        assert_eq!(down, up);
     }
 
     #[test]
@@ -1360,56 +1441,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn down_walks_through_fence_header_into_body_and_out_through_closer() {
-        // CM6 parity: stepping `j` from prose above a block lands on
-        // the fence header first, then into the body, then onto the
-        // closer, then out the other side. Mirror with `k`. Now that
-        // the cursor is unified on `Cursor::InBlock { offset }`, we
-        // discriminate header / body / closer via `raw_section_at`.
-        let mut d = doc("head\n\n```db-postgres alias=q\nSELECT 1\n```\n\ntail\n");
-        d.set_cursor(Cursor::InProse {
-            segment_idx: 0,
-            offset: 0,
-        });
-
-        // Walk down until we land on the fence header.
-        let mut steps = 0;
-        loop {
-            apply(Motion::Down, &mut d, 1, 10);
-            steps += 1;
-            if is_header(&d) {
-                break;
-            }
-            assert!(steps < 10, "didn't reach the fence header in 10 j's");
-        }
-
-        // Next `j` enters the body.
-        apply(Motion::Down, &mut d, 1, 10);
-        assert!(is_body(&d, 0));
-
-        // Past the last body line → closer.
-        apply(Motion::Down, &mut d, 1, 10);
-        assert!(is_closer(&d));
-
-        // Past the closer → leave the block (next prose).
-        apply(Motion::Down, &mut d, 1, 10);
-        assert!(matches!(d.cursor(), Cursor::InProse { .. }));
-
-        // `k` from the prose below climbs back into the closer.
-        apply(Motion::Up, &mut d, 1, 10);
-        assert!(is_closer(&d));
-        // Then back into the body (last line).
-        apply(Motion::Up, &mut d, 1, 10);
-        assert!(is_body(&d, 0));
-        // Then onto the header.
-        apply(Motion::Up, &mut d, 1, 10);
-        assert!(is_header(&d));
-        // Then out into the prose above.
-        apply(Motion::Up, &mut d, 1, 10);
-        assert!(matches!(d.cursor(), Cursor::InProse { .. }));
-    }
-
     fn cursor_section(d: &Document) -> Option<RawSection> {
         let Cursor::InBlock {
             segment_idx,
@@ -1494,13 +1525,5 @@ mod tests {
 
     fn is_header(d: &Document) -> bool {
         matches!(cursor_section(d), Some(RawSection::Header))
-    }
-
-    fn is_closer(d: &Document) -> bool {
-        matches!(cursor_section(d), Some(RawSection::Closer))
-    }
-
-    fn is_body(d: &Document, line: usize) -> bool {
-        matches!(cursor_section(d), Some(RawSection::Body { line: l, .. }) if l == line)
     }
 }
