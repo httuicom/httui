@@ -31,6 +31,9 @@ Post-0.4.0 work lands here.
 - **TUI**: per-connection session host/port override on the Connections page — press `o` to open the override form (prefilled with the connection's stored host/port), `O` to clear. Active overrides surface a `TEMP` amber badge in the sidebar and an amber "Session override (TEMP)" section in the detail pane. In-memory only — never persisted, disappears on restart. Cache is bypassed while an override is active (same SQL against staging vs prod won't share a cache slot).
 - **TUI**: DB blocks that error now keep the error message inside the result panel (instead of only on the status bar that scrolls away on the next keystroke). Pressing Enter anywhere in the SQL body of an errored block opens the detail modal so the message can be navigated and copied.
 - **TUI**: MySQL connections now negotiate `utf8mb4`, and numeric/decimal/timestamp/JSON columns decode into their natural JSON types instead of strings.
+- **TUI**: `{{ref}}` autocomplete now opens inside HTTP blocks as well (it was DB-only). Typing `{{` lists upstream block aliases (with `cached`/`no result` hint) plus environment variable keys; filters as you keep typing. Same engine used by the SQL completion popup.
+- **TUI**: `{{ref}}` placeholders are now highlighted (cyan/bold) in both HTTP and DB block bodies. When the last run failed because of an unresolved ref, that specific ref is painted red inline so the offending alias is visible without reading the status bar.
+- **TUI**: running a block now auto-executes any upstream blocks it references that haven't run yet. Diamond chains (B and C both citing A) execute A once; cross-kind chains (HTTP→DB→HTTP) work. Errors abort the chain and surface the failing block; cached upstream blocks are skipped so re-runs only do the necessary work.
 
 ### Changed
 
@@ -45,6 +48,10 @@ Post-0.4.0 work lands here.
 - **TUI**: keys typed inside an open modal no longer reach the editor behind it (e.g. Tab inside a form switching the editor's tabs).
 - **TUI**: arrow keys move the cursor inside the row-detail / response-detail modals when running in standard profile (previously only vim motions were routed there).
 - **TUI**: vim visual operators inside the read-only detail modals stay read-only — `va{d` selects but cannot delete; `va{y` still yanks normally.
+- **TUI**: opening the `{{` autocomplete inside a block no longer collapses the block from raw view back to its compact display — the popup is a passive overlay so the user keeps typing into the source.
+- **TUI**: vim `o` (open below) on the fence closer row now opens a new body line inside the block instead of appending a line outside the fence.
+- **TUI**: editing the opening ``` fence into a state that no longer parses (e.g. inserting characters before the backticks) now dissolves the block back to plain prose so the renderer reflects the buffer.
+- **TUI**: `{{ref}}` highlight survives the SQL number-token fragmentation — a placeholder like `{{a.response.results.0.rows.0.id}}` now renders as a single cyan span even though the SQL highlighter slices the `0`s as numbers.
 
 ## [0.4.0] - 2026-05-18
 
