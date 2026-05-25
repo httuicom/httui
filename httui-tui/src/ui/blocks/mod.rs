@@ -485,32 +485,102 @@ fn raw_body_text(b: &BlockNode) -> String {
     body.join("\n")
 }
 
-/// Walk a `Vec<Span>` (e.g. SQL keyword highlight output) and split
-/// out any `{{ref}}` placeholder spans so they pick up the ref style
-/// instead of the underlying keyword colour. Preserves the source
-/// background/modifiers on the non-ref pieces.
+/// Overlay `{{ref}}` highlight onto a line that's already been
+/// painted by `sql_highlight::highlight`. The SQL lexer breaks
+/// numbers / strings / keywords into their own spans, so a single
+/// `{{alias.response.results.0.rows.0.id}}` placeholder fragments
+/// across several spans (the `0`s are typed as numbers, the rest is
+/// plain). Per-span scanning misses the `{{`/`}}` pair when they fall
+/// on opposite sides of a fragment, so we work positionally:
+///   1. Reconstruct the source line by joining span contents.
+///   2. Build a `style_per_byte` map from the existing spans.
+///   3. Find `{{…}}` ranges in the reconstructed line and overwrite
+///      those byte positions with the ref style (cyan or red).
+///   4. Collapse adjacent equal styles back into spans.
 fn overlay_refs_on_spans(
     spans: Vec<Span<'static>>,
     error_refs: &std::collections::HashSet<String>,
 ) -> Vec<Span<'static>> {
-    let mut out: Vec<Span<'static>> = Vec::new();
-    for span in spans {
-        if !span.content.contains("{{") {
-            out.push(span);
-            continue;
+    let line: String = spans.iter().map(|s| s.content.as_ref()).collect();
+    if !line.contains("{{") {
+        return spans;
+    }
+    let bytes = line.as_bytes();
+    let mut style_per_byte: Vec<Style> = vec![Style::default(); bytes.len()];
+    let mut cursor = 0usize;
+    for span in &spans {
+        let len = span.content.len();
+        for slot in style_per_byte.iter_mut().skip(cursor).take(len) {
+            *slot = span.style;
         }
-        let base_style = span.style;
-        let pieces = ref_highlight::highlight_refs(&span.content, error_refs);
-        for mut piece in pieces {
-            // Preserve the SQL highlighter's background / modifiers
-            // on the non-ref text by merging the ref style on top of
-            // the original span style.
-            if piece.style == Style::default() {
-                piece.style = base_style;
-            } else {
-                piece.style = base_style.patch(piece.style);
+        cursor += len;
+    }
+    for (start, end, style) in find_ref_ranges(&line, error_refs) {
+        for slot in style_per_byte.iter_mut().take(end).skip(start) {
+            *slot = style;
+        }
+    }
+    collapse_per_byte_styles(&line, &style_per_byte)
+}
+
+/// Locate every `{{…}}` placeholder in `line` and pair it with the
+/// style to paint (red when its alias is in `error_refs`, cyan
+/// otherwise). Returns half-open byte ranges so the caller can
+/// directly index into `line.as_bytes()`.
+fn find_ref_ranges(
+    line: &str,
+    error_refs: &std::collections::HashSet<String>,
+) -> Vec<(usize, usize, Style)> {
+    let mut out: Vec<(usize, usize, Style)> = Vec::new();
+    let bytes = line.as_bytes();
+    let mut i = 0usize;
+    while i + 1 < bytes.len() {
+        if bytes[i] == b'{' && bytes[i + 1] == b'{' {
+            let inner_start = i + 2;
+            let mut j = inner_start;
+            while j + 1 < bytes.len() {
+                if bytes[j] == b'}' && bytes[j + 1] == b'}' {
+                    let inner = &line[inner_start..j];
+                    let alias = inner.split('.').next().unwrap_or("").trim();
+                    let style = if !alias.is_empty() && error_refs.contains(alias) {
+                        ref_highlight::error_style()
+                    } else {
+                        ref_highlight::normal_style()
+                    };
+                    out.push((i, j + 2, style));
+                    i = j + 2;
+                    break;
+                }
+                j += 1;
             }
-            out.push(piece);
+            if j + 1 >= bytes.len() {
+                break;
+            }
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Build `Vec<Span>` from a `style_per_byte` map by collapsing runs
+/// of equal styles into a single span each. Empty input produces a
+/// single empty span so the line still renders as a row.
+fn collapse_per_byte_styles(line: &str, style_per_byte: &[Style]) -> Vec<Span<'static>> {
+    let bytes = line.as_bytes();
+    let mut out: Vec<Span<'static>> = Vec::new();
+    if bytes.is_empty() {
+        out.push(Span::raw(""));
+        return out;
+    }
+    let mut run_start = 0usize;
+    for i in 1..=bytes.len() {
+        let boundary = i == bytes.len() || style_per_byte[i] != style_per_byte[i - 1];
+        if boundary {
+            if let Ok(text) = std::str::from_utf8(&bytes[run_start..i]) {
+                out.push(Span::styled(text.to_string(), style_per_byte[i - 1]));
+            }
+            run_start = i;
         }
     }
     out
@@ -1617,6 +1687,49 @@ mod tests {
         assert_eq!(clamp_result_viewport(0, v, 79, 80), 70);
         // Defensive: zero viewport returns 0.
         assert_eq!(clamp_result_viewport(7, 0, 50, 100), 0);
+    }
+
+    #[test]
+    fn overlay_refs_keeps_ref_intact_across_numeric_fragments() {
+        // The SQL lexer styles digits as numbers, fragmenting
+        // `{{alias.response.results.0.rows.0.id}}` across several
+        // spans (the `0`s break the placeholder). Per-span scanning
+        // misses the `{{`/`}}` pair on opposite sides of a fragment;
+        // the positional overlay must rebuild the placeholder.
+        use crate::ui::sql_highlight;
+        let line = "WHERE id = {{pg.response.results.0.rows.0.id}}";
+        let highlighted = sql_highlight::highlight(line);
+        let overlaid =
+            overlay_refs_on_spans(highlighted[0].clone(), &std::collections::HashSet::new());
+        // After overlay there must be a single span carrying the
+        // complete `{{…}}` placeholder painted in the ref style.
+        let ref_style = ref_highlight::normal_style();
+        let has_full_ref_span = overlaid.iter().any(|s| {
+            s.content == "{{pg.response.results.0.rows.0.id}}" && s.style == ref_style
+        });
+        assert!(
+            has_full_ref_span,
+            "expected one merged ref span styled cyan/bold; got: {:?}",
+            overlaid
+                .iter()
+                .map(|s| (s.content.as_ref(), s.style))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn overlay_refs_uses_error_style_when_alias_in_error_set() {
+        use crate::ui::sql_highlight;
+        let line = "SELECT {{ghost.id}}";
+        let highlighted = sql_highlight::highlight(line);
+        let mut errors = std::collections::HashSet::new();
+        errors.insert("ghost".to_string());
+        let overlaid = overlay_refs_on_spans(highlighted[0].clone(), &errors);
+        let err_style = ref_highlight::error_style();
+        let has_red_ref = overlaid
+            .iter()
+            .any(|s| s.content == "{{ghost.id}}" && s.style == err_style);
+        assert!(has_red_ref, "expected red `{{{{ghost.id}}}}`; got: {overlaid:?}");
     }
 
     #[test]
