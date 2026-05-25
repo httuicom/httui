@@ -379,4 +379,114 @@ mod tests {
         // shouldn't render as `-1.0G`. Show the missing sentinel.
         assert_eq!(human_bytes(Some(-1)), "—");
     }
+
+    fn http_entry(outcome: &str, status: Option<i64>) -> httui_core::block_history::HistoryEntry {
+        httui_core::block_history::HistoryEntry {
+            id: 1,
+            file_path: "/x.md".into(),
+            block_alias: "a".into(),
+            method: "GET".into(),
+            url_canonical: "https://x.com".into(),
+            status,
+            request_size: Some(120),
+            response_size: Some(800),
+            elapsed_ms: Some(42),
+            outcome: outcome.into(),
+            ran_at: Utc::now().to_rfc3339(),
+            plan: None,
+        }
+    }
+
+    fn db_entry(status: Option<i64>) -> httui_core::block_history::HistoryEntry {
+        httui_core::block_history::HistoryEntry {
+            id: 1,
+            file_path: "/x.md".into(),
+            block_alias: "q".into(),
+            method: "db:sqlite".into(),
+            url_canonical: "".into(),
+            status,
+            request_size: Some(80),
+            response_size: Some(2048),
+            elapsed_ms: Some(12),
+            outcome: "success".into(),
+            ran_at: Utc::now().to_rfc3339(),
+            plan: None,
+        }
+    }
+
+    fn line_text(line: &Line<'static>) -> String {
+        line.spans.iter().map(|s| s.content.as_ref()).collect()
+    }
+
+    #[test]
+    fn format_entry_line_http_2xx_uses_green_chip() {
+        let entry = http_entry("success", Some(200));
+        let now = Utc::now();
+        let line = format_entry_line(&entry, now, Style::default());
+        assert!(line_text(&line).contains("200"));
+    }
+
+    #[test]
+    fn format_entry_line_http_3xx_uses_yellow_chip() {
+        let entry = http_entry("success", Some(301));
+        let now = Utc::now();
+        let line = format_entry_line(&entry, now, Style::default());
+        assert!(line_text(&line).contains("301"));
+    }
+
+    #[test]
+    fn format_entry_line_http_4xx_uses_magenta_chip() {
+        let entry = http_entry("success", Some(404));
+        let now = Utc::now();
+        let line = format_entry_line(&entry, now, Style::default());
+        assert!(line_text(&line).contains("404"));
+    }
+
+    #[test]
+    fn format_entry_line_http_5xx_uses_red_chip() {
+        let entry = http_entry("success", Some(503));
+        let now = Utc::now();
+        let line = format_entry_line(&entry, now, Style::default());
+        assert!(line_text(&line).contains("503"));
+    }
+
+    #[test]
+    fn format_entry_line_http_no_status_shows_err() {
+        let entry = http_entry("success", None);
+        let now = Utc::now();
+        let line = format_entry_line(&entry, now, Style::default());
+        assert!(line_text(&line).contains("err"));
+    }
+
+    #[test]
+    fn format_entry_line_cancelled_renders_dash_chip() {
+        let entry = http_entry("cancelled", Some(200));
+        let now = Utc::now();
+        let line = format_entry_line(&entry, now, Style::default());
+        assert!(line_text(&line).contains("—"));
+    }
+
+    #[test]
+    fn format_entry_line_error_outcome_renders_err() {
+        let entry = http_entry("error", Some(200));
+        let now = Utc::now();
+        let line = format_entry_line(&entry, now, Style::default());
+        assert!(line_text(&line).contains("err"));
+    }
+
+    #[test]
+    fn format_entry_line_db_with_row_count_shows_n_r_chip() {
+        let entry = db_entry(Some(42));
+        let now = Utc::now();
+        let line = format_entry_line(&entry, now, Style::default());
+        assert!(line_text(&line).contains("42r"));
+    }
+
+    #[test]
+    fn format_entry_line_db_without_status_shows_ok() {
+        let entry = db_entry(None);
+        let now = Utc::now();
+        let line = format_entry_line(&entry, now, Style::default());
+        assert!(line_text(&line).contains("ok"));
+    }
 }

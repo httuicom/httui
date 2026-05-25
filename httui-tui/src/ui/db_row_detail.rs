@@ -411,4 +411,79 @@ mod tests {
         // Defensive: zero height keeps viewport_top untouched.
         assert_eq!(clamp_viewport(7, 0, 100, 100), 7);
     }
+
+    fn render_with_state(state: &mut DbRowDetailState, visual: Option<VisualOverlay>) {
+        let backend = ratatui::backend::TestBackend::new(60, 20);
+        let mut terminal = ratatui::Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                render(
+                    f,
+                    Rect {
+                        x: 0,
+                        y: 0,
+                        width: 60,
+                        height: 20,
+                    },
+                    state,
+                    visual,
+                );
+            })
+            .unwrap();
+    }
+
+    fn state_with(text: &str) -> DbRowDetailState {
+        DbRowDetailState {
+            segment_idx: 0,
+            row: 0,
+            title: "row".into(),
+            doc: crate::buffer::Document::from_markdown(text).unwrap(),
+            viewport_height: 4,
+            viewport_top: 0,
+        }
+    }
+
+    #[test]
+    fn render_smoke_no_visual_overlay() {
+        let mut state = state_with("line1\nline2\nline3");
+        render_with_state(&mut state, None);
+    }
+
+    #[test]
+    fn render_smoke_with_charwise_visual_overlay() {
+        let mut state = state_with("alpha beta\n");
+        let cur = state.doc.cursor();
+        render_with_state(
+            &mut state,
+            Some(VisualOverlay {
+                anchor: cur,
+                linewise: false,
+            }),
+        );
+    }
+
+    #[test]
+    fn render_smoke_with_linewise_visual_overlay() {
+        let mut state = state_with("alpha\nbeta\n");
+        let cur = state.doc.cursor();
+        render_with_state(
+            &mut state,
+            Some(VisualOverlay {
+                anchor: cur,
+                linewise: true,
+            }),
+        );
+    }
+
+    #[test]
+    fn render_smoke_long_document_triggers_viewport_clamp() {
+        let body: String = (0..50).map(|i| format!("line{i}\n")).collect();
+        let mut state = state_with(&body);
+        // Position cursor far down to exercise viewport scrolling.
+        state.doc.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: body.find("line40").unwrap_or(0),
+        });
+        render_with_state(&mut state, None);
+    }
 }
