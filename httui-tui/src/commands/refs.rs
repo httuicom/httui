@@ -175,6 +175,20 @@ pub fn advance_run_chain(app: &mut App) {
             StatusKind::Info,
             format!("`{block_type}` blocks aren't runnable yet"),
         );
+        return;
+    }
+
+    // Stall guard. Both `apply_run_http_block` and `run_db_block_inner`
+    // have early-return paths (validation errors: empty URL, no
+    // connection, unresolved ref, etc.) that never spawn an async
+    // task and never fire the `AppEvent` the chain depends on. When
+    // that happens, `app.running_query` stays `None` AND the head of
+    // `run_chain` is still `next_idx` (cache hits advance the head
+    // synchronously, so they don't trigger this). Without this check
+    // the chain freezes silently — the user has to mash the run key
+    // to advance one link at a time.
+    if app.run_chain.first() == Some(&next_idx) && app.running_query.is_none() {
+        app.run_chain.clear();
     }
 }
 

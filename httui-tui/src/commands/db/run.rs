@@ -351,6 +351,12 @@ pub fn run_db_block_inner(
                         }
                     }
                     app.set_status(StatusKind::Info, format!("⛁ cached · {summary}"));
+                    // Cache hits short-circuit the executor, so no
+                    // AppEvent::DbBlockResult lands. The auto-exec
+                    // chain only advances via `on_block_complete`
+                    // hooked into those handlers — call it directly
+                    // here or the chain stalls on the cached dep.
+                    crate::commands::refs::on_block_complete(app, segment_idx, true);
                     return;
                 }
             }
