@@ -1523,20 +1523,14 @@ mod tests {
         );
     }
 
-    // ─── fence-break dissolves block to prose ─────────────────────
-
     #[test]
     fn insert_into_fence_opener_dissolves_block_to_prose() {
-        // User edits the ``` opener so the fence is no longer valid.
-        // The block must demote back to Segment::Prose so the renderer
-        // stops treating broken markdown as an executable block.
         let mut d = Document::from_markdown(ONLY_HTTP).expect("parse");
         let block_idx = d
             .segments
             .iter()
             .position(|s| matches!(s, Segment::Block(_)))
             .expect("block");
-        // Park cursor inside the opener (offset 0 = before the first `).
         d.set_cursor(Cursor::InBlock {
             segment_idx: block_idx,
             offset: 0,
@@ -1547,7 +1541,6 @@ mod tests {
             "block must dissolve to prose when fence opener breaks; got {:?}",
             d.segments.get(block_idx),
         );
-        // Cursor must follow into the prose variant.
         match d.cursor {
             Cursor::InProse { segment_idx, .. } => {
                 assert_eq!(segment_idx, block_idx);
@@ -1558,15 +1551,12 @@ mod tests {
 
     #[test]
     fn delete_inside_fence_opener_dissolves_block_to_prose() {
-        // Backspace inside the fence opener breaks the ``` count
-        // (three → two). Same demote semantic as the insert path.
         let mut d = Document::from_markdown(ONLY_HTTP).expect("parse");
         let block_idx = d
             .segments
             .iter()
             .position(|s| matches!(s, Segment::Block(_)))
             .expect("block");
-        // Position past the first ` so backspace removes it.
         d.set_cursor(Cursor::InBlock {
             segment_idx: block_idx,
             offset: 1,

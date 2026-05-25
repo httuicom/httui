@@ -287,10 +287,6 @@ fn highlight_http_query_continuation(
     spans
 }
 
-/// Thin shim over the shared `ref_highlight::highlight_refs` so HTTP
-/// rendering decorates refs the same way DB rendering does. Pass an
-/// empty `error_refs` for blocks that ran clean; pass the failed-ref
-/// set parsed from the run error to paint that ref red inline.
 fn highlight_refs_in_text(
     text: &str,
     error_refs: &std::collections::HashSet<String>,

@@ -1,27 +1,4 @@
 //! Cross-block dependency orchestration for the run flow.
-//!
-//! When a block references `{{A.response.x}}` and A hasn't run yet,
-//! the resolver in `commands::db::resolve_one_ref` errors out with
-//! `block ``A`` hasn't run yet`. This module turns that hard error
-//! into auto-execution: before the target runs, we collect every
-//! upstream block that still needs to execute (DAG order), enqueue
-//! them on `app.run_chain`, and dispatch one at a time. Each
-//! `handle_*_block_result` calls back here on success to advance the
-//! queue; failures abort the chain (the failed block stays Error and
-//! the user fixes it before retrying).
-//!
-//! Invariants:
-//!   - Block refs only point to blocks ABOVE the citing block (DAG
-//!     by construction; the parser rejects circular topologies).
-//!     A direct cycle is impossible structurally, but the collector
-//!     still tracks `in_progress` defensively so a future
-//!     "below-allowed" tweak couldn't introduce silent infinite
-//!     recursion.
-//!   - Already-cached blocks (cached_result.is_some) are skipped —
-//!     this is the dedup story for B + C both citing A: A runs once
-//!     because the second collection sees its cached_result.
-//!   - Max depth caps stack growth at 50 levels (mirrors the core
-//!     runner's `MAX_DEPENDENCY_DEPTH`).
 
 use crate::app::{App, StatusKind};
 use crate::buffer::{Cursor, Segment};
@@ -30,13 +7,6 @@ use std::collections::HashSet;
 
 const MAX_DEPENDENCY_DEPTH: usize = 50;
 
-/// Walk every `{{ref}}` in the target block's params and return the
-/// upstream blocks that need to run before it. Output is in
-/// execution order (deepest dep first, immediate dep last); the
-/// caller appends the target onto the end before dispatching.
-///
-/// Skips deps whose `cached_result.is_some()` — they already have a
-/// value the resolver can pick up.
 pub fn collect_unrun_deps(
     segments: &[Segment],
     target_idx: usize,
@@ -61,10 +31,9 @@ fn walk_deps(
             "dependency chain exceeds {MAX_DEPENDENCY_DEPTH} levels — break it up",
         ));
     }
+    // Above-only refs prevent cycles structurally; this guard
+    // protects against a future relaxation.
     if in_progress.contains(&idx) {
-        // Above-only refs prevent this structurally, but a defensive
-        // check keeps the error surface honest if the invariant ever
-        // weakens.
         return Err("circular dependency detected".to_string());
     }
     in_progress.insert(idx);
@@ -80,13 +49,12 @@ fn walk_deps(
     let placeholders = references::extract_placeholders(&block.params);
     for placeholder in placeholders {
         if !references::is_block_reference(&placeholder) {
-            continue; // env var, not a block dep
+            continue;
         }
         let alias = match references::extract_alias(&placeholder) {
             Some(a) if !a.is_empty() => a,
             _ => continue,
         };
-        // Find the matching block strictly above `idx`.
         let dep_idx = segments
             .iter()
             .take(idx)
@@ -98,12 +66,8 @@ fn walk_deps(
             .find(|(_, b)| b.alias.as_deref() == Some(alias))
             .map(|(i, _)| i);
         let Some(dep_idx) = dep_idx else {
-            // Unknown alias → let the existing resolver fail at run
-            // time with the canonical message; we don't second-guess
-            // it here.
             continue;
         };
-        // Already cached? Skip — dedup case for B + C citing A.
         let dep_block = match segments.get(dep_idx) {
             Some(Segment::Block(b)) => b,
             _ => continue,
@@ -111,8 +75,6 @@ fn walk_deps(
         if dep_block.cached_result.is_some() || seen.contains(&dep_idx) {
             continue;
         }
-        // Recurse into the dep first so its OWN unrun deps land
-        // earlier in `out` (post-order topo).
         walk_deps(segments, dep_idx, out, seen, in_progress, depth + 1)?;
         if seen.insert(dep_idx) {
             out.push(dep_idx);
@@ -122,9 +84,6 @@ fn walk_deps(
     Ok(())
 }
 
-/// Entry point for the user-facing "run this block" action. Replaces
-/// the direct dispatch in `commands::db::apply_run_block` for the
-/// happy path: collect deps, queue chain, dispatch first link.
 pub fn start_run_chain(app: &mut App, target_idx: usize) {
     if app.running_query.is_some() {
         app.set_status(
@@ -148,9 +107,6 @@ pub fn start_run_chain(app: &mut App, target_idx: usize) {
     advance_run_chain(app);
 }
 
-/// Dispatch the head of `app.run_chain` to the right block executor.
-/// Called by `start_run_chain` for the first link and by the
-/// `handle_*_block_result` hooks for each subsequent link.
 pub fn advance_run_chain(app: &mut App) {
     let Some(&next_idx) = app.run_chain.first() else {
         return;
@@ -165,10 +121,7 @@ pub fn advance_run_chain(app: &mut App) {
     if block_type == "http" {
         crate::commands::http::apply_run_http_block(app, next_idx);
     } else if block_type.starts_with("db-") || block_type == "db" {
-        crate::commands::db::run_db_block_inner(
-            app, next_idx, /* force_unscoped = */ false, None,
-            /* as_explain = */ false,
-        );
+        crate::commands::db::run_db_block_inner(app, next_idx, false, None, false);
     } else {
         app.run_chain.clear();
         app.set_status(
@@ -178,24 +131,15 @@ pub fn advance_run_chain(app: &mut App) {
         return;
     }
 
-    // Stall guard. Both `apply_run_http_block` and `run_db_block_inner`
-    // have early-return paths (validation errors: empty URL, no
-    // connection, unresolved ref, etc.) that never spawn an async
-    // task and never fire the `AppEvent` the chain depends on. When
-    // that happens, `app.running_query` stays `None` AND the head of
-    // `run_chain` is still `next_idx` (cache hits advance the head
-    // synchronously, so they don't trigger this). Without this check
-    // the chain freezes silently — the user has to mash the run key
-    // to advance one link at a time.
+    // Stall guard: validation errors return without spawning, so
+    // no AppEvent ever lands. Cache hits move the head synchronously
+    // via on_block_complete; anything else with a static head and
+    // no running_query means the dispatch bailed.
     if app.run_chain.first() == Some(&next_idx) && app.running_query.is_none() {
         app.run_chain.clear();
     }
 }
 
-/// Hook called by `handle_*_block_result` after the outcome has been
-/// folded into the block. On success, pop the chain head and
-/// dispatch the next link. On failure / cancel, clear the chain so
-/// the user can fix the failing dep before retrying.
 pub fn on_block_complete(app: &mut App, segment_idx: usize, success: bool) {
     if app.run_chain.first() != Some(&segment_idx) {
         return;
@@ -216,9 +160,6 @@ pub fn on_block_complete(app: &mut App, segment_idx: usize, success: bool) {
     }
 }
 
-/// Convenience entry for the user's `r` keypress / `RunBlock` action.
-/// Picks the cursor's block and starts a chain rooted there. Returns
-/// early with a hint when the cursor isn't on a block.
 pub fn apply_run_block(app: &mut App) {
     let Some(doc) = app.document() else { return };
     let Cursor::InBlock { segment_idx, .. } = doc.cursor() else {

@@ -91,18 +91,8 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         None
     };
 
-    // The cursor is hidden whenever the user's keystrokes are flowing
-    // somewhere other than the buffer (status-bar prompt, modal, tree
-    // sidebar). The renderer still paints every pane; only the
-    // focused leaf's cursor differs.
-    // The DB row-detail modal owns input independently of `mode` —
-    // it can be visible while `mode == Visual` (visual selection
-    // inside the modal). Suppress the editor's cursor whenever the
-    // modal is up, regardless of which transient mode the user is
-    // navigating with.
-    // CompletionPopup is the exception: it's a passive overlay — the
-    // user keeps typing into the underlying block, so the editor must
-    // retain its cursor (and the focused block must keep its raw view).
+    // CompletionPopup is a passive overlay — keystrokes still flow
+    // into the underlying block, so the editor cursor must stay.
     let modal_owns_input = app
         .modal
         .as_ref()

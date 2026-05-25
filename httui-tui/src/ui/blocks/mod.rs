@@ -485,18 +485,11 @@ fn raw_body_text(b: &BlockNode) -> String {
     body.join("\n")
 }
 
-/// Overlay `{{ref}}` highlight onto a line that's already been
-/// painted by `sql_highlight::highlight`. The SQL lexer breaks
-/// numbers / strings / keywords into their own spans, so a single
-/// `{{alias.response.results.0.rows.0.id}}` placeholder fragments
-/// across several spans (the `0`s are typed as numbers, the rest is
-/// plain). Per-span scanning misses the `{{`/`}}` pair when they fall
-/// on opposite sides of a fragment, so we work positionally:
-///   1. Reconstruct the source line by joining span contents.
-///   2. Build a `style_per_byte` map from the existing spans.
-///   3. Find `{{…}}` ranges in the reconstructed line and overwrite
-///      those byte positions with the ref style (cyan or red).
-///   4. Collapse adjacent equal styles back into spans.
+// The SQL lexer fragments `{{a.b.0.c.0.d}}` into multiple spans
+// (digits are styled as numbers), so per-span ref detection misses
+// the `{{`/`}}` pair. Overlay positionally: reconstruct the line,
+// project span styles onto a per-byte map, then stamp ref ranges on
+// top and collapse runs back into spans.
 fn overlay_refs_on_spans(
     spans: Vec<Span<'static>>,
     error_refs: &std::collections::HashSet<String>,
@@ -523,10 +516,6 @@ fn overlay_refs_on_spans(
     collapse_per_byte_styles(&line, &style_per_byte)
 }
 
-/// Locate every `{{…}}` placeholder in `line` and pair it with the
-/// style to paint (red when its alias is in `error_refs`, cyan
-/// otherwise). Returns half-open byte ranges so the caller can
-/// directly index into `line.as_bytes()`.
 fn find_ref_ranges(
     line: &str,
     error_refs: &std::collections::HashSet<String>,
@@ -563,9 +552,6 @@ fn find_ref_ranges(
     out
 }
 
-/// Build `Vec<Span>` from a `style_per_byte` map by collapsing runs
-/// of equal styles into a single span each. Empty input produces a
-/// single empty span so the line still renders as a row.
 fn collapse_per_byte_styles(line: &str, style_per_byte: &[Style]) -> Vec<Span<'static>> {
     let bytes = line.as_bytes();
     let mut out: Vec<Span<'static>> = Vec::new();
@@ -710,11 +696,6 @@ fn render_db_inner(
 
     if show_input {
         let mut sql_lines_styled = super::sql_highlight::highlight(query);
-        // Overlay `{{ref}}` decoration on top of SQL keyword
-        // highlighting. The SQL highlighter doesn't know about refs,
-        // so we re-walk each line and split out placeholder spans.
-        // Refs whose alias matches the current run error get the
-        // error style — RF-07 inline equivalent.
         let error_refs = match &b.state {
             ExecutionState::Error(msg) => ref_highlight::parse_error_refs(msg),
             _ => std::collections::HashSet::new(),
@@ -1691,18 +1672,11 @@ mod tests {
 
     #[test]
     fn overlay_refs_keeps_ref_intact_across_numeric_fragments() {
-        // The SQL lexer styles digits as numbers, fragmenting
-        // `{{alias.response.results.0.rows.0.id}}` across several
-        // spans (the `0`s break the placeholder). Per-span scanning
-        // misses the `{{`/`}}` pair on opposite sides of a fragment;
-        // the positional overlay must rebuild the placeholder.
         use crate::ui::sql_highlight;
         let line = "WHERE id = {{pg.response.results.0.rows.0.id}}";
         let highlighted = sql_highlight::highlight(line);
         let overlaid =
             overlay_refs_on_spans(highlighted[0].clone(), &std::collections::HashSet::new());
-        // After overlay there must be a single span carrying the
-        // complete `{{…}}` placeholder painted in the ref style.
         let ref_style = ref_highlight::normal_style();
         let has_full_ref_span = overlaid.iter().any(|s| {
             s.content == "{{pg.response.results.0.rows.0.id}}" && s.style == ref_style

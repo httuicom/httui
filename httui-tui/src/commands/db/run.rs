@@ -96,11 +96,6 @@ pub fn summarize_db_response(resp: &httui_core::executor::db::types::DbResponse)
 /// back to the main loop, which folds the outcome into the block
 /// via `handle_db_block_result`.
 pub fn apply_run_block(app: &mut App) {
-    // The user-facing run entry point: collects dependencies via
-    // `commands::refs::start_run_chain` (auto-exec) and dispatches
-    // the first link. Each `handle_*_block_result` advances the
-    // chain on success or aborts it on error. Dedup + cycle defence
-    // live in the collector.
     crate::commands::refs::apply_run_block(app);
 }
 
@@ -351,11 +346,7 @@ pub fn run_db_block_inner(
                         }
                     }
                     app.set_status(StatusKind::Info, format!("⛁ cached · {summary}"));
-                    // Cache hits short-circuit the executor, so no
-                    // AppEvent::DbBlockResult lands. The auto-exec
-                    // chain only advances via `on_block_complete`
-                    // hooked into those handlers — call it directly
-                    // here or the chain stalls on the cached dep.
+                    // No AppEvent for cache hits; advance the chain ourselves.
                     crate::commands::refs::on_block_complete(app, segment_idx, true);
                     return;
                 }

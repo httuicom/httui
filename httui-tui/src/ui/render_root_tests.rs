@@ -202,10 +202,6 @@
 
     #[tokio::test(flavor = "multi_thread")]
     async fn completion_popup_does_not_suppress_editor_cursor() {
-        // The `{{` ref popup is a passive overlay — the user keeps
-        // typing into the underlying block, so the editor cursor must
-        // stay visible (otherwise the focused block reverts from raw
-        // to compact view and the user can't see what they're typing).
         let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
         open_doc(&mut app, "x\n");
         app.modal = Some(crate::modal::Modal::CompletionPopup(

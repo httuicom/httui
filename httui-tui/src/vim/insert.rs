@@ -243,12 +243,9 @@ fn open_line_below(doc: &mut Document) {
             let Some(raw) = block_raw(doc, segment_idx) else {
                 return;
             };
-            // Land on EOL of current line, then `\n` pushes us to
-            // the start of a new line. Closer is special: it has no
-            // trailing `\n`, so EOL walks to the rope end and `o`
-            // would append a line OUTSIDE the fence. Re-anchor on
-            // the body's trailing `\n` instead so `o` extends the
-            // block (vim mental model: stay inside the construct).
+            // Closer has no trailing `\n`, so anchoring on EOL would
+            // append outside the fence. Stay inside the block by
+            // re-anchoring on the body's trailing `\n`.
             let insert_at = match crate::buffer::block::raw_section_at(&raw, offset) {
                 crate::buffer::block::RawSection::Closer => {
                     let closer_line_start = line_start_of_offset(&raw, offset);
@@ -349,11 +346,6 @@ mod tests {
 
     #[test]
     fn o_on_closer_inserts_above_closer_not_outside_block() {
-        // Pressing `j` from the last body line lands the cursor on
-        // the closer row. From the user's perspective they are
-        // "above the ```" (visually right after the last body line),
-        // so `o` must extend the block — never append a line below
-        // the closer (escaping the fence).
         let md = "```http alias=req1\nGET /x\n{{\n```\n";
         let mut doc = Document::from_markdown(md).expect("parse");
         let block_idx = doc
@@ -386,25 +378,14 @@ mod tests {
 
     #[test]
     fn o_on_each_position_of_last_body_line_lands_above_closer() {
-        // The bug report: cursor "on a line above ```", press `o`,
-        // new line appears BELOW ```. Walk every plausible cursor
-        // offset on the last body line and assert the closer never
-        // gets pushed.
         let md = "```http alias=req1\nGET /x\n{{\n```\n";
-        // First `{` of last body line.
         assert_open_below_lands_before_closer(md, "{{", 0);
-        // Between the two braces.
         assert_open_below_lands_before_closer(md, "{{", 1);
-        // Past the second `{` (still on the body line, before its \n).
         assert_open_below_lands_before_closer(md, "{{", 2);
     }
 
     #[test]
     fn o_on_last_body_line_inserts_above_closer_not_below() {
-        // Repro for the "new line lands BELOW ``` instead of between
-        // body and ```" bug. Cursor is parked on the last body line
-        // (offset somewhere inside `{{`); `o` must open a fresh body
-        // line that sits BEFORE the closer fence, never after it.
         let md = "```http alias=req1\nGET /x\n{{\n```\n";
         let mut doc = Document::from_markdown(md).expect("parse");
         let block_idx = doc
@@ -413,7 +394,6 @@ mod tests {
             .position(|s| matches!(s, Segment::Block(_)))
             .expect("block");
         let raw_before = block_raw(&doc, block_idx);
-        // Find offset of the `{` in `{{` — last body line's first char.
         let body_line_start = raw_before.find("{{").expect("body marker present");
         doc.set_cursor(Cursor::InBlock {
             segment_idx: block_idx,
@@ -421,8 +401,6 @@ mod tests {
         });
         open_line_below(&mut doc);
         let after = block_raw(&doc, block_idx);
-        // The closer must remain the LAST non-empty token of the rope:
-        // anything after the closer means we opened the wrong row.
         let closer_pos = after.rfind("```").expect("closer present");
         let tail = &after[closer_pos + 3..];
         assert!(
@@ -430,8 +408,6 @@ mod tests {
             "open_line_below pushed content AFTER the closer (tail={tail:?})\n\
              full raw after = {after:?}",
         );
-        // And there must be at least one new blank line between `{{`
-        // and the closer.
         let between_start = after.find("{{").unwrap() + 2;
         let between = &after[between_start..closer_pos];
         assert!(
