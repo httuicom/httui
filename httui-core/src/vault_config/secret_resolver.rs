@@ -6,11 +6,6 @@
 //! resolve a reference to a raw value at execution time. This module
 //! owns that bridge so neither store repeats the parsing or keychain
 //! plumbing inline.
-//!
-//! Extracted from `connections_store.rs` (where
-//! it lived as `ensure_password_ref` / `parse_keychain_ref` /
-//! `resolve_password_ref` / `format_password_ref`). The same module is
-//! reused by `environments_store.rs` for env-var secrets.
 
 use super::validate::is_secret_ref;
 use crate::db::keychain::{get_secret, resolve_secret_ref, store_secret};

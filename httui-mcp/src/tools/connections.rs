@@ -6,7 +6,7 @@ use std::sync::Arc;
 pub async fn list_connections(pool: &SqlitePool) -> String {
     match httui_core::db::connections::list_connections(pool).await {
         Ok(conns) => {
-            // Expose only non-sensitive metadata (T27: no host, port, database_name, username)
+            // Expose only non-sensitive metadata (no host, port, database_name, or username).
             let safe: Vec<serde_json::Value> = conns
                 .iter()
                 .map(|c| {
@@ -31,7 +31,7 @@ pub async fn get_db_schema(
     // Try cached first
     match httui_core::db::schema_cache::get_cached_schema(pool, connection_id, 300).await {
         Ok(Some(entries)) => return json!({"schema": entries}).to_string(),
-        Ok(None) => {} // cache miss, introspect
+        Ok(None) => {} // cache miss — fall through to introspect
         Err(e) => return json!({"error": e}).to_string(),
     }
 

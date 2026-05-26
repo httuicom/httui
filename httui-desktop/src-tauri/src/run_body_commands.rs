@@ -1,8 +1,4 @@
-//! Tauri commands wrapping `httui_core::run_bodies`. Powers
-//! the consumer (HTTP/DB streamed-execution path) calls
-//! `write_run_body_cmd` after a successful run + `trim_run_bodies_cmd`
-//! to keep the cache bounded; the run-diff viewer (04) reads via
-//! `read_run_body_cmd` / `list_run_bodies_cmd`.
+//! Tauri commands wrapping `httui_core::run_bodies`.
 
 use httui_core::run_bodies::{
     list_run_bodies, read_run_body, rename_alias_runs, trim_run_bodies, write_run_body,
@@ -68,11 +64,8 @@ pub async fn trim_run_bodies_cmd(
     trim_run_bodies(&PathBuf::from(vault_path), &file_path, &alias, keep_n)
 }
 
-/// Move every cached run body for `(file_path, old_alias)` to
-/// `(file_path, new_alias)`. Powers the alias-rename
-/// flow. Best-effort:
-/// - `Ok(false)` when the source dir doesn't exist
-/// - `Err` when the destination dir already has cached runs
+/// Move every cached run body for `(file_path, old_alias)` to `(file_path, new_alias)`.
+/// Returns `Ok(false)` when the source dir doesn't exist; `Err` when the destination already has runs.
 #[tauri::command]
 pub async fn rename_alias_runs_cmd(
     vault_path: String,

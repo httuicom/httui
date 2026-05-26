@@ -1,8 +1,7 @@
 //! `.env` auto-discovery: parse + classify + scan.
 //!
 //! Pure-string parsing + classification + a vault-root scanner that
-//! looks for `.env`-style files at the root and one level deep. The
-//! Tauri command, banner UI, and import flow ship in Stories 02-04 of.
+//! looks for `.env`-style files at the root and one level deep.
 
 use once_cell::sync::Lazy;
 use regex::Regex;

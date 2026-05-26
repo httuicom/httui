@@ -396,6 +396,7 @@ mod tests {
         }"#;
         let n = parse(json).unwrap();
         // read_cost..total
+        // read_cost..total format: 1.234 → 1.23, 1.234+0.567 → 1.80
         assert_eq!(n.children[0].cost, "1.23..1.80");
     }
 

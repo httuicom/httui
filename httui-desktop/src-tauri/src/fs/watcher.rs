@@ -1,10 +1,4 @@
-// coverage:exclude file — Thread-driven OS-level FS watcher.
-// Substantive logic (path classification + env-name extraction) lives
-// in `httui_core::vault_config::watch_paths` and is fully unit-tested
-// at 100%. The remaining code here is the notify-crate event loop +
-// Tauri emitters, which require an integration harness to exercise
-// (real filesystem, real Tauri AppHandle). Documented in
-// tech-debt.md and audit-004.
+// coverage:exclude file — notify event loop + Tauri emitters require a real filesystem and AppHandle.
 
 use httui_core::vault_config::watch_paths::{classify, env_name_from_path, WatchCategory};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -31,11 +25,7 @@ pub struct FileReloaded {
     pub markdown: String,
 }
 
-/// Emitted when a watched config TOML file changes (ADR 0003).
-/// The frontend re-fetches the relevant store on receipt — backend
-/// stores are constructed per Tauri call (epic 09 design), so there's
-/// nothing to invalidate process-side until epic 19 introduces
-/// long-lived store instances.
+/// Emitted when a watched config TOML file changes. The frontend re-fetches the relevant store on receipt.
 #[derive(Debug, Clone, Serialize)]
 pub struct ConfigChanged {
     pub category: WatchCategory,
@@ -74,16 +64,11 @@ pub fn watch_vault(
     let vault_for_thread = vault.clone();
     std::thread::spawn(move || {
         let md_debounce = Duration::from_millis(500);
-        // ADR 0003: TOML changes use a 250ms trailing debounce — git
-        // pull / editor save bursts coalesce in that window.
+        // TOML: 250ms trailing debounce so git-pull/editor-save bursts coalesce.
         let toml_debounce = Duration::from_millis(250);
-        // Per-file debounce tracking
         let mut last_emit_per_file: HashMap<String, Instant> = HashMap::new();
 
         for event in rx {
-            // Map raw paths to vault-relative strings + classify each
-            // into one of three buckets: markdown, watched config TOML,
-            // or ignore.
             #[derive(Clone)]
             enum Kind {
                 Md,
@@ -101,16 +86,10 @@ pub fn watch_vault(
                         .trim_start_matches('/')
                         .to_string();
 
-                    // Markdown — keep the legacy filter that rejects
-                    // dotfiles in note paths (avoids `.git/...` noise).
                     if s.ends_with(".md") && !s.contains("/.") && !s.contains("\\.") {
                         return Some((rel, Kind::Md));
                     }
 
-                    // Config TOML — let the classifier decide. It
-                    // already restricts to our exact paths (vault root
-                    // connections.toml, .httui/workspace.toml, envs/*.toml)
-                    // so we don't need the dotfile reject here.
                     if s.ends_with(".toml") {
                         if let Some(cat) = classify(&rel) {
                             return Some((rel, Kind::Config(cat)));
@@ -124,7 +103,6 @@ pub fn watch_vault(
                 continue;
             }
 
-            // Check if path is in ignore list (self-triggered saves)
             {
                 let ignored = ignore_paths.lock().unwrap();
                 if entries.iter().any(|(p, _)| ignored.contains(p)) {
@@ -168,7 +146,7 @@ fn emit_md_event(handle: &AppHandle, vault: &str, kind: &EventKind, path: &str) 
                 );
             }
             Err(_) => {
-                // File might be mid-write, fall back to a plain event.
+                // File may be mid-write; fall back to a plain event.
                 let _ = handle.emit(
                     "fs-event",
                     FileEvent::Modified {

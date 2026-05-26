@@ -2,8 +2,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 
-// ── Types ────────────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
     pub id: i64,
@@ -39,8 +37,6 @@ pub struct ToolCall {
     pub is_error: bool,
     pub created_at: i64,
 }
-
-// ── Row mappers ──────────────────────────────────────────────────────
 
 fn row_to_session(row: &sqlx::sqlite::SqliteRow) -> Session {
     Session {
@@ -80,8 +76,6 @@ fn row_to_tool_call(row: &sqlx::sqlite::SqliteRow) -> ToolCall {
         created_at: row.get("created_at"),
     }
 }
-
-// ── Session CRUD ─────────────────────────────────────────────────────
 
 pub async fn create_session(pool: &SqlitePool, cwd: Option<String>) -> Result<Session, String> {
     let row = sqlx::query("INSERT INTO sessions (cwd) VALUES (?) RETURNING *")
@@ -159,8 +153,6 @@ pub async fn update_session_title(
     Ok(())
 }
 
-// ── Message CRUD ─────────────────────────────────────────────────────
-
 pub async fn insert_message(
     pool: &SqlitePool,
     session_id: i64,
@@ -170,7 +162,6 @@ pub async fn insert_message(
     tokens_out: Option<i64>,
     is_partial: bool,
 ) -> Result<Message, String> {
-    // Get next turn_index for this session
     let max_turn: Option<i64> =
         sqlx::query_scalar("SELECT MAX(turn_index) FROM messages WHERE session_id = ?")
             .bind(session_id)
@@ -194,7 +185,6 @@ pub async fn insert_message(
     .await
     .map_err(|e| format!("Failed to insert message: {e}"))?;
 
-    // Touch session updated_at
     let _ = sqlx::query("UPDATE sessions SET updated_at = unixepoch() WHERE id = ?")
         .bind(session_id)
         .execute(pool)
@@ -217,7 +207,6 @@ pub async fn list_messages(pool: &SqlitePool, session_id: i64) -> Result<Vec<Mes
         return Ok(vec![]);
     }
 
-    // Fetch all tool_calls for these messages in one query
     let placeholders = message_ids
         .iter()
         .map(|_| "?")
@@ -235,7 +224,6 @@ pub async fn list_messages(pool: &SqlitePool, session_id: i64) -> Result<Vec<Mes
         .await
         .map_err(|e| format!("Failed to list tool_calls: {e}"))?;
 
-    // Group tool_calls by message_id
     let mut tc_map: std::collections::HashMap<i64, Vec<ToolCall>> =
         std::collections::HashMap::new();
     for row in &tc_rows {
@@ -259,8 +247,6 @@ pub async fn list_messages(pool: &SqlitePool, session_id: i64) -> Result<Vec<Mes
 
     Ok(messages)
 }
-
-// ── Tool call CRUD ───────────────────────────────────────────────────
 
 pub async fn insert_tool_call(
     pool: &SqlitePool,
@@ -298,8 +284,6 @@ pub async fn update_tool_call_result(
         .map_err(|e| format!("Failed to update tool_call result: {e}"))?;
     Ok(())
 }
-
-// ── Permission CRUD ──────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PermissionRule {
@@ -429,8 +413,6 @@ pub async fn clear_session_permissions(pool: &SqlitePool, session_id: i64) -> Re
     Ok(())
 }
 
-// ── Usage stats ─────────────────────────────────────────────────────
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DailyUsage {
     pub date: String,
@@ -491,8 +473,6 @@ pub async fn get_usage_by_date_range(
         })
         .collect())
 }
-
-// ── Tests ────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -684,7 +664,6 @@ mod tests {
             .await
             .unwrap();
 
-        // Delete session directly
         sqlx::query("DELETE FROM sessions WHERE id = ?")
             .bind(session.id)
             .execute(&pool)

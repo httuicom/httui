@@ -1,4 +1,4 @@
-//! Vault-wide grep for "which runbook uses connection X" (V4.
+//! Vault-wide grep for "which runbook uses connection X".
 //!
 //! Walks `.md` files in the vault, scans for db-block fenced-code
 //! info strings, and records every fence whose `connection=<name>`
@@ -95,8 +95,7 @@ fn rel_to_posix(rel: &Path) -> String {
 
 /// True iff `line` is a db-block fence opener whose info-string
 /// carries `connection=<connection_name>` as a whitespace-delimited
-/// token. Matches at the start of the line only (markdown fence
-/// openers begin column 0 in the V1 vault format) and does prefix
+/// token. Matches at the start of the line only and does prefix
 /// matching on `db-` so all dialects (`db`, `db-postgres`,
 /// `db-mysql`, `db-sqlite`) are covered.
 fn line_matches_connection(line: &str, connection_name: &str) -> bool {

@@ -1,4 +1,4 @@
-//! Pinned response examples per HTTP block — Onda 3.
+//! Pinned response examples per HTTP block.
 //!
 //! Examples are user-curated snapshots ("happy path 200", "422 invalid
 //! email"). Unlike the cache (`block_results`) they survive cache

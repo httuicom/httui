@@ -1,14 +1,7 @@
-// coverage:exclude file — Tauri command shells delegating to
-// `httui_core::db::schema_cache`. Same shape and rationale as
-// `commands/{connections,environments,files}.rs` (audit-016 / 018).
-// Substantive logic + pure cache-eviction tests live in
-// `httui_core::db::schema_cache`.
+// coverage:exclude file — Tauri command shells with no testable logic without a Tauri runtime.
 
-//! Schema introspection Tauri commands — wrap the cached
-//! introspection helpers from `httui_core::db::schema_cache`. The
-//! `introspect_schema` command also keeps a 5-second freshness
-//! guard so the UI can call it idempotently without hammering the
-//! target database (T24).
+//! Schema introspection Tauri commands. `introspect_schema` has a 5-second freshness guard
+//! so the UI can call it idempotently without hammering the target database.
 
 use std::sync::Arc;
 
@@ -24,8 +17,6 @@ pub async fn introspect_schema(
     conn_manager: State<'_, Arc<PoolManager>>,
     connection_id: String,
 ) -> Result<Vec<SchemaEntry>, String> {
-    // T24: Debounce — return cached schema if fresh (< 5s) to
-    // prevent hammering target DB on rapid UI calls.
     if let Ok(Some(cached)) = schema_cache::get_cached_schema(&pool, &connection_id, 5).await {
         return Ok(cached);
     }

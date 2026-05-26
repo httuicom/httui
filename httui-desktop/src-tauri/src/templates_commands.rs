@@ -1,16 +1,9 @@
-//! Tauri commands wrapping `httui_core::templates`. Powers the
-//! Templates card — the picker calls
-//! `list_templates_cmd` to surface the union of built-in + vault-
-//! local templates and uses the returned `body` field directly when
-//! the user picks one.
+//! Tauri commands wrapping `httui_core::templates`.
 
 use httui_core::templates::{list_builtin_templates, list_vault_templates, Template};
 use std::path::PathBuf;
 
-/// Combined `list_builtin_templates() + list_vault_templates(vault)`
-/// with built-ins first, vault-local sorted by id (already sorted by
-/// the listing fn). Built-ins return an empty `Vec` until the
-/// embedded-templates content slice ships.
+/// Built-ins first, then vault-local templates sorted by id.
 #[tauri::command]
 pub async fn list_templates_cmd(vault_path: String) -> Result<Vec<Template>, String> {
     let mut out = list_builtin_templates();

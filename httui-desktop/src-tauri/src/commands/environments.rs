@@ -1,28 +1,11 @@
-// coverage:exclude file — Tauri command shells take `tauri::State<'_, T>`
-// and aren't unit-testable in isolation. The pure helpers
-// (make_var_id / parse_var_id) are tested below; the substantive
-// logic (file-backed CRUD, mtime cache, atomic write, secret
-// resolution) lives in `httui_core::vault_config::environments_store`
-// at >80% coverage. Same rationale as `vault_config_commands.rs`
-// Re-evaluated when the per-domain
-// command split adds an integration harness with a fake Tauri runtime.
-// Opt-out justified in audit-016.
+// coverage:exclude file — Tauri command shells with no testable logic without a Tauri runtime.
 
-//! Environment Tauri commands — file-backed cutover.
+//! Environment Tauri commands — file-backed, wire-compat with `db::environments`.
 //!
-//! Wire-compat with the legacy `db::environments` shape so the React
-//! frontend doesn't need changes:
-//!
-//! - `Environment.id == name` (file-backed natural key promoted)
-//! - `Environment.created_at` returned as empty string (file-backed
-//!   stores have no creation timestamp; field unused by current UI)
-//! - `EnvVariable.id == "<env_name>::<key>"` (synthesized; the
-//!   `delete_env_variable` command splits on `::` to recover both
-//!   parts)
-//! - For secret variables: `value` is returned empty (the real value
-//!   lives in keychain; legacy returned `__KEYCHAIN__` sentinel —
-//!   we choose empty since the frontend already gates display on
-//!   `is_secret`)
+//! - `Environment.id == name` (file-backed natural key)
+//! - `created_at` returned as empty string
+//! - `EnvVariable.id == "<env_name>::<key>"` (synthesized composite)
+//! - Secret `value` returned empty; real value lives in keychain
 
 use std::sync::Arc;
 
@@ -34,11 +17,7 @@ use httui_core::vault_config::environments_store::SetVarInput;
 
 use super::vault_stores::VaultStoreRegistry;
 
-/// Wire-compat: matches the legacy `db::environments::Environment` shape,
-/// plus canvas §6 metadata `description`, `temporary`,
-/// `connections_used`. Older frontend code that destructures only the
-/// legacy fields keeps working; the Environments page reads the new
-/// fields directly.
+/// Wire-compat with `db::environments::Environment`, plus `description`, `temporary`, `connections_used`.
 #[derive(Debug, Clone, Serialize)]
 pub struct Environment {
     pub id: String,
@@ -53,7 +32,7 @@ pub struct Environment {
     pub connections_used: Vec<String>,
 }
 
-/// Wire-compat: matches the legacy `db::environments::EnvVariable`.
+/// Wire-compat with `db::environments::EnvVariable`.
 #[derive(Debug, Clone, Serialize)]
 pub struct EnvVariable {
     pub id: String,
@@ -140,11 +119,9 @@ pub async fn duplicate_environment(
     new_name: String,
 ) -> Result<Environment, String> {
     let stores = registry.for_active_vault(&pool).await?;
-    // 1. Read source vars (without resolving secrets — those stay refs)
     let source_vars = stores.environments.list_vars(&source_id).await?;
-    // 2. Create the new env
     let new_env = stores.environments.create_env(&new_name).await?;
-    // 3. Copy each plain var (secrets need re-entry on the target machine)
+    // Secrets are not copied — they need re-entry on the target machine.
     for v in source_vars {
         if !v.is_secret {
             stores
@@ -294,8 +271,7 @@ async fn resolve_vars_for_env(
     let mut out = std::collections::HashMap::with_capacity(public.len());
     for v in public {
         let value = if v.is_secret {
-            // Skip silently if a secret can't be resolved — better to
-            // emit empty than to crash the caller.
+            // Skip silently if a secret can't be resolved.
             stores
                 .environments
                 .resolve_var(env_name, &v.key)
@@ -339,15 +315,6 @@ pub async fn resolve_active_env_variables(
 
 #[cfg(test)]
 mod tests {
-    //! These tests exercise the synthesized id parsing + DTO mapping.
-    //! Round-trip with the file-backed store is covered by
-    //! `httui_core::vault_config::environments_store::tests`.
-    //!
-    //! Tauri command bodies that delegate to the store are thin
-    //! wrappers and not unit-testable in isolation (they take
-    //! `tauri::State<'_, T>`); integration coverage lives in the
-    //! existing E2E suite.
-
     use super::*;
 
     #[test]
@@ -374,10 +341,7 @@ mod tests {
 
     #[test]
     fn parse_var_id_handles_keys_with_double_colon() {
-        // `split_once` returns the first match — so a key like
-        // `ns::sub` becomes part of the env name. We accept this
-        // limitation: file-backed env keys are TOML keys (no `::`
-        // by convention); document in the module-level comment.
+        // `split_once` returns the first match — keys with `::` split at the first occurrence.
         let id = make_var_id("staging", "key");
         let (env, key) = parse_var_id(&id).unwrap();
         assert_eq!(env, "staging");

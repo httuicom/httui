@@ -42,7 +42,6 @@ pub fn parse_preflight(raw_yaml: &str) -> Vec<PreflightItem> {
         if !line_is_preflight_header(line) {
             continue;
         }
-        // Collect the indented children that follow.
         while let Some(&next) = lines.peek() {
             // Stop at the next un-indented top-level key or blank
             // line (block-list ends).
@@ -73,7 +72,6 @@ fn line_is_preflight_header(line: &str) -> bool {
 }
 
 fn parse_item(line: &str) -> Option<PreflightItem> {
-    // Strip leading whitespace + the `- ` marker.
     let trimmed = line.trim_start();
     let body = trimmed.strip_prefix("- ")?;
     let colon_idx = body.find(':')?;

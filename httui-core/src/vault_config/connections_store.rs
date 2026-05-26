@@ -34,8 +34,6 @@ use super::secret_resolver::ensure_keychain_ref;
 use super::validate::validate_connections_file;
 use super::Version;
 
-// --- input DTOs -----------------------------------------------------------
-
 #[derive(Debug, Clone)]
 pub struct CreateConnectionInput {
     pub name: String,
@@ -65,8 +63,6 @@ pub struct UpdateConnectionInput {
     pub is_readonly: Option<bool>,
     pub description: Option<String>,
 }
-
-// --- store ---------------------------------------------------------------
 
 /// Cached parse + the on-disk mtimes (base and `.local` override)
 /// that produced it. Per ADR 0004, either side changing invalidates.
@@ -164,8 +160,7 @@ impl ConnectionsStore {
         Ok(())
     }
 
-    /// Force the next read to hit disk. Called after external file
-    /// changes (epic 11 file watcher).
+    /// Force the next read to hit disk after external file changes.
     pub async fn invalidate_cache(&self) {
         let mut cache = self.cache.write().await;
         *cache = None;
@@ -173,7 +168,7 @@ impl ConnectionsStore {
 
     /// Read **just** the base file (no `.local` merge). Mutating
     /// paths use this so writes don't promote local overrides into
-    /// the committed base. See audit-003.
+    /// the committed base.
     async fn load_base_only(&self) -> Result<ConnectionsFile, String> {
         let path = self.path();
         if !path.exists() {
@@ -232,8 +227,6 @@ impl ConnectionsStore {
             input.description.as_deref(),
         )?;
 
-        // Mutate the base only (audit-003) so the local override
-        // doesn't get promoted on write.
         let mut base = self.load_base_only().await?;
         base.connections.insert(input.name.clone(), conn.clone());
         self.persist(base).await?;
@@ -245,7 +238,6 @@ impl ConnectionsStore {
         name: &str,
         input: UpdateConnectionInput,
     ) -> Result<ConnectionPublic, String> {
-        // Mutate the base only (audit-003).
         let mut file = self.load_base_only().await?;
         let existing = file
             .connections
@@ -295,7 +287,6 @@ impl ConnectionsStore {
     }
 
     pub async fn delete(&self, name: &str) -> Result<(), String> {
-        // Mutate the base only (audit-003).
         let mut file = self.load_base_only().await?;
         if file.connections.remove(name).is_none() {
             return Err(format!("connection '{name}' not found"));
@@ -305,8 +296,6 @@ impl ConnectionsStore {
         Ok(())
     }
 }
-
-// --- input → Connection construction --------------------------------------
 
 /// Build a `Connection` from input. If `password` is provided AND it
 /// isn't already a `{{...}}` reference, it gets stored in the keychain

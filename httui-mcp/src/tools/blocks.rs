@@ -35,12 +35,10 @@ pub async fn execute_block(
     registry: &Arc<ExecutorRegistry>,
     pool: &SqlitePool,
 ) -> String {
-    // T16: Validate note_path — reject path traversal and absolute paths
     if note_path.contains("..") || std::path::Path::new(note_path).is_absolute() {
         return json!({"error": "Invalid note path"}).to_string();
     }
 
-    // T16: Verify the block alias actually exists in the note
     match httui_core::fs::read_note(vault_path, note_path) {
         Ok(content) => {
             let blocks = parser::parse_blocks(&content);

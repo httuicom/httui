@@ -1,12 +1,7 @@
 //! Unified `PlanNode` tree for `EXPLAIN ANALYZE` output across
-//! drivers. ships the Postgres parser first
-//! (most complete; canvas mock targets it). MySQL and MongoDB
-//! parsers carry to follow-up slices.
-//!
-//! The tree is the surface the React `<ExplainPlan>` component
-//! consumes; the per-driver parsers are responsible for translating
-//! each driver's JSON shape into the same `PlanNode` shape so the
-//! UI doesn't fan out per backend.
+//! drivers. The per-driver parsers translate each driver's JSON
+//! shape into the same `PlanNode` shape so the UI doesn't fan out
+//! per backend.
 
 pub mod mongo;
 pub mod mysql;

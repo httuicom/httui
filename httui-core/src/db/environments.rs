@@ -143,7 +143,6 @@ pub async fn duplicate_environment(
         return Err("Environment name is required".to_string());
     }
 
-    // Verify source exists
     let source = sqlx::query("SELECT * FROM environments WHERE id = ?")
         .bind(source_id)
         .fetch_optional(pool)
@@ -152,7 +151,6 @@ pub async fn duplicate_environment(
         .ok_or("Source environment not found")?;
     let _ = row_to_environment(&source);
 
-    // Create new environment
     let new_env = create_environment(pool, new_name).await?;
 
     // Copy variables — read raw rows to avoid resolving secrets to plaintext
@@ -178,7 +176,6 @@ pub async fn duplicate_environment(
                 .ok_or_else(|| format!("Secret not found in keychain for {key}"))?;
             keychain::store_secret(&dest_key, &secret)
                 .map_err(|e| format!("Failed to copy secret for {key}: {e}"))?;
-            // Insert with sentinel directly
             let var_id = uuid::Uuid::new_v4().to_string();
             sqlx::query(
                 "INSERT INTO env_variables (id, environment_id, key, value, is_secret) VALUES (?, ?, ?, ?, ?)",
@@ -200,13 +197,11 @@ pub async fn duplicate_environment(
 }
 
 pub async fn set_active_environment(pool: &SqlitePool, id: Option<&str>) -> Result<(), String> {
-    // Deactivate all
     sqlx::query("UPDATE environments SET is_active = 0")
         .execute(pool)
         .await
         .map_err(|e| format!("Failed to deactivate environments: {e}"))?;
 
-    // Activate selected (if any)
     if let Some(id) = id {
         let result = sqlx::query("UPDATE environments SET is_active = 1 WHERE id = ?")
             .bind(id)
@@ -386,13 +381,11 @@ mod tests {
         assert!(envs.iter().find(|e| e.id == env1.id).unwrap().is_active);
         assert!(!envs.iter().find(|e| e.id == env2.id).unwrap().is_active);
 
-        // Switch to env2
         set_active_environment(&pool, Some(&env2.id)).await.unwrap();
         let envs = list_environments(&pool).await.unwrap();
         assert!(!envs.iter().find(|e| e.id == env1.id).unwrap().is_active);
         assert!(envs.iter().find(|e| e.id == env2.id).unwrap().is_active);
 
-        // Deactivate all
         set_active_environment(&pool, None).await.unwrap();
         let envs = list_environments(&pool).await.unwrap();
         assert!(envs.iter().all(|e| !e.is_active));
@@ -406,7 +399,6 @@ mod tests {
             .await
             .unwrap();
 
-        // Create
         let var = set_env_variable(
             &pool,
             &env.id,
@@ -419,7 +411,6 @@ mod tests {
         assert_eq!(var.key, "BASE_URL");
         assert_eq!(var.value, "http://localhost:3000");
 
-        // List
         let vars = list_env_variables(&pool, &env.id).await.unwrap();
         assert_eq!(vars.len(), 1);
 
@@ -439,7 +430,6 @@ mod tests {
         let vars = list_env_variables(&pool, &env.id).await.unwrap();
         assert_eq!(vars.len(), 1); // still 1, not 2
 
-        // Delete
         delete_env_variable(&pool, &var.id).await.unwrap();
         let vars = list_env_variables(&pool, &env.id).await.unwrap();
         assert!(vars.is_empty());

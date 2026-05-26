@@ -35,7 +35,6 @@ const config = defineConfig({
         wide: { value: "0.06em" },
         wider: { value: "0.08em" },
       },
-      // ─── Raw palette tokens (Fuji) ────────────────────
       colors: {
         // Stone-blue mountain (dark base) — mirrors design's --bg/--bg-1/-2/-3/-hi
         stone: {
@@ -128,7 +127,6 @@ const config = defineConfig({
       },
     },
 
-    // ─── Semantic tokens (theme-aware) ──────────────────
     semanticTokens: {
       colors: {
         // Surfaces
@@ -228,7 +226,6 @@ const config = defineConfig({
             value: { base: "{colors.moss.200}", _dark: "{colors.moss.800}" },
           },
         },
-        // ── State colors (theme-stable, mirroring design tokens.css :root) ──
         ok: {
           DEFAULT: { value: "oklch(0.66 0.11 145)" }, // --ok
         },
@@ -241,7 +238,6 @@ const config = defineConfig({
         info: {
           DEFAULT: { value: "oklch(0.74 0.07 215)" }, // --info
         },
-        // ── HTTP method colors (theme-stable, mirroring design :root) ──
         method: {
           get: { value: "oklch(0.78 0.07 215)" }, // --m-get  (sky)
           post: { value: "oklch(0.62 0.10 145)" }, // --m-post (moss)

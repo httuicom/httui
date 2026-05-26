@@ -46,8 +46,7 @@ pub fn git_log(
 
 /// Return the commit that first added `path` to the repo, following
 /// renames. `None` when the path doesn't appear in any commit (a new
-/// untracked file or a path the caller invented). Powers the
-/// DocHeader meta strip's "author initials" chip.
+/// untracked file or a path the caller invented).
 ///
 /// Implementation detail: `git log --follow --diff-filter=A -- <path>`
 /// returns every commit that *added* the path — usually one entry,
@@ -236,8 +235,6 @@ mod tests {
         write(dir.path(), "x", "1");
         commit_all(dir.path(), "add x");
 
-        // The path was never committed — git log --diff-filter=A -- y
-        // produces an empty stdout, parse_log returns [] → None.
         let info = git_first_commit_author(dir.path(), "y").unwrap();
         assert!(info.is_none());
     }

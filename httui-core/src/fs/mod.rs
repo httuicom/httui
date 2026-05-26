@@ -51,7 +51,6 @@ fn list_dir_recursive(dir: &Path, root: &Path) -> Result<Vec<FileEntry>, String>
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
 
-        // Skip hidden files/dirs and known heavy directories
         if name.starts_with('.') || IGNORED_DIRS.contains(&name.as_str()) {
             continue;
         }
@@ -162,7 +161,6 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path();
 
-        // Create test structure
         std::fs::write(root.join("README.md"), "# Hello").unwrap();
         std::fs::write(root.join("notes.md"), "Some notes").unwrap();
         std::fs::create_dir_all(root.join("subfolder")).unwrap();
@@ -179,8 +177,6 @@ mod tests {
         let vault = tmp.path().to_str().unwrap();
         let entries = list_workspace(vault).unwrap();
 
-        // Should have: subfolder (dir), README.md, notes.md
-        // .hidden should be excluded, not-markdown.txt should be excluded
         assert_eq!(entries.len(), 3);
         assert!(entries[0].is_dir); // subfolder first
         assert_eq!(entries[0].name, "subfolder");

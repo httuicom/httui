@@ -1,4 +1,4 @@
-//! Per-block settings — Onda 1 of the HTTP block redesign.
+//! Per-block settings for HTTP blocks.
 //!
 //! Stores transport/UX flags that the user toggles in the block drawer,
 //! keyed by `(file_path, block_alias)`. Stored separately from the fence

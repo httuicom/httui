@@ -20,8 +20,6 @@ use regex::Regex;
 use super::connections::ConnectionsFile;
 use super::envs::EnvFile;
 
-// ---- secret reference shape ------------------------------------------------
-
 /// True when `s` is a `{{backend:address}}` secret reference (ADR 0002).
 pub fn is_secret_ref(s: &str) -> bool {
     let trimmed = s.trim();
@@ -37,8 +35,6 @@ pub fn is_secret_ref(s: &str) -> bool {
     }
     matches!(backend, "keychain" | "1password" | "pass" | "env")
 }
-
-// ---- field-name heuristics -------------------------------------------------
 
 /// Field names that nudge the validator toward "this should probably be
 /// a `{{...}}` reference, not a literal." The list intentionally errs on
@@ -66,8 +62,6 @@ fn is_sensitive_field_name(name: &str) -> bool {
     let lower = name.to_lowercase();
     SENSITIVE_FIELD_NAMES.iter().any(|s| lower == *s)
 }
-
-// ---- anti-cleartext regex --------------------------------------------------
 
 /// High-confidence patterns matching well-known credential formats.
 /// A literal value matching any of these (in any field) raises a
@@ -100,8 +94,6 @@ fn matches_known_secret(value: &str) -> Option<&'static str> {
         .find(|(_, re)| re.is_match(value))
         .map(|(name, _)| *name)
 }
-
-// ---- issue model -----------------------------------------------------------
 
 /// A validation finding. Errors must be fixed; warnings nudge.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -159,8 +151,6 @@ impl Report {
     }
 }
 
-// ---- value-level checks ----------------------------------------------------
-
 pub(super) fn check_field(report: &mut Report, path: &str, name: &str, value: &str) {
     if is_secret_ref(value) {
         return;
@@ -185,8 +175,6 @@ pub(super) fn check_field(report: &mut Report, path: &str, name: &str, value: &s
         );
     }
 }
-
-// ---- schema-level validators ----------------------------------------------
 
 /// Validate an `envs/{name}.toml` post-deserialization.
 ///
@@ -241,15 +229,11 @@ pub fn validate_connections_file(file: &ConnectionsFile) -> Report {
     report
 }
 
-// ---- tests ----------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::vault_config::connections::ConnectionsFile;
     use crate::vault_config::envs::EnvFile;
-
-    // --- is_secret_ref --------------------------------------------------
 
     #[test]
     fn detects_known_backends() {
@@ -268,8 +252,6 @@ mod tests {
         assert!(!is_secret_ref(""));
         assert!(!is_secret_ref("{{req1.response.body.id}}"));
     }
-
-    // --- env validation -------------------------------------------------
 
     #[test]
     fn env_with_only_refs_in_secrets_is_clean() {
@@ -358,8 +340,6 @@ TOKEN = "{{keychain:env:staging:TOKEN}}"
             .iter()
             .any(|i| i.path.contains("[vars]/[secrets].TOKEN")));
     }
-
-    // --- connections validation -----------------------------------------
 
     #[test]
     fn connections_with_refs_are_clean() {

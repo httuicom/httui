@@ -1,6 +1,4 @@
-//! Tauri command wrapping `httui_core::tag_index`. Powers
-//! the frontend `useTagIndexStore` calls this on vault-open
-//! and after file-watcher save events.
+//! Tauri command wrapping `httui_core::tag_index`.
 
 use httui_core::tag_index::{scan_vault_tags, TagEntry};
 use std::path::PathBuf;

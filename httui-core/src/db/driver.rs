@@ -18,8 +18,6 @@
 //! `Connection` enum but don't go through the SQL pool, so they
 //! aren't represented here. `DbDriver::from_str` returns an `Err`
 //! for them.
-//!
-//! Added to address `tech-debt.md` code-smell #1.
 
 use std::fmt;
 use std::str::FromStr;

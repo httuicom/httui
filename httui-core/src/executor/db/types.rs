@@ -1,15 +1,8 @@
 //! Response shape for the `db-*` block type.
 //!
-//! This shape is prepared for multi-statement / multi-result-set queries
-//! (see `docs/db-block-redesign.md`, stage 2+). Today the executor always
-//! emits `results` of length 1 so consumers can migrate their access
-//! patterns without waiting for the executor rewrite.
-//!
-//! Stability guarantees for this stage:
-//! - Shape is final for `results[]`, `messages[]`, `stats`.
-//! - `plan` is reserved for the EXPLAIN feature and stays `None` for now.
-//! - Ref-resolution shim keeps pre-redesign `{{alias.response.col}}` refs
-//!   working against `results[0].rows[0]`.
+//! Supports multi-statement / multi-result-set queries. The executor emits
+//! `results` with one entry per statement; consumers index via `results[i]`.
+//! Ref-resolution keeps `{{alias.response.col}}` working against `results[0].rows[0]`.
 
 use serde::{Deserialize, Serialize};
 
@@ -76,11 +69,6 @@ pub struct DbStats {
 }
 
 /// Streaming chunk emitted to a `tauri::Channel<DbChunk>` during execution.
-///
-/// Stage 3 ships the minimal set of variants needed for cancel-aware
-/// execution. Richer variants (Rows, Stats, Message) land with B6
-/// (row streaming) once the executor consumes `fetch_size` incrementally
-/// instead of buffering.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum DbChunk {

@@ -1,16 +1,8 @@
 //! Tauri commands for the file-backed vault config stores.
 //!
-//! ships these as **foundation only** — the desktop frontend
-//! still reads/writes through the legacy `app_config` SQLite path
-//! until epic 19 (settings split) cuts over. Wiring the commands now
-//! lets epic 19 swap the frontend in a single, low-risk PR.
-//!
-//! Stores are constructed per call: `WorkspaceStore::new(vault_path)`
-//! for the vault-anchored workspace file, `UserStore::from_default_path()`
-//! for the per-machine user file. The mtime cache inside each store
-//! buys nothing across one-shot calls, but the surface stays simple
-//! and correct; the long-lived `Arc<Store>` cache pattern arrives with
-//! the cutover in epic 19.
+//! Stores are constructed per call: `WorkspaceStore::new(vault_path)` for the
+//! vault-anchored workspace file, `UserStore::from_default_path()` for the
+//! per-machine user file.
 
 use httui_core::secrets::{Keychain, SecretBackend};
 use httui_core::vault_config::create::{create_new_vault, CreateOutcome};
@@ -58,9 +50,7 @@ pub async fn get_workspace_config_with_sources(
 }
 
 /// Read the per-file settings entry for `file_path` (vault-relative).
-/// Returns `FileSettings::default()` when no entry exists. Carry-over
-/// from feeds the editor toolbar's auto-capture
-/// toggle.
+/// Returns `FileSettings::default()` when no entry exists.
 #[tauri::command]
 pub async fn get_file_settings(
     vault_path: String,
@@ -83,8 +73,7 @@ pub async fn set_file_auto_capture(
     store.set_file_auto_capture(&file_path, auto_capture).await
 }
 
-/// Toggle `docheader_compact` for `file_path`. Same prune semantics
-/// as auto_capture. Powers.
+/// Toggle `docheader_compact` for `file_path`. Same prune semantics as `set_file_auto_capture`.
 #[tauri::command]
 pub async fn set_file_docheader_compact(
     vault_path: String,
@@ -108,10 +97,7 @@ pub async fn set_user_config(file: UserFile) -> Result<(), String> {
 }
 
 /// Ensure the vault's `.gitignore` carries the canonical block of
-/// `*.local.toml` patterns (ADR 0004). Idempotent. Used by the
-/// "Open / Clone / Create vault" flow (epic 17) and surfaced as a
-/// "fix it" button in the UI when an already-cloned vault is detected
-/// without our entries.
+/// `*.local.toml` patterns. Idempotent.
 #[tauri::command]
 pub async fn ensure_vault_gitignore(vault_path: String) -> Result<GitignoreOutcome, String> {
     let path = PathBuf::from(vault_path);
@@ -144,11 +130,8 @@ pub async fn list_missing_secrets(vault_path: String) -> Result<Vec<MissingRef>,
     scan_missing_secrets(&path, &Keychain)
 }
 
-/// Persist a secret value under `keychain_key` in the OS keychain
-/// The first-run secrets modal calls
-/// this once per pending entry the user fills in. Empty values are
-/// rejected so the modal can't silently store blanks (the modal
-/// validates client-side too, this is the belt-and-suspenders).
+/// Persist a secret value under `keychain_key` in the OS keychain.
+/// Empty keys and values are rejected (belt-and-suspenders; the modal also validates client-side).
 #[tauri::command]
 pub async fn save_secret_cmd(keychain_key: String, value: String) -> Result<(), String> {
     let key = keychain_key.trim();
@@ -161,36 +144,24 @@ pub async fn save_secret_cmd(keychain_key: String, value: String) -> Result<(), 
     Keychain.store(key, &value)
 }
 
-/// Create a brand-new vault at `<parent>/<name>` — V1 vertical 1,
-/// Composes mkdir + `git init` + scaffold so the user
-/// gets a versionable, ready-to-edit vault in one step. The leaf
-/// name is the user's input; the backend rejects empty/path-traversal
-/// inputs and refuses to overwrite an existing non-empty folder.
+/// Create a brand-new vault at `<parent>/<name>`. Composes mkdir + `git init` + scaffold.
+/// Rejects empty/path-traversal names and refuses to overwrite a non-empty folder.
 #[tauri::command]
 pub async fn create_vault_cmd(parent_path: String, name: String) -> Result<CreateOutcome, String> {
     let parent = PathBuf::from(parent_path);
     create_new_vault(&parent, &name)
 }
 
-/// Probe `vault_path` to decide whether to surface the MVP→v1
-/// migration banner. Returns a `MigrationCandidate {
-/// has_legacy_db, has_v1_layout }`
-/// `should_prompt()` on the result is `true` iff the legacy
-/// `notes.db` is present and the v1 `.httui/` layout is not
-/// initialised. Frontend gates the banner on this AND the
-/// `mvp_migration_dismissed` user pref.
+/// Probe `vault_path` for the MVP→v1 migration. `should_prompt()` is `true` iff
+/// the legacy `notes.db` exists and the v1 `.httui/` layout is not yet initialised.
 #[tauri::command]
 pub async fn detect_vault_migration(vault_path: String) -> Result<MigrationCandidate, String> {
     Ok(detect_migration_candidate(&PathBuf::from(vault_path)))
 }
 
-/// Migrate the MVP SQLite-backed vault to the v1 file layout (Epic
-/// 12 / audit-005). Migrates `connections` and `environments` +
-/// `env_variables`. Prefs migration is part of the settings
-/// split.
-///
-/// The Tauri command is the only entry point; there is no CLI flag
-/// in v1. Set `dry_run = true` to preview without writing.
+/// Migrate the MVP SQLite-backed vault to the v1 file layout.
+/// Migrates `connections`, `environments`, and `env_variables`.
+/// Set `dry_run = true` to preview without writing.
 #[tauri::command]
 pub async fn migrate_vault_to_v1(
     pool: tauri::State<'_, SqlitePool>,

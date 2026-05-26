@@ -11,7 +11,6 @@ pub async fn list_environments(pool: &SqlitePool) -> String {
 pub async fn get_environment_variables(pool: &SqlitePool, environment_id: &str) -> String {
     match httui_core::db::environments::list_env_variables(pool, environment_id).await {
         Ok(vars) => {
-            // Mask secret values
             let masked: Vec<serde_json::Value> = vars
                 .iter()
                 .map(|v| {

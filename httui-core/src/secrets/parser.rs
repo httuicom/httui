@@ -7,14 +7,7 @@
 //! - [`parse_secret_ref`] — split into `(backend, address)` if the
 //!   reference is well-formed, otherwise an `Err` describing why
 //!
-//! The legacy entry points
-//! ([`crate::db::keychain::resolve_secret_ref`] and
-//! [`crate::vault_config::validate::is_secret_ref`]) stay as thin
-//! wrappers so existing callers don't break — they delegate here in a
-//! follow-up commit (or earlier opportunistic work).
-
-/// Backends recognised by the parser. New backends are added when their
-/// epic lands (introduces `1password`, etc.).
+/// Backends recognised by the parser.
 const KNOWN_BACKENDS: &[&str] = &["keychain", "1password", "pass", "env"];
 
 /// Returns `true` when `s` is a structurally valid `{{backend:address}}`

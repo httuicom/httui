@@ -97,8 +97,6 @@ fn parse_node(plan: &Value, root_total_cost: f64, is_root: bool) -> PlanNode {
 }
 
 fn derive_target(plan: &Value) -> String {
-    // Try a series of fields in order of usefulness. The first one
-    // that's a non-empty string wins.
     let candidates = [
         "Sort Key",
         "Index Cond",

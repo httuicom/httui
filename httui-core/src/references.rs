@@ -98,7 +98,6 @@ pub fn resolve_block_ref(
     let rest = &placeholder[alias.len()..].trim_start_matches('.');
     let result = results.get(alias)?;
 
-    // Navigate the path within the block result's data
     let value = if rest.is_empty() {
         result.clone()
     } else {
@@ -157,10 +156,8 @@ fn resolve_string(
 
     for placeholder in placeholders {
         let replacement = if is_block_reference(&placeholder) {
-            // Block reference: alias.response.path
             resolve_block_ref(&placeholder, block_results)
         } else {
-            // Environment variable: KEY
             env_vars.get(&placeholder).cloned()
         };
 
@@ -311,8 +308,6 @@ mod tests {
         let resolved = resolve_all(&params, &HashMap::new(), &HashMap::new());
         assert_eq!(resolved["url"], "{{UNKNOWN}}/api");
     }
-
-    // ─────── L166: prototype pollution defense ───────────────
 
     #[test]
     fn navigate_json_blocks_prototype_pollution_keys() {

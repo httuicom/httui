@@ -113,8 +113,6 @@ impl UserStore {
         *cache = None;
     }
 
-    // --- typed section accessors ----------------------------------------
-
     pub async fn ui(&self) -> Result<UiPrefs, String> {
         Ok(self.load().await?.ui)
     }
@@ -312,7 +310,6 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let s = store_in(&dir);
         s.ensure_exists().await.unwrap();
-        // load once to populate cache
         let _ = s.load().await.unwrap();
         std::fs::write(
             s.path(),
@@ -333,8 +330,6 @@ mod tests {
         let err = s.load().await.unwrap_err();
         assert!(err.contains("read"), "got {err}");
     }
-
-    // --- path resolution ------------------------------------------------
 
     fn with_env<F: FnOnce()>(key: &str, value: Option<&str>, f: F) {
         // SAFETY: tests using std::env::set_var must not run in parallel

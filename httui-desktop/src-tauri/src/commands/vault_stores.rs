@@ -1,14 +1,5 @@
 //! Per-vault registry for `ConnectionsStore` and `EnvironmentsStore`.
-//!
-//! The desktop app supports vault switching at runtime; the file-backed
-//! stores are vault-scoped (each holds an mtime cache rooted at one
-//! `vault_root`). This registry caches a single set of stores per vault
-//! path so cache hits survive across Tauri command calls without
-//! re-reading TOML files.
-//!
-//! Lookup is keyed by the active-vault path resolved from
-//! `app_config.active_vault` (SQLite). When the user switches vaults,
-//! the next command call resolves to a different (or new) cache entry.
+//! Caches one store pair per vault path; keyed by `app_config.active_vault`.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -25,16 +16,14 @@ use httui_core::vault_config::{
 };
 use sqlx::sqlite::SqlitePool;
 
-/// Pair of stores held together — they're always instantiated for the
-/// same vault, and most callers want one or the other (rarely both).
+/// Pair of stores for the same vault root.
 #[derive(Clone)]
 pub struct VaultStores {
     pub connections: Arc<ConnectionsStore>,
     pub environments: Arc<EnvironmentsStore>,
 }
 
-/// Registry of per-vault store pairs. Single instance lives in Tauri
-/// state.
+/// Registry of per-vault store pairs. Single instance lives in Tauri state.
 pub struct VaultStoreRegistry {
     cache: RwLock<HashMap<PathBuf, VaultStores>>,
 }
@@ -46,12 +35,8 @@ impl VaultStoreRegistry {
         })
     }
 
-    /// Resolve stores for the currently-active vault.
-    ///
-    /// Active vault is read from `app_config.active_vault` (the
-    /// existing SQLite-backed key). Returns an error if no active
-    /// vault is set — callers should surface this as "open a vault
-    /// first".
+    /// Resolve stores for the currently-active vault (`app_config.active_vault`).
+    /// Returns an error if no active vault is set.
     pub async fn for_active_vault(&self, pool: &SqlitePool) -> Result<VaultStores, String> {
         let vault_path = get_config(pool, "active_vault")
             .await
@@ -63,7 +48,6 @@ impl VaultStoreRegistry {
 
     /// Get-or-create cached stores for a specific vault path.
     pub async fn for_vault(&self, vault_root: PathBuf) -> Result<VaultStores, String> {
-        // Fast path: already cached.
         {
             let cache = self.cache.read().await;
             if let Some(stores) = cache.get(&vault_root) {
@@ -71,7 +55,6 @@ impl VaultStoreRegistry {
             }
         }
 
-        // Slow path: instantiate once.
         let user_config = default_user_config_path()?;
         let stores = VaultStores {
             connections: ConnectionsStore::new(vault_root.clone()),
@@ -80,25 +63,20 @@ impl VaultStoreRegistry {
 
         {
             let mut cache = self.cache.write().await;
-            // Double-check in case another thread inserted between locks.
             cache.entry(vault_root).or_insert_with(|| stores.clone());
         }
 
         Ok(stores)
     }
 
-    /// Drop cached stores for a vault — invoked when the user closes
-    /// or switches away from a vault. Safe to call even if not cached.
+    /// Drop cached stores for a vault. Safe to call even if not cached.
     pub async fn invalidate_vault(&self, vault_root: &std::path::Path) {
         let mut cache = self.cache.write().await;
         cache.remove(vault_root);
     }
 }
 
-/// `ConnectionLookup` adapter that resolves the active vault on each
-/// call via `VaultStoreRegistry`. Production-only: feeds the
-/// `PoolManager` so pool builds use the file-backed connection
-/// records.
+/// `ConnectionLookup` adapter that resolves the active vault via `VaultStoreRegistry`.
 pub struct VaultRegistryLookup {
     pool: SqlitePool,
     registry: Arc<VaultStoreRegistry>,

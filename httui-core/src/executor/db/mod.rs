@@ -216,7 +216,6 @@ impl DbExecutor {
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
-        // T30: Audit log — log both success and failure
         let truncated_query: String = p.query.chars().take(500).collect();
         let status = if results.is_ok() { "success" } else { "error" };
         let _ = sqlx::query(
@@ -338,8 +337,6 @@ impl Executor for DbExecutor {
     }
 
     async fn execute(&self, params: serde_json::Value) -> Result<BlockResult, ExecutorError> {
-        // Fresh token that never fires — preserves pre-stage-3 behavior for
-        // callers that don't care about cancellation.
         let response = self
             .execute_with_cancel(params, CancellationToken::new())
             .await?;
@@ -650,8 +647,6 @@ mod tests {
         );
     }
 
-    // ───── Stage 3: cancel-aware execution ─────
-
     #[tokio::test]
     async fn test_execute_with_cancel_completes_when_not_cancelled() {
         let (manager, conn_id) = setup_test_env().await;
@@ -774,8 +769,6 @@ mod tests {
             Err(e) => assert_eq!(e.0, "Query cancelled"),
         }
     }
-
-    // ───── Stage 6: multi-statement execution ─────
 
     #[tokio::test]
     async fn test_multi_statement_returns_multiple_results() {
@@ -932,8 +925,6 @@ mod tests {
         assert_eq!(resp.results.len(), 1);
     }
 
-    // ───── session host:port override ────────────────────
-
     #[tokio::test]
     async fn test_session_override_runs_against_override_keyed_pool() {
         // SQLite ignores host/port, so the query still succeeds — what
@@ -960,8 +951,6 @@ mod tests {
             other => panic!("expected Select, got {other:?}"),
         }
     }
-
-    // ───── explain wiring ───────────────────────
 
     #[tokio::test]
     async fn test_explain_on_sqlite_returns_unsupported_error() {
@@ -1047,8 +1036,6 @@ mod tests {
             .unwrap();
         assert!(resp.plan.is_none());
     }
-
-    // ───── Pure-helper tests for `extract_plan_from_results` ─────
 
     #[test]
     fn extract_plan_from_postgres_shape_returns_parsed_value() {
@@ -1165,8 +1152,6 @@ mod tests {
         }];
         assert!(extract_plan_from_results(&results).is_none());
     }
-
-    // ───── compute_plan gate ─────
 
     #[test]
     fn compute_plan_short_circuits_when_explain_false() {

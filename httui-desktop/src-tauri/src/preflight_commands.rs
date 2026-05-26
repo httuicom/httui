@@ -1,20 +1,11 @@
-//! Tauri command wrapping `httui_core::preflight`. Powers
-//! — the inline DocHeader's pill row reads from this command on file
-//! open and after each save.
+//! Tauri command wrapping `httui_core::preflight`.
 //!
-//! Evaluator context wiring:
-//! - `connection` — vault's declared connection names (from
-//!   `ConnectionsStore`).
-//! - `env_var` — keys of the active environment (from
-//!   `EnvironmentsStore`; empty if no active env).
-//! - `branch` — current git branch of the vault (`git rev-parse
-//!   --abbrev-ref HEAD`; `None` for detached HEAD / non-repo).
-//! - `file_exists` / `command` — resolved against FS + PATH inside
-//!   `evaluate_preflight_with_io`.
+//! Context wiring: `connection` from `ConnectionsStore`, `env_var` keys from
+//! `EnvironmentsStore`, `branch` from `git rev-parse`, `file_exists`/`command`
+//! resolved against FS + PATH.
 //!
-//! `keychain` was retired from the typed set. Legacy
-//! YAML that still uses it falls through to `PreflightItem::Unknown`
-//! and renders as a skip pill — non-breaking.
+//! `keychain` was retired — legacy YAML falls through to `PreflightItem::Unknown`
+//! and renders as a skip pill (non-breaking).
 
 use std::collections::HashSet;
 use std::fs;

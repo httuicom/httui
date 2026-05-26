@@ -1,26 +1,10 @@
-// coverage:exclude file — Tauri command shells take `tauri::State<'_, T>`
-// and aren't unit-testable in isolation. The pure helpers
-// (DTO conversion) are tested below; substantive logic
-// (file-backed CRUD, atomic write, secret resolution) lives in
-// `httui_core::vault_config::connections_store` at >80% coverage.
-// Same rationale as `commands/environments.rs` and
-// `vault_config_commands.rs`. Retires when the per-domain
-// command harness lands.
+// coverage:exclude file — Tauri command shells with no testable logic without a Tauri runtime.
 
-//! Connection Tauri commands — file-backed cutover.
+//! Connection Tauri commands — file-backed, wire-compat with the legacy `db::connections::ConnectionPublic` shape.
 //!
-//! Wire-compat with the legacy `db::connections::ConnectionPublic`
-//! shape so the React frontend doesn't need changes:
-//!
-//! - `Connection.id == name` (file-backed natural key promoted)
-//! - `created_at` / `updated_at` returned as empty strings (file
-//!   metadata could surface them via FS mtime; deferred — UI doesn't
-//!   render either field today)
-//! - `last_tested_at` returned as `None` for now; the legacy
-//!   `last_tested_at` write was dropped in Phase 3 (PoolManager no
-//!   longer touches the legacy SQLite `connections` table). A
-//!   per-machine status cache is a v1.x follow-up if a UI need
-//!   emerges.
+//! - `Connection.id == name` (file-backed natural key)
+//! - `created_at` / `updated_at` returned as empty strings
+//! - `last_tested_at` always `None` (PoolManager no longer writes it)
 
 use std::sync::Arc;
 
@@ -37,8 +21,7 @@ use httui_core::vault_config::connections_store::{CreateConnectionInput, UpdateC
 
 use super::vault_stores::VaultStoreRegistry;
 
-/// Wire-compat: matches the legacy `db::connections::ConnectionPublic`
-/// shape. `id` carries the connection name post-cutover.
+/// Wire-compat with `db::connections::ConnectionPublic`. `id` == connection name.
 #[derive(Debug, Clone, Serialize)]
 pub struct ConnectionPublic {
     pub id: String,
@@ -60,9 +43,7 @@ pub struct ConnectionPublic {
     pub updated_at: String,
 }
 
-/// Frontend payload for `create_connection`. Mirrors the legacy
-/// `db::connections::CreateConnection` fields so the React form
-/// doesn't change.
+/// Frontend payload for `create_connection`.
 #[derive(Debug, Deserialize)]
 pub struct CreateConnection {
     pub name: String,
@@ -80,8 +61,7 @@ pub struct CreateConnection {
     pub is_readonly: Option<bool>,
 }
 
-/// Frontend payload for `update_connection`. All fields optional —
-/// only the provided ones are written.
+/// Frontend payload for `update_connection`. All fields optional — only provided ones are written.
 #[derive(Debug, Deserialize)]
 pub struct UpdateConnection {
     pub name: Option<String>,
@@ -99,11 +79,7 @@ pub struct UpdateConnection {
     pub is_readonly: Option<bool>,
 }
 
-// Defaults mirror `vault_config::connections_store::to_legacy` —
-// the file-backed format doesn't yet carry these advanced fields,
-// and the canvas connection form doesn't expose them
-// either. When per-connection overrides become user-facing, the
-// file format grows a `[<conn>.advanced]` section.
+// File-backed format doesn't carry advanced timeout/pool fields; form doesn't expose them either.
 const DEFAULT_TIMEOUT_MS: i64 = 10_000;
 const DEFAULT_QUERY_TIMEOUT_MS: i64 = 30_000;
 const DEFAULT_TTL_SECONDS: i64 = 300;
@@ -175,12 +151,6 @@ pub async fn create_connection(
             description: None,
         })
         .await?;
-    // Advanced fields (`timeout_ms`, `query_timeout_ms`, `ttl_seconds`,
-    // `max_pool_size`) on the wire are accepted but currently ignored —
-    // the file format doesn't carry them. Defaults from
-    // `vault_config::connections_store::to_legacy` apply at pool-build
-    // time. A future `[<conn>.advanced]` TOML section adds per-conn
-    // overrides; tracked in `tech-debt.md` as a v1.x follow-up.
     Ok(to_wire(created))
 }
 
@@ -192,9 +162,7 @@ pub async fn update_connection(
     id: String,
     input: UpdateConnection,
 ) -> Result<ConnectionPublic, String> {
-    // Rename is not supported in the file-backed store (the connection
-    // name is the natural key). If frontend passes a new name, fail
-    // explicitly so the form can route through delete+create instead.
+    // Rename is not supported; the connection name is the natural key.
     if let Some(new_name) = &input.name {
         if new_name != &id {
             return Err(format!(
@@ -246,9 +214,7 @@ pub async fn test_connection(
 }
 
 /// Vault-wide grep for db-block fences referencing `connection=<name>`.
-/// Powers the "Used in runbooks" panel in ConnectionsPage. Wraps
-/// `httui_core::connection_uses::find_connection_uses`
-/// substantive logic + tests live there.
+/// Powers the "Used in runbooks" panel. Logic lives in `httui_core::connection_uses`.
 #[tauri::command]
 pub async fn find_connection_uses_cmd(
     vault_path: String,
@@ -303,9 +269,6 @@ mod tests {
 
     #[test]
     fn to_wire_emits_default_advanced_fields() {
-        // The file format doesn't carry advanced timeout/pool fields
-        // yet (form doesn't expose them either). Defaults
-        // mirror `vault_config::connections_store::to_legacy`.
         let wire = to_wire(sample_file_public("z"));
         assert_eq!(wire.timeout_ms, DEFAULT_TIMEOUT_MS);
         assert_eq!(wire.query_timeout_ms, DEFAULT_QUERY_TIMEOUT_MS);

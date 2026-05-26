@@ -2,13 +2,6 @@
 //! into the public DTO (`ConnectionPublic`) and into the legacy
 //! `db::connections::Connection` struct that the pool manager still
 //! consumes.
-//!
-//! Extracted from `connections_store.rs`. The pure variant
-//! accessors (`driver_string_for`, `host_of`, …) live
-//! here too — they're shared between the public view and the legacy
-//! adapter, and they're the OCP target replaces with `trait
-//! DbConnection`. Keeping them in one module makes the trait
-//! migration a one-file refactor.
 
 use serde::Serialize;
 
@@ -33,8 +26,6 @@ pub struct ConnectionPublic {
     pub is_readonly: bool,
     pub description: Option<String>,
 }
-
-// --- variant accessors (delegate to DbConnection trait) ------------------
 
 pub(super) fn driver_string_for(c: &Connection) -> &'static str {
     c.as_dyn().driver()
@@ -94,8 +85,6 @@ fn password_present(c: &Connection) -> bool {
         password != KEYCHAIN_SENTINEL
     }
 }
-
-// --- conversions ---------------------------------------------------------
 
 /// Convert a vault `Connection` into the public DTO that fronts the
 /// UI. No secrets — `has_password` replaces the actual reference.

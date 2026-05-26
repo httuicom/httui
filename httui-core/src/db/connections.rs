@@ -3,21 +3,12 @@ use sqlx::sqlite::SqlitePool;
 use sqlx::Row;
 use uuid::Uuid;
 
-// Pool lifecycle + status emission moved to `db::pool_manager`
-// Re-exported here so the existing
-// `use httui_core::db::connections::{PoolManager, StatusEmitter}`
-// callers keep compiling without a sweeping import rewrite.
 pub use super::pool_manager::{HostPortOverride, PoolManager, StatusEmitter};
 
-// `DatabasePool` enum + lifecycle helpers (`create_pool`, builders,
-// validators, sanitizer) moved to `db::pool`. Re-exported here so
-// existing imports compile.
 #[cfg(test)]
 use super::pool::validate_bind_values;
 use super::pool::validate_sqlite_path;
 pub use super::pool::DatabasePool;
-
-// --- Connection model ---
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Connection {
@@ -125,15 +116,10 @@ pub struct UpdateConnection {
     pub is_readonly: Option<bool>,
 }
 
-// Query error sanitization + location extraction moved to
-// `db::query_error`. Re-exports
-// keep existing imports compiling.
 pub(crate) use super::query_error::sanitize_query_error;
 pub use super::query_error::{
     enrich_error_with_query, sanitize_query_error_rich, QueryErrorInfo, QueryErrorLocation,
 };
-
-// --- Row mapping ---
 
 fn row_to_connection(row: &sqlx::sqlite::SqliteRow) -> Connection {
     Connection {
@@ -160,8 +146,6 @@ fn row_to_connection(row: &sqlx::sqlite::SqliteRow) -> Connection {
         updated_at: row.get("updated_at"),
     }
 }
-
-// --- CRUD functions ---
 
 pub async fn list_connections(pool: &SqlitePool) -> Result<Vec<Connection>, String> {
     let rows = sqlx::query(
@@ -355,8 +339,6 @@ pub async fn delete_connection(pool: &SqlitePool, id: &str) -> Result<(), String
     Ok(())
 }
 
-// --- Validation ---
-
 fn validate_connection_fields(
     driver: &str,
     host: &Option<String>,
@@ -385,20 +367,11 @@ fn validate_connection_fields(
     Ok(())
 }
 
-// Query execution dispatcher + DTOs + bind validation moved to
-// `db::pool`. Re-exports keep
-// `httui_core::db::connections::{QueryResult, ColumnInfo, JsonRow}`
-// working for downstream consumers (executor/db, blocks/db_export).
 pub use super::pool::{ColumnInfo, JsonRow, QueryResult};
 pub(crate) use super::pool_exec_sqlite::sqlite_row_to_json;
 
-// SQL scanner + statement splitter + placeholder helpers moved to
-// `db::sql_scanner`. Re-exports
-// keep existing imports compiling.
 pub(crate) use super::sql_scanner::contains_multiple_statements;
 pub use super::sql_scanner::{count_placeholders, normalize_placeholders_to_pg, split_statements};
-
-// --- Tests ---
 
 #[cfg(test)]
 mod tests {
@@ -568,11 +541,6 @@ mod tests {
         assert!(result.unwrap_err().contains("database_name"));
     }
 
-    // build_pg_connect_options / validate_sqlite_path /
-    // validate_mysql_database_name / normalize_placeholders tests
-    // moved alongside the implementations (`db::pool` and
-    // `db::sql_scanner`).
-
     #[tokio::test]
     async fn test_execute_select_sqlite() {
         let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
@@ -687,15 +655,6 @@ mod tests {
         assert_eq!(result.rows[0][1], serde_json::json!("charlie"));
     }
 
-    // Pool config validation tests moved to `db::pool::tests`.
-
-    // SQL-scanner / split_statements / contains_multiple_statements
-    // tests moved to `db::sql_scanner::tests` along with the
-    // implementations.
-
-    // QueryErrorLocation / position_to_line_col / mysql_line_from_message
-    // tests moved to `db::query_error::tests` along with the functions.
-
     #[tokio::test]
     async fn test_explain_analyze_delete_rejected() {
         let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
@@ -782,9 +741,6 @@ mod tests {
         }
     }
 
-    // normalize_placeholders / count_placeholders unit tests moved
-    // to `db::sql_scanner::tests` along with the implementations.
-
     #[tokio::test]
     async fn test_multi_statement_rejected_in_execute() {
         let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
@@ -799,8 +755,6 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Multi-statement"));
     }
-
-    // --- Phase 4: Bind parameter safety tests ---
 
     #[test]
     fn test_validate_bind_rejects_array() {

@@ -112,7 +112,6 @@ impl BlockRunner {
         Box<dyn std::future::Future<Output = Result<BlockResult, RunnerError>> + Send + 'a>,
     > {
         Box::pin(async move {
-            // T36: Depth limit to prevent stack overflow from deep chains
             if depth > MAX_DEPENDENCY_DEPTH {
                 return Err(RunnerError::DependencyFailed(format!(
                     "Dependency chain exceeds maximum depth of {MAX_DEPENDENCY_DEPTH}"
@@ -351,8 +350,6 @@ mod tests {
         assert_eq!(result.status, "success");
         assert_eq!(result.data["body"]["ok"], true);
     }
-
-    // ─────── L166: deep dependency chain DoS ───────────────
 
     #[tokio::test]
     async fn deep_dependency_chain_rejects_above_max_depth() {

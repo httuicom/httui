@@ -1,9 +1,4 @@
-//! Tauri commands wrapping `httui_core::captures_cache`. Powers
-//! when auto-capture is ON, the consumer
-//! filters secrets out of `useCaptureStore`'s payload and calls
-//! `write_captures_cache_cmd`; on app start `read_captures_cache_cmd`
-//! restores last-run values; `delete_captures_cache_cmd` runs when
-//! the user toggles auto-capture OFF.
+//! Tauri commands wrapping `httui_core::captures_cache`.
 
 use httui_core::captures_cache::{delete_captures_file, read_captures_file, write_captures_file};
 use std::path::PathBuf;
