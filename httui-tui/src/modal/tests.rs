@@ -654,3 +654,354 @@ fn as_quickopen_returns_some_when_quickopen_active() {
     assert!(m.as_quickopen().is_some());
     assert!(m.as_quickopen_mut().is_some());
 }
+
+#[test]
+fn block_template_picker_routes_navigation_and_enter() {
+    assert!(matches!(
+        block_template_picker_handle_key(k(KeyCode::Char('j'), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveBlockTemplatePickerCursor(1))
+    ));
+    assert!(matches!(
+        block_template_picker_handle_key(k(KeyCode::Char('k'), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveBlockTemplatePickerCursor(-1))
+    ));
+    assert!(matches!(
+        block_template_picker_handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConfirmBlockTemplatePicker)
+    ));
+    assert!(matches!(
+        block_template_picker_handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::CloseBlockTemplatePicker)
+    ));
+    assert!(matches!(
+        block_template_picker_handle_key(k(KeyCode::Char('z'), KeyModifiers::NONE)),
+        ModalOutcome::Continue
+    ));
+}
+
+#[test]
+fn tab_picker_routes_navigation_and_enter() {
+    assert!(matches!(
+        tab_picker_handle_key(k(KeyCode::Down, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveTabPickerCursor(1))
+    ));
+    assert!(matches!(
+        tab_picker_handle_key(k(KeyCode::Up, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveTabPickerCursor(-1))
+    ));
+    assert!(matches!(
+        tab_picker_handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConfirmTabPicker)
+    ));
+    assert!(matches!(
+        tab_picker_handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::CloseTabPicker)
+    ));
+}
+
+#[test]
+fn block_history_routes_navigation_and_enter_is_inert() {
+    assert!(matches!(
+        block_history_handle_key(k(KeyCode::Char('j'), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveBlockHistoryCursor(1))
+    ));
+    assert!(matches!(
+        block_history_handle_key(k(KeyCode::Char('k'), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveBlockHistoryCursor(-1))
+    ));
+    // Enter doesn't replay — read-only modal.
+    assert!(matches!(
+        block_history_handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+        ModalOutcome::Continue
+    ));
+    assert!(matches!(
+        block_history_handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::CloseBlockHistory)
+    ));
+}
+
+#[test]
+fn db_export_picker_routes_navigation_and_enter() {
+    assert!(matches!(
+        db_export_picker_handle_key(k(KeyCode::Char('j'), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveDbExportPickerCursor(1))
+    ));
+    assert!(matches!(
+        db_export_picker_handle_key(k(KeyCode::Char('k'), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveDbExportPickerCursor(-1))
+    ));
+    assert!(matches!(
+        db_export_picker_handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConfirmDbExportPicker)
+    ));
+    assert!(matches!(
+        db_export_picker_handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::CloseDbExportPicker)
+    ));
+    assert!(matches!(
+        db_export_picker_handle_key(k(KeyCode::Char('x'), KeyModifiers::NONE)),
+        ModalOutcome::Continue
+    ));
+}
+
+#[test]
+fn list_picker_ctrl_n_p_navigate() {
+    // exercise the Ctrl+n / Ctrl+p / Ctrl+c branches of list_picker_key
+    // (no handler test routes them on their own).
+    assert!(matches!(
+        block_template_picker_handle_key(k(KeyCode::Char('n'), KeyModifiers::CONTROL)),
+        ModalOutcome::Emit(Action::MoveBlockTemplatePickerCursor(1))
+    ));
+    assert!(matches!(
+        block_template_picker_handle_key(k(KeyCode::Char('p'), KeyModifiers::CONTROL)),
+        ModalOutcome::Emit(Action::MoveBlockTemplatePickerCursor(-1))
+    ));
+    assert!(matches!(
+        block_template_picker_handle_key(k(KeyCode::Char('c'), KeyModifiers::CONTROL)),
+        ModalOutcome::Emit(Action::CloseBlockTemplatePicker)
+    ));
+}
+
+#[test]
+fn connection_form_routes_typing_and_focus() {
+    use crate::app::ConnectionFormFocus;
+    let name_state = ConnectionFormState {
+        focus: ConnectionFormFocus::Name,
+        ..ConnectionFormState::default()
+    };
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Char('x'), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormChar('x'))
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Backspace, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormBackspace)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Delete, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormDelete)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Tab, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormFocusNext)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::BackTab, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormFocusPrev)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Left, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormCursorLeft)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Right, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormCursorRight)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Home, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormCursorHome)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::End, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormCursorEnd)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Enter, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormSubmit)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Esc, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::CloseConnectionForm)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&name_state, k(KeyCode::Char('c'), KeyModifiers::CONTROL)),
+        ModalOutcome::Emit(Action::CloseConnectionForm)
+    ));
+}
+
+#[test]
+fn connection_form_driver_focus_arrows_and_space_cycle() {
+    use crate::app::ConnectionFormFocus;
+    let driver_state = ConnectionFormState {
+        focus: ConnectionFormFocus::Driver,
+        ..ConnectionFormState::default()
+    };
+    assert!(matches!(
+        connection_form_handle_key(&driver_state, k(KeyCode::Char(' '), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormCycleDriver(1))
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&driver_state, k(KeyCode::Left, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormCycleDriver(-1))
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&driver_state, k(KeyCode::Right, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormCycleDriver(1))
+    ));
+    // Random char on Driver focus is a no-op (gated above the char branch).
+    assert!(matches!(
+        connection_form_handle_key(&driver_state, k(KeyCode::Char('z'), KeyModifiers::NONE)),
+        ModalOutcome::Continue
+    ));
+}
+
+#[test]
+fn connection_form_readonly_focus_space_toggles() {
+    use crate::app::ConnectionFormFocus;
+    let readonly_state = ConnectionFormState {
+        focus: ConnectionFormFocus::Readonly,
+        ..ConnectionFormState::default()
+    };
+    assert!(matches!(
+        connection_form_handle_key(&readonly_state, k(KeyCode::Char(' '), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ConnectionFormToggleReadonly)
+    ));
+    assert!(matches!(
+        connection_form_handle_key(&readonly_state, k(KeyCode::Char('q'), KeyModifiers::NONE)),
+        ModalOutcome::Continue
+    ));
+}
+
+#[test]
+fn prompt_handle_key_dispatches_per_kind() {
+    // Cmdline: typing a char produces a lineedit action.
+    let outcome = prompt_handle_key(PromptKind::Cmdline, k(KeyCode::Char('a'), KeyModifiers::NONE));
+    assert!(matches!(outcome, ModalOutcome::Emit(_)));
+    let outcome = prompt_handle_key(
+        PromptKind::FenceEditAlias { segment_idx: 0 },
+        k(KeyCode::Char('b'), KeyModifiers::NONE),
+    );
+    assert!(matches!(outcome, ModalOutcome::Emit(_)));
+    let outcome = prompt_handle_key(
+        PromptKind::Search { forward: true },
+        k(KeyCode::Char('c'), KeyModifiers::NONE),
+    );
+    assert!(matches!(outcome, ModalOutcome::Emit(_)));
+}
+
+#[test]
+fn vault_open_picker_ctrl_c_closes() {
+    let mut m = vault_open_picker();
+    assert!(matches!(
+        m.handle_key(k(KeyCode::Char('c'), KeyModifiers::CONTROL)),
+        ModalOutcome::Emit(Action::CloseVaultOpenPicker)
+    ));
+}
+
+#[test]
+fn vault_create_form_backtab_and_paste() {
+    let mut m = empty_vault_create_form();
+    assert!(matches!(
+        m.handle_key(k(KeyCode::BackTab, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::VaultCreateFormFocusPrev)
+    ));
+    assert!(matches!(
+        m.handle_key(k(KeyCode::Char('v'), KeyModifiers::CONTROL)),
+        ModalOutcome::Emit(Action::PasteSystem)
+    ));
+}
+
+#[test]
+fn vault_clone_form_backtab_and_paste() {
+    let mut m = empty_vault_clone_form();
+    assert!(matches!(
+        m.handle_key(k(KeyCode::BackTab, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::VaultCloneFormFocusPrev)
+    ));
+    assert!(matches!(
+        m.handle_key(k(KeyCode::Char('v'), KeyModifiers::CONTROL)),
+        ModalOutcome::Emit(Action::PasteSystem)
+    ));
+}
+
+#[test]
+fn vault_missing_secrets_ctrl_v_in_edit_pastes() {
+    let mut m = vault_missing_secrets(true);
+    assert!(matches!(
+        m.handle_key(k(KeyCode::Char('v'), KeyModifiers::CONTROL)),
+        ModalOutcome::Emit(Action::PasteSystem)
+    ));
+}
+
+#[test]
+fn vault_missing_secrets_browse_up_and_backtab() {
+    let mut m = vault_missing_secrets(false);
+    assert!(matches!(
+        m.handle_key(k(KeyCode::Up, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveVaultMissingSecretsCursor(-1))
+    ));
+    assert!(matches!(
+        m.handle_key(k(KeyCode::BackTab, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::MoveVaultMissingSecretsCursor(-1))
+    ));
+}
+
+#[test]
+fn var_form_lineedit_motions_route() {
+    assert!(matches!(
+        var_form_handle_key(VarFormFocus::Key, k(KeyCode::Left, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::VarFormCursorLeft)
+    ));
+    assert!(matches!(
+        var_form_handle_key(VarFormFocus::Key, k(KeyCode::Right, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::VarFormCursorRight)
+    ));
+    assert!(matches!(
+        var_form_handle_key(VarFormFocus::Key, k(KeyCode::Home, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::VarFormHome)
+    ));
+    assert!(matches!(
+        var_form_handle_key(VarFormFocus::Key, k(KeyCode::End, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::VarFormEnd)
+    ));
+    assert!(matches!(
+        var_form_handle_key(VarFormFocus::Key, k(KeyCode::Delete, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::VarFormDelete)
+    ));
+    assert!(matches!(
+        var_form_handle_key(VarFormFocus::Key, k(KeyCode::Backspace, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::VarFormBackspace)
+    ));
+    assert!(matches!(
+        var_form_handle_key(VarFormFocus::Key, k(KeyCode::Char('v'), KeyModifiers::CONTROL)),
+        ModalOutcome::Emit(Action::PasteSystem)
+    ));
+}
+
+#[test]
+fn env_form_lineedit_motions_route() {
+    assert!(matches!(
+        env_form_handle_key(k(KeyCode::Left, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::EnvFormCursorLeft)
+    ));
+    assert!(matches!(
+        env_form_handle_key(k(KeyCode::Right, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::EnvFormCursorRight)
+    ));
+    assert!(matches!(
+        env_form_handle_key(k(KeyCode::Home, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::EnvFormHome)
+    ));
+    assert!(matches!(
+        env_form_handle_key(k(KeyCode::End, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::EnvFormEnd)
+    ));
+    assert!(matches!(
+        env_form_handle_key(k(KeyCode::Delete, KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::EnvFormDelete)
+    ));
+}
+
+#[test]
+fn connections_page_o_emits_session_override_and_capital_o_clears() {
+    let mut m = connections_page_modal();
+    assert!(matches!(
+        m.handle_key(k(KeyCode::Char('o'), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::OpenSessionOverrideForm)
+    ));
+    let mut m = connections_page_modal();
+    assert!(matches!(
+        m.handle_key(k(KeyCode::Char('O'), KeyModifiers::NONE)),
+        ModalOutcome::Emit(Action::ClearSessionOverride)
+    ));
+}

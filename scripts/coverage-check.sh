@@ -62,6 +62,7 @@ done < <("${DIFF_CMD[@]}" 2>/dev/null \
     | grep -E '\.(rs|ts|tsx)$' \
     | grep -v -E '^httui-web/' \
     | grep -v -E '/(__tests__|tests)/' \
+    | grep -v -E '(^|/)(tests|.*_tests?)\.rs$' \
     | grep -v -E '\.(test|spec|browser\.test|browser\.spec)\.(ts|tsx)$' \
     | grep -v -E '/test/' \
     | grep -v -E '\.d\.ts$' \
