@@ -6,18 +6,13 @@
  * panel module.
  */
 
-export type ExecutionState =
-  | "idle"
-  | "running"
-  | "success"
-  | "error"
-  | "cancelled";
+// Canonical union lives in blocks/execution-state; re-exported so the
+// DB sub-components keep importing it unchanged from "./shared".
+export type { ExecutionState } from "@/components/blocks/execution-state";
 
-/** Format an elapsed-time number as `123ms` or `1.23s`. */
-export function formatElapsed(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-}
+// Canonical formatter lives in lib/format; re-exported so the DB
+// sub-components keep importing it unchanged from "./shared".
+export { formatElapsed } from "@/lib/format/time";
 
 /**
  * Human-friendly relative timestamp: "just now", "3m ago", "2h ago", "1d ago".

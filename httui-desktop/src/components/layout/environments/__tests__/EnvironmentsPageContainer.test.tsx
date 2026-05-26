@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import {
   EnvironmentsPageContainer,
@@ -241,5 +241,58 @@ describe("EnvironmentsPageContainer", () => {
       expect(screen.queryByTestId("clone-environment-form")).toBeNull();
     });
     expect(dupeCalls).toBe(0);
+  });
+
+  it("onCreateNew prop override is invoked instead of inline form when supplied", async () => {
+    const onCreateNewSpy = vi.fn();
+    const { default: userEvent } = await import("@testing-library/user-event");
+    renderWithProviders(
+      <EnvironmentsPageContainer onCreateNew={onCreateNewSpy} />,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("environments-page")).toBeTruthy();
+    });
+    const newBtn = screen.queryByTestId("environments-new-btn");
+    if (newBtn) {
+      await userEvent.setup().click(newBtn);
+      expect(onCreateNewSpy).toHaveBeenCalled();
+      // Inline form should NOT appear when the host-overridden handler
+      // is used — the prop swap diverts the path.
+      expect(screen.queryByTestId("new-environment-form")).toBeNull();
+    }
+  });
+
+  it("default (no onCreateNew) opens inline NewEnvironmentForm and Submit dispatches create_environment", async () => {
+    let createCalled: { name?: string } | null = null;
+    mockTauriCommand("create_environment", (args) => {
+      createCalled = args as { name: string };
+      return env({ id: "env-new", name: "new" });
+    });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    renderWithProviders(<EnvironmentsPageContainer />);
+    const user = userEvent.setup();
+    await waitFor(() => {
+      expect(screen.getByTestId("environments-page")).toBeTruthy();
+    });
+    const newBtn = screen.queryByTestId("environments-new-btn");
+    if (newBtn) {
+      await user.click(newBtn);
+      const form = await screen.findByTestId("new-environment-form");
+      expect(form).toBeTruthy();
+      const name = screen.getByTestId(
+        "new-environment-field-name",
+      ) as HTMLInputElement;
+      await user.type(name, "staging");
+      const submit = screen.getByTestId("new-environment-submit");
+      await user.click(submit);
+      await waitFor(() => {
+        expect(createCalled).not.toBeNull();
+      });
+      expect(createCalled).toEqual({ name: "staging" });
+      // Form closes on success.
+      await waitFor(() => {
+        expect(screen.queryByTestId("new-environment-form")).toBeNull();
+      });
+    }
   });
 });

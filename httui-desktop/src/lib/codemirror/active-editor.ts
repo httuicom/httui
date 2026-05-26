@@ -12,7 +12,9 @@
  *  - The registry is inherently imperative: "insert this text somewhere"
  *    is a side effect, not state React needs to observe.
  */
+import { ViewPlugin } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
+import type { Extension } from "@codemirror/state";
 
 import { findDbBlocks } from "@/lib/codemirror/cm-db-block";
 import { stringifyDbFenceInfo, type DbDialect } from "@/lib/blocks/db-fence";
@@ -31,6 +33,35 @@ export function unregisterActiveEditor(view: EditorView): void {
 
 export function getActiveEditor(): EditorView | null {
   return activeView;
+}
+
+/**
+ * CM6 extension that keeps the active-editor registry in sync with focus
+ * and tears everything down when the view is destroyed.
+ *
+ * The listeners are owned by a `ViewPlugin`, so CM guarantees `destroy()`
+ * runs on view teardown (file switch keyed by `<CodeMirror
+ * key={filePath}>`, vim toggle that recreates the view, unmount). There
+ * `removeEventListener` is paired with the `addEventListener` and the
+ * registry is cleared. This replaces the shell-side
+ * `view.dom.addEventListener("focusin"/"focusout", …)` that was never
+ * removed — recreating the view leaked stale listeners + closures and a
+ * stray focus event could resurrect a dead view.
+ */
+export function activeEditorTracker(): Extension {
+  return ViewPlugin.define((view) => {
+    const onFocusIn = () => registerActiveEditor(view);
+    const onFocusOut = () => unregisterActiveEditor(view);
+    view.dom.addEventListener("focusin", onFocusIn);
+    view.dom.addEventListener("focusout", onFocusOut);
+    return {
+      destroy() {
+        view.dom.removeEventListener("focusin", onFocusIn);
+        view.dom.removeEventListener("focusout", onFocusOut);
+        unregisterActiveEditor(view);
+      },
+    };
+  });
 }
 
 /**

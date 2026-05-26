@@ -8,6 +8,7 @@
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 
+import { formatDurationCompact } from "@/lib/format/time";
 import type { HistoryEntry } from "@/lib/tauri/commands";
 
 export type HistoryOutcomeTone = "ok" | "warn" | "err" | "muted";
@@ -117,7 +118,7 @@ export function HistoryList({ entries, onSelect }: HistoryListProps) {
                 minWidth="36px"
                 textAlign="right"
               >
-                {formatElapsed(entry.elapsed_ms)}
+                {formatDurationCompact(entry.elapsed_ms)}
               </Text>
             )}
           </Flex>
@@ -173,13 +174,6 @@ export function formatRelative(isoOrMs: string | number): string {
   if (hr < 24) return `${hr}h`;
   const day = Math.floor(hr / 24);
   return `${day}d`;
-}
-
-/** "12ms" / "1.2s" / "3m" depending on magnitude. */
-export function formatElapsed(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.round(ms / 60_000)}m`;
 }
 
 function dotColor(tone: HistoryOutcomeTone): string {

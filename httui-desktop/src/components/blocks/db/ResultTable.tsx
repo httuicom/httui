@@ -2,6 +2,7 @@ import { Box, Flex, HStack, IconButton, Table } from "@chakra-ui/react";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { LuCopy, LuX } from "react-icons/lu";
+import { formatElapsed } from "@/lib/format/time";
 import type { CellValue } from "./types";
 
 interface ResultTableProps {
@@ -53,11 +54,6 @@ function isNumericType(type: string): boolean {
     t.includes("REAL") ||
     t.includes("DOUBLE")
   );
-}
-
-function formatElapsed(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
 }
 
 function JsonBlock({ value }: { value: unknown }) {

@@ -7,6 +7,11 @@ import {
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 
+import {
+  getRegisteredBlockIcons,
+  getRegisteredBlockSlashCommands,
+} from "@/lib/blocks/block-registry";
+
 // ── Sections ────────────────────────────────────────────────────────────────
 
 const BASIC: CompletionSection = { name: "Basic blocks", rank: 0 };
@@ -35,9 +40,10 @@ const ICON_SVGS: Record<string, string> = {
   "math-block": '<path d="M18 7V4H6l6 8-6 8h12v-3"/>',
   diagram:
     '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
-  database:
-    '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
-  http: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  // Block-type icons (database/http/future) are merged in below from
+  // `block-registry`, so adding a new block type doesn't require an
+  // edit here.
+  ...getRegisteredBlockIcons(),
 };
 
 /** Create a DOM SVG element for an icon type */
@@ -167,72 +173,10 @@ const COMMANDS: SlashCommand[] = [
     section: FORMAT,
   },
 
-  // Executable
-  // DB blocks use the post-redesign fenced-SQL format (see docs/db-block-redesign.md §2.1).
-  // cursorOffset lands the caret on the empty body line so the user can start typing SQL
-  // immediately; the drawer (⚙) is the preferred way to pick a connection, so we leave
-  // `connection=` off the canonical info string when no default is known.
-  {
-    label: "PostgreSQL Query",
-    type: "database",
-    insert: "```db-postgres alias=db1\n\n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  {
-    label: "MySQL Query",
-    type: "database",
-    insert: "```db-mysql alias=db1\n\n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  {
-    label: "SQLite Query",
-    type: "database",
-    insert: "```db-sqlite alias=db1\n\n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  // HTTP blocks use the post-redesign HTTP-message body format
-  // (see docs/http-block-redesign.md §2.1). cursorOffset lands the caret on
-  // the request line so the user can start typing immediately.
-  {
-    label: "HTTP Request",
-    type: "http",
-    insert: "```http alias=req1\nGET \n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  {
-    label: "HTTP GET",
-    type: "http",
-    insert: "```http alias=req1\nGET \n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  {
-    label: "HTTP POST",
-    type: "http",
-    insert:
-      "```http alias=req1\nPOST \nContent-Type: application/json\n\n{}\n```\n",
-    cursorOffset: -23,
-    section: EXEC,
-  },
-  {
-    label: "HTTP PUT",
-    type: "http",
-    insert:
-      "```http alias=req1\nPUT \nContent-Type: application/json\n\n{}\n```\n",
-    cursorOffset: -23,
-    section: EXEC,
-  },
-  {
-    label: "HTTP DELETE",
-    type: "http",
-    insert: "```http alias=req1\nDELETE \n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
+  // Executable — block types contribute their slash entries via
+  // `block-registry`, so adding a new block type doesn't require an
+  // edit here (DB / HTTP / future).
+  ...getRegisteredBlockSlashCommands(EXEC),
 ];
 
 // ── Completion source ───────────────────────────────────────────────────────

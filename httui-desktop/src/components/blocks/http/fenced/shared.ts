@@ -8,12 +8,9 @@
 
 import type { HttpMethod } from "@/lib/blocks/http-fence";
 
-export type ExecutionState =
-  | "idle"
-  | "running"
-  | "success"
-  | "error"
-  | "cancelled";
+// Canonical union lives in blocks/execution-state; re-exported so the
+// HTTP sub-components keep importing it unchanged from "./shared".
+export type { ExecutionState } from "@/components/blocks/execution-state";
 
 export type SendAsFormat = "curl" | "fetch" | "python" | "httpie" | "http-file";
 
