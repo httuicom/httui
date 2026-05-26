@@ -139,6 +139,12 @@ pub enum Modal {
     /// for the selected one on the right. Opened by `Ctrl+L` from
     /// inside the git panel.
     GitLogPage(crate::git::GitLogPageState),
+    /// 3-way conflict resolver — opens when `Ctrl+R` from the panel
+    /// finds unmerged files. List of conflicted paths on the left;
+    /// three columns (base / ours / theirs) on the right. `1`/`2`/`3`
+    /// pick the corresponding version, write it to disk, stage it,
+    /// and drop the entry from the list.
+    GitConflictResolver(crate::git::GitConflictResolverState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -222,6 +228,7 @@ impl Modal {
             Modal::GitSetUpstreamConfirm(_) => git::set_upstream_confirm_handle_key(key),
             Modal::GitBranchPicker(_) => git::branch_picker_handle_key(key),
             Modal::GitLogPage(_) => git::log_page_handle_key(key),
+            Modal::GitConflictResolver(_) => git::conflict_resolver_handle_key(key),
         }
     }
 

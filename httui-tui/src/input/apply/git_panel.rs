@@ -10,7 +10,7 @@ use crate::input::action::Action;
 use crate::modal::Modal;
 use crate::vim::mode::Mode;
 
-use super::{git_branch_picker, git_log_page};
+use super::{git_branch_picker, git_conflict_resolver, git_log_page};
 
 pub(crate) fn apply_git_panel(app: &mut App, action: Action) {
     match action {
@@ -55,6 +55,12 @@ pub(crate) fn apply_git_panel(app: &mut App, action: Action) {
         Action::CloseGitLogPage => git_log_page::close(app),
         Action::MoveGitLogPageCursor(delta) => git_log_page::move_cursor(app, delta),
         Action::ScrollGitLogDiff(delta) => git_log_page::scroll_diff(app, delta),
+        Action::OpenGitConflictResolver => git_conflict_resolver::open(app),
+        Action::CloseGitConflictResolver => git_conflict_resolver::close(app),
+        Action::MoveGitConflictResolverFile(delta) => {
+            git_conflict_resolver::move_file(app, delta)
+        }
+        Action::ResolveGitConflict(version) => git_conflict_resolver::resolve(app, version),
         _ => unreachable!("apply_git_panel: variante fora do grupo"),
     }
 }

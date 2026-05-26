@@ -47,6 +47,42 @@ pub(super) fn branch_picker_handle_key(key: KeyEvent) -> ModalOutcome {
     }
 }
 
+/// 3-way conflict resolver: j/k move file cursor; 1/2/3 pick the
+/// version (base/ours/theirs) and apply it; Esc closes.
+pub(super) fn conflict_resolver_handle_key(key: KeyEvent) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) => ModalOutcome::Emit(Action::CloseGitConflictResolver),
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::CloseGitConflictResolver)
+        }
+        (_, KeyCode::Down) | (KeyModifiers::NONE, KeyCode::Char('j')) => {
+            ModalOutcome::Emit(Action::MoveGitConflictResolverFile(1))
+        }
+        (_, KeyCode::Up) | (KeyModifiers::NONE, KeyCode::Char('k')) => {
+            ModalOutcome::Emit(Action::MoveGitConflictResolverFile(-1))
+        }
+        (KeyModifiers::NONE, KeyCode::Char('1')) => {
+            ModalOutcome::Emit(Action::ResolveGitConflict(
+                crate::git::ConflictVersion::Base,
+            ))
+        }
+        (KeyModifiers::NONE, KeyCode::Char('2')) => {
+            ModalOutcome::Emit(Action::ResolveGitConflict(
+                crate::git::ConflictVersion::Ours,
+            ))
+        }
+        (KeyModifiers::NONE, KeyCode::Char('3')) => {
+            ModalOutcome::Emit(Action::ResolveGitConflict(
+                crate::git::ConflictVersion::Theirs,
+            ))
+        }
+        _ => ModalOutcome::Continue,
+    }
+}
+
 /// `y` / `Enter` → confirm push -u; `n` / `Esc` / `Ctrl-C` → cancel.
 pub(super) fn set_upstream_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
     let KeyEvent {

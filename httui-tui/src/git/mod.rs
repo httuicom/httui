@@ -32,6 +32,54 @@ pub struct GitBranchPickerState {
     pub error: Option<String>,
 }
 
+/// One of the three versions a conflicted file can be resolved to.
+/// `Base` writes the merge-ancestor blob; `Ours` keeps HEAD; `Theirs`
+/// takes the incoming side.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConflictVersion {
+    Base,
+    Ours,
+    Theirs,
+}
+
+/// State of the full-screen 3-way conflict resolver. Opened from
+/// the git panel when there are unmerged files in the working tree.
+#[derive(Debug)]
+pub struct GitConflictResolverState {
+    pub files: Vec<String>,
+    pub selected_file: usize,
+    /// Cached three-stage versions for `files[selected_file]`.
+    /// Refreshed when the file cursor moves.
+    pub versions: Option<httui_core::git::conflict::ConflictVersions>,
+    pub error: Option<String>,
+}
+
+impl GitConflictResolverState {
+    pub fn new(files: Vec<String>) -> Self {
+        Self {
+            files,
+            selected_file: 0,
+            versions: None,
+            error: None,
+        }
+    }
+
+    pub fn move_file_cursor(&mut self, delta: i32) {
+        if self.files.is_empty() {
+            return;
+        }
+        let len = self.files.len() as i32;
+        let next = (self.selected_file as i32 + delta).rem_euclid(len);
+        self.selected_file = next as usize;
+        self.versions = None;
+        self.error = None;
+    }
+
+    pub fn current_file(&self) -> Option<&str> {
+        self.files.get(self.selected_file).map(|s| s.as_str())
+    }
+}
+
 /// State for the full-screen git log page (opened by `Ctrl+L` while
 /// the git panel is focused). Lists the last N commits on the left;
 /// the diff for the selected commit fills the right pane.

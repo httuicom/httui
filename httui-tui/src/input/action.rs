@@ -116,6 +116,12 @@ pub enum Action {
     /// PageUp/PageDown / Ctrl+U/D in the log page — scroll the diff
     /// pane by `<delta>` rows without changing the selected commit.
     ScrollGitLogDiff(i32),
+    /// `Ctrl+R` inside the panel — open the 3-way conflict resolver.
+    OpenGitConflictResolver,
+    CloseGitConflictResolver,
+    MoveGitConflictResolverFile(i32),
+    /// `1`/`2`/`3` in the resolver — apply the chosen version.
+    ResolveGitConflict(crate::git::ConflictVersion),
     /// `Tab` — when the tree is visible, swap focus between sidebar
     /// and editor without changing visibility.
     FocusSwap,

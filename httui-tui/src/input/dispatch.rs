@@ -395,7 +395,11 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::OpenGitLogPage
         | Action::CloseGitLogPage
         | Action::MoveGitLogPageCursor(..)
-        | Action::ScrollGitLogDiff(..) => {
+        | Action::ScrollGitLogDiff(..)
+        | Action::OpenGitConflictResolver
+        | Action::CloseGitConflictResolver
+        | Action::MoveGitConflictResolverFile(..)
+        | Action::ResolveGitConflict(..) => {
             crate::input::apply::git_panel::apply_git_panel(app, action)
         }
         Action::CloseBlockHistory

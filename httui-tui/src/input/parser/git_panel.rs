@@ -22,6 +22,8 @@ pub fn parse_git_panel(key: KeyEvent) -> Action {
         (KeyModifiers::CONTROL, KeyCode::Char('b')) => Action::OpenGitBranchPicker,
         // Ctrl+L opens the full-screen git log page.
         (KeyModifiers::CONTROL, KeyCode::Char('l')) => Action::OpenGitLogPage,
+        // Ctrl+R opens the 3-way conflict resolver.
+        (KeyModifiers::CONTROL, KeyCode::Char('r')) => Action::OpenGitConflictResolver,
         // Ctrl+Enter chains commit → pull → push (the 1-click Sync).
         // Plain Enter just commits — same as the desktop's
         // `GitCommitForm` Submit vs `GitSyncBar` Sync split.
