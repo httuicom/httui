@@ -55,21 +55,51 @@ pub fn render(
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    // Reserve space for the commit form at the bottom when there's
-    // room; tiny panels collapse the form away so the list stays
-    // legible.
+    // Desktop SCM order: status (clean or file list) → commit form
+    // → history. Form sits in the middle so the user's eye lands on
+    // the message input before scrolling commit history.
     let form_height = COMMIT_FORM_HEIGHT.min(inner.height.saturating_sub(2));
+    let status_rows = status_body_rows(panel);
+    let history_rows = history_body_rows(panel);
+    let status_height = (status_rows.len() as u16).min(
+        inner.height.saturating_sub(form_height + history_rows.len() as u16),
+    );
     let split = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(form_height)])
+        .constraints([
+            Constraint::Length(status_height),
+            Constraint::Length(form_height),
+            Constraint::Min(0),
+        ])
         .split(inner);
-    let list_area = split[0];
+    let status_area = split[0];
     let form_area = split[1];
+    let history_area = split[2];
 
-    let rows = body_rows(panel);
+    render_row_list(frame, status_area, &status_rows, selected_row(panel, &status_rows), focused);
+
+    let cursor = super::git_panel_form::render_commit_form(
+        frame, form_area, panel, focused, commit_tpl,
+    );
+
+    render_row_list(frame, history_area, &history_rows, None, false);
+
+    cursor
+}
+
+fn render_row_list(
+    frame: &mut Frame,
+    area: Rect,
+    rows: &[BodyRow],
+    selected: Option<usize>,
+    focused: bool,
+) {
+    if area.height == 0 {
+        return;
+    }
     let items: Vec<ListItem<'static>> = rows.iter().map(row_to_item).collect();
     let mut state = ListState::default();
-    if let Some(idx) = selected_row(panel, &rows) {
+    if let Some(idx) = selected {
         state.select(Some(idx));
     }
     let list = List::new(items).highlight_style(if focused {
@@ -80,9 +110,7 @@ pub fn render(
     } else {
         Style::default().bg(Color::DarkGray).fg(Color::White)
     });
-    frame.render_stateful_widget(list, list_area, &mut state);
-
-    super::git_panel_form::render_commit_form(frame, form_area, panel, focused, commit_tpl)
+    frame.render_stateful_widget(list, area, &mut state);
 }
 
 fn header_label(panel: &GitPanel) -> String {
@@ -123,9 +151,24 @@ pub(super) enum BodyRow {
     Error(String),
 }
 
+/// Combined rows — kept for the existing test surface. The
+/// production renderer uses [`status_body_rows`] and
+/// [`history_body_rows`] separately so the commit form can sit
+/// between them (desktop SCM ordering).
+#[cfg(test)]
 pub(super) fn body_rows(panel: &GitPanel) -> Vec<BodyRow> {
+    let mut out = status_body_rows(panel);
+    let history = history_body_rows(panel);
+    if !out.is_empty() && !history.is_empty() {
+        out.push(BodyRow::Separator);
+    }
+    out.extend(history);
+    out
+}
+
+pub(super) fn status_body_rows(panel: &GitPanel) -> Vec<BodyRow> {
     match (&panel.status, &panel.status_error) {
-        (Some(status), _) => populated_rows(status, &panel.recent_commits),
+        (Some(status), _) => status_rows(status),
         (None, Some(err)) => vec![BodyRow::Error(
             err.lines().next().unwrap_or("").to_string(),
         )],
@@ -133,11 +176,22 @@ pub(super) fn body_rows(panel: &GitPanel) -> Vec<BodyRow> {
     }
 }
 
-fn populated_rows(status: &GitStatus, recent: &[CommitInfo]) -> Vec<BodyRow> {
+pub(super) fn history_body_rows(panel: &GitPanel) -> Vec<BodyRow> {
+    if panel.recent_commits.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::with_capacity(panel.recent_commits.len() + 1);
+    out.push(BodyRow::HistoryHeader);
+    for c in &panel.recent_commits {
+        out.push(BodyRow::Commit(c.clone()));
+    }
+    out
+}
+
+fn status_rows(status: &GitStatus) -> Vec<BodyRow> {
     let mut out = Vec::new();
     let (staged, unstaged): (Vec<_>, Vec<_>) =
         status.changed.iter().partition(|c| c.staged && !c.untracked);
-
     // Desktop ordering: UNSTAGED first, STAGED below.
     if !unstaged.is_empty() {
         out.push(BodyRow::Section {
@@ -162,14 +216,6 @@ fn populated_rows(status: &GitStatus, recent: &[CommitInfo]) -> Vec<BodyRow> {
     }
     if staged.is_empty() && unstaged.is_empty() {
         out.push(BodyRow::Clean);
-    }
-
-    if !recent.is_empty() {
-        out.push(BodyRow::Separator);
-        out.push(BodyRow::HistoryHeader);
-        for c in recent {
-            out.push(BodyRow::Commit(c.clone()));
-        }
     }
     out
 }
