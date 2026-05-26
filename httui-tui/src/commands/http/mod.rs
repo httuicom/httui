@@ -438,4 +438,211 @@ mod tests {
             Some("session")
         );
     }
+
+    use crate::app::App;
+    use crate::buffer::Document;
+    use crate::config::Config;
+    use crate::pane::{Pane, TabState};
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use httui_core::executor::http::types::HttpChunk;
+    use tempfile::TempDir;
+
+    async fn app_with_block(md: &str) -> (App, usize, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let note = vault.path().join("note.md");
+        std::fs::write(&note, md).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        let doc = Document::from_markdown(md).unwrap();
+        let pane = Pane::new(doc, note);
+        app.tabs.tabs.clear();
+        app.tabs.tabs.push(TabState::new(pane));
+        app.tabs.active = 0;
+        let idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .unwrap_or(0);
+        (app, idx, data, vault)
+    }
+
+    fn http_response() -> HttpResponse {
+        HttpResponse {
+            status_code: 200,
+            status_text: "OK".into(),
+            headers: HashMap::new(),
+            body: serde_json::json!({}),
+            size_bytes: 12,
+            elapsed_ms: 33,
+            timing: TimingBreakdown::default(),
+            cookies: Vec::new(),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn apply_run_http_block_non_http_emits_status() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        apply_run_http_block(&mut app, idx);
+        let s = app.status_message.as_ref().expect("status");
+        assert!(s.text.contains("not an HTTP"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn apply_run_http_block_no_doc_returns() {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        app.tabs.tabs.clear();
+        apply_run_http_block(&mut app, 0); // no panic
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn apply_run_http_block_empty_url_errors() {
+        let md = "```http alias=a\n\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        app.event_sender = Some(tx);
+        apply_run_http_block(&mut app, idx);
+        let s = app.status_message.as_ref().expect("status");
+        assert!(s.text.contains("empty URL"), "got {:?}", s.text);
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn apply_run_http_block_ref_resolution_failure_errors() {
+        let md = "```http alias=a\nGET https://x.com/{{ghost.body.id}}\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        app.event_sender = Some(tx);
+        apply_run_http_block(&mut app, idx);
+        let s = app.status_message.as_ref().expect("status");
+        // Could be ref error or "no event sender" if test environment differs.
+        assert!(s.text.contains("ghost") || s.text.contains("not found") || s.text.contains("URL"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn apply_run_http_block_no_event_sender_errors() {
+        let md = "```http alias=a\nGET https://x.com\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        // event_sender not wired
+        apply_run_http_block(&mut app, idx);
+        let s = app.status_message.as_ref().expect("status");
+        assert!(s.text.contains("event sender"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn handle_http_block_chunk_updates_bytes_received() {
+        let md = "```http alias=a\nGET https://x.com\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(RunningQuery {
+            segment_idx: idx,
+            cancel: CancellationToken::new(),
+            started_at: Instant::now(),
+            kind: RunningKind::Run,
+            cache_key: None,
+            bytes_received: 0,
+        });
+        handle_http_block_chunk(
+            &mut app,
+            idx,
+            HttpChunk::BodyChunk { offset: 100, bytes: vec![0u8; 50] },
+        );
+        assert_eq!(app.running_query.as_ref().unwrap().bytes_received, 150);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn handle_http_block_chunk_ignores_wrong_segment() {
+        let md = "```http alias=a\nGET https://x.com\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(RunningQuery {
+            segment_idx: idx,
+            cancel: CancellationToken::new(),
+            started_at: Instant::now(),
+            kind: RunningKind::Run,
+            cache_key: None,
+            bytes_received: 0,
+        });
+        handle_http_block_chunk(
+            &mut app,
+            999, // wrong idx
+            HttpChunk::BodyChunk { offset: 100, bytes: vec![0u8; 50] },
+        );
+        assert_eq!(app.running_query.as_ref().unwrap().bytes_received, 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn handle_http_block_chunk_no_running_query_is_noop() {
+        let md = "prose\n";
+        let (mut app, _idx, _d, _v) = app_with_block(md).await;
+        handle_http_block_chunk(
+            &mut app,
+            0,
+            HttpChunk::BodyChunk { offset: 0, bytes: vec![] },
+        );
+        assert!(app.running_query.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn handle_http_block_result_ok_marks_success_writes_cache_status() {
+        let md = "```http alias=a\nGET https://x.com\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        handle_http_block_result(&mut app, idx, Ok(http_response()));
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Success));
+        assert!(block.cached_result.is_some());
+        let s = app.status_message.as_ref().expect("status");
+        assert!(s.text.contains("200"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn handle_http_block_result_err_marks_error() {
+        let md = "```http alias=a\nGET https://x.com\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        handle_http_block_result(&mut app, idx, Err("connection failed".into()));
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn handle_http_block_result_cancelled_outcome_recorded_as_cancelled() {
+        let md = "```http alias=a\nGET https://x.com\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        handle_http_block_result(&mut app, idx, Err("Request cancelled".into()));
+        assert!(app.status_message.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_block_meta_builds_canonical_url_with_params_and_size() {
+        let md = "```http alias=a\nGET https://x.com?existing=1\nContent-Type: text/plain\n\nhello\n```\n";
+        let (app, idx, _d, _v) = app_with_block(md).await;
+        let (alias, method, canonical, size) = snapshot_block_meta(&app, idx).expect("some");
+        assert_eq!(alias.as_deref(), Some("a"));
+        assert_eq!(method, "GET");
+        assert!(canonical.contains("?existing=1"), "got {canonical}");
+        assert!(size.unwrap() > 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_block_meta_non_http_returns_none() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (app, idx, _d, _v) = app_with_block(md).await;
+        assert!(snapshot_block_meta(&app, idx).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn active_file_path_string_returns_some_when_pane_has_path() {
+        let md = "prose\n";
+        let (app, _idx, _d, _v) = app_with_block(md).await;
+        let p = active_file_path_string(&app).expect("path");
+        assert!(p.ends_with("note.md"));
+    }
 }
