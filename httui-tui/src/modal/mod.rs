@@ -124,6 +124,10 @@ pub enum Modal {
     /// LineEdit (`row_limit` / `timeout_ms`); typing routes into the
     /// focused field.
     DbSettings(DbSettingsState),
+    /// Set-upstream confirm modal — opens when `Ctrl+Enter` (Sync) in
+    /// the git panel hits a branch with no upstream. `y` / `Enter`
+    /// runs `git push -u <remote> <branch>`; `n` / `Esc` cancels.
+    GitSetUpstreamConfirm(crate::git::GitSetUpstreamConfirmState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -204,6 +208,7 @@ impl Modal {
             Modal::DbSettings(_) => {
                 ModalOutcome::Emit(crate::input::parser::modals::parse_db_settings_modal(key))
             }
+            Modal::GitSetUpstreamConfirm(_) => git_set_upstream_confirm_handle_key(key),
         }
     }
 

@@ -18,6 +18,10 @@ pub fn parse_git_panel(key: KeyEvent) -> Action {
         // Ctrl+G also acts as a toggle while focused — symmetrical
         // with the open chord.
         (KeyModifiers::CONTROL, KeyCode::Char('g')) => Action::GitPanelToggle,
+        // Ctrl+Enter chains commit → pull → push (the 1-click Sync).
+        // Plain Enter just commits — same as the desktop's
+        // `GitCommitForm` Submit vs `GitSyncBar` Sync split.
+        (mods, KeyCode::Enter) if mods.contains(KeyModifiers::CONTROL) => Action::GitPanelSync,
         (_, KeyCode::Enter) => Action::GitPanelCommit,
         // Line editing.
         (_, KeyCode::Backspace) => Action::GitPanelBackspace,
@@ -72,6 +76,14 @@ mod tests {
     #[test]
     fn enter_submits_commit() {
         assert_eq!(parse_git_panel(key(KeyCode::Enter)), Action::GitPanelCommit);
+    }
+
+    #[test]
+    fn ctrl_enter_submits_sync() {
+        assert_eq!(
+            parse_git_panel(key_mod(KeyCode::Enter, KeyModifiers::CONTROL)),
+            Action::GitPanelSync,
+        );
     }
 
     #[test]

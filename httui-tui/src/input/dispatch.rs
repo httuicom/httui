@@ -384,7 +384,10 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::GitPanelCursorHome
         | Action::GitPanelCursorEnd
         | Action::GitPanelCommit
-        | Action::GitPanelCancel => {
+        | Action::GitPanelCancel
+        | Action::GitPanelSync
+        | Action::GitConfirmSetUpstream
+        | Action::GitCancelSetUpstream => {
             crate::input::apply::git_panel::apply_git_panel(app, action)
         }
         Action::CloseBlockHistory

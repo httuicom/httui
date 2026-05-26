@@ -12,6 +12,14 @@ use crate::vim::lineedit::LineEdit;
 
 pub mod template;
 
+/// State carried by the set-upstream confirm modal. The user is
+/// asked whether to push the current branch with `-u <remote>`.
+#[derive(Debug, Clone)]
+pub struct GitSetUpstreamConfirmState {
+    pub remote: String,
+    pub branch: String,
+}
+
 #[derive(Debug, Default)]
 pub struct GitPanel {
     /// `true` when the side panel is rendered next to the editor.

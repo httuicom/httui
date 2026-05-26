@@ -89,6 +89,16 @@ pub enum Action {
     /// `Esc` inside the panel — close it (mode → Normal) without
     /// committing.
     GitPanelCancel,
+    /// `Ctrl+Enter` inside the panel — stage → commit (with current
+    /// draft / template) → pull `--ff-only` → push. Push without
+    /// upstream opens the [`Action::GitConfirmSetUpstream`] modal.
+    GitPanelSync,
+    /// `y` / `Enter` in the set-upstream confirm modal — re-run
+    /// `git push -u <remote> <branch>` and close the modal.
+    GitConfirmSetUpstream,
+    /// `n` / `Esc` in the set-upstream confirm modal — close it
+    /// without pushing.
+    GitCancelSetUpstream,
     /// `Tab` — when the tree is visible, swap focus between sidebar
     /// and editor without changing visibility.
     FocusSwap,

@@ -538,6 +538,26 @@ pub(super) fn db_confirm_run_handle_key(key: KeyEvent) -> ModalOutcome {
     }
 }
 
+/// `y` / `Enter` → confirm push -u; `n` / `Esc` / `Ctrl-C` → cancel.
+pub(super) fn git_set_upstream_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) => ModalOutcome::Emit(Action::GitCancelSetUpstream),
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::GitCancelSetUpstream)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
+            ModalOutcome::Emit(Action::GitCancelSetUpstream)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('y'))
+        | (KeyModifiers::NONE, KeyCode::Char('Y'))
+        | (_, KeyCode::Enter) => ModalOutcome::Emit(Action::GitConfirmSetUpstream),
+        _ => ModalOutcome::Continue,
+    }
+}
+
 /// Dispatch one key into the active prompt. The shared
 /// `parse_lineedit_prompt` returns a kind-agnostic `LineEditAction`;
 /// this function maps it to the right concrete `Action` based on the
