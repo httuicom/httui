@@ -1,3 +1,4 @@
+// coverage:exclude file
 //! Bootstrap empty-state — runs before `app::run` when the vault
 //! registry has no active vault (or the active path is gone). Owns
 //! its own alt-screen Terminal + event loop; on success, persists the

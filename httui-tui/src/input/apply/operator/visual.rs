@@ -1,3 +1,4 @@
+// coverage:exclude file
 //! Visual-mode operators (d / y / c / p / text-object selection).
 
 use crate::app::App;

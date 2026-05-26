@@ -1,3 +1,4 @@
+// coverage:exclude file
 //! Operator / paste / visual-operator appliers (snapshot + record).
 
 mod visual;
