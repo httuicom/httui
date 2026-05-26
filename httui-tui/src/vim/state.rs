@@ -1,9 +1,7 @@
 use crate::buffer::Cursor;
 use crate::vim::change::{ChangeRecord, InsertSession};
-use crate::vim::lineedit::LineEdit;
 use crate::vim::mode::Mode;
 use crate::vim::parser::{Motion, Operator};
-use crate::vim::quickopen::QuickOpen;
 use crate::vim::register::Register;
 
 /// Which find / till variant is waiting for its target char.
@@ -46,11 +44,6 @@ pub struct VimState {
     /// Live capture for the in-flight insert session. Picked up on
     /// `<Esc>` to finalize a [`ChangeRecord`].
     pub insert_session: InsertSession,
-    pub cmdline: LineEdit,
-    /// In-flight search query (active while in [`Mode::Search`]).
-    pub search_buf: LineEdit,
-    /// `true` when the prompt was opened with `/`, `false` for `?`.
-    pub search_forward: bool,
     /// Last executed search query, persisted for `n`/`N` repeat.
     pub last_search: Option<String>,
     /// Direction of the last executed search.
@@ -60,8 +53,6 @@ pub struct VimState {
     /// while the matches stop being painted on screen. Re-arms when a
     /// new search executes.
     pub search_highlight: bool,
-    /// State for the `Ctrl+P` quick-open modal.
-    pub quickopen: QuickOpen,
     pub unnamed: Register,
     /// `Ctrl+W` was just seen and we're waiting for the window-command
     /// suffix (`v`/`s`/`h`/`j`/`k`/`l`/`c`/`w`/`=` …).
@@ -73,6 +64,7 @@ pub struct VimState {
     /// fixed end of the selection. The moving end is the document
     /// cursor itself. `None` outside visual modes.
     pub visual_anchor: Option<Cursor>,
+    pub visual_origin_mode: Option<Mode>,
     /// Anchor + linewise flag of the last visual selection that was
     /// dismissed (Esc / operator completion / mode flip). Read by
     /// the `gv` chord to restore visual mode at that anchor.
@@ -105,17 +97,14 @@ impl VimState {
             last_find: None,
             last_change: None,
             insert_session: InsertSession::default(),
-            cmdline: LineEdit::new(),
-            search_buf: LineEdit::new(),
-            search_forward: true,
             last_search: None,
             last_search_forward: true,
             search_highlight: true,
-            quickopen: QuickOpen::default(),
             unnamed: Register::empty(),
             pending_window: false,
             pending_z: false,
             visual_anchor: None,
+            visual_origin_mode: None,
             last_visual: None,
         }
     }
@@ -131,8 +120,6 @@ impl VimState {
         self.snapshot_visual_for_reselect();
         self.mode = Mode::Normal;
         self.reset_pending();
-        self.cmdline.clear();
-        self.search_buf.clear();
         self.visual_anchor = None;
     }
 
@@ -155,6 +142,7 @@ impl VimState {
 
     /// Enter charwise visual mode anchored at `at`.
     pub fn enter_visual(&mut self, at: Cursor) {
+        self.visual_origin_mode = Some(self.mode);
         self.mode = Mode::Visual;
         self.reset_pending();
         self.visual_anchor = Some(at);
@@ -162,52 +150,10 @@ impl VimState {
 
     /// Enter linewise visual mode anchored at `at`.
     pub fn enter_visual_line(&mut self, at: Cursor) {
+        self.visual_origin_mode = Some(self.mode);
         self.mode = Mode::VisualLine;
         self.reset_pending();
         self.visual_anchor = Some(at);
-    }
-
-    /// Enter command-line mode and seed the buffer with `:`.
-    /// The leading `:` is stripped before the ex parser sees it.
-    pub fn enter_cmdline(&mut self) {
-        self.mode = Mode::CommandLine;
-        self.reset_pending();
-        self.cmdline.clear();
-    }
-
-    /// Enter search mode (`/` for forward, `?` for backward).
-    pub fn enter_search(&mut self, forward: bool) {
-        self.mode = Mode::Search;
-        self.reset_pending();
-        self.search_buf.clear();
-        self.search_forward = forward;
-    }
-
-    /// Enter the `Ctrl+P` quick-open modal. The caller seeds the file
-    /// list (we don't want `state.rs` reaching out to the filesystem
-    /// on its own).
-    pub fn enter_quickopen(&mut self, files: Vec<String>) {
-        self.mode = Mode::QuickOpen;
-        self.reset_pending();
-        self.quickopen.reset(files);
-    }
-
-    pub fn search_push(&mut self, c: char) {
-        self.search_buf.insert_char(c);
-    }
-
-    /// Returns `true` when a char was removed; `false` on an empty
-    /// buffer (callers can fall back to "cancel").
-    pub fn search_pop(&mut self) -> bool {
-        self.search_buf.delete_before()
-    }
-
-    pub fn cmdline_push(&mut self, c: char) {
-        self.cmdline.insert_char(c);
-    }
-
-    pub fn cmdline_pop(&mut self) -> bool {
-        self.cmdline.delete_before()
     }
 
     pub fn push_digit(&mut self, d: usize) {
@@ -262,6 +208,34 @@ mod tests {
     }
 
     #[test]
+    fn enter_visual_captures_origin_mode() {
+        let cur = Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        };
+        for origin in [Mode::Normal, Mode::HttpResponseDetail, Mode::DbRowDetail] {
+            let mut s = VimState::new();
+            s.mode = origin;
+            s.enter_visual(cur);
+            assert_eq!(s.visual_origin_mode, Some(origin));
+            assert_eq!(s.mode, Mode::Visual);
+        }
+    }
+
+    #[test]
+    fn enter_visual_line_captures_origin_mode() {
+        let cur = Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        };
+        let mut s = VimState::new();
+        s.mode = Mode::HttpResponseDetail;
+        s.enter_visual_line(cur);
+        assert_eq!(s.visual_origin_mode, Some(Mode::HttpResponseDetail));
+        assert_eq!(s.mode, Mode::VisualLine);
+    }
+
+    #[test]
     fn enter_insert_clears_pending() {
         let mut s = VimState::new();
         s.push_digit(7);
@@ -270,37 +244,5 @@ mod tests {
         assert_eq!(s.mode, Mode::Insert);
         assert_eq!(s.pending_count, None);
         assert!(!s.pending_g);
-    }
-
-    #[test]
-    fn enter_cmdline_clears_buffer_and_pending() {
-        let mut s = VimState::new();
-        s.cmdline_push('g');
-        s.push_digit(3);
-        s.enter_cmdline();
-        assert_eq!(s.mode, Mode::CommandLine);
-        assert!(s.cmdline.is_empty());
-        assert_eq!(s.pending_count, None);
-    }
-
-    #[test]
-    fn cmdline_push_and_pop() {
-        let mut s = VimState::new();
-        s.enter_cmdline();
-        s.cmdline_push('w');
-        s.cmdline_push('q');
-        assert_eq!(s.cmdline.as_str(), "wq");
-        assert!(s.cmdline_pop());
-        assert_eq!(s.cmdline.as_str(), "w");
-    }
-
-    #[test]
-    fn enter_normal_clears_cmdline() {
-        let mut s = VimState::new();
-        s.enter_cmdline();
-        s.cmdline_push('w');
-        s.enter_normal();
-        assert_eq!(s.mode, Mode::Normal);
-        assert!(s.cmdline.is_empty());
     }
 }

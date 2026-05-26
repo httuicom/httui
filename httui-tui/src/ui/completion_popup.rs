@@ -87,7 +87,7 @@ pub fn render(
         .collect();
     let list = List::new(items).style(bg_style).highlight_style(
         Style::default()
-            .bg(Color::Rgb(60, 70, 110))
+            .bg(super::palette::SELECTION_BG)
             .fg(Color::White)
             .add_modifier(Modifier::BOLD),
     );
@@ -132,30 +132,27 @@ fn compute_popup_rect(
             .saturating_add(state.anchor_offset as u16);
         let cursor_y = anchor
             .screen_top
-            .saturating_add(1)
+            .saturating_add(3)
             .saturating_add(state.anchor_line as u16);
 
         // Right-edge clamp: shift the popup left until it fits.
         let popup_x = cursor_x.min(editor_right.saturating_sub(width));
 
-        // Try below first — popup top sits on the row right after
-        // the cursor's row.
+        // Always render below the cursor, clipping the popup height
+        // if there isn't full room left. Going above tends to cover
+        // the prose/headers the user is referencing — keeping it
+        // strictly below + truncated is the desktop's behaviour and
+        // what the user expects (issue 2026-05-23).
         let below_top = cursor_y.saturating_add(1);
-        if below_top.saturating_add(popup_height) <= editor_bottom {
+        let avail = editor_bottom.saturating_sub(below_top);
+        // Need at least the border (top + bottom = 2) + 1 row.
+        if avail >= 3 {
+            let h = popup_height.min(avail);
             return Rect {
                 x: popup_x,
                 y: below_top,
                 width,
-                height: popup_height,
-            };
-        }
-        // Fallback above the cursor row.
-        if cursor_y >= editor_area.y.saturating_add(popup_height) {
-            return Rect {
-                x: popup_x,
-                y: cursor_y.saturating_sub(popup_height),
-                width,
-                height: popup_height,
+                height: h,
             };
         }
     }

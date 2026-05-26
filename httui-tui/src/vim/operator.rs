@@ -143,24 +143,98 @@ pub fn paste(pos: PastePos, count: usize, doc: &mut Document, reg: &Register) {
     if reg.is_empty() {
         return;
     }
-    let Cursor::InProse {
-        segment_idx,
-        offset,
-    } = doc.cursor()
-    else {
-        return;
-    };
-    if !matches!(doc.segments().get(segment_idx), Some(Segment::Prose(_))) {
-        return;
-    }
     let count = count.max(1);
     let body = reg.text.repeat(count);
 
-    if reg.linewise {
-        paste_linewise(pos, segment_idx, offset, &body, doc);
-    } else {
-        paste_charwise(pos, segment_idx, offset, &body, doc);
+    match doc.cursor() {
+        Cursor::InProse {
+            segment_idx,
+            offset,
+        } => {
+            if !matches!(doc.segments().get(segment_idx), Some(Segment::Prose(_))) {
+                return;
+            }
+            if reg.linewise {
+                paste_linewise(pos, segment_idx, offset, &body, doc);
+            } else {
+                paste_charwise(pos, segment_idx, offset, &body, doc);
+            }
+        }
+        Cursor::InBlock {
+            segment_idx,
+            offset,
+        } => {
+            paste_into_block(pos, reg.linewise, segment_idx, offset, &body, doc);
+        }
+        Cursor::InBlockResult { .. } => {}
     }
+}
+
+fn paste_into_block(
+    pos: PastePos,
+    linewise: bool,
+    segment_idx: usize,
+    offset: usize,
+    body: &str,
+    doc: &mut Document,
+) {
+    let new_len;
+    let insert_at;
+    let inserted_len;
+    {
+        let Some(b) = doc.block_at_mut(segment_idx) else {
+            return;
+        };
+        let total = b.raw.len_chars();
+        let off = offset.min(total);
+        // Linewise pastes (`yy` then `p`) must land on a fresh line —
+        // dropping them mid-token would corrupt the fence header or the
+        // body. For After, that's the start of the next line; for
+        // Before, the start of the current line. Charwise stays at the
+        // caret (Before) or one past it (After), matching plain vim.
+        insert_at = if linewise {
+            let line = b.raw.char_to_line(off);
+            match pos {
+                PastePos::Before => b.raw.line_to_char(line),
+                PastePos::After => {
+                    if line + 1 < b.raw.len_lines() {
+                        b.raw.line_to_char(line + 1)
+                    } else {
+                        total
+                    }
+                }
+            }
+        } else {
+            match pos {
+                PastePos::Before => off,
+                PastePos::After => (off + 1).min(total),
+            }
+        };
+        // If we're pasting linewise at EOF without a trailing newline,
+        // prepend one so the existing last line stays intact.
+        let trailing_newline = total > 0 && b.raw.char(total - 1) == '\n';
+        let needs_prefix_nl =
+            linewise && pos == PastePos::After && insert_at == total && !trailing_newline;
+        let body_final = if needs_prefix_nl {
+            format!("\n{body}")
+        } else {
+            body.to_string()
+        };
+        b.raw.insert(insert_at, &body_final);
+        b.reparse_from_raw();
+        new_len = b.raw.len_chars();
+        inserted_len = body_final.chars().count();
+    }
+    let new_offset = if linewise {
+        insert_at.min(new_len.saturating_sub(1))
+    } else {
+        (insert_at + inserted_len.saturating_sub(1)).min(new_len.saturating_sub(1))
+    };
+    doc.set_cursor(Cursor::InBlock {
+        segment_idx,
+        offset: new_offset,
+    });
+    doc.mark_dirty();
 }
 
 // ───────────── range computation ─────────────
@@ -651,6 +725,88 @@ mod tests {
         r.set_linewise("xx\n".into());
         paste(PastePos::Before, 1, &mut d, &r);
         assert_eq!(prose(&d, 0), "xx\naa\nbb");
+    }
+
+    #[test]
+    fn p_linewise_inside_block_stays_inside_raw() {
+        // Regression: vim `p` linewise inside an executable block used
+        // to leak the pasted line past the closing fence ("blank line
+        // after the block"). It must land on a fresh line inside
+        // block.raw, never beyond it.
+        let md = "lead\n\n```http alias=req\nGET https://x\n```\n\ntail\n";
+        let mut d = Document::from_markdown(md).unwrap();
+        let block_idx = d
+            .segments()
+            .iter()
+            .position(|s| matches!(s, crate::buffer::Segment::Block(_)))
+            .expect("fixture has a block");
+        let raw = match d.segments().get(block_idx) {
+            Some(crate::buffer::Segment::Block(b)) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        // Mid-body cursor (just after "GET ").
+        let off = raw.find("GET ").map(|i| i + 4).unwrap();
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: off,
+        });
+
+        let mut r = Register::empty();
+        r.set_linewise("INJECTED\n".into());
+        paste(PastePos::After, 1, &mut d, &r);
+
+        let raw_after = match d.segments().get(block_idx) {
+            Some(crate::buffer::Segment::Block(b)) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        // Pasted line lands on its own line inside the raw, AFTER the
+        // body line — and the closing fence stays put.
+        assert!(
+            raw_after.contains("GET https://x\nINJECTED\n```"),
+            "raw must absorb the line and keep the closer: {raw_after:?}"
+        );
+        // No spillover into the next prose segment.
+        let next_prose = match d.segments().get(block_idx + 1) {
+            Some(crate::buffer::Segment::Prose(r)) => r.to_string(),
+            _ => String::new(),
+        };
+        assert!(
+            !next_prose.contains("INJECTED"),
+            "pasted line must not leak past the block: {next_prose:?}"
+        );
+    }
+
+    #[test]
+    fn capital_p_linewise_inside_block_inserts_above_current_line() {
+        let md = "```http alias=req\nGET https://x\n```\n";
+        let mut d = Document::from_markdown(md).unwrap();
+        let block_idx = d
+            .segments()
+            .iter()
+            .position(|s| matches!(s, crate::buffer::Segment::Block(_)))
+            .expect("fixture has a block");
+        let raw = match d.segments().get(block_idx) {
+            Some(crate::buffer::Segment::Block(b)) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        let off = raw.find("GET").unwrap();
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: off,
+        });
+
+        let mut r = Register::empty();
+        r.set_linewise("PRELUDE\n".into());
+        paste(PastePos::Before, 1, &mut d, &r);
+
+        let raw_after = match d.segments().get(block_idx) {
+            Some(crate::buffer::Segment::Block(b)) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        assert!(
+            raw_after.contains("```http alias=req\nPRELUDE\nGET https://x\n"),
+            "P linewise lands above the GET line: {raw_after:?}"
+        );
     }
 
     #[test]

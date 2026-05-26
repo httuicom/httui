@@ -62,6 +62,7 @@ done < <("${DIFF_CMD[@]}" 2>/dev/null \
     | grep -E '\.(rs|ts|tsx)$' \
     | grep -v -E '^httui-web/' \
     | grep -v -E '/(__tests__|tests)/' \
+    | grep -v -E '(^|/)(tests|.*_tests?)\.rs$' \
     | grep -v -E '\.(test|spec|browser\.test|browser\.spec)\.(ts|tsx)$' \
     | grep -v -E '/test/' \
     | grep -v -E '\.d\.ts$' \
@@ -86,6 +87,9 @@ if [ ${#KEPT[@]} -eq 0 ]; then
     echo "coverage-check: all touched files were deleted; gate skipped"
     exit 0
 fi
+
+CHANGED_FILES=("${KEPT[@]}")
+
 CHANGED_FILES=("${KEPT[@]}")
 
 HAS_RS=0

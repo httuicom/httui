@@ -9,7 +9,8 @@
 //! can write driver-agnostic SQL with `?` and the dispatcher picks
 //! the right rewrite per driver.
 
-use sqlx::{Column, Row, TypeInfo};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+use sqlx::{Column, Row, TypeInfo, ValueRef};
 
 use super::connections::{ColumnInfo, JsonRow, QueryResult};
 use super::pool::is_subqueryable_select;
@@ -128,21 +129,103 @@ fn bind_pg_value<'q>(
 fn pg_row_to_json(row: &sqlx::postgres::PgRow) -> JsonRow {
     row.columns()
         .iter()
-        .map(|col| {
-            let idx = col.ordinal();
-            if let Ok(v) = row.try_get::<i64, _>(idx) {
-                serde_json::Value::Number(v.into())
-            } else if let Ok(v) = row.try_get::<i32, _>(idx) {
-                serde_json::Value::Number(v.into())
-            } else if let Ok(v) = row.try_get::<f64, _>(idx) {
-                serde_json::json!(v)
-            } else if let Ok(v) = row.try_get::<bool, _>(idx) {
-                serde_json::Value::Bool(v)
-            } else if let Ok(v) = row.try_get::<String, _>(idx) {
-                serde_json::Value::String(v)
-            } else {
-                serde_json::Value::Null
-            }
-        })
+        .map(|col| pg_decode_value(row, col))
         .collect()
+}
+
+/// Decode one Postgres column into `serde_json::Value`. Dispatches by
+/// `type_info().name()` (e.g. `INT8`, `NUMERIC`, `TIMESTAMPTZ`, `JSONB`)
+/// so each Postgres type maps to the right sqlx decoder. The older
+/// `try_get` cascade lost NUMERIC/TIMESTAMPTZ/JSONB/UUID/BYTEA — every
+/// non-matching branch fell through to `Null`, which the UI rendered
+/// as `(null)` even when the column held a real value.
+fn pg_decode_value(
+    row: &sqlx::postgres::PgRow,
+    col: &sqlx::postgres::PgColumn,
+) -> serde_json::Value {
+    let idx = col.ordinal();
+    // Explicit NULL check up front so a real NULL doesn't get masked by
+    // a decode failure (e.g. NUMERIC of a NULL value would error).
+    if let Ok(raw) = row.try_get_raw(idx) {
+        if raw.is_null() {
+            return serde_json::Value::Null;
+        }
+    }
+    let ty = col.type_info().name().to_string();
+    pg_decode_by_type(row, idx, &ty).unwrap_or_else(|| pg_fallback_decode(row, idx, &ty))
+}
+
+fn pg_decode_by_type(
+    row: &sqlx::postgres::PgRow,
+    idx: usize,
+    ty: &str,
+) -> Option<serde_json::Value> {
+    use sqlx::types::{chrono, BigDecimal, Json, Uuid};
+    Some(match ty {
+        "BOOL" => serde_json::Value::Bool(row.try_get::<bool, _>(idx).ok()?),
+        "INT2" => serde_json::Value::Number(row.try_get::<i16, _>(idx).ok()?.into()),
+        "INT4" => serde_json::Value::Number(row.try_get::<i32, _>(idx).ok()?.into()),
+        "INT8" => serde_json::Value::Number(row.try_get::<i64, _>(idx).ok()?.into()),
+        "FLOAT4" => serde_json::json!(row.try_get::<f32, _>(idx).ok()? as f64),
+        "FLOAT8" => serde_json::json!(row.try_get::<f64, _>(idx).ok()?),
+        // NUMERIC: decode via BigDecimal (arbitrary precision) then
+        // emit JSON number when an f64 round-trip is exact; fall back
+        // to string for values that would lose precision. Common money
+        // amounts (`499.80`, `0.1`) export as proper numbers.
+        "NUMERIC" => {
+            super::pool::decimal_to_json(&row.try_get::<BigDecimal, _>(idx).ok()?.to_string())
+        }
+        "TEXT" | "VARCHAR" | "BPCHAR" | "NAME" | "CHAR" | "CITEXT" => {
+            serde_json::Value::String(row.try_get::<String, _>(idx).ok()?)
+        }
+        "JSON" | "JSONB" => {
+            let Json(v) = row.try_get::<Json<serde_json::Value>, _>(idx).ok()?;
+            v
+        }
+        "UUID" => serde_json::Value::String(row.try_get::<Uuid, _>(idx).ok()?.to_string()),
+        "DATE" => {
+            serde_json::Value::String(row.try_get::<chrono::NaiveDate, _>(idx).ok()?.to_string())
+        }
+        "TIME" => serde_json::Value::String(
+            row.try_get::<chrono::NaiveTime, _>(idx)
+                .ok()?
+                .format("%H:%M:%S%.f")
+                .to_string(),
+        ),
+        "TIMESTAMP" => serde_json::Value::String(
+            row.try_get::<chrono::NaiveDateTime, _>(idx)
+                .ok()?
+                .format("%Y-%m-%d %H:%M:%S%.f")
+                .to_string(),
+        ),
+        "TIMESTAMPTZ" => serde_json::Value::String(
+            row.try_get::<chrono::DateTime<chrono::Utc>, _>(idx)
+                .ok()?
+                .to_rfc3339(),
+        ),
+        "BYTEA" => {
+            serde_json::Value::String(BASE64_STANDARD.encode(row.try_get::<Vec<u8>, _>(idx).ok()?))
+        }
+        _ => return None,
+    })
+}
+
+/// Fallback when the type-specific decoder doesn't fire (unknown type,
+/// or a known type whose decoder errored for whatever reason). At this
+/// point NULL is already ruled out by the caller; try the permissive
+/// String decoder, then BYTEA-as-base64, then surface a tagged marker
+/// so the user sees `something` instead of silent `(null)`.
+fn pg_fallback_decode(row: &sqlx::postgres::PgRow, idx: usize, ty: &str) -> serde_json::Value {
+    if let Ok(s) = row.try_get::<String, _>(idx) {
+        return serde_json::Value::String(s);
+    }
+    if let Ok(bytes) = row.try_get::<Vec<u8>, _>(idx) {
+        return match std::str::from_utf8(&bytes) {
+            Ok(s) => serde_json::Value::String(s.to_string()),
+            Err(_) => {
+                serde_json::Value::String(format!("base64:{}", BASE64_STANDARD.encode(&bytes)))
+            }
+        };
+    }
+    serde_json::Value::String(format!("<unable to decode {}>", ty))
 }

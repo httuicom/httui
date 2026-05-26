@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Commit-message gate — enforces the project's commit style:
+#   - subject only (no body)
+#   - no references to internal planning vocabulary (V<n>, vertical,
+#     slice, fase/phase, cenario, p<n>)
+#   - no AI-assistant attribution lines
+#   - subject ≤ 72 chars
+#
+# Bypass: `git commit --no-verify` (use only with explicit owner ack).
+set -e
+
+MSG_FILE="$1"
+[ -z "$MSG_FILE" ] && exit 0
+
+# Drop comment lines (git strips them anyway) and trailing blanks so we
+# evaluate the same text git will persist.
+MSG=$(grep -v '^#' "$MSG_FILE" | sed -E '/^[[:space:]]*$/d')
+
+if [ -z "$MSG" ]; then
+    # Empty message — let git's own handling reject it.
+    exit 0
+fi
+
+LINE_COUNT=$(printf '%s\n' "$MSG" | wc -l | tr -d ' ')
+SUBJECT=$(printf '%s\n' "$MSG" | head -n 1)
+
+fail() {
+    echo "commit-msg gate: $1" >&2
+    echo "" >&2
+    echo "Offending subject:" >&2
+    echo "  $SUBJECT" >&2
+    echo "" >&2
+    echo "Style rules (see ~/.claude/.../feedback_commit_style.md):" >&2
+    echo "  - subject only, no body" >&2
+    echo "  - no V<n> / vertical / slice / fase / cenario / p<n> refs" >&2
+    echo "  - no 'Generated with' / 'Co-Authored-By: Claude' / emoji markers" >&2
+    echo "  - subject ≤ 72 chars" >&2
+    echo "" >&2
+    echo "Bypass with --no-verify only if you really mean it." >&2
+    exit 1
+}
+
+# 1. No body — single non-blank line.
+if [ "$LINE_COUNT" -gt 1 ]; then
+    fail "commit has a body ($LINE_COUNT non-blank lines); use subject only."
+fi
+
+# 2. Subject length.
+SUBJECT_LEN=${#SUBJECT}
+if [ "$SUBJECT_LEN" -gt 72 ]; then
+    fail "subject is $SUBJECT_LEN chars (>72); shorten it."
+fi
+
+# 3. Forbidden planning-vocabulary tokens (case-insensitive, word-boundary).
+#    Matches: V1, V10, tui-V10, vertical, vertical-10, slice, fase, phase,
+#    cenario, cenário, p1..p9 (planning slices, not OS pids).
+shopt -s nocasematch
+if [[ "$SUBJECT" =~ (^|[^[:alnum:]])(tui-)?V[0-9]+([^[:alnum:]]|$) ]] \
+   || [[ "$SUBJECT" =~ (^|[^[:alnum:]])vertical([- ]?[0-9]+)?([^[:alnum:]]|$) ]] \
+   || [[ "$SUBJECT" =~ (^|[^[:alnum:]])(slice|fase|phase)([^[:alnum:]]|$) ]] \
+   || [[ "$SUBJECT" =~ (^|[^[:alnum:]])cen[áa]rio([- ]?[0-9]+)?([^[:alnum:]]|$) ]] \
+   || [[ "$SUBJECT" =~ (^|[^[:alnum:]])p[0-9]+([^[:alnum:]]|$) ]]; then
+    shopt -u nocasematch
+    fail "subject references internal planning vocabulary (V<n>/vertical/slice/fase/cenario/p<n>)."
+fi
+shopt -u nocasematch
+
+# 4. AI-assistant attribution lines / emoji markers commonly injected.
+if [[ "$SUBJECT" == *"Generated with"* ]] \
+   || [[ "$SUBJECT" == *"Co-Authored-By: Claude"* ]] \
+   || [[ "$SUBJECT" == *"🤖"* ]]; then
+    fail "subject contains AI-assistant attribution; drop it."
+fi
+
+exit 0

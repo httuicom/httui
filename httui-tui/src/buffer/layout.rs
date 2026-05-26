@@ -129,6 +129,7 @@ fn http_request_lines(b: &BlockNode, cursor_on_block: bool) -> u16 {
 
 fn db_table_height(b: &BlockNode) -> u16 {
     const MAX_VISIBLE: usize = 10;
+    const ERROR_PANEL_ROWS: u16 = 6;
     let Some(result) = b.cached_result.as_ref() else {
         return 0;
     };
@@ -136,7 +137,14 @@ fn db_table_height(b: &BlockNode) -> u16 {
     let Some(first) = results.and_then(|a| a.first()) else {
         return 0;
     };
-    if first.get("kind").and_then(|v| v.as_str()) != Some("select") {
+    let kind = first.get("kind").and_then(|v| v.as_str()).unwrap_or("");
+    // Reserve a fixed slot so the error banner + message have room.
+    if kind == "error" {
+        let multi = results.map(|a| a.len() > 1).unwrap_or(false);
+        let chrome_extra = 2 + if multi { 1 } else { 0 };
+        return ERROR_PANEL_ROWS + chrome_extra;
+    }
+    if kind != "select" {
         return 0;
     }
     let row_count = first

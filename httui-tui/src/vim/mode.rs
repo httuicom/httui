@@ -37,22 +37,6 @@ pub enum Mode {
     /// state struct receives every motion via `parse_normal`, so the
     /// editor's full vim vocabulary navigates the modal.
     HttpResponseDetail,
-    /// `:conn` on a DB block opens a small popup anchored to the
-    /// block to swap its connection without leaving the editor.
-    /// Up/Down (or `j`/`k`) navigate, Enter picks, Esc/Ctrl-C
-    /// dismiss. Renders independently of mode (popup is painted
-    /// while `App.connection_picker` is `Some`).
-    ConnectionPicker,
-    /// Confirm gate before running an unscoped destructive query
-    /// (UPDATE/DELETE without WHERE). `y` runs anyway, `n`/Esc/
-    /// Ctrl-C cancels. State lives on `App.db_confirm_run`.
-    DbConfirmRun,
-    /// `gx` on a DB block with select rows opens the export-format
-    /// picker. Up/Down (or `j`/`k`) navigate, Enter copies the
-    /// serialized result to the clipboard, Esc/Ctrl-C dismisses.
-    /// Renders as a small popup (same chrome as ConnectionPicker)
-    /// while `App.db_export_picker` is `Some`.
-    DbExportPicker,
     /// Inline fence-edit prompt for one of the block's metadata
     /// fields (alias / limit / timeout). State lives on
     /// `App.fence_edit`; the prompt renders in the status bar like
@@ -64,42 +48,11 @@ pub enum Mode {
     /// chord-per-field (`gl`/`gw`) per the
     /// `project_tui_block_settings_modal.md` user-memory.
     DbSettings,
-    /// `gh` on an HTTP block — open the run-history modal. Read-only
-    /// view of the last N rows from `block_run_history` for the
-    /// current `(file_path, alias)`. j/k navigate, Esc closes.
-    BlockHistory,
     /// `<C-f>` — open the content-search modal. Per-keystroke FTS5
     /// query over `httui-core::search::search_index`. Up/Down (or
     /// Ctrl-n/p) navigate; Enter opens the picked file in a new tab.
     ContentSearch,
-    /// `gE` — open the environment picker. Lists all environments
-    /// from the SQLite registry; the active one is marked. j/k
-    /// (or Up/Down, Ctrl-n/p) navigate, Enter activates the picked
-    /// env (and refreshes the status-bar chip), Esc/Ctrl-C dismiss.
-    /// Renders as a small popup while `App.environment_picker` is
-    /// `Some`.
-    EnvironmentPicker,
-    /// `g?` — open the keymap help modal. Read-only listing of the
-    /// chord vocabulary grouped by section (motions, blocks, modals,
-    /// files). Esc/q/Ctrl-C close. Picked over `?` (taken by
-    /// search-backwards) and `<F1>` (some terminals don't deliver
-    /// it cleanly) — `g?` matches the `g`-prefix family used by the
-    /// rest of the modal openers.
-    Help,
-    /// `gN` — open the block-template picker. Lists a small fixed
-    /// set of executable-block templates (HTTP GET / POST / SQLite
-    /// Query); Enter inserts the picked template at the cursor's
-    /// line and re-parses the surrounding prose so the fence
-    /// promotes to a `Segment::Block`. Mnemonic: `g` + capital N
-    /// for "go new (block)" — lowercase `gn` is taken by vim's
-    /// "find next match" motion.
-    BlockTemplatePicker,
-    /// `gb` — open the tab picker. Centered popup listing every
-    /// open tab by its focused-leaf path; j/k or arrows navigate;
-    /// Enter switches `tabs.active` to the picked index. Mnemonic:
-    /// `g` + b for "go (to) buffer" — vim's bare `gb` isn't bound,
-    /// so the chord is free.
-    TabPicker,
+    Modal,
 }
 
 impl Mode {
@@ -116,17 +69,10 @@ impl Mode {
             Mode::VisualLine => "V-L",
             Mode::DbRowDetail => "ROW",
             Mode::HttpResponseDetail => "RESP",
-            Mode::ConnectionPicker => "CONN",
-            Mode::DbConfirmRun => "RUN?",
-            Mode::DbExportPicker => "EXPORT",
             Mode::FenceEdit => "EDIT",
             Mode::DbSettings => "SET",
-            Mode::BlockHistory => "HIST",
             Mode::ContentSearch => "FIND",
-            Mode::EnvironmentPicker => "ENV",
-            Mode::Help => "HELP",
-            Mode::BlockTemplatePicker => "NEW",
-            Mode::TabPicker => "TABS",
+            Mode::Modal => "MOD",
         }
     }
 
@@ -141,17 +87,80 @@ impl Mode {
             Mode::Visual | Mode::VisualLine => Color::LightRed,
             Mode::DbRowDetail => Color::LightBlue,
             Mode::HttpResponseDetail => Color::LightBlue,
-            Mode::ConnectionPicker => Color::LightBlue,
-            Mode::DbConfirmRun => Color::LightRed,
-            Mode::DbExportPicker => Color::LightBlue,
             Mode::FenceEdit => Color::LightYellow,
             Mode::DbSettings => Color::LightYellow,
-            Mode::BlockHistory => Color::LightBlue,
             Mode::ContentSearch => Color::LightGreen,
-            Mode::EnvironmentPicker => Color::LightMagenta,
-            Mode::Help => Color::LightCyan,
-            Mode::BlockTemplatePicker => Color::LightGreen,
-            Mode::TabPicker => Color::LightBlue,
+            Mode::Modal => Color::LightBlue,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn all_modes() -> Vec<Mode> {
+        vec![
+            Mode::Normal,
+            Mode::Insert,
+            Mode::CommandLine,
+            Mode::Search,
+            Mode::QuickOpen,
+            Mode::Tree,
+            Mode::TreePrompt,
+            Mode::Visual,
+            Mode::VisualLine,
+            Mode::DbRowDetail,
+            Mode::HttpResponseDetail,
+            Mode::FenceEdit,
+            Mode::DbSettings,
+            Mode::ContentSearch,
+            Mode::Modal,
+        ]
+    }
+
+    #[test]
+    fn label_returns_distinct_non_empty_for_every_mode() {
+        let labels: Vec<&str> = all_modes().iter().map(|m| m.label()).collect();
+        for lbl in &labels {
+            assert!(!lbl.is_empty());
+        }
+    }
+
+    #[test]
+    fn bg_returns_a_color_for_every_mode() {
+        for m in all_modes() {
+            // Just sanity-call to ensure no panic and each arm covered.
+            let _ = m.bg();
+        }
+    }
+
+    #[test]
+    fn label_specific_values_for_known_modes() {
+        assert_eq!(Mode::Normal.label(), "NOR");
+        assert_eq!(Mode::Insert.label(), "INS");
+        assert_eq!(Mode::CommandLine.label(), "CMD");
+        assert_eq!(Mode::Search.label(), "SEA");
+        assert_eq!(Mode::QuickOpen.label(), "OPEN");
+        assert_eq!(Mode::Visual.label(), "VIS");
+        assert_eq!(Mode::VisualLine.label(), "V-L");
+        assert_eq!(Mode::DbRowDetail.label(), "ROW");
+        assert_eq!(Mode::HttpResponseDetail.label(), "RESP");
+        assert_eq!(Mode::FenceEdit.label(), "EDIT");
+        assert_eq!(Mode::DbSettings.label(), "SET");
+        assert_eq!(Mode::ContentSearch.label(), "FIND");
+        assert_eq!(Mode::Modal.label(), "MOD");
+        assert_eq!(Mode::Tree.label(), "TREE");
+        assert_eq!(Mode::TreePrompt.label(), "TREE");
+    }
+
+    #[test]
+    fn bg_specific_values_for_known_modes() {
+        assert_eq!(Mode::Normal.bg(), Color::LightCyan);
+        assert_eq!(Mode::Insert.bg(), Color::LightYellow);
+        assert_eq!(Mode::Visual.bg(), Color::LightRed);
+        assert_eq!(Mode::VisualLine.bg(), Color::LightRed);
+        assert_eq!(Mode::Tree.bg(), Color::Yellow);
+        assert_eq!(Mode::TreePrompt.bg(), Color::Yellow);
     }
 }

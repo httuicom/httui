@@ -45,9 +45,14 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvironmentPickerSta
     );
     let outer = Block::default()
         .borders(Borders::ALL)
+        .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightMagenta).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(crate::ui::palette::BORDER)
+                .bg(Color::Black),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -80,7 +85,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvironmentPickerSta
         .collect();
     let list = List::new(items).style(bg_style).highlight_style(
         Style::default()
-            .bg(Color::Rgb(60, 70, 110))
+            .bg(super::palette::SELECTION_BG)
             .fg(Color::White)
             .add_modifier(Modifier::BOLD),
     );
@@ -98,6 +103,8 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvironmentPickerSta
     let footer = Line::from(vec![
         Span::styled(" jk ", chip_key),
         Span::styled(" navigate   ", chip_label),
+        Span::styled(" 1-9 ", chip_key),
+        Span::styled(" pick   ", chip_label),
         Span::styled(" Enter ", chip_key),
         Span::styled(" activate   ", chip_label),
         Span::styled(" Esc ", chip_key),

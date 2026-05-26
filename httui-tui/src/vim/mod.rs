@@ -22,5 +22,9 @@ pub mod state;
 pub mod textobject;
 pub mod undo;
 
-pub use dispatch::dispatch;
+// `dispatch::dispatch` is no longer re-exported here: its last
+// in-crate caller (`app::handle_key`) moved to
+// `crate::input::route::route` (tui-V1 / fase 2 p5). The `dispatch`
+// module itself stays public so `crate::vim::dispatch::apply_action`
+// (used by `input::apply::replay`) keeps resolving through the facade.
 pub use state::VimState;

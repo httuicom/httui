@@ -14,7 +14,13 @@ use crate::vim::mode::Mode;
 pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     // Priority: command-line prompt > tree prompt > search prompt > status > info.
     if app.vim.mode == Mode::CommandLine {
-        let line = Line::from(vec![Span::raw(format!(":{}", app.vim.cmdline.as_str()))]);
+        let buf = app
+            .modal
+            .as_ref()
+            .and_then(|m| m.as_prompt())
+            .map(|(_, le)| le.as_str().to_string())
+            .unwrap_or_default();
+        let line = Line::from(vec![Span::raw(format!(":{buf}"))]);
         frame.render_widget(Paragraph::new(line), area);
         return;
     }
@@ -44,11 +50,13 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     if app.vim.mode == Mode::Search {
-        let prompt = if app.vim.search_forward { '/' } else { '?' };
-        let line = Line::from(vec![Span::raw(format!(
-            "{prompt}{}",
-            app.vim.search_buf.as_str()
-        ))]);
+        let (sigil, buf) = match app.modal.as_ref().and_then(|m| m.as_prompt()) {
+            Some((crate::modal::PromptKind::Search { forward }, le)) => {
+                (if forward { '/' } else { '?' }, le.as_str().to_string())
+            }
+            _ => ('/', String::new()),
+        };
+        let line = Line::from(vec![Span::raw(format!("{sigil}{buf}"))]);
         frame.render_widget(Paragraph::new(line), area);
         return;
     }
@@ -145,16 +153,39 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         ],
         None => Vec::new(),
     };
-    let mut spans = vec![Span::styled(
-        format!(" {} ", mode.label()),
-        Style::default()
-            .fg(Color::Black)
-            .bg(mode.bg())
-            .add_modifier(Modifier::BOLD),
-    )];
+    // Mode chip is a vim affordance: it only means something when the
+    // modal engine is driving input. In Standard editor mode there are
+    // no vim modes to surface, so we skip the chip entirely and let the
+    // status bar lead with the file/vault section.
+    let mut spans: Vec<Span<'static>> = if app.config.editor.mode == crate::config::EditorMode::Vim
+    {
+        vec![Span::styled(
+            format!(" {} ", mode.label()),
+            Style::default()
+                .fg(Color::Black)
+                .bg(mode.bg())
+                .add_modifier(Modifier::BOLD),
+        )]
+    } else {
+        Vec::new()
+    };
     spans.extend(running_chip);
     spans.extend(env_chip);
     spans.extend(conn_chip);
+    // pending-secrets badge. Only emits when the active
+    // vault has refs without a keychain entry; clicking is replaced
+    // by the `s` chord inside the vault picker (Alt+; → s reopens
+    // the first-run modal so the user can fill them in).
+    if !app.pending_secrets.is_empty() {
+        spans.push(Span::raw(" "));
+        spans.push(Span::styled(
+            format!(" ! {} secrets ", app.pending_secrets.len()),
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::LightYellow)
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
     spans.push(Span::raw(format!(
         " {file}{dirty_marker} · {block_count} blocks · {cursor_label} · vault: {vault} · theme: {}",
         app.config.theme
@@ -212,7 +243,24 @@ fn running_chip_label(app: &App) -> Option<String> {
             _ => None,
         })
         .unwrap_or("running");
-    Some(format!("▶ {kind} · {elapsed:.1}s"))
+    if kind == "HTTP" && rq.bytes_received > 0 {
+        Some(format!(
+            "▶ HTTP · ↓ {} · {elapsed:.1}s",
+            format_progress_bytes(rq.bytes_received)
+        ))
+    } else {
+        Some(format!("▶ {kind} · {elapsed:.1}s"))
+    }
+}
+
+fn format_progress_bytes(bytes: u64) -> String {
+    if bytes < 1024 {
+        format!("{bytes} B")
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1} kB", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    }
 }
 
 fn count_blocks(doc: &Document) -> usize {
@@ -309,8 +357,22 @@ fn describe_cursor(doc: &Document) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::compact_vault_path;
+    use super::*;
+    use crate::app::{App, RunningKind, RunningQuery, StatusMessage};
+    use crate::buffer::Cursor;
+    use crate::config::{Config, EditorMode};
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use ratatui::backend::TestBackend;
+    use ratatui::layout::Rect;
+    use ratatui::style::{Color, Modifier};
+    use ratatui::Terminal;
     use std::path::PathBuf;
+    use std::time::Instant;
+    use tempfile::TempDir;
+    use tokio_util::sync::CancellationToken;
+
+    // ---- compact_vault_path (pure-string, no App needed) -------------
 
     #[test]
     fn short_paths_stay_intact() {
@@ -333,5 +395,514 @@ mod tests {
         let out = compact_vault_path(&p);
         // Tail picks the two last non-empty segments.
         assert_eq!(out, "…/y/z");
+    }
+
+    #[test]
+    fn home_prefix_collapses_to_tilde() {
+        // SAFETY: tests in this module are not parallel-sensitive on
+        // $HOME — each sets it right before asserting and reads it
+        // synchronously inside the same call. `compact_vault_path`
+        // reads `$HOME` once via `std::env::var`.
+        let prev = std::env::var("HOME").ok();
+        unsafe { std::env::set_var("HOME", "/Users/tester") };
+        let out = compact_vault_path(&PathBuf::from("/Users/tester/notes"));
+        assert_eq!(out, "~/notes");
+        match prev {
+            Some(v) => unsafe { std::env::set_var("HOME", v) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+    }
+
+    // ---- App fixture + render harness --------------------------------
+
+    /// Build an `App` over a vault seeded with the given
+    /// `(relative_path, contents)` files. Mirrors the fixture in
+    /// `app/impl_file_tab.rs`. `App::new` uses `block_in_place` →
+    /// multi-thread runtime required.
+    async fn app_with_files(files: &[(&str, &str)]) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        for (rel, body) in files {
+            let p = vault.path().join(rel);
+            if let Some(parent) = p.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            std::fs::write(p, body).unwrap();
+        }
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool);
+        (app, data, vault)
+    }
+
+    /// Render the status bar into a 200×1 test buffer and return the
+    /// flattened row text plus the buffer for per-cell style asserts.
+    fn render(app: &App) -> (String, ratatui::buffer::Buffer) {
+        let backend = TestBackend::new(200, 1);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let area = Rect::new(0, 0, 200, 1);
+                render_status_bar(f, area, app);
+            })
+            .unwrap();
+        let buf = terminal.backend().buffer().clone();
+        let text: String = (0..200)
+            .map(|x| buf.cell((x, 0)).unwrap().symbol().to_string())
+            .collect::<String>();
+        (text, buf)
+    }
+
+    // ---- prompt branches --------------------------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn command_line_prompt_renders_colon_prefix() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.vim.mode = Mode::CommandLine;
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::Cmdline,
+            crate::vim::lineedit::LineEdit::from_str("w foo"),
+        ));
+        let (text, _) = render(&app);
+        assert!(text.contains(":w foo"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_prompt_create_at_root_and_in_dir() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.vim.mode = Mode::TreePrompt;
+        app.tree.prompt = Some(crate::tree::TreePrompt::new(
+            TreePromptKind::Create { dir: String::new() },
+            "draft.md".into(),
+        ));
+        let (text, _) = render(&app);
+        assert!(text.contains("new file: "), "got: {text:?}");
+        assert!(text.contains("draft.md"), "got: {text:?}");
+
+        app.tree.prompt = Some(crate::tree::TreePrompt::new(
+            TreePromptKind::Create {
+                dir: "notes".into(),
+            },
+            String::new(),
+        ));
+        let (text, _) = render(&app);
+        assert!(text.contains("new file in notes/: "), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_prompt_rename_and_delete_labels() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.vim.mode = Mode::TreePrompt;
+        app.tree.prompt = Some(crate::tree::TreePrompt::new(
+            TreePromptKind::Rename {
+                from: "old.md".into(),
+            },
+            "old.md".into(),
+        ));
+        let (text, _) = render(&app);
+        assert!(text.contains("rename old.md → "), "got: {text:?}");
+
+        app.tree.prompt = Some(crate::tree::TreePrompt::new(
+            TreePromptKind::Delete {
+                target: "gone.md".into(),
+            },
+            String::new(),
+        ));
+        let (text, _) = render(&app);
+        assert!(text.contains("delete gone.md? (y/N) "), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_prompt_mode_without_prompt_renders_blank() {
+        // Mode is TreePrompt but `tree.prompt` is None — the function
+        // returns early without painting anything.
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.vim.mode = Mode::TreePrompt;
+        app.tree.prompt = None;
+        let (text, _) = render(&app);
+        assert!(text.trim().is_empty(), "expected blank, got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn search_prompt_forward_and_backward() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.vim.mode = Mode::Search;
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::Search { forward: true },
+            crate::vim::lineedit::LineEdit::from_str("needle"),
+        ));
+        let (text, _) = render(&app);
+        assert!(text.contains("/needle"), "got: {text:?}");
+
+        app.modal = Some(crate::modal::Modal::Prompt(
+            crate::modal::PromptKind::Search { forward: false },
+            crate::vim::lineedit::LineEdit::from_str("needle"),
+        ));
+        let (text, _) = render(&app);
+        assert!(text.contains("?needle"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn status_message_info_and_error_styles() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.vim.mode = Mode::Normal;
+        app.status_message = Some(StatusMessage {
+            text: "wrote a.md".into(),
+            kind: StatusKind::Info,
+        });
+        let (text, buf) = render(&app);
+        assert!(text.contains("wrote a.md"), "got: {text:?}");
+        // Info: default style (no red bg).
+        let info_cell = buf.cell((2, 0)).unwrap();
+        assert_ne!(info_cell.bg, Color::Red);
+
+        app.status_message = Some(StatusMessage {
+            text: "boom".into(),
+            kind: StatusKind::Error,
+        });
+        let (text, buf) = render(&app);
+        assert!(text.contains("boom"), "got: {text:?}");
+        // Error: white-on-red bold somewhere in the painted text.
+        let has_red = (0..20).any(|x| {
+            let c = buf.cell((x, 0)).unwrap();
+            c.bg == Color::Red && c.modifier.contains(Modifier::BOLD)
+        });
+        assert!(has_red, "expected a red bold cell in {text:?}");
+    }
+
+    // ---- default status line + mode chip guard ----------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn vim_mode_shows_mode_chip_with_label_and_color() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "hello\n")]).await;
+        app.config.editor.mode = EditorMode::Vim;
+        app.vim.mode = Mode::Normal;
+        let (text, buf) = render(&app);
+        // Chip carries the NOR label.
+        assert!(text.contains("NOR"), "got: {text:?}");
+        // First chip cell painted with the mode background + bold.
+        let chip = buf.cell((1, 0)).unwrap();
+        assert_eq!(chip.bg, Mode::Normal.bg());
+        assert!(chip.modifier.contains(Modifier::BOLD));
+        // Default-status tail also present.
+        assert!(text.contains("a.md"), "got: {text:?}");
+        assert!(text.contains("blocks"), "got: {text:?}");
+        assert!(text.contains("vault:"), "got: {text:?}");
+        assert!(text.contains("theme:"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_mode_hides_mode_chip() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "hello\n")]).await;
+        app.config.editor.mode = EditorMode::Standard;
+        app.vim.mode = Mode::Normal;
+        let (text, _) = render(&app);
+        // No vim mode label leaks into Standard's status bar.
+        assert!(!text.contains("NOR"), "mode chip leaked: {text:?}");
+        // But the file/vault tail still renders.
+        assert!(text.contains("a.md"), "got: {text:?}");
+        assert!(text.contains("theme:"), "got: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn dirty_marker_and_block_count_render() {
+        let src = "intro\n\n```db-postgres alias=q connection=cid\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        app.config.editor.mode = EditorMode::Vim;
+        app.vim.mode = Mode::Normal;
+        // Clean → no dirty dot.
+        let (clean, _) = render(&app);
+        assert!(!clean.contains("·●"), "unexpected dirty dot: {clean:?}");
+        assert!(clean.contains("1 blocks"), "got: {clean:?}");
+        // Dirty → dot appears.
+        app.document_mut().unwrap().mark_dirty();
+        let (dirty, _) = render(&app);
+        assert!(dirty.contains("·●"), "expected dirty dot: {dirty:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn no_document_falls_back_to_placeholder() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.config.editor.mode = EditorMode::Vim;
+        app.vim.mode = Mode::Normal;
+        // Drop the document from the active pane so the `(no file)`
+        // and `—` cursor fallbacks fire.
+        if let Some(p) = app.active_pane_mut() {
+            p.document = None;
+            p.document_path = None;
+        }
+        let (text, _) = render(&app);
+        assert!(text.contains("(no file)"), "got: {text:?}");
+        assert!(text.contains("0 blocks"), "got: {text:?}");
+        assert!(text.contains(" — "), "expected cursor dash, got: {text:?}");
+    }
+
+    // ---- chips: running / env / conn --------------------------------
+
+    fn running(app: &mut App, segment_idx: usize) {
+        app.running_query = Some(RunningQuery {
+            segment_idx,
+            cancel: CancellationToken::new(),
+            started_at: Instant::now(),
+            kind: RunningKind::Run,
+            cache_key: None,
+            bytes_received: 0,
+        });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn running_chip_labels_http_db_and_generic() {
+        // One HTTP block + one DB block. Use the canonical JSON body
+        // format for HTTP — it's what the parser keys `is_http` off.
+        let src = "```http alias=h\n{\"method\":\"GET\",\"url\":\"https://x.com\",\"params\":[],\"headers\":[],\"body\":\"\"}\n```\n\n```db-postgres alias=q connection=cid\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        app.config.editor.mode = EditorMode::Vim;
+        app.vim.mode = Mode::Normal;
+
+        // Resolve the HTTP block's segment index dynamically.
+        let http_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(b) if b.is_http()))
+            .unwrap();
+        running(&mut app, http_idx);
+        assert!(running_chip_label(&app).unwrap().contains("HTTP"));
+        let (text, _) = render(&app);
+        assert!(text.contains("▶ HTTP ·"), "got: {text:?}");
+
+        // Find the DB block's segment index dynamically.
+        let db_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(b) if b.is_db()))
+            .unwrap();
+        running(&mut app, db_idx);
+        assert!(running_chip_label(&app).unwrap().contains("DB"));
+
+        // Out-of-range segment → generic "running" fallback.
+        running(&mut app, 999);
+        let label = running_chip_label(&app).unwrap();
+        assert!(label.contains("running"), "got: {label:?}");
+
+        // No running query → None, no chip.
+        app.running_query = None;
+        assert!(running_chip_label(&app).is_none());
+        let (text, _) = render(&app);
+        assert!(!text.contains("▶"), "stale run chip: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn env_chip_present_when_active_env_set() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.config.editor.mode = EditorMode::Vim;
+        app.vim.mode = Mode::Normal;
+
+        let (text, _) = render(&app);
+        assert!(!text.contains("env:"), "unexpected env chip: {text:?}");
+
+        app.active_env_name = Some("staging".into());
+        let (text, buf) = render(&app);
+        assert!(text.contains("env: staging"), "got: {text:?}");
+        // Magenta background somewhere in the line.
+        let has_magenta = (0..200).any(|x| buf.cell((x, 0)).unwrap().bg == Color::LightMagenta);
+        assert!(has_magenta, "expected magenta env chip: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn conn_chip_resolves_when_cursor_on_db_block() {
+        let src = "intro\n\n```db-postgres alias=q connection=cid-1\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        app.config.editor.mode = EditorMode::Vim;
+        app.vim.mode = Mode::Normal;
+        app.connection_names
+            .insert("cid-1".into(), "prod-db".into());
+
+        // Cursor in prose → no conn chip.
+        assert!(focused_block_conn_name(&app).is_none());
+        let (text, _) = render(&app);
+        assert!(!text.contains("conn:"), "unexpected conn chip: {text:?}");
+
+        // Park the cursor inside the DB block.
+        let db_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(b) if b.is_db()))
+            .unwrap();
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: db_idx,
+            offset: 0,
+        });
+        assert_eq!(focused_block_conn_name(&app).as_deref(), Some("prod-db"));
+        let (text, buf) = render(&app);
+        assert!(text.contains("conn: prod-db"), "got: {text:?}");
+        let has_cyan = (0..200).any(|x| buf.cell((x, 0)).unwrap().bg == Color::LightCyan);
+        assert!(has_cyan, "expected cyan conn chip: {text:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn conn_chip_absent_for_unresolved_id_and_non_db() {
+        let src = "```db-postgres alias=q connection=missing\nSELECT 1\n```\n\n```http alias=h\n{\"method\":\"GET\",\"url\":\"https://x.com\",\"params\":[],\"headers\":[],\"body\":\"\"}\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+
+        // DB block but id not in connection_names → None.
+        let db_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(b) if b.is_db()))
+            .unwrap();
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: db_idx,
+            offset: 0,
+        });
+        assert!(focused_block_conn_name(&app).is_none());
+
+        // Cursor on the HTTP block → not a DB block → None.
+        let http_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(b) if b.is_http()))
+            .unwrap();
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: http_idx,
+            offset: 0,
+        });
+        assert!(focused_block_conn_name(&app).is_none());
+
+        // InBlockResult on the DB block also resolves (covers the
+        // second match arm) when the id is known.
+        app.connection_names.insert("c2".into(), "named".into());
+        let src2 = "```db-postgres alias=q connection=c2\nSELECT 1\n```\n";
+        let (mut app2, _d2, _v2) = app_with_files(&[("b.md", src2)]).await;
+        app2.connection_names.insert("c2".into(), "named".into());
+        let idx2 = app2
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(b) if b.is_db()))
+            .unwrap();
+        app2.document_mut()
+            .unwrap()
+            .set_cursor(Cursor::InBlockResult {
+                segment_idx: idx2,
+                row: 0,
+            });
+        assert_eq!(focused_block_conn_name(&app2).as_deref(), Some("named"));
+    }
+
+    // ---- describe_cursor --------------------------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn describe_cursor_in_prose_reports_line_col() {
+        let (app, _d, _v) = app_with_files(&[("a.md", "line one\nline two\n")]).await;
+        let doc = app.document().unwrap();
+        // Default cursor lands in prose at offset 0.
+        let label = describe_cursor(doc);
+        assert!(label.starts_with("Ln 1 Col 1"), "got: {label:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn describe_cursor_in_block_header_body_and_result() {
+        let src = "intro\n\n```db-postgres alias=q connection=c\nSELECT 1\nFROM t\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        let db_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(b) if b.is_db()))
+            .unwrap();
+
+        // Header (offset 0 → fence line).
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: db_idx,
+            offset: 0,
+        });
+        let label = describe_cursor(app.document().unwrap());
+        assert!(label.contains("fence ```"), "header: {label:?}");
+        assert!(label.starts_with("Block #1"), "header: {label:?}");
+
+        // Body — offset on the first SQL line.
+        let raw = match &app.document().unwrap().segments()[db_idx] {
+            Segment::Block(b) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        let body_off = raw.find("SELECT").unwrap() + 2;
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: db_idx,
+            offset: body_off,
+        });
+        let label = describe_cursor(app.document().unwrap());
+        assert!(label.contains("Block #1 · Ln "), "body: {label:?}");
+
+        // Closer — offset at the very end of the rope.
+        let end = raw.chars().count();
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: db_idx,
+            offset: end,
+        });
+        let label = describe_cursor(app.document().unwrap());
+        assert!(label.contains("fence ```"), "closer: {label:?}");
+
+        // Result row.
+        app.document_mut()
+            .unwrap()
+            .set_cursor(Cursor::InBlockResult {
+                segment_idx: db_idx,
+                row: 4,
+            });
+        let label = describe_cursor(app.document().unwrap());
+        assert_eq!(label, "Block #1 · Result row 5");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn describe_cursor_handles_segment_type_mismatch() {
+        // Cursor::InProse pointing at a block segment → "Ln ? Col ?".
+        let src = "```db-postgres alias=q connection=c\nSELECT 1\n```\n";
+        let (mut app, _d, _v) = app_with_files(&[("a.md", src)]).await;
+        let db_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(b) if b.is_db()))
+            .unwrap();
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: db_idx,
+            offset: 0,
+        });
+        assert_eq!(describe_cursor(app.document().unwrap()), "Ln ? Col ?");
+
+        // Cursor::InBlock pointing at a prose segment → "Block #N · ?".
+        let prose_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Prose(_)))
+            .unwrap_or(0);
+        if matches!(
+            app.document().unwrap().segments().get(prose_idx),
+            Some(Segment::Prose(_))
+        ) {
+            app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+                segment_idx: prose_idx,
+                offset: 0,
+            });
+            let label = describe_cursor(app.document().unwrap());
+            assert!(label.contains('?'), "got: {label:?}");
+        }
     }
 }
