@@ -124,6 +124,14 @@ impl EventLoop {
         self.rx.recv().await
     }
 
+    /// Mutable borrow of the inner receiver. Lets generic loop
+    /// helpers (`empty_state::bootstrap_loop`) take a plain
+    /// `UnboundedReceiver` so tests can drive them with a synthetic
+    /// channel — `EventLoop::start` always binds to the real TTY.
+    pub fn receiver_mut(&mut self) -> &mut mpsc::UnboundedReceiver<AppEvent> {
+        &mut self.rx
+    }
+
     /// Hand a cloneable sender to dispatch handlers that need to
     /// inject events from spawned tasks (currently the async DB
     /// executor). The receiver continues to flow through `next()`.
