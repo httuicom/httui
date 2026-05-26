@@ -552,6 +552,10 @@ mod tests {
         // way: anchor never survives a *successful* cut, doc only
         // shrinks if the clipboard accepted the text.
         let (mut app, _d, _v) = app_with_note(EditorMode::Standard).await;
+        // `Document::from_markdown` drops a trailing newline on the
+        // input/output roundtrip — pin the post-load baseline so the
+        // clipboard-failed branch compares like-for-like.
+        let baseline = app.document().unwrap().to_markdown();
         route(&mut app, shift(KeyCode::Right));
         route(&mut app, shift(KeyCode::Right));
         let had_anchor = app.standard.anchor.is_some();
@@ -562,9 +566,9 @@ mod tests {
         // panic, no half-state.
         let md = app.document().unwrap().to_markdown();
         if app.standard.anchor.is_none() {
-            assert!(md.len() < 4, "successful cut shrank the doc: {md:?}");
+            assert!(md.len() < baseline.len(), "successful cut shrank the doc: {md:?}");
         } else {
-            assert_eq!(md, "abc\n", "failed cut preserved the doc");
+            assert_eq!(md, baseline, "failed cut preserved the doc");
         }
     }
 
