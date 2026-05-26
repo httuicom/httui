@@ -82,7 +82,7 @@ fn submit_commit(app: &mut App) {
         app.git_panel
             .status
             .as_ref()
-            .map(commit_template)
+            .map(|s| commit_template(s, &app.git_commit_template))
             .unwrap_or_default()
     } else {
         raw
@@ -110,7 +110,10 @@ fn submit_commit(app: &mut App) {
 fn submit_sync(app: &mut App) {
     let raw = app.git_panel.commit_message.as_str().trim().to_string();
     let message = if raw.is_empty() {
-        app.git_panel.status.as_ref().map(commit_template)
+        app.git_panel
+            .status
+            .as_ref()
+            .map(|s| commit_template(s, &app.git_commit_template))
     } else {
         Some(raw)
     };

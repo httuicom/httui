@@ -23,14 +23,15 @@ pub fn width() -> u16 {
 }
 
 /// Render the panel and, when `focused`, place the terminal cursor
-/// at the commit-message caret. Returns the absolute cursor cell
-/// when set, so callers can avoid duplicate `set_cursor_position`
-/// calls if they manage cursor themselves.
+/// at the commit-message caret. `commit_tpl` comes from the user's
+/// `[ui].git_commit_template` (shared with the desktop); the
+/// placeholder text under an empty draft is computed from it.
 pub fn render(
     frame: &mut Frame,
     area: Rect,
     panel: &GitPanel,
     focused: bool,
+    commit_tpl: &str,
 ) -> Option<(u16, u16)> {
     let (border_color, title_style) = if focused {
         (
@@ -78,7 +79,7 @@ pub fn render(
     });
     frame.render_stateful_widget(list, list_area, &mut state);
 
-    render_commit_form(frame, form_area, panel, focused)
+    render_commit_form(frame, form_area, panel, focused, commit_tpl)
 }
 
 fn render_commit_form(
@@ -86,6 +87,7 @@ fn render_commit_form(
     area: Rect,
     panel: &GitPanel,
     focused: bool,
+    commit_tpl: &str,
 ) -> Option<(u16, u16)> {
     if area.height < 2 {
         return None;
@@ -109,7 +111,7 @@ fn render_commit_form(
     let placeholder = panel
         .status
         .as_ref()
-        .map(commit_template)
+        .map(|s| commit_template(s, commit_tpl))
         .unwrap_or_default();
     let (text, style) = if draft.is_empty() {
         if placeholder.is_empty() {

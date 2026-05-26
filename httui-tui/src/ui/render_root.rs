@@ -224,7 +224,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     }
     let git_cursor = if let Some(ga) = git_area {
         let focused = app.vim.mode == Mode::Git;
-        git_panel::render(frame, ga, &app.git_panel, focused)
+        git_panel::render(frame, ga, &app.git_panel, focused, &app.git_commit_template)
     } else {
         None
     };
