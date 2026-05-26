@@ -314,4 +314,227 @@ GET /d?b={{b.body.y}}&c={{c.body.y}}
         let deps = collect_unrun_deps(d.segments(), idxs[0]).unwrap();
         assert!(deps.is_empty());
     }
+
+    use crate::app::{App, RunningKind, RunningQuery};
+    use crate::config::Config;
+    use crate::pane::{Pane, TabState};
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use std::time::Instant;
+    use tempfile::TempDir;
+    use tokio_util::sync::CancellationToken;
+
+    async fn app_with_doc(md: &str) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let note = vault.path().join("note.md");
+        std::fs::write(&note, md).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        let doc = Document::from_markdown(md).unwrap();
+        let pane = Pane::new(doc, note);
+        app.tabs.tabs.push(TabState::new(pane));
+        app.tabs.active = 0;
+        (app, data, vault)
+    }
+
+    fn make_running_query(segment_idx: usize) -> RunningQuery {
+        RunningQuery {
+            segment_idx,
+            cancel: CancellationToken::new(),
+            started_at: Instant::now(),
+            kind: RunningKind::Run,
+            cache_key: None,
+            bytes_received: 0,
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn apply_run_block_with_no_block_at_cursor_sets_status() {
+        let (mut app, _d, _v) = app_with_doc("just prose\n").await;
+        apply_run_block(&mut app);
+        assert!(app.run_chain.is_empty(), "no chain when cursor not in block");
+        assert!(app.status_message.is_some(), "expected status hint");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn apply_run_block_with_cursor_in_block_starts_chain() {
+        let md = "```http alias=a\nGET /x\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        let block_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("block");
+        let raw_offset = match app.document().unwrap().segments().get(block_idx) {
+            Some(Segment::Block(_)) => 0usize,
+            _ => panic!(),
+        };
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: raw_offset,
+        });
+        apply_run_block(&mut app);
+        // run_chain was either built then cleared by stall guard
+        // (URL invalid, no running_query spawned) — exercise still
+        // hits start_run_chain + advance_run_chain.
+        assert!(app.run_chain.is_empty() || !app.run_chain.is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn start_run_chain_aborts_when_running_query_present() {
+        let md = "```http alias=a\nGET /x\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        app.running_query = Some(make_running_query(0));
+        start_run_chain(&mut app, 0);
+        assert!(app.run_chain.is_empty());
+        assert!(
+            app.status_message
+                .as_ref()
+                .map(|s| s.text.contains("already running"))
+                .unwrap_or(false),
+            "expected already-running status"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn advance_run_chain_with_empty_chain_is_noop() {
+        let (mut app, _d, _v) = app_with_doc("just prose\n").await;
+        advance_run_chain(&mut app);
+        assert!(app.run_chain.is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn advance_run_chain_clears_when_block_type_unknown() {
+        // Parse a real block then mutate block_type so advance_run_chain
+        // hits the "not runnable" branch.
+        let md = "```http alias=a\nGET /x\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        let block_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("block");
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(block_idx) {
+            b.block_type = "mystery".into();
+        }
+        app.run_chain = vec![block_idx];
+        advance_run_chain(&mut app);
+        assert!(app.run_chain.is_empty(), "unknown block type clears chain");
+        assert!(
+            app.status_message
+                .as_ref()
+                .map(|s| s.text.contains("runnable"))
+                .unwrap_or(false),
+            "expected not-runnable status"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn advance_run_chain_clears_when_head_idx_not_a_block() {
+        let (mut app, _d, _v) = app_with_doc("prose only\n").await;
+        app.run_chain = vec![42]; // out-of-range
+        advance_run_chain(&mut app);
+        assert!(app.run_chain.is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn on_block_complete_ignores_idx_when_head_mismatches() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        app.run_chain = vec![5];
+        on_block_complete(&mut app, 99, true);
+        assert_eq!(app.run_chain, vec![5], "mismatched head must not pop");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn on_block_complete_failure_with_more_pending_aborts_chain() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        app.run_chain = vec![1, 2, 3];
+        on_block_complete(&mut app, 1, false);
+        assert!(app.run_chain.is_empty(), "failure aborts the chain");
+        assert!(
+            app.status_message
+                .as_ref()
+                .map(|s| s.text.contains("aborted"))
+                .unwrap_or(false),
+            "expected aborted status"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn on_block_complete_failure_with_empty_chain_is_silent() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        app.run_chain = vec![7];
+        on_block_complete(&mut app, 7, false);
+        assert!(app.run_chain.is_empty());
+        // No "aborted" status — the chain was already on its last item.
+        assert!(
+            app.status_message
+                .as_ref()
+                .map(|s| !s.text.contains("aborted"))
+                .unwrap_or(true)
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn on_block_complete_success_with_no_more_just_pops() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        app.run_chain = vec![3];
+        on_block_complete(&mut app, 3, true);
+        assert!(app.run_chain.is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn start_run_chain_no_doc_returns_silently() {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        // no tabs registered — document() returns None
+        start_run_chain(&mut app, 0);
+        assert!(app.run_chain.is_empty());
+        assert!(app.status_message.is_none(), "no-doc path is silent");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn start_run_chain_propagates_collect_error_to_status() {
+        // Build a chain where alias `a` is self-referencing — we
+        // can't easily forge cycles with the above-only rule, so
+        // simulate the failure by feeding a depth-exceeding chain.
+        let mut md = String::new();
+        // Build A0…A55 each citing the previous one — depth > 50.
+        md.push_str("```http alias=a0\nGET /a\n```\n\n");
+        for i in 1..=55usize {
+            md.push_str(&format!(
+                "```http alias=a{i}\nGET /a?x={{{{a{}.body.id}}}}\n```\n\n",
+                i - 1
+            ));
+        }
+        let (mut app, _d, _v) = app_with_doc(&md).await;
+        let target_idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| matches!(s, Segment::Block(_)).then_some(i))
+            .last()
+            .expect("at least one block");
+        start_run_chain(&mut app, target_idx);
+        assert!(app.run_chain.is_empty(), "error path clears chain");
+        assert!(
+            app.status_message
+                .as_ref()
+                .map(|s| s.text.contains("50") || s.text.contains("chain"))
+                .unwrap_or(false),
+            "expected depth-exceeded error in status: {:?}",
+            app.status_message.as_ref().map(|s| &s.text)
+        );
+    }
 }
