@@ -214,6 +214,10 @@ impl App {
         app.load_initial_document();
         app.refresh_active_env_name();
         app.scan_pending_secrets();
+        // Prime the status-bar git chip so the user sees the branch
+        // chip before opening the panel. Non-git vaults populate
+        // `status_error` and the chip silently sits out.
+        crate::commands::git::refresh_git_status(&mut app);
         app
     }
 
