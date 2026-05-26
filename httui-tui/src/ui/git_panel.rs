@@ -17,9 +17,8 @@ use httui_core::git::status::{FileChange, GitStatus};
 use crate::git::GitPanel;
 
 const PANEL_WIDTH: u16 = 42;
-/// Tall enough for: border (2) + draft line (1) + optional error
-/// (1) + amend toggle (1) + key hints (1) = up to 6.
-const COMMIT_FORM_HEIGHT: u16 = 6;
+/// Message box = border (2) + draft line (1).
+const MESSAGE_BOX_HEIGHT: u16 = 3;
 
 pub fn width() -> u16 {
     PANEL_WIDTH
@@ -55,32 +54,38 @@ pub fn render(
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    // Desktop SCM order: status (clean or file list) → commit form
-    // → history. Form sits in the middle so the user's eye lands on
-    // the message input before scrolling commit history.
-    let form_height = COMMIT_FORM_HEIGHT.min(inner.height.saturating_sub(2));
+    // Desktop SCM order: status → message box → meta (amend / hints)
+    // → history. The bordered "message" box wraps the draft line
+    // only; amend + key hints sit on the panel below as separate
+    // affordances.
+    let meta_height = super::git_panel_form::meta_height(panel);
     let status_rows = status_body_rows(panel);
     let history_rows = history_body_rows(panel);
+    let fixed = MESSAGE_BOX_HEIGHT + meta_height;
     let status_height = (status_rows.len() as u16).min(
-        inner.height.saturating_sub(form_height + history_rows.len() as u16),
+        inner.height.saturating_sub(fixed + history_rows.len() as u16),
     );
     let split = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(status_height),
-            Constraint::Length(form_height),
+            Constraint::Length(MESSAGE_BOX_HEIGHT),
+            Constraint::Length(meta_height),
             Constraint::Min(0),
         ])
         .split(inner);
     let status_area = split[0];
-    let form_area = split[1];
-    let history_area = split[2];
+    let message_area = split[1];
+    let meta_area = split[2];
+    let history_area = split[3];
 
     render_row_list(frame, status_area, &status_rows, selected_row(panel, &status_rows), focused);
 
-    let cursor = super::git_panel_form::render_commit_form(
-        frame, form_area, panel, focused, commit_tpl,
+    let cursor = super::git_panel_form::render_message_box(
+        frame, message_area, panel, focused, commit_tpl,
     );
+
+    super::git_panel_form::render_meta(frame, meta_area, panel);
 
     render_row_list(frame, history_area, &history_rows, None, false);
 
@@ -102,29 +107,24 @@ fn render_row_list(
     if let Some(idx) = selected {
         state.select(Some(idx));
     }
-    let list = List::new(items).highlight_style(if focused {
-        Style::default()
-            .bg(Color::Yellow)
-            .fg(Color::Black)
-            .add_modifier(Modifier::BOLD)
+    let highlight = if focused {
+        Style::default().bg(Color::Yellow).fg(Color::Black).add_modifier(Modifier::BOLD)
     } else {
         Style::default().bg(Color::DarkGray).fg(Color::White)
-    });
-    frame.render_stateful_widget(list, area, &mut state);
+    };
+    frame.render_stateful_widget(List::new(items).highlight_style(highlight), area, &mut state);
 }
 
 fn header_label(panel: &GitPanel) -> String {
     match (&panel.status, &panel.status_error) {
         (Some(status), _) => {
-            let branch = status.branch.as_deref().unwrap_or("detached");
-            let mut s = branch.to_string();
+            let mut s = status.branch.as_deref().unwrap_or("detached").to_string();
             if status.ahead != 0 || status.behind != 0 {
                 s.push_str(&format!(" ↑{} ↓{}", status.ahead, status.behind));
             }
             let n = status.changed.len();
             if n > 0 {
-                let suffix = if n == 1 { "" } else { "s" };
-                s.push_str(&format!(" · {n} change{suffix}"));
+                s.push_str(&format!(" · {n} change{}", if n == 1 { "" } else { "s" }));
             }
             s
         }

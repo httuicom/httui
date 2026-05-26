@@ -1,7 +1,15 @@
 //! Commit-form sub-renderer for the git side panel. Split out of
-//! `ui::git_panel` to keep that file under the size gate. Paints the
-//! draft / placeholder line, optional error, amend toggle and key
-//! hints (Enter = commit, Ctrl+⏎ = sync, Ctrl+A = amend).
+//! `ui::git_panel` to keep that file under the size gate.
+//!
+//! The form is composed of two sibling rects:
+//!
+//! - [`render_message_box`]: bordered "message" container with ONLY
+//!   the draft / placeholder line. Returns the cursor position when
+//!   focused.
+//! - [`render_meta`]: amend toggle + key hints + optional error
+//!   message painted directly on the panel below the box (no
+//!   border, so they read as panel-level affordances, not part of
+//!   the message itself).
 
 use ratatui::{
     layout::Rect,
@@ -13,14 +21,24 @@ use ratatui::{
 
 use crate::git::{template::commit_template, GitPanel};
 
-pub(super) fn render_commit_form(
+/// Height the meta block needs: amend toggle + hints + optional
+/// error. Callers reserve this much above the history region.
+pub(super) fn meta_height(panel: &GitPanel) -> u16 {
+    if panel.commit_error.is_some() {
+        3
+    } else {
+        2
+    }
+}
+
+pub(super) fn render_message_box(
     frame: &mut Frame,
     area: Rect,
     panel: &GitPanel,
     focused: bool,
     commit_tpl: &str,
 ) -> Option<(u16, u16)> {
-    if area.height < 2 {
+    if area.height < 3 {
         return None;
     }
     let border_color = if focused {
@@ -53,19 +71,7 @@ pub(super) fn render_commit_form(
     } else {
         (draft.to_string(), Style::default().fg(Color::White))
     };
-
-    let mut lines: Vec<Line<'static>> = Vec::new();
-    lines.push(Line::from(Span::styled(text, style)));
-    if let Some(err) = panel.commit_error.as_ref() {
-        lines.push(Line::from(Span::styled(
-            err.lines().next().unwrap_or("").to_string(),
-            Style::default().fg(Color::Red),
-        )));
-    }
-    lines.push(amend_toggle_line(panel.amend));
-    lines.push(key_hint_line());
-
-    let paragraph = Paragraph::new(lines);
+    let paragraph = Paragraph::new(Line::from(Span::styled(text, style)));
     frame.render_widget(paragraph, inner);
 
     if focused && inner.width > 0 && inner.height > 0 {
@@ -75,6 +81,23 @@ pub(super) fn render_commit_form(
     } else {
         None
     }
+}
+
+pub(super) fn render_meta(frame: &mut Frame, area: Rect, panel: &GitPanel) {
+    if area.height == 0 {
+        return;
+    }
+    let mut lines: Vec<Line<'static>> = Vec::new();
+    if let Some(err) = panel.commit_error.as_ref() {
+        lines.push(Line::from(Span::styled(
+            err.lines().next().unwrap_or("").to_string(),
+            Style::default().fg(Color::Red),
+        )));
+    }
+    lines.push(amend_toggle_line(panel.amend));
+    lines.push(key_hint_line());
+    let paragraph = Paragraph::new(lines);
+    frame.render_widget(paragraph, area);
 }
 
 fn amend_toggle_line(amend: bool) -> Line<'static> {
@@ -116,6 +139,7 @@ fn key_hint_line() -> Line<'static> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vim::lineedit::LineEdit;
 
     fn span_text(line: &Line<'_>) -> String {
         line.spans
@@ -149,5 +173,31 @@ mod tests {
         assert!(raw.contains("commit"));
         assert!(raw.contains("[Ctrl+⏎]"));
         assert!(raw.contains("sync"));
+    }
+
+    #[test]
+    fn meta_height_grows_when_error_is_present() {
+        assert_eq!(meta_height(&GitPanel::default()), 2);
+        let panel = GitPanel {
+            commit_error: Some("boom".into()),
+            ..GitPanel::default()
+        };
+        assert_eq!(meta_height(&panel), 3);
+    }
+
+    #[test]
+    fn message_box_short_circuits_when_too_short() {
+        // Area height < 3 → no cursor returned, no panic.
+        let panel = GitPanel {
+            commit_message: LineEdit::from_str("hello"),
+            ..GitPanel::default()
+        };
+        let backend = ratatui::backend::TestBackend::new(40, 2);
+        let mut term = ratatui::Terminal::new(backend).unwrap();
+        let _ = term
+            .draw(|f| {
+                let _ = render_message_box(f, f.area(), &panel, true, "");
+            })
+            .unwrap();
     }
 }
