@@ -35,6 +35,9 @@ pub fn render_prose(frame: &mut Frame, area: Rect, rope: &Rope, top_line: usize)
 
 /// Convert one line of markdown text to styled spans.
 pub fn highlight_line(line: &str) -> Line<'static> {
+    if let Some(spans) = conflict_marker(line) {
+        return Line::from(spans);
+    }
     if let Some(spans) = heading(line) {
         return Line::from(spans);
     }
@@ -48,6 +51,37 @@ pub fn highlight_line(line: &str) -> Line<'static> {
         return Line::from(spans);
     }
     Line::from(inline_spans(line))
+}
+
+/// Style `<<<<<<<` / `=======` / `>>>>>>>` merge-conflict markers.
+/// `None` for any other line.
+fn conflict_marker(line: &str) -> Option<Vec<Span<'static>>> {
+    if line.starts_with("<<<<<<<") {
+        Some(vec![Span::styled(
+            line.to_string(),
+            Style::default()
+                .fg(Color::White)
+                .bg(Color::Red)
+                .add_modifier(Modifier::BOLD),
+        )])
+    } else if line.starts_with("=======") && line.trim_end_matches('=').is_empty() {
+        Some(vec![Span::styled(
+            line.to_string(),
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::DIM),
+        )])
+    } else if line.starts_with(">>>>>>>") {
+        Some(vec![Span::styled(
+            line.to_string(),
+            Style::default()
+                .fg(Color::White)
+                .bg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )])
+    } else {
+        None
+    }
 }
 
 fn heading(line: &str) -> Option<Vec<Span<'static>>> {
@@ -351,6 +385,39 @@ mod tests {
         let l = highlight_line("operação — feita");
         let concat: String = l.spans.iter().map(|s| s.content.as_ref()).collect();
         assert_eq!(concat, "operação — feita");
+    }
+
+    #[test]
+    fn conflict_marker_left_paints_red_background() {
+        let line = highlight_line("<<<<<<< HEAD");
+        assert_eq!(line.spans.len(), 1);
+        assert_eq!(line.spans[0].content, "<<<<<<< HEAD");
+        assert_eq!(line.spans[0].style.bg, Some(Color::Red));
+    }
+
+    #[test]
+    fn conflict_marker_separator_paints_dim_gray() {
+        let line = highlight_line("=======");
+        assert_eq!(line.spans.len(), 1);
+        assert!(line.spans[0].style.add_modifier.contains(Modifier::DIM));
+    }
+
+    #[test]
+    fn conflict_marker_right_paints_green_background() {
+        let line = highlight_line(">>>>>>> feature/x");
+        assert_eq!(line.spans.len(), 1);
+        assert_eq!(line.spans[0].style.bg, Some(Color::Green));
+    }
+
+    #[test]
+    fn equals_inside_heading_is_not_a_conflict_separator() {
+        // A line like `=== something` should fall through to the
+        // normal pipeline because `conflict_marker` only matches when
+        // the line is `=====...` (all equals).
+        let line = highlight_line("=== something else");
+        // No special bg color on the first span.
+        assert_ne!(line.spans[0].style.bg, Some(Color::Red));
+        assert_ne!(line.spans[0].style.bg, Some(Color::Green));
     }
 
     #[test]

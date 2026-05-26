@@ -16,6 +16,7 @@ use super::{
     anchor, block_history, block_template_picker, completion_popup, connection_delete_confirm,
     connection_form, connection_picker, connections_page, content_search, db_confirm_run,
     db_export_picker, db_row_detail, db_settings_modal, environment_picker, envs_page, fence_edit,
+    git_branch_picker, git_conflict_resolver, git_log_page, git_panel, git_set_upstream_confirm,
     help, http_response_detail, quickopen, render_empty_state_inline, render_pane_tree, status,
     tab_picker, tabs, tree, vault_clone_form, vault_create_form, vault_missing_secrets,
     vault_open_picker, vault_picker, VisualOverlay,
@@ -56,16 +57,45 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         tabs::render(frame, ta, &app.tabs);
     }
 
-    // Split the body horizontally when the tree is visible.
-    let (sidebar_area, editor_area) = if app.tree.visible {
-        let sidebar_w = tree::width().min(body_area.width.saturating_sub(20));
-        let split = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Length(sidebar_w), Constraint::Min(1)])
-            .split(body_area);
-        (Some(split[0]), split[1])
+    // `[tree? | editor | git_panel?]` — each sidebar collapses out
+    // when hidden so the editor reclaims its width.
+    let tree_w = if app.tree.visible {
+        Some(tree::width().min(body_area.width.saturating_sub(20)))
     } else {
-        (None, body_area)
+        None
+    };
+    let git_w = if app.git_panel.visible {
+        let budget = body_area.width.saturating_sub(20 + tree_w.unwrap_or(0));
+        Some(git_panel::width().min(budget))
+    } else {
+        None
+    };
+    let mut constraints: Vec<Constraint> = Vec::new();
+    if let Some(w) = tree_w {
+        constraints.push(Constraint::Length(w));
+    }
+    constraints.push(Constraint::Min(1));
+    if let Some(w) = git_w {
+        constraints.push(Constraint::Length(w));
+    }
+    let slots = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(constraints)
+        .split(body_area);
+    let mut idx = 0;
+    let sidebar_area = if tree_w.is_some() {
+        let r = slots[idx];
+        idx += 1;
+        Some(r)
+    } else {
+        None
+    };
+    let editor_area = slots[idx];
+    idx += 1;
+    let git_area = if git_w.is_some() {
+        Some(slots[idx])
+    } else {
+        None
     };
 
     // Highlight matches of the last executed search across visible prose.
@@ -107,6 +137,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::DbRowDetail
             | Mode::HttpResponseDetail
             | Mode::ContentSearch
+            | Mode::Git
             | Mode::Modal
     ) || modal_owns_input;
 
@@ -189,6 +220,12 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     if let Some(sa) = sidebar_area {
         tree::render(frame, sa, &app.tree, tree_focused);
     }
+    let git_cursor = if let Some(ga) = git_area {
+        let focused = app.vim.mode == Mode::Git;
+        git_panel::render(frame, ga, &app.git_panel, focused, &app.git_commit_template)
+    } else {
+        None
+    };
     status::render_status_bar(frame, status_area, app);
 
     // Mode-specific terminal-cursor placement (the editor cursor was
@@ -214,6 +251,11 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         Mode::ContentSearch => {
             if let Some(state) = app.content_search() {
                 let (cx, cy) = content_search::render(frame, editor_area, state);
+                frame.set_cursor_position((cx, cy));
+            }
+        }
+        Mode::Git => {
+            if let Some((cx, cy)) = git_cursor {
                 frame.set_cursor_position((cx, cy));
             }
         }
@@ -431,6 +473,28 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // Connections page (the prior modal); `n`/`Esc` reopens the page.
     if let Some(crate::modal::Modal::ConnectionDeleteConfirm(state)) = app.modal.as_ref() {
         connection_delete_confirm::render(frame, editor_area, state);
+    }
+
+    if let Some(crate::modal::Modal::GitSetUpstreamConfirm(state)) = app.modal.as_ref() {
+        git_set_upstream_confirm::render(frame, editor_area, state);
+    }
+
+    if let Some(crate::modal::Modal::GitBranchPicker(state)) = app.modal.as_ref() {
+        git_branch_picker::render(frame, editor_area, state);
+    }
+
+    if matches!(app.modal, Some(crate::modal::Modal::GitLogPage(_))) {
+        crate::input::apply::git_log_page::ensure_diff_loaded(app);
+        if let Some(crate::modal::Modal::GitLogPage(state)) = app.modal.as_ref() {
+            git_log_page::render(frame, editor_area, state);
+        }
+    }
+
+    if matches!(app.modal, Some(crate::modal::Modal::GitConflictResolver(_))) {
+        crate::input::apply::git_conflict_resolver::ensure_versions_loaded(app);
+        if let Some(crate::modal::Modal::GitConflictResolver(state)) = app.modal.as_ref() {
+            git_conflict_resolver::render(frame, editor_area, state);
+        }
     }
 
     // V4 P2-P4: envs/vars surfaces.

@@ -51,6 +51,10 @@ pub const QUICK_OPEN: KeyChord = KeyChord::new(KeyModifiers::CONTROL, KeyCode::C
 /// `Ctrl+E` — toggle the file-tree sidebar focus.
 pub const TREE_TOGGLE: KeyChord = KeyChord::new(KeyModifiers::CONTROL, KeyCode::Char('e'));
 
+/// `Ctrl+G` — toggle the git side panel. Shared by vim + standard
+/// profiles so the panel feels global.
+pub const GIT_PANEL_TOGGLE: KeyChord = KeyChord::new(KeyModifiers::CONTROL, KeyCode::Char('g'));
+
 /// `Ctrl+F` — open the content-search modal (FTS5 over the vault's
 /// `.md` files). Vim binds `<C-f>` to "page down" but only via the
 /// `Motion` family — Notes uses `<C-d>` for half-page down which
@@ -114,6 +118,10 @@ pub fn matches_quick_open(key: &KeyEvent) -> bool {
 
 pub fn matches_tree_toggle(key: &KeyEvent) -> bool {
     TREE_TOGGLE.matches(key)
+}
+
+pub fn matches_git_panel_toggle(key: &KeyEvent) -> bool {
+    GIT_PANEL_TOGGLE.matches(key)
 }
 
 pub fn matches_content_search(key: &KeyEvent) -> bool {

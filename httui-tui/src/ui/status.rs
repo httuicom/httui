@@ -134,6 +134,20 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         ],
         None => Vec::new(),
     };
+    // Git branch chip — branch + ahead/behind. Hidden in non-git vaults.
+    let git_chip: Vec<Span<'static>> = match git_chip_label(app) {
+        Some(label) => vec![
+            Span::raw(" "),
+            Span::styled(
+                format!(" {label} "),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::LightBlue)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ],
+        None => Vec::new(),
+    };
     // Focused-block connection chip — only emits when the cursor is
     // parked on a DB block with a resolvable connection_id. Mirrors
     // the env chip: cyan instead of magenta to keep the two visually
@@ -170,6 +184,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         Vec::new()
     };
     spans.extend(running_chip);
+    spans.extend(git_chip);
     spans.extend(env_chip);
     spans.extend(conn_chip);
     // pending-secrets badge. Only emits when the active
@@ -250,6 +265,18 @@ fn running_chip_label(app: &App) -> Option<String> {
         ))
     } else {
         Some(format!("▶ {kind} · {elapsed:.1}s"))
+    }
+}
+
+/// Git chip label: `"<branch>"` in sync, `"<branch> ↑N ↓M"` when
+/// diverged. `None` when no snapshot yet / not a git repo.
+fn git_chip_label(app: &App) -> Option<String> {
+    let status = app.git_panel.status.as_ref()?;
+    let branch = status.branch.as_deref().unwrap_or("detached");
+    if status.ahead == 0 && status.behind == 0 {
+        Some(branch.to_string())
+    } else {
+        Some(format!("{branch} ↑{} ↓{}", status.ahead, status.behind))
     }
 }
 
@@ -904,5 +931,46 @@ mod tests {
             let label = describe_cursor(app.document().unwrap());
             assert!(label.contains('?'), "got: {label:?}");
         }
+    }
+
+    // ---- git chip ----------------------------------------------------
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn git_chip_label_renders_branch_when_in_sync() {
+        let (mut app, _d, vault) = app_with_files(&[("a.md", "x\n")]).await;
+        crate::git::test_helpers::init_repo(vault.path());
+        crate::commands::git::refresh_git_status(&mut app);
+        assert_eq!(git_chip_label(&app).as_deref(), Some("main"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn git_chip_label_includes_arrows_when_diverged() {
+        let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        app.git_panel.status = Some(httui_core::git::status::GitStatus {
+            branch: Some("feature".into()),
+            upstream: Some("origin/feature".into()),
+            ahead: 2,
+            behind: 1,
+            changed: vec![],
+            clean: true,
+        });
+        assert_eq!(git_chip_label(&app).as_deref(), Some("feature ↑2 ↓1"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn git_chip_label_none_for_non_git_vault() {
+        let (app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+        // Non-git vault → `App::new` populated status_error, status is None.
+        assert!(app.git_panel.status.is_none());
+        assert!(git_chip_label(&app).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn status_bar_paints_git_chip_for_git_repo() {
+        let (mut app, _d, vault) = app_with_files(&[("a.md", "x\n")]).await;
+        crate::git::test_helpers::init_repo(vault.path());
+        crate::commands::git::refresh_git_status(&mut app);
+        let (text, _) = render(&app);
+        assert!(text.contains("main"), "branch chip painted: {text:?}");
     }
 }

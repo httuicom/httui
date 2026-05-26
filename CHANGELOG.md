@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Post-0.4.1 work lands here.
 
+### Added
+
+- **TUI**: full git surface inside the terminal — `Ctrl+G` opens a right-side git panel mirroring the desktop's SCM column. Status (UNSTAGED/STAGED file lists), commit form with `{{notes}}/{{count}}/{{date}}` template (shared with desktop via `user.toml [ui].git_commit_template`), 1-click Sync (`Ctrl+Enter`, stage→commit→pull `--ff-only`→push) with a confirm modal when the branch has no upstream, branch picker (`Ctrl+B`), full-screen log + diff viewer (`Ctrl+L`), 3-way conflict resolver (`Ctrl+R`, `1`/`2`/`3` pick base/ours/theirs), share URL (`Ctrl+Y` copies HTTPS), amend toggle (`Ctrl+A`), and conflict-marker highlighting in the editor.
+- **TUI**: status bar shows the current branch + ahead/behind chip permanently when the vault is a git repo.
+
 ## [0.4.1] - 2026-05-21
 
 Maintenance release: installer, offline fonts, bug fixes.

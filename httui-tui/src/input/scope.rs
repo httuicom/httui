@@ -102,7 +102,17 @@ fn handle_scope(kind: ScopeKind, app: &mut App, key: KeyEvent) -> KeyOutcome {
 /// `standard_keymap`; vim's mode parsers don't know them, so we look
 /// them up here before delegating to vim. Standard's `resolve` hits
 /// the same table, so the lookup is skipped on that branch.
+///
+/// `Mode::Git` is the exception: the git panel owns its full key
+/// surface (Ctrl+B branch, Ctrl+L log, Ctrl+R resolver, Ctrl+Y
+/// share, …) and those chords overlap the global editor shortcuts
+/// (`Ctrl+B` = tree). We dispatch through the per-mode parser
+/// directly without the global pre-empt so the panel wins.
 fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
+    if app.vim.mode == crate::vim::mode::Mode::Git {
+        crate::input::dispatch::dispatch(app, key);
+        return KeyOutcome::Consumed;
+    }
     match app.config.editor.mode {
         crate::config::EditorMode::Vim => {
             if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {
@@ -290,5 +300,48 @@ mod tests {
         dispatch(&mut app, key(KeyCode::Tab));
         assert!(matches!(app.modal, Some(crate::modal::Modal::EnvForm(_))));
         assert_eq!(app.tabs.active, before_tab);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn ctrl_b_in_git_mode_opens_branch_picker_not_tree() {
+        // Regression: the `Ctrl+B` chord is bound globally to
+        // `TreeToggle` in `standard_keymap`. When the git panel
+        // is focused (`Mode::Git`), the panel's own `Ctrl+B`
+        // (`OpenGitBranchPicker`) must win — the global pre-empt
+        // would otherwise toggle the file tree.
+        let (mut app, _d, vault) = app_fixture(EditorMode::Standard).await;
+        crate::git::test_helpers::init_repo(vault.path());
+        std::fs::write(vault.path().join("a.md"), "x\n").unwrap();
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(vault.path())
+            .args(["add", "."])
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(vault.path())
+            .args(["commit", "-m", "seed"])
+            .output()
+            .unwrap();
+        // Open the git panel (Mode::Git).
+        crate::input::apply::git_panel::apply_git_panel(&mut app, Action::GitPanelToggle);
+        assert_eq!(app.vim.mode, crate::vim::mode::Mode::Git);
+        let tree_visible_before = app.tree.visible;
+        // Press Ctrl+B through the scope dispatcher.
+        dispatch(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::CONTROL),
+        );
+        // Tree visibility unchanged.
+        assert_eq!(
+            app.tree.visible, tree_visible_before,
+            "Ctrl+B in Mode::Git must not toggle tree"
+        );
+        // Branch picker modal opened.
+        assert!(
+            matches!(app.modal, Some(crate::modal::Modal::GitBranchPicker(_))),
+            "Ctrl+B in Mode::Git must open the branch picker"
+        );
     }
 }

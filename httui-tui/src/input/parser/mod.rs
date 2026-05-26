@@ -4,6 +4,7 @@
 //!
 //! Per-mode decoders live in sibling submodules (fase 1 p3).
 
+pub mod git_panel;
 pub mod insert;
 pub mod lineedit;
 pub mod modals;

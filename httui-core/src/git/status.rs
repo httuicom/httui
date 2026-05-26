@@ -180,6 +180,52 @@ pub fn git_diff(vault: &Path, commit_sha: Option<&str>) -> Result<String, String
     }
 }
 
+/// Aggregate +/- counts of the working tree against `HEAD`. Untracked
+/// files are not counted — they have no diff base. `files` matches
+/// `git diff --shortstat`'s tracked-only count; UI surfaces that
+/// alongside the untracked count from [`git_status`] for completeness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Default)]
+pub struct DiffMetrics {
+    pub files: u32,
+    pub insertions: u32,
+    pub deletions: u32,
+}
+
+/// Run `git diff HEAD --shortstat --no-color` and parse the summary
+/// line. Returns zeroes when the working tree is clean (empty stdout)
+/// or when only untracked files exist.
+pub fn git_diff_shortstat(vault: &Path) -> Result<DiffMetrics, String> {
+    let raw = run_git(vault, &["diff", "HEAD", "--shortstat", "--no-color"])?;
+    Ok(parse_shortstat(&raw))
+}
+
+fn parse_shortstat(raw: &str) -> DiffMetrics {
+    let mut out = DiffMetrics::default();
+    let line = raw.trim();
+    if line.is_empty() {
+        return out;
+    }
+    for part in line.split(',') {
+        let p = part.trim();
+        let parsed_into = |suffixes: &[&str]| -> Option<u32> {
+            for s in suffixes {
+                if let Some(rest) = p.strip_suffix(s) {
+                    return rest.trim().parse().ok();
+                }
+            }
+            None
+        };
+        if let Some(n) = parsed_into(&[" files changed", " file changed"]) {
+            out.files = n;
+        } else if let Some(n) = parsed_into(&[" insertions(+)", " insertion(+)"]) {
+            out.insertions = n;
+        } else if let Some(n) = parsed_into(&[" deletions(-)", " deletion(-)"]) {
+            out.deletions = n;
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::test_helpers::{commit_all, init_repo};
@@ -406,5 +452,94 @@ mod tests {
         let d = git_diff(dir.path(), None).unwrap();
         assert!(d.contains("-1"));
         assert!(d.contains("+2"));
+    }
+
+    #[test]
+    fn parse_shortstat_plural_files_inserts_and_deletes() {
+        let raw = " 3 files changed, 12 insertions(+), 5 deletions(-)\n";
+        let m = parse_shortstat(raw);
+        assert_eq!(
+            m,
+            DiffMetrics {
+                files: 3,
+                insertions: 12,
+                deletions: 5,
+            }
+        );
+    }
+
+    #[test]
+    fn parse_shortstat_singular_forms() {
+        let raw = " 1 file changed, 1 insertion(+), 1 deletion(-)\n";
+        let m = parse_shortstat(raw);
+        assert_eq!(
+            m,
+            DiffMetrics {
+                files: 1,
+                insertions: 1,
+                deletions: 1,
+            }
+        );
+    }
+
+    #[test]
+    fn parse_shortstat_only_insertions() {
+        let raw = " 2 files changed, 4 insertions(+)\n";
+        let m = parse_shortstat(raw);
+        assert_eq!(m.files, 2);
+        assert_eq!(m.insertions, 4);
+        assert_eq!(m.deletions, 0);
+    }
+
+    #[test]
+    fn parse_shortstat_only_deletions() {
+        let raw = " 1 file changed, 7 deletions(-)\n";
+        let m = parse_shortstat(raw);
+        assert_eq!(m.files, 1);
+        assert_eq!(m.deletions, 7);
+        assert_eq!(m.insertions, 0);
+    }
+
+    #[test]
+    fn parse_shortstat_empty_returns_zeroes() {
+        assert_eq!(parse_shortstat(""), DiffMetrics::default());
+        assert_eq!(parse_shortstat("   \n"), DiffMetrics::default());
+    }
+
+    #[test]
+    fn diff_shortstat_reports_modified_file_counts() {
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path());
+        std::fs::write(dir.path().join("a"), "1\n2\n3\n").unwrap();
+        commit_all(dir.path(), "init");
+        std::fs::write(dir.path().join("a"), "1\n2\n3\n4\n5\n").unwrap();
+        let m = git_diff_shortstat(dir.path()).unwrap();
+        assert_eq!(m.files, 1);
+        assert_eq!(m.insertions, 2);
+        assert_eq!(m.deletions, 0);
+    }
+
+    #[test]
+    fn diff_shortstat_clean_tree_is_all_zeros() {
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path());
+        std::fs::write(dir.path().join("a"), "1\n").unwrap();
+        commit_all(dir.path(), "init");
+        let m = git_diff_shortstat(dir.path()).unwrap();
+        assert_eq!(m, DiffMetrics::default());
+    }
+
+    #[test]
+    fn diff_shortstat_ignores_untracked_files() {
+        // Untracked files have no HEAD baseline → shortstat must
+        // report zeroes (the UI gets the untracked count from
+        // `git_status` instead).
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path());
+        std::fs::write(dir.path().join("a"), "1\n").unwrap();
+        commit_all(dir.path(), "init");
+        std::fs::write(dir.path().join("new.md"), "hi\n").unwrap();
+        let m = git_diff_shortstat(dir.path()).unwrap();
+        assert_eq!(m, DiffMetrics::default());
     }
 }

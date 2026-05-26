@@ -52,6 +52,9 @@ pub enum Mode {
     /// query over `httui-core::search::search_index`. Up/Down (or
     /// Ctrl-n/p) navigate; Enter opens the picked file in a new tab.
     ContentSearch,
+    /// Focus parked on the git side panel (commit-message input).
+    /// Toggled by `Ctrl+G`; Esc / `Ctrl+G` return to the editor.
+    Git,
     Modal,
 }
 
@@ -72,6 +75,7 @@ impl Mode {
             Mode::FenceEdit => "EDIT",
             Mode::DbSettings => "SET",
             Mode::ContentSearch => "FIND",
+            Mode::Git => "GIT",
             Mode::Modal => "MOD",
         }
     }
@@ -90,6 +94,7 @@ impl Mode {
             Mode::FenceEdit => Color::LightYellow,
             Mode::DbSettings => Color::LightYellow,
             Mode::ContentSearch => Color::LightGreen,
+            Mode::Git => Color::LightMagenta,
             Mode::Modal => Color::LightBlue,
         }
     }
@@ -115,6 +120,7 @@ mod tests {
             Mode::FenceEdit,
             Mode::DbSettings,
             Mode::ContentSearch,
+            Mode::Git,
             Mode::Modal,
         ]
     }

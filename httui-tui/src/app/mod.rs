@@ -11,6 +11,7 @@ use sqlx::SqlitePool;
 use crate::config::Config;
 use crate::document_loader;
 use crate::event::AppEvent;
+use crate::git::GitPanel;
 use crate::pane::{Pane, TabState};
 use crate::tree::FileTree;
 use crate::vault::ResolvedVault;
@@ -53,6 +54,7 @@ pub struct App {
     pub vault_path: PathBuf,
     pub vim: VimState,
     pub tree: FileTree,
+    pub git_panel: GitPanel,
     pub tabs: TabBar,
     pub status_message: Option<StatusMessage>,
     pub should_quit: bool,
@@ -151,6 +153,10 @@ pub struct App {
     /// Auto-exec queue (deepest deps first, target last). Drained by
     /// `commands::refs::on_block_complete` as each link finishes.
     pub run_chain: Vec<usize>,
+    /// Commit-message template from `user.toml [ui].git_commit_template`.
+    /// Empty → built-in default. Placeholders: `{{notes}}`,
+    /// `{{count}}`, `{{date}}`.
+    pub git_commit_template: String,
 }
 
 impl App {
@@ -173,14 +179,20 @@ impl App {
             .unwrap_or_else(|_| resolved.vault.join("user.toml"));
         let environments_store = httui_core::vault_config::EnvironmentsStore::new(
             resolved.vault.clone(),
-            user_config_path,
+            user_config_path.clone(),
         );
+        let git_commit_template = httui_core::vault_config::atomic::read_toml::<
+            httui_core::vault_config::UserFile,
+        >(&user_config_path)
+        .map(|f| f.ui.git_commit_template)
+        .unwrap_or_default();
         let standard_keymap = crate::input::keymap::resolve_standard_keymap(&config.keymap);
         let mut app = Self {
             config,
             vault_path: resolved.vault,
             vim: VimState::new(),
             tree: FileTree::default(),
+            git_panel: GitPanel::default(),
             tabs: TabBar::default(),
             status_message: None,
             should_quit: false,
@@ -207,10 +219,14 @@ impl App {
             pending_secrets: Vec::new(),
             resume_vault_picker: false,
             run_chain: Vec::new(),
+            git_commit_template,
         };
         app.load_initial_document();
         app.refresh_active_env_name();
         app.scan_pending_secrets();
+        // Prime the status-bar git chip. Non-git vaults set
+        // `status_error` and the chip hides itself.
+        crate::commands::git::refresh_git_status(&mut app);
         app
     }
 

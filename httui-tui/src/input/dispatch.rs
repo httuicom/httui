@@ -14,6 +14,7 @@ use crate::app::{App, StatusKind};
 use crate::buffer::Cursor;
 use crate::input::action::Action;
 use crate::input::block_swap::{action_needs_block_swap, InBlockSwap};
+use crate::input::parser::git_panel::parse_git_panel;
 use crate::modal::ModalOutcome;
 use crate::vim::mode::Mode;
 use crate::vim::parser::{
@@ -78,6 +79,7 @@ pub fn dispatch(app: &mut App, key: KeyEvent) {
         Mode::FenceEdit => parse_fence_edit(key),
         Mode::DbSettings => parse_db_settings_modal(key),
         Mode::ContentSearch => parse_content_search(key),
+        Mode::Git => parse_git_panel(key),
         Mode::Modal => {
             handle_modal_key(app, key);
             return;
@@ -372,6 +374,35 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::TreeSelectPrev
         | Action::TreeToggle => {
             crate::input::apply::tree_nav::apply_tree_nav(app, action, recording)
+        }
+        Action::GitPanelToggle
+        | Action::GitPanelChar(..)
+        | Action::GitPanelBackspace
+        | Action::GitPanelDelete
+        | Action::GitPanelCursorLeft
+        | Action::GitPanelCursorRight
+        | Action::GitPanelCursorHome
+        | Action::GitPanelCursorEnd
+        | Action::GitPanelCommit
+        | Action::GitPanelCancel
+        | Action::GitPanelSync
+        | Action::GitConfirmSetUpstream
+        | Action::GitCancelSetUpstream
+        | Action::OpenGitBranchPicker
+        | Action::CloseGitBranchPicker
+        | Action::MoveGitBranchPickerCursor(..)
+        | Action::ConfirmGitBranchPicker
+        | Action::OpenGitLogPage
+        | Action::CloseGitLogPage
+        | Action::MoveGitLogPageCursor(..)
+        | Action::ScrollGitLogDiff(..)
+        | Action::OpenGitConflictResolver
+        | Action::CloseGitConflictResolver
+        | Action::MoveGitConflictResolverFile(..)
+        | Action::ResolveGitConflict(..)
+        | Action::GitPanelShare
+        | Action::GitPanelToggleAmend => {
+            crate::input::apply::git_panel::apply_git_panel(app, action)
         }
         Action::CloseBlockHistory
         | Action::CloseContentSearch
