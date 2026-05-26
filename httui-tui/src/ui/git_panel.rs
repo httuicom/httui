@@ -42,7 +42,7 @@ pub fn render(
                 .add_modifier(Modifier::BOLD),
         )
     } else {
-        (Color::DarkGray, Style::default().fg(Color::Gray))
+        (crate::ui::palette::MUTED, Style::default().fg(crate::ui::palette::SECONDARY))
     };
 
     let block = Block::default()
@@ -120,7 +120,7 @@ fn render_header_strip(frame: &mut Frame, area: Rect, panel: &GitPanel) {
             left_text,
             Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
         )],
-        vec![Span::styled(right_text, Style::default().fg(Color::DarkGray))],
+        vec![Span::styled(right_text, Style::default().fg(crate::ui::palette::MUTED))],
         area.width,
     );
     frame.render_widget(ratatui::widgets::Paragraph::new(line), area);
@@ -215,12 +215,12 @@ fn row_to_item(row: &BodyRow) -> ListItem<'static> {
             Span::styled(
                 label.to_string(),
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(crate::ui::palette::MUTED)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 format!(" ({count})"),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(crate::ui::palette::MUTED),
             ),
         ])),
         BodyRow::File(change) => {
@@ -237,11 +237,11 @@ fn row_to_item(row: &BodyRow) -> ListItem<'static> {
         BodyRow::Separator => ListItem::new(Line::from(Span::raw(""))),
         BodyRow::Clean => ListItem::new(Line::from(Span::styled(
             "Working tree clean.",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(crate::ui::palette::MUTED),
         ))),
         BodyRow::Loading => ListItem::new(Line::from(Span::styled(
             "Loading git status…",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(crate::ui::palette::MUTED),
         ))),
         BodyRow::Error(msg) => ListItem::new(Line::from(Span::styled(
             msg.clone(),

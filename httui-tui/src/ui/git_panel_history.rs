@@ -40,13 +40,13 @@ fn history_header_line(width: u16) -> Line<'static> {
         vec![Span::styled(
             "HISTORY",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::MUTED)
                 .add_modifier(Modifier::BOLD),
         )],
         vec![
             Span::styled(
                 "[Ctrl+L] ",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(crate::ui::palette::MUTED),
             ),
             Span::styled(
                 "view all",
@@ -63,11 +63,14 @@ fn commit_line(c: &CommitInfo, width: u16, now: i64) -> Line<'static> {
     let sha = format!("{} ", c.short_sha);
     let initials_col = format!("{initials:<2} ");
     let left = vec![
-        Span::styled(sha, Style::default().fg(Color::DarkGray)),
-        Span::styled(initials_col, Style::default().fg(Color::DarkGray)),
-        Span::raw(c.subject.clone()),
+        Span::styled(sha, Style::default().fg(crate::ui::palette::MUTED)),
+        Span::styled(initials_col, Style::default().fg(crate::ui::palette::MUTED)),
+        Span::styled(
+            c.subject.clone(),
+            Style::default().fg(crate::ui::palette::SECONDARY),
+        ),
     ];
-    let right = vec![Span::styled(ago, Style::default().fg(Color::DarkGray))];
+    let right = vec![Span::styled(ago, Style::default().fg(crate::ui::palette::MUTED))];
     two_col_line(left, right, width)
 }
 

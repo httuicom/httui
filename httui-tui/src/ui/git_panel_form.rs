@@ -72,7 +72,7 @@ pub(super) fn render_message_box(
     let border_color = if focused {
         Color::LightYellow
     } else {
-        Color::DarkGray
+        crate::ui::palette::MUTED
     };
     let block = Block::default()
         .borders(Borders::ALL)
@@ -91,10 +91,10 @@ pub(super) fn render_message_box(
         if placeholder.is_empty() {
             (
                 "type a commit message…".to_string(),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(crate::ui::palette::MUTED),
             )
         } else {
-            (placeholder, Style::default().fg(Color::DarkGray))
+            (placeholder, Style::default().fg(crate::ui::palette::MUTED))
         }
     } else {
         (draft.to_string(), Style::default().fg(Color::White))
@@ -143,7 +143,7 @@ fn amend_toggle_line(amend: bool, width: u16) -> Line<'static> {
     };
     two_col_line(
         vec![Span::styled(marker.to_string(), style)],
-        vec![Span::styled("[Ctrl+A]", Style::default().fg(Color::DarkGray))],
+        vec![Span::styled("[Ctrl+A]", Style::default().fg(crate::ui::palette::MUTED))],
         width,
     )
 }
@@ -158,7 +158,7 @@ fn commit_hint_line(panel: &GitPanel, width: u16) -> Line<'static> {
     two_col_line(
         vec![Span::styled(
             format!("{n} file{suffix} staged"),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(crate::ui::palette::MUTED),
         )],
         vec![
             Span::styled(
@@ -192,7 +192,7 @@ fn sync_button_line(width: u16) -> Line<'static> {
     }
     spans.push(Span::styled(
         chord.to_string(),
-        Style::default().fg(Color::DarkGray),
+        Style::default().fg(crate::ui::palette::MUTED),
     ));
     Line::from(spans)
 }
