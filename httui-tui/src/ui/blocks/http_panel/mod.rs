@@ -14,9 +14,7 @@ use ratatui::{
 use crate::buffer::block::{BlockNode, ExecutionState};
 
 use super::result_tabs::{render_result_separator, render_result_tab_bar_for};
-use super::{
-    paint_panel_focus_bg, paint_panel_focus_hint, raw_body_text, render_fence_closer_row,
-};
+use super::{paint_panel_focus_bg, paint_panel_focus_hint, raw_body_text, render_fence_closer_row};
 
 mod highlight;
 mod response;
@@ -418,9 +416,11 @@ pub(super) fn method_color(method: &str) -> Color {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::highlight::{highlight_http_request_line, highlight_xml_line};
-    use super::response::{content_type_of, http_response_raw_lines, lang_from_content_type, BodyLang};
+    use super::response::{
+        content_type_of, http_response_raw_lines, lang_from_content_type, BodyLang,
+    };
+    use super::*;
     use crate::buffer::block::{BlockId, ExecutionState};
     use serde_json::json;
 
@@ -506,18 +506,12 @@ mod tests {
             lang_from_content_type(Some("application/xml")),
             BodyLang::Xml
         );
-        assert_eq!(
-            lang_from_content_type(Some("image/svg+xml")),
-            BodyLang::Xml
-        );
+        assert_eq!(lang_from_content_type(Some("image/svg+xml")), BodyLang::Xml);
         assert_eq!(
             lang_from_content_type(Some("text/html; charset=utf-8")),
             BodyLang::Html
         );
-        assert_eq!(
-            lang_from_content_type(Some("text/plain")),
-            BodyLang::Plain
-        );
+        assert_eq!(lang_from_content_type(Some("text/plain")), BodyLang::Plain);
         assert_eq!(lang_from_content_type(None), BodyLang::Plain);
     }
 
@@ -611,7 +605,10 @@ mod tests {
 
     #[test]
     fn host_of_extracts_host_with_port_and_strips_path() {
-        assert_eq!(http_host_of("https://api.x.com:8443/v1/foo"), "api.x.com:8443");
+        assert_eq!(
+            http_host_of("https://api.x.com:8443/v1/foo"),
+            "api.x.com:8443"
+        );
         assert_eq!(http_host_of("http://h/"), "h");
         assert_eq!(http_host_of("h.example.com?q=1"), "h.example.com");
         assert_eq!(http_host_of(""), "—");
@@ -722,7 +719,12 @@ mod tests {
         let lines = http_body(&b);
         let text: String = lines
             .iter()
-            .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+            .map(|l| {
+                l.spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<String>()
+            })
             .collect::<Vec<_>>()
             .join("\n");
         assert!(text.contains("k"));

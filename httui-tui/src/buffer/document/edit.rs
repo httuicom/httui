@@ -157,10 +157,7 @@ impl Document {
                     let still_block = b.reparse_from_raw();
                     if !still_block {
                         let text = b.raw.to_string();
-                        self.replace_segment(
-                            segment_idx,
-                            Segment::Prose(Rope::from_str(&text)),
-                        );
+                        self.replace_segment(segment_idx, Segment::Prose(Rope::from_str(&text)));
                         self.cursor = Cursor::InProse {
                             segment_idx,
                             offset,

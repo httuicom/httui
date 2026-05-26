@@ -528,9 +528,9 @@ mod tests {
         // Values exceeding f64 mantissa (~15-17 sig figs) must
         // preserve precision via string.
         for s in &[
-            "12345678901234567890.123",     // 23 sig figs
-            "0.123456789012345678",         // 18 sig figs
-            "9999999999999999.999",         // edge of f64 precision
+            "12345678901234567890.123", // 23 sig figs
+            "0.123456789012345678",     // 18 sig figs
+            "9999999999999999.999",     // edge of f64 precision
         ] {
             assert!(
                 matches!(decimal_to_json(s), serde_json::Value::String(_)),
@@ -542,8 +542,14 @@ mod tests {
     #[test]
     fn decimal_to_json_handles_negative_and_zero() {
         assert!(matches!(decimal_to_json("0"), serde_json::Value::Number(_)));
-        assert!(matches!(decimal_to_json("0.00"), serde_json::Value::Number(_)));
-        assert!(matches!(decimal_to_json("-499.80"), serde_json::Value::Number(_)));
+        assert!(matches!(
+            decimal_to_json("0.00"),
+            serde_json::Value::Number(_)
+        ));
+        assert!(matches!(
+            decimal_to_json("-499.80"),
+            serde_json::Value::Number(_)
+        ));
     }
 
     #[test]

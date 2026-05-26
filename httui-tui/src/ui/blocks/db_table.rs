@@ -15,8 +15,9 @@ use super::result_tabs::{
     build_error_lines, build_messages_lines, build_plan_lines, build_stats_lines,
     render_result_separator, render_result_subtabs, render_result_tab_bar_inner,
 };
-use super::{overlay_refs_on_spans, raw_body_text, ref_highlight, render_fence_closer_row,
-    ConnectionNames};
+use super::{
+    overlay_refs_on_spans, raw_body_text, ref_highlight, render_fence_closer_row, ConnectionNames,
+};
 
 /// Height (in rows) of the result table viewport inside a DB card.
 pub(super) const MAX_VISIBLE_ROWS: usize = 10;
@@ -715,7 +716,10 @@ mod tests {
                 "has_more": false,
             }],
         })));
-        assert_eq!(db_result_table_height(&b), (1 + MAX_VISIBLE_ROWS + 2) as u16);
+        assert_eq!(
+            db_result_table_height(&b),
+            (1 + MAX_VISIBLE_ROWS + 2) as u16
+        );
     }
 
     #[test]
@@ -730,8 +734,8 @@ mod tests {
     #[test]
     fn is_numeric_type_matches_common_sql_types() {
         for t in &[
-            "int", "INTEGER", "bigint", "float", "real", "decimal", "numeric",
-            "money", "int4", "FLOAT8",
+            "int", "INTEGER", "bigint", "float", "real", "decimal", "numeric", "money", "int4",
+            "FLOAT8",
         ] {
             assert!(is_numeric_type(t), "expected {t} numeric");
         }

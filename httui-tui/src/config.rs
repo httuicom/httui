@@ -453,7 +453,10 @@ mod tests {
                 after_first.keymap.chord_for(name)
             );
         }
-        assert_eq!(cfg.editor.toggle_mode_key, after_first.editor.toggle_mode_key);
+        assert_eq!(
+            cfg.editor.toggle_mode_key,
+            after_first.editor.toggle_mode_key
+        );
     }
 
     #[test]
@@ -478,7 +481,8 @@ mod tests {
         assert_eq!(cfg.keymap.chord_for("run_block"), Some("alt+r"));
         let on_disk = std::fs::read_to_string(&path).unwrap();
         assert!(
-            on_disk.contains("toggle_mode_key = \"alt+m\"") && on_disk.contains("run_block = \"alt+r\""),
+            on_disk.contains("toggle_mode_key = \"alt+m\"")
+                && on_disk.contains("run_block = \"alt+r\""),
             "load must persist the migrated chords:\n{on_disk}"
         );
     }

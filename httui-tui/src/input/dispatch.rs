@@ -17,10 +17,9 @@ use crate::input::block_swap::{action_needs_block_swap, InBlockSwap};
 use crate::modal::ModalOutcome;
 use crate::vim::mode::Mode;
 use crate::vim::parser::{
-    parse_cmdline, parse_content_search, parse_db_row_detail,
-    parse_db_settings_modal, parse_fence_edit,
-    parse_http_response_detail, parse_insert, parse_normal, parse_quickopen, parse_search,
-    parse_tree, parse_tree_prompt, parse_visual,
+    parse_cmdline, parse_content_search, parse_db_row_detail, parse_db_settings_modal,
+    parse_fence_edit, parse_http_response_detail, parse_insert, parse_normal, parse_quickopen,
+    parse_search, parse_tree, parse_tree_prompt, parse_visual,
 };
 
 // Test-only imports: the in-file `mod tests` below uses `use
@@ -321,9 +320,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::EnvCloneFormMoveVarCursor(_)
         | Action::EnvCloneFormToggleVar
         | Action::EnvCloneFormToggleAll
-        | Action::EnvCloneFormSubmit => {
-            crate::input::apply::envs_page::apply_envs(app, action)
-        }
+        | Action::EnvCloneFormSubmit => crate::input::apply::envs_page::apply_envs(app, action),
         Action::JumpNextBlock
         | Action::JumpPrevBlock
         | Action::RerunLastBlock

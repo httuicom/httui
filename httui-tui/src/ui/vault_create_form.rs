@@ -18,7 +18,11 @@ use crate::app::{VaultCreateFormFocus, VaultCreateFormState};
 const POPUP_WIDTH: u16 = 60;
 const POPUP_HEIGHT: u16 = 14;
 
-pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultCreateFormState) -> Option<(u16, u16)> {
+pub fn render(
+    frame: &mut Frame,
+    editor_area: Rect,
+    state: &VaultCreateFormState,
+) -> Option<(u16, u16)> {
     let popup = centered_rect(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
     let bg_style = Style::default().bg(Color::Black).fg(Color::White);
 
@@ -175,9 +179,12 @@ mod tests {
         out
     }
 
-    fn state_with(parent: &str, name: &str, focus: VaultCreateFormFocus, error: Option<&str>)
-        -> VaultCreateFormState
-    {
+    fn state_with(
+        parent: &str,
+        name: &str,
+        focus: VaultCreateFormFocus,
+        error: Option<&str>,
+    ) -> VaultCreateFormState {
         VaultCreateFormState {
             parent: LineEdit::from_str(parent),
             name: LineEdit::from_str(name),
@@ -191,9 +198,11 @@ mod tests {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
         let s = state_with("/tmp", "demo", VaultCreateFormFocus::Name, None);
-        terminal.draw(|f| {
-            render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &s);
+            })
+            .unwrap();
         let painted = dump(&terminal);
         assert!(painted.contains("Create vault"), "title present");
         assert!(painted.contains("Parent dir"), "parent label present");
@@ -206,9 +215,11 @@ mod tests {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
         let s = state_with("/tmp", "demo", VaultCreateFormFocus::Name, Some("boom"));
-        terminal.draw(|f| {
-            render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &s);
+            })
+            .unwrap();
         let painted = dump(&terminal);
         assert!(painted.contains("error: boom"), "error line painted");
     }
@@ -218,9 +229,11 @@ mod tests {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
         let s = state_with("", "", VaultCreateFormFocus::Parent, None);
-        terminal.draw(|f| {
-            render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &s);
+            })
+            .unwrap();
         let painted = dump(&terminal);
         assert!(painted.contains("my-vault"), "name placeholder visible");
     }
@@ -231,9 +244,11 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let s = state_with("/tmp", "abc", VaultCreateFormFocus::Name, None);
         let mut cursor = None;
-        terminal.draw(|f| {
-            cursor = render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                cursor = render(f, f.area(), &s);
+            })
+            .unwrap();
         assert!(cursor.is_some(), "cursor reported for focused field");
     }
 

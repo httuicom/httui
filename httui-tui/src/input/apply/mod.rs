@@ -4,21 +4,18 @@
 //! each `Action` variant to the matching `apply_<group>` here.
 
 pub mod completion;
+/// V3 P3 (2026-05-23): create-connection form modal handlers.
+pub mod connection_form;
 /// V10 (tui-V10): connection picker handlers, split out of `pickers.rs`
 /// to keep that file under the 600-line size gate.
 pub mod connection_picker;
-/// V3 P3 (2026-05-23): create-connection form modal handlers.
-pub mod connection_form;
+/// V4 P6 (2026-05-23): activate-env-by-index handler.
+pub mod env_activate;
 /// V10 (tui-V10): environment picker handlers, split out of `pickers.rs`.
 pub mod env_picker;
-/// V10 (tui-V10): vault picker + sub-modals (create/clone/open/missing),
-/// split out of `pickers.rs`.
-pub mod vault_modals;
 /// V4 P5 (2026-05-23): handlers do clone-env form. Extraído de
 /// `envs_page` pra respeitar size limit do DoD.
 pub mod envs_clone;
-/// V4 P6 (2026-05-23): activate-env-by-index handler.
-pub mod env_activate;
 pub mod envs_page;
 /// V4 débito-de-cobertura (2026-05-23): tests integrados que cobrem
 /// envs_page + envs_clone via App+EnvironmentsStore reais (tempdir).
@@ -45,4 +42,7 @@ pub mod standard_sel;
 /// module (NOT `coverage:exclude`). Added by tui-V1 / fase 4 p2.
 pub mod standard_undo;
 pub mod tree_nav;
+/// V10 (tui-V10): vault picker + sub-modals (create/clone/open/missing),
+/// split out of `pickers.rs`.
+pub mod vault_modals;
 pub mod window;

@@ -97,11 +97,15 @@ impl App {
     }
 
     pub fn http_response_detail(&self) -> Option<&crate::app::HttpResponseDetailState> {
-        self.modal.as_ref().and_then(|m| m.as_http_response_detail())
+        self.modal
+            .as_ref()
+            .and_then(|m| m.as_http_response_detail())
     }
 
     pub fn http_response_detail_mut(&mut self) -> Option<&mut crate::app::HttpResponseDetailState> {
-        self.modal.as_mut().and_then(|m| m.as_http_response_detail_mut())
+        self.modal
+            .as_mut()
+            .and_then(|m| m.as_http_response_detail_mut())
     }
 
     pub fn content_search(&self) -> Option<&crate::app::ContentSearchState> {
@@ -125,7 +129,9 @@ impl App {
     }
 
     pub fn completion_popup_mut(&mut self) -> Option<&mut crate::app::CompletionPopupState> {
-        self.modal.as_mut().and_then(|m| m.as_completion_popup_mut())
+        self.modal
+            .as_mut()
+            .and_then(|m| m.as_completion_popup_mut())
     }
 
     pub fn db_settings(&self) -> Option<&crate::app::DbSettingsState> {
@@ -141,7 +147,10 @@ impl App {
     /// Selected result tab for `block_id`. Missing entry → default
     /// (`ResultPanelTab::Result`). Used by every render path that
     /// paints a block's result panel.
-    pub fn result_tab_for(&self, block_id: crate::buffer::block::BlockId) -> crate::app::ResultPanelTab {
+    pub fn result_tab_for(
+        &self,
+        block_id: crate::buffer::block::BlockId,
+    ) -> crate::app::ResultPanelTab {
         self.result_tabs.get(&block_id).copied().unwrap_or_default()
     }
 

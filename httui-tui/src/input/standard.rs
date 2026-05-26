@@ -114,7 +114,10 @@ mod tests {
         );
         // SHIFT (capital letter) still inserts — only CONTROL guards.
         assert_eq!(
-            resolve(&km(), KeyEvent::new(KeyCode::Char('Z'), KeyModifiers::SHIFT)),
+            resolve(
+                &km(),
+                KeyEvent::new(KeyCode::Char('Z'), KeyModifiers::SHIFT)
+            ),
             Some(Action::InsertChar('Z')),
         );
     }
@@ -145,7 +148,10 @@ mod tests {
 
     #[test]
     fn slash_decodes_to_slash_key_action() {
-        assert_eq!(resolve(&km(), k(KeyCode::Char('/'))), Some(Action::SlashKey));
+        assert_eq!(
+            resolve(&km(), k(KeyCode::Char('/'))),
+            Some(Action::SlashKey)
+        );
         assert_ne!(
             resolve(&km(), k(KeyCode::Char('/'))),
             Some(Action::InsertChar('/')),

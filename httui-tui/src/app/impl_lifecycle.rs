@@ -82,7 +82,8 @@ impl App {
     pub fn scan_pending_secrets(&mut self) {
         use httui_core::secrets::Keychain;
         use httui_core::vault_config::missing_secrets::scan_missing_secrets;
-        self.pending_secrets = scan_missing_secrets(&self.vault_path, &Keychain).unwrap_or_default();
+        self.pending_secrets =
+            scan_missing_secrets(&self.vault_path, &Keychain).unwrap_or_default();
     }
 
     /// open the first-run modal when there are pending
@@ -164,21 +165,16 @@ impl App {
         }
 
         // Rebuild vault-dependent core stores.
-        let connections_store =
-            httui_core::vault_config::ConnectionsStore::new(canonical.clone());
-        let new_pool_manager = std::sync::Arc::new(
-            httui_core::db::connections::PoolManager::new_standalone(
+        let connections_store = httui_core::vault_config::ConnectionsStore::new(canonical.clone());
+        let new_pool_manager =
+            std::sync::Arc::new(httui_core::db::connections::PoolManager::new_standalone(
                 connections_store.clone(),
                 pool.clone(),
-            ),
-        );
-        let user_config_path =
-            httui_core::vault_config::user_store::default_user_config_path()
-                .unwrap_or_else(|_| canonical.join("user.toml"));
-        let environments_store = httui_core::vault_config::EnvironmentsStore::new(
-            canonical.clone(),
-            user_config_path,
-        );
+            ));
+        let user_config_path = httui_core::vault_config::user_store::default_user_config_path()
+            .unwrap_or_else(|_| canonical.join("user.toml"));
+        let environments_store =
+            httui_core::vault_config::EnvironmentsStore::new(canonical.clone(), user_config_path);
         let connection_names = super::helpers::load_connection_names(&connections_store);
 
         self.vault_path = canonical;
@@ -215,8 +211,7 @@ impl App {
         if let Some(sender) = self.event_sender.clone() {
             self.file_watcher = Some(crate::fs_watch::FileWatcher::new(sender.clone()));
             self.sync_file_watcher();
-            self.connections_toml_watcher =
-                Some(crate::fs_watch::FileWatcher::new(sender.clone()));
+            self.connections_toml_watcher = Some(crate::fs_watch::FileWatcher::new(sender.clone()));
             super::event_loop::sync_connections_toml_watcher(self);
             self.envs_dir_watcher = Some(crate::fs_watch::FileWatcher::new(sender));
             super::event_loop::sync_envs_dir_watcher(self);
@@ -420,6 +415,9 @@ mod tests {
         // Active vault persisted in the registry.
         let pool = app.pool_manager.app_pool().clone();
         let active = httui_core::vaults::get_active_vault(&pool).await.unwrap();
-        assert_eq!(active.as_deref(), Some(app.vault_path.to_string_lossy().as_ref()));
+        assert_eq!(
+            active.as_deref(),
+            Some(app.vault_path.to_string_lossy().as_ref())
+        );
     }
 }

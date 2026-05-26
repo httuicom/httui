@@ -365,7 +365,10 @@ mod tests {
         let qi = block_pos(&q);
         park_above(&mut h, hi);
         park_above(&mut q, qi);
-        assert_eq!(walk(&mut h, hi, Motion::Down), walk(&mut q, qi, Motion::Down));
+        assert_eq!(
+            walk(&mut h, hi, Motion::Down),
+            walk(&mut q, qi, Motion::Down)
+        );
     }
 
     #[test]

@@ -15,9 +15,7 @@
 
 #![cfg(test)]
 
-use crate::app::{
-    App, EnvCloneFormFocus, EnvFormState, EnvsPaneFocus, VarFormFocus, VarFormState,
-};
+use crate::app::{App, EnvCloneFormFocus, EnvFormState, EnvsPaneFocus, VarFormFocus, VarFormState};
 use crate::config::Config;
 use crate::input::action::Action;
 use crate::modal::Modal;

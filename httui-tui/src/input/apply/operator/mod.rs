@@ -371,7 +371,9 @@ mod tests {
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -391,39 +393,58 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_op_motion_yank_fills_unnamed_no_snapshot() {
         let (mut app, _d, _v) = app_with_prose("hello world\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
-        apply_op_motion(&mut app, Operator::Yank, Motion::Right, 5, /*recording=*/ false);
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        apply_op_motion(
+            &mut app,
+            Operator::Yank,
+            Motion::Right,
+            5,
+            /*recording=*/ false,
+        );
         assert!(!app.vim.unnamed.text.is_empty(), "yank should fill unnamed");
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_op_motion_delete_mutates_and_records_when_recording() {
         let (mut app, _d, _v) = app_with_prose("hello world\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
-        apply_op_motion(&mut app, Operator::Delete, Motion::Right, 5, /*recording=*/ true);
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        apply_op_motion(
+            &mut app,
+            Operator::Delete,
+            Motion::Right,
+            5,
+            /*recording=*/ true,
+        );
         assert!(app.vim.last_change.is_some(), "recording captures change");
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_op_motion_find_records_last_find() {
         let (mut app, _d, _v) = app_with_prose("hello world\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
         apply_op_motion(&mut app, Operator::Yank, Motion::FindForward('o'), 1, false);
-        assert!(app.vim.last_find.is_some(), "find motion should be remembered");
+        assert!(
+            app.vim.last_find.is_some(),
+            "find motion should be remembered"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_op_linewise_yank_on_prose_fills_unnamed() {
         let (mut app, _d, _v) = app_with_prose("alpha\nbeta\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
         apply_op_linewise(&mut app, Operator::Yank, 1, false);
         assert!(!app.vim.unnamed.text.is_empty(), "yy should yank a line");
     }
@@ -439,9 +460,10 @@ mod tests {
             .iter()
             .position(|s| matches!(s, Segment::Block(_)))
             .expect("block");
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InBlock { segment_idx: block_idx, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: 0,
+        });
         apply_op_linewise(&mut app, Operator::Yank, 1, false);
         // yank_block_at returns the fence markdown; should contain ```http.
         assert!(
@@ -462,9 +484,10 @@ mod tests {
             .iter()
             .position(|s| matches!(s, Segment::Block(_)))
             .expect("block");
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InBlock { segment_idx: block_idx, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: 0,
+        });
         let before = app.document().unwrap().to_markdown();
         apply_op_linewise(&mut app, Operator::Delete, 1, /*recording=*/ true);
         assert_ne!(app.document().unwrap().to_markdown(), before);
@@ -474,9 +497,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_op_linewise_change_enters_insert_mode() {
         let (mut app, _d, _v) = app_with_prose("alpha\nbeta\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
         apply_op_linewise(&mut app, Operator::Change, 1, false);
         assert!(matches!(app.vim.mode, crate::vim::mode::Mode::Insert));
     }
@@ -484,9 +508,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_op_textobject_yank_word_inside() {
         let (mut app, _d, _v) = app_with_prose("hello world\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
         apply_op_textobject(
             &mut app,
             Operator::Yank,
@@ -500,9 +525,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_op_textobject_change_enters_insert() {
         let (mut app, _d, _v) = app_with_prose("hello world\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
         apply_op_textobject(
             &mut app,
             Operator::Change,
@@ -511,15 +537,18 @@ mod tests {
             true,
         );
         // Either entered insert or recorded change — exercise both branches.
-        assert!(matches!(app.vim.mode, crate::vim::mode::Mode::Insert) || app.vim.last_change.is_some());
+        assert!(
+            matches!(app.vim.mode, crate::vim::mode::Mode::Insert) || app.vim.last_change.is_some()
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_paste_into_prose_records_and_snapshots() {
         let (mut app, _d, _v) = app_with_prose("hello\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 5 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 5,
+        });
         app.vim.unnamed = crate::vim::register::Register {
             text: " world".into(),
             linewise: false,
@@ -537,9 +566,10 @@ mod tests {
         // Register holds a fence — after paste, the prose should
         // re-parse and produce a Block segment.
         let (mut app, _d, _v) = app_with_prose("\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
         app.vim.unnamed = crate::vim::register::Register {
             text: "```http alias=q\nGET /x\n```\n".into(),
             linewise: true,
@@ -579,9 +609,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_operator_enter_visual_sets_anchor() {
         let (mut app, _d, _v) = app_with_prose("hello\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 2 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 2,
+        });
         apply_operator(&mut app, Action::EnterVisual, false);
         assert!(app.vim.visual_anchor.is_some());
     }
@@ -597,7 +628,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_operator_exit_visual_returns_to_normal() {
         let (mut app, _d, _v) = app_with_prose("hello\n").await;
-        app.vim.visual_anchor = Some(Cursor::InProse { segment_idx: 0, offset: 0 });
+        app.vim.visual_anchor = Some(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
         app.vim.mode = crate::vim::mode::Mode::Visual;
         apply_operator(&mut app, Action::ExitVisual, false);
         assert!(matches!(app.vim.mode, crate::vim::mode::Mode::Normal));
@@ -606,8 +640,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_operator_visual_swap_flips_anchor_and_cursor() {
         let (mut app, _d, _v) = app_with_prose("hello\n").await;
-        let anchor = Cursor::InProse { segment_idx: 0, offset: 0 };
-        let cursor_start = Cursor::InProse { segment_idx: 0, offset: 3 };
+        let anchor = Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        };
+        let cursor_start = Cursor::InProse {
+            segment_idx: 0,
+            offset: 3,
+        };
         app.vim.visual_anchor = Some(anchor);
         app.document_mut().unwrap().set_cursor(cursor_start);
         apply_operator(&mut app, Action::VisualSwap, false);
@@ -626,9 +666,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn apply_operator_dispatches_paste() {
         let (mut app, _d, _v) = app_with_prose("ab\n").await;
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
         app.vim.unnamed = crate::vim::register::Register {
             text: "X".into(),
             linewise: false,

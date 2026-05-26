@@ -291,7 +291,9 @@ mod tests {
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -312,9 +314,10 @@ mod tests {
 
     fn place_cursor_in_first_block(app: &mut App) -> usize {
         let idx = first_block_idx(app);
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InBlock { segment_idx: idx, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: 0,
+        });
         idx
     }
 
@@ -344,7 +347,10 @@ mod tests {
         let (mut app, _d, _v) = app_with_doc(md).await;
         place_cursor_in_first_block(&mut app);
         let err = open_export_picker(&mut app).unwrap_err();
-        assert!(err.contains("run the block") || err.contains("export"), "got {err:?}");
+        assert!(
+            err.contains("run the block") || err.contains("export"),
+            "got {err:?}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -361,7 +367,10 @@ mod tests {
             b.cached_result = Some(cache);
         }
         let err = open_export_picker(&mut app).unwrap_err();
-        assert!(err.contains("SELECT") || err.contains("tabular"), "got {err:?}");
+        assert!(
+            err.contains("SELECT") || err.contains("tabular"),
+            "got {err:?}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -449,10 +458,14 @@ mod tests {
         )));
         let n = BlockExportFormat::HTTP_FORMATS.len();
         move_export_picker_cursor(&mut app, 1);
-        let Some(Modal::DbExportPicker(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::DbExportPicker(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert_eq!(s.selected, 1);
         move_export_picker_cursor(&mut app, -2);
-        let Some(Modal::DbExportPicker(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::DbExportPicker(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert_eq!(s.selected, n - 1);
     }
 
@@ -529,6 +542,10 @@ mod tests {
         }
         confirm_export_picker(&mut app);
         let s = app.status_message.expect("status set");
-        assert!(s.text.contains("cached") || s.text.contains("empty"), "got {:?}", s.text);
+        assert!(
+            s.text.contains("cached") || s.text.contains("empty"),
+            "got {:?}",
+            s.text
+        );
     }
 }

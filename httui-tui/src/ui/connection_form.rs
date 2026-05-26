@@ -108,14 +108,8 @@ pub fn render(
     frame.render_widget(label_widget("Host", host_focused), lr.0);
     frame.render_widget(label_widget("Port", port_focused), lr.1);
     let lr = horizontal_split(pad(rows[6], 2), 3);
-    frame.render_widget(
-        input_widget(state.host.as_str(), false, "localhost"),
-        lr.0,
-    );
-    frame.render_widget(
-        input_widget(state.port.as_str(), false, "5432"),
-        lr.1,
-    );
+    frame.render_widget(input_widget(state.host.as_str(), false, "localhost"), lr.0);
+    frame.render_widget(input_widget(state.port.as_str(), false, "5432"), lr.1);
 
     let db_focused = matches!(state.focus, ConnectionFormFocus::Database);
     frame.render_widget(label_widget("Database", db_focused), pad(rows[8], 2));
@@ -134,14 +128,8 @@ pub fn render(
     frame.render_widget(label_widget("Username", user_focused), lr.0);
     frame.render_widget(label_widget("Password", pass_focused), lr.1);
     let lr = horizontal_split(pad(rows[12], 2), 3);
-    frame.render_widget(
-        input_widget(state.username.as_str(), false, ""),
-        lr.0,
-    );
-    frame.render_widget(
-        input_widget(state.password.as_str(), true, ""),
-        lr.1,
-    );
+    frame.render_widget(input_widget(state.username.as_str(), false, ""), lr.0);
+    frame.render_widget(input_widget(state.password.as_str(), true, ""), lr.1);
 
     frame.render_widget(readonly_widget(state), pad(rows[13], 2));
     let desc_focused = matches!(state.focus, ConnectionFormFocus::Description);
@@ -196,7 +184,9 @@ pub fn render(
                 .add_modifier(Modifier::ITALIC),
         ),
     ]));
-    let para = Paragraph::new(lines).style(bg_style).wrap(Wrap { trim: false });
+    let para = Paragraph::new(lines)
+        .style(bg_style)
+        .wrap(Wrap { trim: false });
     frame.render_widget(para, bottom);
 
     // Terminal cursor for the focused field. `render_root` calls
@@ -227,7 +217,10 @@ pub fn render(
     };
     focused_input.map(|(area, edit)| {
         let col = (edit.cursor_col() as u16).saturating_add(2); // "  " prefix
-        let x = area.x.saturating_add(col).min(area.x + area.width.saturating_sub(1));
+        let x = area
+            .x
+            .saturating_add(col)
+            .min(area.x + area.width.saturating_sub(1));
         (x, area.y)
     })
 }
@@ -287,28 +280,19 @@ fn driver_tabs(state: &ConnectionFormState) -> Paragraph<'static> {
                     .add_modifier(Modifier::BOLD),
             )
         } else {
-            Span::styled(
-                format!(" {pretty} "),
-                Style::default().fg(Color::DarkGray),
-            )
+            Span::styled(format!(" {pretty} "), Style::default().fg(Color::DarkGray))
         }
     };
     let mut spans: Vec<Span<'static>> = Vec::new();
     if focused {
-        spans.push(Span::styled(
-            "▍ ",
-            Style::default().fg(Color::LightYellow),
-        ));
+        spans.push(Span::styled("▍ ", Style::default().fg(Color::LightYellow)));
     } else {
         spans.push(Span::raw("  "));
     }
     for (i, name) in DRIVER_OPTIONS.iter().enumerate() {
         spans.push(driver_label(i, name));
         if i + 1 < DRIVER_OPTIONS.len() {
-            spans.push(Span::styled(
-                "│",
-                Style::default().fg(Color::DarkGray),
-            ));
+            spans.push(Span::styled("│", Style::default().fg(Color::DarkGray)));
         }
     }
     if focused {
@@ -349,7 +333,11 @@ fn readonly_widget(state: &ConnectionFormState) -> Paragraph<'static> {
     } else {
         Style::default().fg(Color::DarkGray)
     };
-    let chip_text = if state.is_readonly { " [x] read-only " } else { " [ ] read-only " };
+    let chip_text = if state.is_readonly {
+        " [x] read-only "
+    } else {
+        " [ ] read-only "
+    };
     Paragraph::new(Line::from(vec![
         Span::styled(marker, marker_style),
         Span::styled(chip_text, chip_style),
@@ -378,10 +366,7 @@ fn connection_string_preview(state: &ConnectionFormState) -> String {
         .unwrap_or("postgres");
     if driver == "sqlite" {
         let db = state.database_name.as_str().trim();
-        return format!(
-            "sqlite://{}",
-            if db.is_empty() { "<path>" } else { db }
-        );
+        return format!("sqlite://{}", if db.is_empty() { "<path>" } else { db });
     }
     let user = state.username.as_str().trim();
     let host = state.host.as_str().trim();
@@ -484,10 +469,7 @@ mod tests {
         let (text, _) = render_form(&state, 80, 28);
         // Default driver is postgres; without host/db the preview uses
         // <host>/<database> placeholders.
-        assert!(
-            text.contains("postgres://"),
-            "preview missing: {text}"
-        );
+        assert!(text.contains("postgres://"), "preview missing: {text}");
     }
 
     #[test]
@@ -531,7 +513,10 @@ mod tests {
         state.password = crate::vim::lineedit::LineEdit::from_str("hunter2");
         let (text, _) = render_form(&state, 80, 28);
         // 7 chars → 7 bullets, and the raw value must NOT appear.
-        assert!(text.contains("•••••••"), "password should be masked: {text}");
+        assert!(
+            text.contains("•••••••"),
+            "password should be masked: {text}"
+        );
         assert!(!text.contains("hunter2"), "raw password leaked: {text}");
     }
 
@@ -540,7 +525,10 @@ mod tests {
         let mut state = ConnectionFormState::new();
         state.error = Some("name is required".into());
         let (text, _) = render_form(&state, 80, 28);
-        assert!(text.contains("error: name is required"), "error not shown: {text}");
+        assert!(
+            text.contains("error: name is required"),
+            "error not shown: {text}"
+        );
     }
 
     #[test]

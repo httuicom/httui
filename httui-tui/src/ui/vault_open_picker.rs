@@ -73,11 +73,9 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultOpenPickerState
                     Style::default().bg(Color::Black).fg(Color::DarkGray),
                     "",
                 ),
-                VaultOpenEntryKind::Directory => (
-                    "/ ",
-                    Style::default().bg(Color::Black).fg(Color::Gray),
-                    "/",
-                ),
+                VaultOpenEntryKind::Directory => {
+                    ("/ ", Style::default().bg(Color::Black).fg(Color::Gray), "/")
+                }
                 VaultOpenEntryKind::Vault => (
                     "● ",
                     Style::default().bg(Color::Black).fg(Color::LightMagenta),
@@ -218,9 +216,11 @@ mod tests {
             ("docs", VaultOpenEntryKind::Directory),
             ("notes-vault", VaultOpenEntryKind::Vault),
         ]);
-        terminal.draw(|f| {
-            render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &s);
+            })
+            .unwrap();
         let painted = dump(&terminal);
         assert!(painted.contains("Open vault"));
         assert!(painted.contains("docs"));
@@ -234,9 +234,11 @@ mod tests {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
         let s = state(&[]);
-        terminal.draw(|f| {
-            render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &s);
+            })
+            .unwrap();
         let painted = dump(&terminal);
         assert!(painted.contains("Open vault"));
     }

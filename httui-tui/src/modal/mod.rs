@@ -1,11 +1,11 @@
 use crate::app::{
     BlockHistoryState, BlockTemplatePickerState, CompletionPopupState,
-    ConnectionDeleteConfirmState, ConnectionFormState, ConnectionPickerState,
-    ConnectionsPageState, ContentSearchState, DbConfirmRunState, DbExportPickerState,
-    DbRowDetailState, DbSettingsState, EnvCloneFormState, EnvDeleteConfirmState, EnvFormState,
-    EnvironmentPickerState, EnvsPageState, HttpResponseDetailState, TabPickerState,
-    VarDeleteConfirmState, VarFormState, VaultCloneFormState, VaultCreateFormState,
-    VaultMissingSecretsState, VaultOpenPickerState, VaultPickerState,
+    ConnectionDeleteConfirmState, ConnectionFormState, ConnectionPickerState, ConnectionsPageState,
+    ContentSearchState, DbConfirmRunState, DbExportPickerState, DbRowDetailState, DbSettingsState,
+    EnvCloneFormState, EnvDeleteConfirmState, EnvFormState, EnvironmentPickerState, EnvsPageState,
+    HttpResponseDetailState, TabPickerState, VarDeleteConfirmState, VarFormState,
+    VaultCloneFormState, VaultCreateFormState, VaultMissingSecretsState, VaultOpenPickerState,
+    VaultPickerState,
 };
 use crate::config::EditorMode;
 use crate::vim::state::VimState;
@@ -178,7 +178,9 @@ impl Modal {
             Modal::EnvsPage(s) => envs_page_handle_key(s.focus, key),
             Modal::EnvForm(_) => env_form_handle_key(key),
             Modal::VarForm(s) => var_form_handle_key(s.focus, key),
-            Modal::EnvDeleteConfirm(_) | Modal::VarDeleteConfirm(_) => env_or_var_confirm_handle_key(key),
+            Modal::EnvDeleteConfirm(_) | Modal::VarDeleteConfirm(_) => {
+                env_or_var_confirm_handle_key(key)
+            }
             Modal::EnvCloneForm(s) => clone_form::env_clone_form_handle_key(s.focus, key),
             Modal::VaultPicker(_) => vault_picker_handle_key(key),
             Modal::VaultCreateForm(s) => vault_create_form_handle_key(s.focus, key),
@@ -187,21 +189,21 @@ impl Modal {
             Modal::VaultMissingSecrets(s) => vault_missing_secrets_handle_key(s.editing, key),
             Modal::DbRowDetail(_) | Modal::HttpResponseDetail(_) => ModalOutcome::Continue,
             Modal::Prompt(kind, _) => prompt_handle_key(*kind, key),
-            Modal::ContentSearch(_) => ModalOutcome::Emit(
-                crate::input::parser::modals::parse_content_search(key),
-            ),
-            Modal::QuickOpen(_) => ModalOutcome::Emit(
-                crate::input::parser::lineedit::parse_quickopen(key),
-            ),
+            Modal::ContentSearch(_) => {
+                ModalOutcome::Emit(crate::input::parser::modals::parse_content_search(key))
+            }
+            Modal::QuickOpen(_) => {
+                ModalOutcome::Emit(crate::input::parser::lineedit::parse_quickopen(key))
+            }
             Modal::CompletionPopup(_) => {
                 match crate::input::apply::completion::parse_completion_popup_key(key) {
                     Some(action) => ModalOutcome::Emit(action),
                     None => ModalOutcome::Forward,
                 }
             }
-            Modal::DbSettings(_) => ModalOutcome::Emit(
-                crate::input::parser::modals::parse_db_settings_modal(key),
-            ),
+            Modal::DbSettings(_) => {
+                ModalOutcome::Emit(crate::input::parser::modals::parse_db_settings_modal(key))
+            }
         }
     }
 
@@ -258,9 +260,7 @@ impl Modal {
         }
     }
 
-    pub fn as_prompt_mut(
-        &mut self,
-    ) -> Option<(PromptKind, &mut crate::vim::lineedit::LineEdit)> {
+    pub fn as_prompt_mut(&mut self) -> Option<(PromptKind, &mut crate::vim::lineedit::LineEdit)> {
         match self {
             Modal::Prompt(kind, le) => Some((*kind, le)),
             _ => None,
@@ -323,7 +323,6 @@ impl Modal {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests;

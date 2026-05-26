@@ -66,7 +66,17 @@ mod tests {
         let resolved = ResolvedVault {
             vault: vault.path().to_path_buf(),
         };
-        (App::new(Config::default(), resolved, pool), data, vault)
+        let mut app = App::new(Config::default(), resolved, pool);
+        // Test isolation: App::new defaults user_config_path to the OS
+        // user dir (`~/.config/httui/user.toml` on Linux), so every
+        // parallel test races on the same active-env file. Rebind the
+        // env store to a vault-local user.toml so writes stay inside
+        // the TempDir.
+        app.environments_store = httui_core::vault_config::EnvironmentsStore::new(
+            vault.path().to_path_buf(),
+            vault.path().join("user.toml"),
+        );
+        (app, data, vault)
     }
 
     #[tokio::test(flavor = "multi_thread")]

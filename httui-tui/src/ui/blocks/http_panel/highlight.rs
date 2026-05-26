@@ -64,7 +64,9 @@ pub(super) fn highlight_http_message(
                     continue;
                 }
                 if line.trim_start().starts_with('?') || line.trim_start().starts_with('&') {
-                    out.push(Line::from(highlight_http_query_continuation(line, error_refs)));
+                    out.push(Line::from(highlight_http_query_continuation(
+                        line, error_refs,
+                    )));
                     continue;
                 }
                 out.push(Line::from(highlight_http_header_line(line, error_refs)));
@@ -199,9 +201,7 @@ pub(super) fn highlight_xml_line(line: &str) -> Vec<Span<'static>> {
                 i += 1;
             }
             let name_start = i;
-            while i < bytes.len()
-                && !matches!(bytes[i], b' ' | b'\t' | b'>' | b'/' | b'?' | b'!')
-            {
+            while i < bytes.len() && !matches!(bytes[i], b' ' | b'\t' | b'>' | b'/' | b'?' | b'!') {
                 i += 1;
             }
             if i > name_start {

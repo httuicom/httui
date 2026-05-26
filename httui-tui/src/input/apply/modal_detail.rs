@@ -102,18 +102,20 @@ pub(crate) fn apply_open_db_row_detail(app: &mut App) {
         Ok(d) => d,
         Err(_) => return,
     };
-    app.modal = Some(crate::modal::Modal::DbRowDetail(crate::app::DbRowDetailState {
-        segment_idx,
-        row,
-        title,
-        doc: modal_doc,
-        // Updated by the renderer on the first paint; 1 is just a
-        // safe lower bound so the first half-page motion (rare, but
-        // possible if the user types `Ctrl-d` immediately) doesn't
-        // divide by zero anywhere.
-        viewport_height: 1,
-        viewport_top: 0,
-    }));
+    app.modal = Some(crate::modal::Modal::DbRowDetail(
+        crate::app::DbRowDetailState {
+            segment_idx,
+            row,
+            title,
+            doc: modal_doc,
+            // Updated by the renderer on the first paint; 1 is just a
+            // safe lower bound so the first half-page motion (rare, but
+            // possible if the user types `Ctrl-d` immediately) doesn't
+            // divide by zero anywhere.
+            viewport_height: 1,
+            viewport_top: 0,
+        },
+    ));
     app.vim.mode = Mode::DbRowDetail;
     app.vim.reset_pending();
 }

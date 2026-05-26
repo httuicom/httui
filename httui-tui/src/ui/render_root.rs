@@ -15,7 +15,7 @@ use crate::vim::mode::Mode;
 use super::{
     anchor, block_history, block_template_picker, completion_popup, connection_delete_confirm,
     connection_form, connection_picker, connections_page, content_search, db_confirm_run,
-    db_export_picker, db_row_detail, db_settings_modal, envs_page, environment_picker, fence_edit,
+    db_export_picker, db_row_detail, db_settings_modal, environment_picker, envs_page, fence_edit,
     help, http_response_detail, quickopen, render_empty_state_inline, render_pane_tree, status,
     tab_picker, tabs, tree, vault_clone_form, vault_create_form, vault_missing_secrets,
     vault_open_picker, vault_picker, VisualOverlay,
@@ -407,7 +407,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // sits above every other surface — leaving via `Esc` restores
     // the editor underneath.
     if let Some(crate::modal::Modal::Connections(state)) = app.modal.as_ref() {
-        connections_page::render(frame, editor_area, state, &app.schema_cache, &app.session_overrides);
+        connections_page::render(
+            frame,
+            editor_area,
+            state,
+            &app.schema_cache,
+            &app.session_overrides,
+        );
     }
 
     // V3 P3: create-connection form modal. Painted on top of the
@@ -448,12 +454,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         envs_page::render_var_delete_confirm(frame, editor_area, state);
     }
     if let Some(crate::modal::Modal::EnvCloneForm(state)) = app.modal.as_ref() {
-        if let Some((cx, cy)) = crate::ui::envs_clone::render_env_clone_form(frame, editor_area, state) {
+        if let Some((cx, cy)) =
+            crate::ui::envs_clone::render_env_clone_form(frame, editor_area, state)
+        {
             frame.set_cursor_position((cx, cy));
         }
     }
 }
-
 
 #[cfg(test)]
 #[path = "render_root_tests.rs"]

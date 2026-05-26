@@ -35,7 +35,6 @@ pub use run::*;
 pub use settings_modal::*;
 pub use sql::*;
 
-
 /// Resolve a fence's `connection=` value (UUID or slug) to the
 /// canonical UUID using the in-memory `connection_names` map. The
 /// async `resolve_connection_id` (used by the executor) hits the
@@ -519,9 +518,6 @@ pub async fn resolve_connection_id(
     }
     Err(format!("Connection '{key}' not found"))
 }
-
-
-
 
 #[cfg(test)]
 mod tests;

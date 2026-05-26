@@ -6,15 +6,10 @@ mod block_history;
 mod block_template_picker;
 mod blocks;
 mod completion_popup;
-mod connection_picker;
 mod connection_delete_confirm;
 mod connection_form;
+mod connection_picker;
 mod connections_page;
-/// V4 P5: clone-env form renderer (extraído de envs_page).
-mod envs_clone;
-mod envs_page;
-/// V4 P7: "Used in N" panel pra var selecionada na EnvsPage.
-mod var_uses_panel;
 mod content_search;
 mod cursor;
 mod db_confirm_run;
@@ -23,6 +18,9 @@ pub mod db_row_detail;
 mod db_settings_modal;
 mod document;
 mod environment_picker;
+/// V4 P5: clone-env form renderer (extraído de envs_page).
+mod envs_clone;
+mod envs_page;
 mod fence_edit;
 mod help;
 pub mod http_response_detail;
@@ -37,6 +35,8 @@ mod status;
 mod tab_picker;
 mod tabs;
 mod tree;
+/// V4 P7: "Used in N" panel pra var selecionada na EnvsPage.
+mod var_uses_panel;
 pub(crate) mod vault_clone_form;
 pub(crate) mod vault_create_form;
 mod vault_missing_secrets;

@@ -79,7 +79,9 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionDeleteConf
             Span::raw(" cancel"),
         ]),
     ];
-    let para = Paragraph::new(lines).style(bg_style).wrap(Wrap { trim: false });
+    let para = Paragraph::new(lines)
+        .style(bg_style)
+        .wrap(Wrap { trim: false });
     frame.render_widget(para, inner);
 }
 
@@ -137,9 +139,7 @@ mod tests {
 
     #[test]
     fn render_smoke_small_area() {
-        let state = ConnectionDeleteConfirmState {
-            name: "x".into(),
-        };
+        let state = ConnectionDeleteConfirmState { name: "x".into() };
         let _ = render_to_text(&state, 30, 8);
     }
 }

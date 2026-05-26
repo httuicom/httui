@@ -376,9 +376,8 @@ fn resolve_block_refs_env_var_becomes_string_bind() {
     let md = "```db-postgres alias=q\nSELECT 1\n```\n";
     let doc = make_doc(md);
     let blocks = block_indices(&doc);
-    let (sql, binds) =
-        resolve_block_refs(doc.segments(), blocks[0], "SELECT {{API_TOKEN}}", &env)
-            .expect("resolves");
+    let (sql, binds) = resolve_block_refs(doc.segments(), blocks[0], "SELECT {{API_TOKEN}}", &env)
+        .expect("resolves");
     assert_eq!(sql, "SELECT ?");
     assert_eq!(binds, vec![serde_json::json!("abc-123")]);
 }
@@ -426,15 +425,13 @@ fn resolve_block_refs_block_alias_wins_over_env_var_with_same_name() {
     // RF-04 precedence: when `{{X}}` could match both an upstream
     // block aliased `X` and an env var `X`, the block wins. Mirrors
     // desktop `references.ts` resolve order (block-first).
-    let md =
-        "```http alias=token\nGET /\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
+    let md = "```http alias=token\nGET /\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
     let mut doc = make_doc(md);
     let blocks = block_indices(&doc);
     set_cache(&mut doc, blocks[0], serde_json::json!("from-block"));
     let env = env_map(&[("token", "from-env")]);
     let (sql, binds) =
-        resolve_block_refs(doc.segments(), blocks[1], "SELECT {{token}}", &env)
-            .expect("resolves");
+        resolve_block_refs(doc.segments(), blocks[1], "SELECT {{token}}", &env).expect("resolves");
     assert_eq!(sql, "SELECT ?");
     assert_eq!(binds, vec![serde_json::json!("from-block")]);
 }
@@ -468,8 +465,7 @@ fn resolve_block_refs_preserves_query_when_no_refs_present() {
 fn db_shim_legacy_response_col_resolves_first_row_first_result() {
     // `{{q.response.id}}` ≡ `results[0].rows[0].id` — pre-redesign
     // parity guarantee for notes that pre-date multi-result.
-    let md =
-        "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
+    let md = "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
     let mut doc = make_doc(md);
     let blocks = block_indices(&doc);
     set_cache(
@@ -492,8 +488,7 @@ fn db_shim_legacy_response_col_resolves_first_row_first_result() {
 
 #[test]
 fn db_shim_explicit_path_walks_results_array() {
-    let md =
-        "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
+    let md = "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
     let mut doc = make_doc(md);
     let blocks = block_indices(&doc);
     set_cache(
@@ -518,8 +513,7 @@ fn db_shim_numeric_shortcut_targets_second_result_set() {
     // `BEGIN; SELECT a; SELECT b; ROLLBACK;` → 4 results. The
     // numeric shortcut `response.2` grabs the *second* SELECT
     // without spelling out `results.2`.
-    let md =
-        "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
+    let md = "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
     let mut doc = make_doc(md);
     let blocks = block_indices(&doc);
     set_cache(
@@ -544,8 +538,7 @@ fn db_shim_numeric_shortcut_targets_second_result_set() {
 
 #[test]
 fn db_shim_passthrough_stats_returns_elapsed_ms() {
-    let md =
-        "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
+    let md = "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
     let mut doc = make_doc(md);
     let blocks = block_indices(&doc);
     set_cache(
@@ -619,8 +612,7 @@ fn db_shim_legacy_against_mutation_errors_clearly() {
 
 #[test]
 fn db_shim_out_of_bounds_result_index_errors() {
-    let md =
-        "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
+    let md = "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
     let mut doc = make_doc(md);
     let blocks = block_indices(&doc);
     set_cache(
@@ -645,8 +637,7 @@ fn db_shim_skipped_when_cached_lacks_results_array() {
     // Pre-redesign caches lack `{results: [...]}` — shim must
     // not engage so older notes still resolve via plain
     // dot-navigation.
-    let md =
-        "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
+    let md = "```db-postgres alias=src\nSELECT 1\n```\n\n```db-postgres alias=q\nSELECT 1\n```\n";
     let mut doc = make_doc(md);
     let blocks = block_indices(&doc);
     set_cache(&mut doc, blocks[0], serde_json::json!({ "id": 42 }));
@@ -721,8 +712,7 @@ fn alias_unique_blocks_collision_with_other_block() {
     let md = "```http alias=existing\nGET /\n```\n\n```db-postgres\nSELECT 1\n```\n";
     let doc = make_doc(md);
     let blocks = block_indices(&doc);
-    let err =
-        validate_alias_unique(&doc, blocks[1], "existing").expect_err("collision must error");
+    let err = validate_alias_unique(&doc, blocks[1], "existing").expect_err("collision must error");
     assert!(err.contains("existing"), "got: {err}");
 }
 
@@ -851,7 +841,9 @@ async fn app_with_doc(md: &str) -> (App, TempDir, TempDir) {
     let note = vault.path().join("note.md");
     std::fs::write(&note, md).unwrap();
     let pool = init_db(data.path()).await.unwrap();
-    let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+    let resolved = ResolvedVault {
+        vault: vault.path().to_path_buf(),
+    };
     let mut app = App::new(Config::default(), resolved, pool);
     let doc = Document::from_markdown(md).unwrap();
     let pane = Pane::new(doc, note);
@@ -869,9 +861,10 @@ fn place_cursor_in_first_block(app: &mut App) -> usize {
         .iter()
         .position(|s| matches!(s, Segment::Block(_)))
         .expect("block");
-    app.document_mut()
-        .unwrap()
-        .set_cursor(Cursor::InBlock { segment_idx: idx, offset: 0 });
+    app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+        segment_idx: idx,
+        offset: 0,
+    });
     idx
 }
 
@@ -999,9 +992,10 @@ async fn confirm_fence_edit_duplicate_alias_errors_and_keeps_prompt() {
         .filter_map(|(i, s)| matches!(s, Segment::Block(_)).then_some(i))
         .collect();
     let second = idxs[1];
-    app.document_mut()
-        .unwrap()
-        .set_cursor(Cursor::InBlock { segment_idx: second, offset: 0 });
+    app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+        segment_idx: second,
+        offset: 0,
+    });
     open_fence_edit_alias(&mut app);
     if let Some(crate::modal::Modal::Prompt(_, le)) = app.modal.as_mut() {
         *le = crate::vim::lineedit::LineEdit::from_str("a"); // collision
@@ -1035,7 +1029,9 @@ async fn load_active_env_vars_returns_none_when_no_active_env() {
     let data = TempDir::new().unwrap();
     let vault = TempDir::new().unwrap();
     let pool = init_db(data.path()).await.unwrap();
-    let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+    let resolved = ResolvedVault {
+        vault: vault.path().to_path_buf(),
+    };
     let app = App::new(Config::default(), resolved, pool);
     let result = load_active_env_vars(&app.environments_store).await;
     assert!(result.is_none(), "no active env -> None");
@@ -1046,7 +1042,9 @@ async fn resolve_connection_id_with_unknown_key_errors() {
     let data = TempDir::new().unwrap();
     let vault = TempDir::new().unwrap();
     let pool = init_db(data.path()).await.unwrap();
-    let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+    let resolved = ResolvedVault {
+        vault: vault.path().to_path_buf(),
+    };
     let app = App::new(Config::default(), resolved, pool);
     let err = resolve_connection_id(&app.connections_store, "ghost")
         .await

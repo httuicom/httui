@@ -93,7 +93,12 @@ pub(super) fn content_type_of(result: &serde_json::Value) -> Option<String> {
 
 pub(super) fn lang_from_content_type(ct: Option<&str>) -> BodyLang {
     let Some(ct) = ct else { return BodyLang::Plain };
-    let mime = ct.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+    let mime = ct
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     if mime.contains("json") {
         BodyLang::Json
     } else if mime.contains("html") {
@@ -232,7 +237,9 @@ pub(super) fn http_response_raw_lines(b: &BlockNode) -> Vec<Line<'static>> {
         .unwrap_or("");
     lines.push(Line::from(Span::styled(
         format!(" HTTP/1.1 {status} {status_text}"),
-        Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD),
     )));
     // Headers.
     if let Some(headers) = result.get("headers").and_then(|v| v.as_array()) {
@@ -283,7 +290,12 @@ mod tests {
     fn lines_text(lines: &[Line<'static>]) -> String {
         lines
             .iter()
-            .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+            .map(|l| {
+                l.spans
+                    .iter()
+                    .map(|s| s.content.as_ref())
+                    .collect::<String>()
+            })
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -463,7 +475,10 @@ mod tests {
 
     #[test]
     fn lang_routes_all_supported_content_types() {
-        assert_eq!(lang_from_content_type(Some("application/json")), BodyLang::Json);
+        assert_eq!(
+            lang_from_content_type(Some("application/json")),
+            BodyLang::Json
+        );
         assert_eq!(lang_from_content_type(Some("text/html")), BodyLang::Html);
         assert_eq!(lang_from_content_type(Some("text/xml")), BodyLang::Xml);
         assert_eq!(lang_from_content_type(Some("image/svg+xml")), BodyLang::Xml);

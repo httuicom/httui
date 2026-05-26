@@ -25,8 +25,8 @@ use super::Version;
 
 mod dto;
 
-pub use dto::{EnvVariablePublic, EnvironmentPublic, SetVarInput};
 use dto::{env_to_public, is_valid_env_name};
+pub use dto::{EnvVariablePublic, EnvironmentPublic, SetVarInput};
 
 // --- Cache -------------------------------------------------------------------
 
@@ -813,8 +813,10 @@ mod tests {
             .unwrap();
 
         let vars = store.list_vars_resolved(&env_name).await.unwrap();
-        let by_key: std::collections::HashMap<_, _> =
-            vars.into_iter().map(|v| (v.key, (v.value, v.is_secret))).collect();
+        let by_key: std::collections::HashMap<_, _> = vars
+            .into_iter()
+            .map(|v| (v.key, (v.value, v.is_secret)))
+            .collect();
         assert_eq!(
             by_key["BASE_URL"],
             ("https://api.example.com".into(), false)

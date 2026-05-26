@@ -17,7 +17,11 @@ use crate::app::VaultMissingSecretsState;
 
 const MAX_VISIBLE_ROWS: usize = 12;
 
-pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultMissingSecretsState) -> Option<(u16, u16)> {
+pub fn render(
+    frame: &mut Frame,
+    editor_area: Rect,
+    state: &VaultMissingSecretsState,
+) -> Option<(u16, u16)> {
     let popup = compute_popup_rect(editor_area, state);
     let bg_style = Style::default().bg(Color::Black).fg(Color::White);
 
@@ -108,7 +112,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultMissingSecretsS
         )
     };
     frame.render_widget(
-        Paragraph::new(Line::from(Span::styled(label_text.to_string(), label_style))).style(bg_style),
+        Paragraph::new(Line::from(Span::styled(
+            label_text.to_string(),
+            label_style,
+        )))
+        .style(bg_style),
         value_label_area,
     );
 
@@ -252,9 +260,11 @@ mod tests {
             selected: 0,
             editing: false,
         };
-        terminal.draw(|f| {
-            render(f, f.area(), &state);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &state);
+            })
+            .unwrap();
         let painted = dump(&terminal);
         assert!(painted.contains("Pending secrets"));
         assert!(painted.contains("API_TOKEN"));
@@ -272,9 +282,11 @@ mod tests {
             editing: true,
         };
         let mut cursor = None;
-        terminal.draw(|f| {
-            cursor = render(f, f.area(), &state);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                cursor = render(f, f.area(), &state);
+            })
+            .unwrap();
         assert!(cursor.is_some(), "cursor reported in editing mode");
         let painted = dump(&terminal);
         assert!(painted.contains("save"));
@@ -290,9 +302,11 @@ mod tests {
             selected: 0,
             editing: false,
         };
-        terminal.draw(|f| {
-            render(f, f.area(), &state);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &state);
+            })
+            .unwrap();
         assert!(dump(&terminal).contains("(empty"));
     }
 
@@ -307,9 +321,11 @@ mod tests {
             selected: 0,
             editing: false,
         };
-        terminal.draw(|f| {
-            render(f, f.area(), &state);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &state);
+            })
+            .unwrap();
         let painted = dump(&terminal);
         assert!(painted.contains("✓"), "saved marker present");
     }

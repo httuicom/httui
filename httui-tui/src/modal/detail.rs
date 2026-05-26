@@ -48,11 +48,9 @@ fn standard_detail_shortcut(key: KeyEvent, copy: Action, close: Action) -> Optio
 /// the routing contract.
 pub(super) fn db_row_handle_key(key: KeyEvent, ctx: &mut ModalKeyCtx<'_>) -> ModalOutcome {
     if matches!(ctx.editor_mode, EditorMode::Standard) {
-        if let Some(a) = standard_detail_shortcut(
-            key,
-            Action::CopyDbRowDetailJson,
-            Action::CloseDbRowDetail,
-        ) {
+        if let Some(a) =
+            standard_detail_shortcut(key, Action::CopyDbRowDetailJson, Action::CloseDbRowDetail)
+        {
             return ModalOutcome::Emit(a);
         }
         return ModalOutcome::Forward;

@@ -97,7 +97,9 @@ mod tests {
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -116,9 +118,10 @@ mod tests {
             .iter()
             .position(|s| matches!(s, Segment::Block(_)))
             .expect("block");
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InBlock { segment_idx: block_idx, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: 0,
+        });
         block_idx
     }
 
@@ -127,7 +130,11 @@ mod tests {
         let (mut app, _d, _v) = app_with_doc("just prose\n").await;
         copy_as_curl(&mut app);
         let s = app.status_message.expect("status set");
-        assert!(s.text.contains("cursor on an HTTP block"), "got {:?}", s.text);
+        assert!(
+            s.text.contains("cursor on an HTTP block"),
+            "got {:?}",
+            s.text
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -192,9 +199,10 @@ mod tests {
         // Manually move cursor to a "block" position via InBlock variant —
         // but the segment at idx 0 is prose, so the cloned-segment branch
         // fires the "no block at cursor" hint.
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InBlock { segment_idx: 0, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: 0,
+            offset: 0,
+        });
         copy_as_curl(&mut app);
         let s = app.status_message.expect("status set");
         assert!(s.text.contains("no block"), "got {:?}", s.text);

@@ -117,7 +117,6 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
     KeyOutcome::Consumed
 }
 
-
 /// Running-query cancel — catches the profile-specific cancel chord.
 /// `Ctrl+C` in vim, `Esc` in standard. Everything else `Forward`s so
 /// the rest of the stack still works while a query streams.
@@ -204,14 +203,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn stack_pushes_modal_when_open() {
         let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
-        crate::input::apply::envs_page::apply_envs(
-            &mut app,
-            Action::OpenEnvsPage,
-        );
-        crate::input::apply::envs_page::apply_envs(
-            &mut app,
-            Action::OpenEnvForm,
-        );
+        crate::input::apply::envs_page::apply_envs(&mut app, Action::OpenEnvsPage);
+        crate::input::apply::envs_page::apply_envs(&mut app, Action::OpenEnvForm);
         let scopes = active_scopes(&app);
         assert_eq!(scopes, vec![ScopeKind::Editor, ScopeKind::Modal]);
     }
@@ -219,14 +212,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn modal_swallows_unbound_key_in_standard() {
         let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
-        crate::input::apply::envs_page::apply_envs(
-            &mut app,
-            Action::OpenEnvsPage,
-        );
-        crate::input::apply::envs_page::apply_envs(
-            &mut app,
-            Action::OpenEnvForm,
-        );
+        crate::input::apply::envs_page::apply_envs(&mut app, Action::OpenEnvsPage);
+        crate::input::apply::envs_page::apply_envs(&mut app, Action::OpenEnvForm);
         let before_doc = app.document().unwrap().to_markdown();
         let before_tab = app.tabs.active;
         dispatch(&mut app, key(KeyCode::F(11)));
@@ -238,14 +225,16 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn detail_modal_forwards_in_standard_profile() {
         let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
-        app.modal = Some(crate::modal::Modal::DbRowDetail(crate::app::DbRowDetailState {
-            segment_idx: 0,
-            row: 0,
-            title: "test".into(),
-            doc: crate::buffer::Document::from_markdown("alpha\nbeta\n").unwrap(),
-            viewport_height: 4,
-            viewport_top: 0,
-        }));
+        app.modal = Some(crate::modal::Modal::DbRowDetail(
+            crate::app::DbRowDetailState {
+                segment_idx: 0,
+                row: 0,
+                title: "test".into(),
+                doc: crate::buffer::Document::from_markdown("alpha\nbeta\n").unwrap(),
+                viewport_height: 4,
+                viewport_top: 0,
+            },
+        ));
         app.vim.mode = crate::vim::mode::Mode::DbRowDetail;
         let before = app.document().unwrap().cursor();
         dispatch(&mut app, key(KeyCode::Down));
@@ -256,14 +245,16 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn detail_modal_consumes_in_vim_profile() {
         let (mut app, _d, _v) = app_fixture(EditorMode::Vim).await;
-        app.modal = Some(crate::modal::Modal::DbRowDetail(crate::app::DbRowDetailState {
-            segment_idx: 0,
-            row: 0,
-            title: "test".into(),
-            doc: crate::buffer::Document::from_markdown("alpha\nbeta\n").unwrap(),
-            viewport_height: 4,
-            viewport_top: 0,
-        }));
+        app.modal = Some(crate::modal::Modal::DbRowDetail(
+            crate::app::DbRowDetailState {
+                segment_idx: 0,
+                row: 0,
+                title: "test".into(),
+                doc: crate::buffer::Document::from_markdown("alpha\nbeta\n").unwrap(),
+                viewport_height: 4,
+                viewport_top: 0,
+            },
+        ));
         app.vim.mode = crate::vim::mode::Mode::DbRowDetail;
         let before = app.document().unwrap().cursor();
         dispatch(&mut app, key(KeyCode::Char('j')));
@@ -293,14 +284,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn modal_blocks_universal_actions_through_stack() {
         let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
-        crate::input::apply::envs_page::apply_envs(
-            &mut app,
-            Action::OpenEnvsPage,
-        );
-        crate::input::apply::envs_page::apply_envs(
-            &mut app,
-            Action::OpenEnvForm,
-        );
+        crate::input::apply::envs_page::apply_envs(&mut app, Action::OpenEnvsPage);
+        crate::input::apply::envs_page::apply_envs(&mut app, Action::OpenEnvForm);
         let before_tab = app.tabs.active;
         dispatch(&mut app, key(KeyCode::Tab));
         assert!(matches!(app.modal, Some(crate::modal::Modal::EnvForm(_))));

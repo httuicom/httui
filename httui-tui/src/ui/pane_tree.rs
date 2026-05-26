@@ -34,7 +34,10 @@ pub(crate) fn render_pane_tree(
     visual_overlay: Option<VisualOverlay>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
+    result_tabs: &std::collections::HashMap<
+        crate::buffer::block::BlockId,
+        crate::app::ResultPanelTab,
+    >,
 ) {
     if area.width == 0 || area.height == 0 {
         return;

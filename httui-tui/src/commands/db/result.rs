@@ -346,8 +346,7 @@ pub(crate) fn load_more_db_block(app: &mut App, segment_idx: usize) -> Result<()
     let timeout_ms = block.params.get("timeout_ms").and_then(|v| v.as_u64());
 
     let env_vars: std::collections::HashMap<String, String> = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(load_active_env_vars(&app.environments_store))
+        tokio::runtime::Handle::current().block_on(load_active_env_vars(&app.environments_store))
     })
     .unwrap_or_default();
     let (query, bind_values) = match app.document() {
@@ -403,7 +402,9 @@ mod tests {
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -420,7 +421,12 @@ mod tests {
         (app, idx, data, vault)
     }
 
-    fn stats() -> DbStats { DbStats { elapsed_ms: 12, rows_streamed: None } }
+    fn stats() -> DbStats {
+        DbStats {
+            elapsed_ms: 12,
+            rows_streamed: None,
+        }
+    }
 
     fn select_response(rows: usize, has_more: bool) -> DbResponse {
         let cols = vec![httui_core::db::connections::ColumnInfo {
@@ -429,7 +435,11 @@ mod tests {
         }];
         let rows: Vec<_> = (0..rows).map(|i| serde_json::json!([i])).collect();
         DbResponse {
-            results: vec![DbResult::Select { columns: cols, rows, has_more }],
+            results: vec![DbResult::Select {
+                columns: cols,
+                rows,
+                has_more,
+            }],
             messages: vec![],
             plan: None,
             stats: stats(),
@@ -438,7 +448,11 @@ mod tests {
 
     fn error_response(msg: &str) -> DbResponse {
         DbResponse {
-            results: vec![DbResult::Error { message: msg.into(), line: None, column: None }],
+            results: vec![DbResult::Error {
+                message: msg.into(),
+                line: None,
+                column: None,
+            }],
             messages: vec![],
             plan: None,
             stats: stats(),
@@ -469,7 +483,10 @@ mod tests {
         );
         assert!(app.running_query.is_none());
         let block = app.document().unwrap().block_at(idx).unwrap().clone();
-        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Success));
+        assert!(matches!(
+            block.state,
+            crate::buffer::block::ExecutionState::Success
+        ));
         assert!(block.cached_result.is_some());
         assert!(app.status_message.is_some());
     }
@@ -486,7 +503,10 @@ mod tests {
             Ok(error_response("syntax")),
         );
         let block = app.document().unwrap().block_at(idx).unwrap().clone();
-        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+        assert!(matches!(
+            block.state,
+            crate::buffer::block::ExecutionState::Error(_)
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -501,7 +521,10 @@ mod tests {
             Err("connection refused".into()),
         );
         let block = app.document().unwrap().block_at(idx).unwrap().clone();
-        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+        assert!(matches!(
+            block.state,
+            crate::buffer::block::ExecutionState::Error(_)
+        ));
         assert!(block.cached_result.is_some());
     }
 
@@ -660,7 +683,9 @@ mod tests {
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -691,7 +716,10 @@ mod tests {
     async fn load_more_db_block_missing_block_errors() {
         let (mut app, _idx, _d, _v) = app_with_block_or_prose("prose\n").await;
         let err = load_more_db_block(&mut app, 999).unwrap_err();
-        assert!(err.contains("missing") || err.contains("block"), "got {err:?}");
+        assert!(
+            err.contains("missing") || err.contains("block"),
+            "got {err:?}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -747,6 +775,9 @@ mod tests {
             b.cached_result = Some(mutation_cache);
         }
         let err = load_more_db_block(&mut app, idx).unwrap_err();
-        assert!(err.contains("not a select") || err.contains("no more"), "got {err:?}");
+        assert!(
+            err.contains("not a select") || err.contains("no more"),
+            "got {err:?}"
+        );
     }
 }

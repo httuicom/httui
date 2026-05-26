@@ -1,8 +1,8 @@
 //! V4 P2-P4 (2026-05-23): Vars + Envs page handlers.
 
 use crate::app::{
-    App, EnvDeleteConfirmState, EnvFormState, EnvSummary, EnvsPageState, EnvsPaneFocus,
-    StatusKind, VarDeleteConfirmState, VarFormFocus, VarFormState, VarRow,
+    App, EnvDeleteConfirmState, EnvFormState, EnvSummary, EnvsPageState, EnvsPaneFocus, StatusKind,
+    VarDeleteConfirmState, VarFormFocus, VarFormState, VarRow,
 };
 use crate::input::action::Action;
 use crate::vim::lineedit::LineEdit;
@@ -127,9 +127,13 @@ pub(crate) fn apply_envs(app: &mut App, action: Action) {
         }
         Action::OpenEnvCloneForm => super::envs_clone::open_env_clone_form(app),
         Action::CloseEnvCloneForm => {
-            close_form_and_reopen(app, |m| matches!(m, Some(crate::modal::Modal::EnvCloneForm(_))));
+            close_form_and_reopen(app, |m| {
+                matches!(m, Some(crate::modal::Modal::EnvCloneForm(_)))
+            });
         }
-        Action::EnvCloneFormChar(c) => super::envs_clone::with_clone_form(app, |f| f.name.insert_char(c)),
+        Action::EnvCloneFormChar(c) => {
+            super::envs_clone::with_clone_form(app, |f| f.name.insert_char(c))
+        }
         Action::EnvCloneFormBackspace => super::envs_clone::with_clone_form(app, |f| {
             f.name.delete_before();
         }),
@@ -295,9 +299,7 @@ pub(super) fn refresh_var_uses(app: &mut App) {
         None
     };
     let uses = match (key, app.vault_path.to_str()) {
-        (Some(k), Some(p)) => {
-            httui_core::var_uses::grep_var_uses(p, &k).unwrap_or_default()
-        }
+        (Some(k), Some(p)) => httui_core::var_uses::grep_var_uses(p, &k).unwrap_or_default(),
         _ => Vec::new(),
     };
     with_page(app, |s| s.var_uses = uses);
@@ -382,7 +384,11 @@ fn env_form_submit(app: &mut App) {
                 StatusKind::Info,
                 format!(
                     "{} env \"{name}\"",
-                    if editing.is_some() { "renamed" } else { "created" }
+                    if editing.is_some() {
+                        "renamed"
+                    } else {
+                        "created"
+                    }
                 ),
             );
         }
@@ -395,12 +401,17 @@ fn env_form_submit(app: &mut App) {
 }
 
 fn open_var_form(app: &mut App, edit: bool) {
-    let (env_name, editing_var) = if let Some(crate::modal::Modal::EnvsPage(s)) = app.modal.as_ref() {
+    let (env_name, editing_var) = if let Some(crate::modal::Modal::EnvsPage(s)) = app.modal.as_ref()
+    {
         let env = match s.envs.get(s.selected_env) {
             Some(e) => e.name.clone(),
             None => return,
         };
-        let var = if edit { s.vars.get(s.selected_var).cloned() } else { None };
+        let var = if edit {
+            s.vars.get(s.selected_var).cloned()
+        } else {
+            None
+        };
         (env, var)
     } else {
         return;
@@ -565,4 +576,3 @@ pub(super) fn with_page_select_env(app: &mut App, name: &str) {
 pub(super) fn reload_vars_export(app: &mut App) {
     reload_vars(app);
 }
-

@@ -143,14 +143,13 @@ mod tests {
     use httui_core::executor::db::types::{DbResponse, DbResult};
     use tempfile::TempDir;
 
-    async fn app_with_doc(
-        md: &str,
-        with_path: bool,
-    ) -> (App, TempDir, TempDir) {
+    async fn app_with_doc(md: &str, with_path: bool) -> (App, TempDir, TempDir) {
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = if with_path {
@@ -241,7 +240,10 @@ mod tests {
     }
 
     fn stats() -> httui_core::executor::db::types::DbStats {
-        httui_core::executor::db::types::DbStats { elapsed_ms: 5, rows_streamed: None }
+        httui_core::executor::db::types::DbStats {
+            elapsed_ms: 5,
+            rows_streamed: None,
+        }
     }
 
     fn col(name: &str) -> httui_core::db::connections::ColumnInfo {
@@ -344,7 +346,9 @@ mod tests {
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         // Empty pane (no document).
         app.tabs.tabs.clear();
@@ -359,7 +363,9 @@ mod tests {
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         app.tabs.tabs.clear(); // no active tab
         assert!(snapshot_db_history_meta(&app, 0).is_none());

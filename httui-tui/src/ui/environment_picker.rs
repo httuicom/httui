@@ -48,7 +48,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvironmentPickerSta
         .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().fg(crate::ui::palette::BORDER).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(crate::ui::palette::BORDER)
+                .bg(Color::Black),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 

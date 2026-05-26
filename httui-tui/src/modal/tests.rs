@@ -548,12 +548,18 @@ fn var_form_routes_typing_focus_and_secret_toggle() {
         ModalOutcome::Emit(Action::VarFormFocusPrev)
     ));
     assert!(matches!(
-        var_form_handle_key(VarFormFocus::Secret, k(KeyCode::Char(' '), KeyModifiers::NONE)),
+        var_form_handle_key(
+            VarFormFocus::Secret,
+            k(KeyCode::Char(' '), KeyModifiers::NONE)
+        ),
         ModalOutcome::Emit(Action::VarFormToggleSecret)
     ));
     // Char on Secret focus is inert.
     assert!(matches!(
-        var_form_handle_key(VarFormFocus::Secret, k(KeyCode::Char('z'), KeyModifiers::NONE)),
+        var_form_handle_key(
+            VarFormFocus::Secret,
+            k(KeyCode::Char('z'), KeyModifiers::NONE)
+        ),
         ModalOutcome::Continue
     ));
     assert!(matches!(
@@ -865,7 +871,10 @@ fn connection_form_readonly_focus_space_toggles() {
 #[test]
 fn prompt_handle_key_dispatches_per_kind() {
     // Cmdline: typing a char produces a lineedit action.
-    let outcome = prompt_handle_key(PromptKind::Cmdline, k(KeyCode::Char('a'), KeyModifiers::NONE));
+    let outcome = prompt_handle_key(
+        PromptKind::Cmdline,
+        k(KeyCode::Char('a'), KeyModifiers::NONE),
+    );
     assert!(matches!(outcome, ModalOutcome::Emit(_)));
     let outcome = prompt_handle_key(
         PromptKind::FenceEditAlias { segment_idx: 0 },
@@ -963,7 +972,10 @@ fn var_form_lineedit_motions_route() {
         ModalOutcome::Emit(Action::VarFormBackspace)
     ));
     assert!(matches!(
-        var_form_handle_key(VarFormFocus::Key, k(KeyCode::Char('v'), KeyModifiers::CONTROL)),
+        var_form_handle_key(
+            VarFormFocus::Key,
+            k(KeyCode::Char('v'), KeyModifiers::CONTROL)
+        ),
         ModalOutcome::Emit(Action::PasteSystem)
     ));
 }

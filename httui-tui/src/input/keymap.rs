@@ -55,9 +55,17 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         spec("move_down", "down", Action::Motion(Motion::Down, 1)),
         spec("move_left", "left", Action::Motion(Motion::Left, 1)),
         spec("move_right", "right", Action::Motion(Motion::Right, 1)),
-        spec("move_line_start", "home", Action::Motion(Motion::LineStart, 1)),
+        spec(
+            "move_line_start",
+            "home",
+            Action::Motion(Motion::LineStart, 1),
+        ),
         spec("move_line_end", "end", Action::Motion(Motion::LineEnd, 1)),
-        spec("move_page_up", "pageup", Action::Motion(Motion::HalfPageUp, 1)),
+        spec(
+            "move_page_up",
+            "pageup",
+            Action::Motion(Motion::HalfPageUp, 1),
+        ),
         spec(
             "move_page_down",
             "pagedown",
@@ -65,8 +73,16 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         ),
         // Selection — Shift + motion.
         spec("select_up", "shift+up", Action::SelectExtend(Motion::Up)),
-        spec("select_down", "shift+down", Action::SelectExtend(Motion::Down)),
-        spec("select_left", "shift+left", Action::SelectExtend(Motion::Left)),
+        spec(
+            "select_down",
+            "shift+down",
+            Action::SelectExtend(Motion::Down),
+        ),
+        spec(
+            "select_left",
+            "shift+left",
+            Action::SelectExtend(Motion::Left),
+        ),
         spec(
             "select_right",
             "shift+right",
@@ -189,7 +205,9 @@ pub fn lookup(keymap: &[(KeyChord, Action)], key: KeyEvent) -> Option<Action> {
 
 fn unmap_macos_option(key: KeyEvent) -> KeyEvent {
     use crossterm::event::KeyCode;
-    let KeyEvent { code, modifiers, .. } = key;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     if modifiers.contains(crossterm::event::KeyModifiers::ALT) {
         // Already saw Alt set — terminal IS sending Meta. Pass through.
         return key;
@@ -199,7 +217,10 @@ fn unmap_macos_option(key: KeyEvent) -> KeyEvent {
         _ => None,
     };
     if let Some(c) = mapped_char {
-        KeyEvent::new(KeyCode::Char(c), modifiers | crossterm::event::KeyModifiers::ALT)
+        KeyEvent::new(
+            KeyCode::Char(c),
+            modifiers | crossterm::event::KeyModifiers::ALT,
+        )
     } else {
         key
     }

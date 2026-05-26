@@ -131,24 +131,23 @@ pub async fn run(pool: &SqlitePool) -> TuiResult<ResolvedVault> {
     finalize(pool, outcome).await
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use httui_core::db::init_db;
     use tempfile::TempDir;
-    
+
     fn key(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::NONE)
     }
-    
+
     #[test]
     fn step_none_breaks_with_quit() {
         let mut s = state::BootstrapState::new();
         assert!(matches!(step(None, &mut s), StepResult::Quit));
     }
-    
+
     #[test]
     fn step_resize_continues() {
         let mut s = state::BootstrapState::new();
@@ -157,7 +156,7 @@ mod tests {
             StepResult::Continue
         ));
     }
-    
+
     #[test]
     fn step_tick_continues() {
         let mut s = state::BootstrapState::new();
@@ -166,7 +165,7 @@ mod tests {
             StepResult::Continue
         ));
     }
-    
+
     #[test]
     fn step_paste_continues() {
         let mut s = state::BootstrapState::new();
@@ -175,11 +174,14 @@ mod tests {
             StepResult::Continue
         ));
     }
-    
+
     #[test]
     fn step_catchall_other_event_continues() {
         let mut s = state::BootstrapState::new();
-        assert!(matches!(step(Some(AppEvent::Quit), &mut s), StepResult::Continue));
+        assert!(matches!(
+            step(Some(AppEvent::Quit), &mut s),
+            StepResult::Continue
+        ));
     }
 
     #[test]
@@ -211,7 +213,7 @@ mod tests {
             StepResult::Continue
         ));
     }
-    
+
     #[test]
     fn step_key_quit_propagates_quit() {
         let mut s = state::BootstrapState::new();
@@ -220,7 +222,7 @@ mod tests {
             StepResult::Quit
         ));
     }
-    
+
     #[test]
     fn step_key_continue_keeps_loop_running() {
         let mut s = state::BootstrapState::new();
@@ -229,7 +231,7 @@ mod tests {
             StepResult::Continue
         ));
     }
-    
+
     #[tokio::test(flavor = "multi_thread")]
     async fn persist_active_vault_returns_resolved_on_success() {
         let data = TempDir::new().unwrap();
@@ -240,7 +242,7 @@ mod tests {
             .expect("ok");
         assert_eq!(resolved.vault, vault.path());
     }
-    
+
     #[tokio::test(flavor = "multi_thread")]
     async fn persist_active_vault_returns_config_err_on_pool_failure() {
         let data = TempDir::new().unwrap();
@@ -254,11 +256,11 @@ mod tests {
             "got {err:?}"
         );
     }
-    
+
     fn test_terminal() -> ratatui::Terminal<ratatui::backend::TestBackend> {
         ratatui::Terminal::new(ratatui::backend::TestBackend::new(80, 24)).unwrap()
     }
-    
+
     #[test]
     fn render_and_step_draws_and_dispatches_continue_on_tick() {
         let mut term = test_terminal();
@@ -266,17 +268,20 @@ mod tests {
         let outcome = render_and_step(&mut term, &mut state, Some(AppEvent::Tick)).unwrap();
         assert!(matches!(outcome, StepResult::Continue));
     }
-    
+
     #[test]
     fn render_and_step_propagates_quit_on_esc_key() {
         let mut term = test_terminal();
         let mut state = state::BootstrapState::new();
-        let outcome =
-            render_and_step(&mut term, &mut state, Some(AppEvent::Key(key(KeyCode::Esc))))
-                .unwrap();
+        let outcome = render_and_step(
+            &mut term,
+            &mut state,
+            Some(AppEvent::Key(key(KeyCode::Esc))),
+        )
+        .unwrap();
         assert!(matches!(outcome, StepResult::Quit));
     }
-    
+
     #[test]
     fn render_and_step_none_yields_quit() {
         let mut term = test_terminal();
@@ -284,17 +289,19 @@ mod tests {
         let outcome = render_and_step(&mut term, &mut state, None).unwrap();
         assert!(matches!(outcome, StepResult::Quit));
     }
-    
+
     #[tokio::test(flavor = "multi_thread")]
     async fn bootstrap_loop_returns_none_when_channel_closes() {
         let mut term = test_terminal();
         let mut state = state::BootstrapState::new();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
         drop(tx);
-        let result = bootstrap_loop(&mut term, &mut state, &mut rx).await.unwrap();
+        let result = bootstrap_loop(&mut term, &mut state, &mut rx)
+            .await
+            .unwrap();
         assert!(result.is_none());
     }
-    
+
     #[tokio::test(flavor = "multi_thread")]
     async fn bootstrap_loop_processes_ticks_then_quits_on_esc() {
         let mut term = test_terminal();
@@ -303,10 +310,12 @@ mod tests {
         tx.send(AppEvent::Tick).unwrap();
         tx.send(AppEvent::Resize(80, 24)).unwrap();
         tx.send(AppEvent::Key(key(KeyCode::Esc))).unwrap();
-        let result = bootstrap_loop(&mut term, &mut state, &mut rx).await.unwrap();
+        let result = bootstrap_loop(&mut term, &mut state, &mut rx)
+            .await
+            .unwrap();
         assert!(result.is_none());
     }
-    
+
     #[tokio::test(flavor = "multi_thread")]
     async fn finalize_none_returns_invalid_arg_err() {
         let data = TempDir::new().unwrap();
@@ -317,7 +326,7 @@ mod tests {
             "got {err:?}"
         );
     }
-    
+
     #[tokio::test(flavor = "multi_thread")]
     async fn finalize_some_path_delegates_to_persist() {
         let data = TempDir::new().unwrap();
@@ -328,7 +337,7 @@ mod tests {
             .expect("ok");
         assert_eq!(resolved.vault, vault.path());
     }
-    
+
     #[test]
     fn step_key_activated_returns_activated_with_path() {
         use crate::app::{VaultCreateFormFocus, VaultCreateFormState};
@@ -348,7 +357,7 @@ mod tests {
             other => panic!("expected Activated, got {other:?}"),
         }
     }
-    
+
     #[tokio::test(flavor = "multi_thread")]
     async fn bootstrap_loop_returns_activated_path_on_enter_in_create_form() {
         use crate::app::{VaultCreateFormFocus, VaultCreateFormState};

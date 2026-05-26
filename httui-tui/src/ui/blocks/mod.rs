@@ -379,7 +379,6 @@ fn paint_panel_focus_hint(frame: &mut Frame, area: Rect) {
     frame.render_widget(Paragraph::new(hint), hint_rect);
 }
 
-
 /// Border color for the block card. Selection wins over execution
 /// state — the user expects the focused block to stand out
 /// regardless of its run history.
@@ -448,7 +447,6 @@ fn generic_body(b: &BlockNode) -> Vec<Line<'static>> {
     ))]
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -469,9 +467,9 @@ mod tests {
         let overlaid =
             overlay_refs_on_spans(highlighted[0].clone(), &std::collections::HashSet::new());
         let ref_style = ref_highlight::normal_style();
-        let has_full_ref_span = overlaid.iter().any(|s| {
-            s.content == "{{pg.response.results.0.rows.0.id}}" && s.style == ref_style
-        });
+        let has_full_ref_span = overlaid
+            .iter()
+            .any(|s| s.content == "{{pg.response.results.0.rows.0.id}}" && s.style == ref_style);
         assert!(
             has_full_ref_span,
             "expected one merged ref span styled cyan/bold; got: {:?}",
@@ -494,9 +492,11 @@ mod tests {
         let has_red_ref = overlaid
             .iter()
             .any(|s| s.content == "{{ghost.id}}" && s.style == err_style);
-        assert!(has_red_ref, "expected red `{{{{ghost.id}}}}`; got: {overlaid:?}");
+        assert!(
+            has_red_ref,
+            "expected red `{{{{ghost.id}}}}`; got: {overlaid:?}"
+        );
     }
-
 
     #[test]
     fn e2e_body_lists_steps() {
@@ -576,11 +576,7 @@ mod tests {
             cached_result: None,
         };
         let lines = generic_body(&b);
-        let text: String = lines[0]
-            .spans
-            .iter()
-            .map(|s| s.content.as_ref())
-            .collect();
+        let text: String = lines[0].spans.iter().map(|s| s.content.as_ref()).collect();
         assert!(text.contains("\"key\""));
     }
 

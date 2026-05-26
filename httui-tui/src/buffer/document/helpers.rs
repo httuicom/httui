@@ -210,7 +210,10 @@ mod tests {
 
     #[test]
     fn clamp_cursor_inblockresult_falls_back_to_first_prose() {
-        let segs = vec![block_seg("```http\nGET https://x.com\n```"), prose_seg("hi")];
+        let segs = vec![
+            block_seg("```http\nGET https://x.com\n```"),
+            prose_seg("hi"),
+        ];
         let c = clamp_cursor(
             &segs,
             Cursor::InBlockResult {

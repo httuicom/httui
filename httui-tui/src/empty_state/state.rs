@@ -97,11 +97,7 @@ impl BootstrapState {
     }
 }
 
-fn handle_cards(
-    screen: &mut Screen,
-    selected: &mut CardChoice,
-    key: KeyEvent,
-) -> Outcome {
+fn handle_cards(screen: &mut Screen, selected: &mut CardChoice, key: KeyEvent) -> Outcome {
     match key.code {
         KeyCode::Esc | KeyCode::Char('q') => Outcome::Quit,
         KeyCode::Left | KeyCode::Char('h') | KeyCode::BackTab => {

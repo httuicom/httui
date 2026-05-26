@@ -359,7 +359,9 @@ mod tests {
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -372,15 +374,24 @@ mod tests {
     #[test]
     fn endpoint_of_returns_pair_for_prose_and_block() {
         assert_eq!(
-            endpoint_of(Cursor::InProse { segment_idx: 2, offset: 5 }),
+            endpoint_of(Cursor::InProse {
+                segment_idx: 2,
+                offset: 5
+            }),
             Some((2, 5))
         );
         assert_eq!(
-            endpoint_of(Cursor::InBlock { segment_idx: 3, offset: 7 }),
+            endpoint_of(Cursor::InBlock {
+                segment_idx: 3,
+                offset: 7
+            }),
             Some((3, 7))
         );
         assert_eq!(
-            endpoint_of(Cursor::InBlockResult { segment_idx: 4, row: 0 }),
+            endpoint_of(Cursor::InBlockResult {
+                segment_idx: 4,
+                row: 0
+            }),
             None
         );
     }
@@ -415,7 +426,10 @@ mod tests {
         let doc = Document::from_markdown("hello\nworld\n").unwrap();
         let cur = cursor_at_global_offset(&doc, 3);
         match cur {
-            Cursor::InProse { segment_idx, offset } => {
+            Cursor::InProse {
+                segment_idx,
+                offset,
+            } => {
                 assert_eq!(segment_idx, 0);
                 assert_eq!(offset, 3);
             }
@@ -452,7 +466,10 @@ mod tests {
         // Cross-test clipboard pollution: at minimum the doc still
         // starts with the original prefix.
         assert!(
-            app.document().unwrap().to_markdown().contains("hello world"),
+            app.document()
+                .unwrap()
+                .to_markdown()
+                .contains("hello world"),
             "doc lost original content"
         );
         let _ = before;
@@ -471,13 +488,18 @@ mod tests {
     async fn apply_visual_operator_yank_same_segment_fills_register() {
         let (mut app, _d, _v) = app_with_doc("hello world\n").await;
         // Anchor at offset 0, move cursor to 4 → visual selects "hello".
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 0 });
-        app.vim.visual_anchor = Some(Cursor::InProse { segment_idx: 0, offset: 0 });
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InProse { segment_idx: 0, offset: 4 });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        app.vim.visual_anchor = Some(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        app.document_mut().unwrap().set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 4,
+        });
         apply_visual_operator(&mut app, Operator::Yank, false);
         // After yank, register should be non-empty.
         assert!(!app.vim.unnamed.text.is_empty(), "expected yanked text");
@@ -490,7 +512,10 @@ mod tests {
         let before_cursor = app.document().unwrap().cursor();
         apply_visual_select_textobject(
             &mut app,
-            TextObject::Quote { delim: '"', around: false },
+            TextObject::Quote {
+                delim: '"',
+                around: false,
+            },
         );
         // No mutation, anchor remains unset.
         assert_eq!(app.document().unwrap().cursor(), before_cursor);
@@ -518,7 +543,10 @@ mod tests {
     async fn apply_cross_segment_visual_delete_mutates_doc_and_returns_cursor() {
         let md = "intro\n\n```http alias=a\nGET /x\n```\n\nouter\n";
         let (mut app, _d, _v) = app_with_doc(md).await;
-        let anchor = Cursor::InProse { segment_idx: 0, offset: 0 };
+        let anchor = Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        };
         // Move cursor inside the block.
         let block_idx = app
             .document()
@@ -527,7 +555,10 @@ mod tests {
             .iter()
             .position(|s| matches!(s, Segment::Block(_)))
             .expect("block");
-        let cursor = Cursor::InBlock { segment_idx: block_idx, offset: 0 };
+        let cursor = Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: 0,
+        };
         let before = app.document().unwrap().to_markdown();
         let mut reg = crate::vim::register::Register::default();
         let res = apply_cross_segment_visual(
@@ -546,7 +577,10 @@ mod tests {
     async fn apply_cross_segment_visual_with_empty_range_returns_none() {
         let md = "abc\n";
         let (mut app, _d, _v) = app_with_doc(md).await;
-        let same = Cursor::InProse { segment_idx: 0, offset: 0 };
+        let same = Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        };
         let mut reg = crate::vim::register::Register::default();
         // anchor == cursor, charwise → end == start+1 which is > start
         // so it's not always None. Use linewise on a position with no
@@ -567,17 +601,17 @@ mod tests {
     async fn apply_cross_segment_visual_with_blockresult_anchor_returns_none() {
         let md = "x\n";
         let (mut app, _d, _v) = app_with_doc(md).await;
-        let anchor = Cursor::InBlockResult { segment_idx: 0, row: 0 };
-        let cursor = Cursor::InProse { segment_idx: 0, offset: 0 };
+        let anchor = Cursor::InBlockResult {
+            segment_idx: 0,
+            row: 0,
+        };
+        let cursor = Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        };
         let mut reg = crate::vim::register::Register::default();
-        let res = apply_cross_segment_visual(
-            &mut app,
-            Operator::Yank,
-            anchor,
-            cursor,
-            false,
-            &mut reg,
-        );
+        let res =
+            apply_cross_segment_visual(&mut app, Operator::Yank, anchor, cursor, false, &mut reg);
         // endpoint_of(InBlockResult) is None → early return
         assert!(res.is_none());
     }
@@ -588,8 +622,14 @@ mod tests {
         let (mut app, _d, _v) = app_with_doc(md).await;
         // From offset 2 of first line to offset 1 of second line linewise
         // should yank both whole lines.
-        let anchor = Cursor::InProse { segment_idx: 0, offset: 2 };
-        let cursor = Cursor::InProse { segment_idx: 0, offset: 7 };
+        let anchor = Cursor::InProse {
+            segment_idx: 0,
+            offset: 2,
+        };
+        let cursor = Cursor::InProse {
+            segment_idx: 0,
+            offset: 7,
+        };
         let mut reg = crate::vim::register::Register::default();
         let res = apply_cross_segment_visual(
             &mut app,
@@ -600,7 +640,11 @@ mod tests {
             &mut reg,
         );
         assert!(res.is_some());
-        assert!(reg.text.contains("first") || reg.text.contains("second"), "got {:?}", reg.text);
+        assert!(
+            reg.text.contains("first") || reg.text.contains("second"),
+            "got {:?}",
+            reg.text
+        );
         assert!(reg.linewise);
     }
 
@@ -609,7 +653,10 @@ mod tests {
         // Doc with a block segment so cross-segment selection is meaningful.
         let md = "intro\n\n```http alias=a\nGET /x\n```\n\noutro\n";
         let (mut app, _d, _v) = app_with_doc(md).await;
-        let anchor = Cursor::InProse { segment_idx: 0, offset: 0 };
+        let anchor = Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        };
         // Move cursor into block segment somewhere later.
         let block_idx = app
             .document()
@@ -618,7 +665,10 @@ mod tests {
             .iter()
             .position(|s| matches!(s, Segment::Block(_)))
             .expect("block");
-        let cursor = Cursor::InBlock { segment_idx: block_idx, offset: 0 };
+        let cursor = Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: 0,
+        };
         let mut reg = crate::vim::register::Register::default();
         let res = apply_cross_segment_visual(
             &mut app,

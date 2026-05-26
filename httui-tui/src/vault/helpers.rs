@@ -126,8 +126,7 @@ mod tests {
 
     #[test]
     fn submit_clone_rejects_non_dir_parent() {
-        let err =
-            submit_clone("https://example.com/x.git", "/definitely/not/here").unwrap_err();
+        let err = submit_clone("https://example.com/x.git", "/definitely/not/here").unwrap_err();
         assert!(err.contains("parent must be a directory"), "got: {err}");
     }
 

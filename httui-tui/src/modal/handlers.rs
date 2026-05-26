@@ -10,7 +10,9 @@ use super::util::digit_1_9;
 use super::{ModalOutcome, PromptKind};
 
 pub(super) fn vault_missing_secrets_handle_key(editing: bool, key: KeyEvent) -> ModalOutcome {
-    let KeyEvent { code, modifiers, .. } = key;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     if editing {
         return match (modifiers, code) {
             (_, KeyCode::Esc) => ModalOutcome::Emit(Action::VaultMissingSecretsCancelEdit),
@@ -48,7 +50,9 @@ pub(super) fn vault_missing_secrets_handle_key(editing: bool, key: KeyEvent) -> 
 }
 
 pub(super) fn vault_open_picker_handle_key(key: KeyEvent) -> ModalOutcome {
-    let KeyEvent { code, modifiers, .. } = key;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     if let (_, KeyCode::Backspace) = (modifiers, code) {
         return ModalOutcome::Emit(Action::VaultOpenPickerUp);
     }
@@ -86,8 +90,13 @@ pub(super) fn vault_picker_handle_key(key: KeyEvent) -> ModalOutcome {
     }
 }
 
-pub(super) fn vault_create_form_handle_key(focus: VaultCreateFormFocus, key: KeyEvent) -> ModalOutcome {
-    let KeyEvent { code, modifiers, .. } = key;
+pub(super) fn vault_create_form_handle_key(
+    focus: VaultCreateFormFocus,
+    key: KeyEvent,
+) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     let _ = focus;
     match (modifiers, code) {
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
@@ -109,8 +118,13 @@ pub(super) fn vault_create_form_handle_key(focus: VaultCreateFormFocus, key: Key
     }
 }
 
-pub(super) fn vault_clone_form_handle_key(focus: VaultCloneFormFocus, key: KeyEvent) -> ModalOutcome {
-    let KeyEvent { code, modifiers, .. } = key;
+pub(super) fn vault_clone_form_handle_key(
+    focus: VaultCloneFormFocus,
+    key: KeyEvent,
+) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     let _ = focus;
     match (modifiers, code) {
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
@@ -135,7 +149,10 @@ pub(super) fn vault_clone_form_handle_key(focus: VaultCloneFormFocus, key: KeyEv
 /// V3 P3: form key handling. Tab/Shift-Tab/Up/Down cycle focus;
 /// Esc/Ctrl-C cancel; Enter submits; typing routes into the focused
 /// `LineEdit` (or toggles the driver/readonly fields).
-pub(super) fn connection_form_handle_key(state: &ConnectionFormState, key: KeyEvent) -> ModalOutcome {
+pub(super) fn connection_form_handle_key(
+    state: &ConnectionFormState,
+    key: KeyEvent,
+) -> ModalOutcome {
     use crate::app::ConnectionFormFocus;
     let KeyEvent {
         code, modifiers, ..
@@ -153,9 +170,7 @@ pub(super) fn connection_form_handle_key(state: &ConnectionFormState, key: KeyEv
             ModalOutcome::Emit(Action::ConnectionFormFocusPrev)
         }
         // Driver field is a 3-option dial: arrows / space cycle.
-        (_, KeyCode::Char(' '))
-            if matches!(state.focus, ConnectionFormFocus::Driver) =>
-        {
+        (_, KeyCode::Char(' ')) if matches!(state.focus, ConnectionFormFocus::Driver) => {
             ModalOutcome::Emit(Action::ConnectionFormCycleDriver(1))
         }
         (_, KeyCode::Left) if matches!(state.focus, ConnectionFormFocus::Driver) => {
@@ -165,9 +180,7 @@ pub(super) fn connection_form_handle_key(state: &ConnectionFormState, key: KeyEv
             ModalOutcome::Emit(Action::ConnectionFormCycleDriver(1))
         }
         // Readonly toggle (space flips).
-        (_, KeyCode::Char(' '))
-            if matches!(state.focus, ConnectionFormFocus::Readonly) =>
-        {
+        (_, KeyCode::Char(' ')) if matches!(state.focus, ConnectionFormFocus::Readonly) => {
             ModalOutcome::Emit(Action::ConnectionFormToggleReadonly)
         }
         // LineEdit ops on the focused text field.
@@ -363,7 +376,9 @@ pub(super) fn help_handle_key(key: KeyEvent) -> ModalOutcome {
 // V4 P2-P4 handlers ----------
 
 pub(super) fn envs_page_handle_key(focus: EnvsPaneFocus, key: KeyEvent) -> ModalOutcome {
-    let KeyEvent { code, modifiers, .. } = key;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     match (modifiers, code) {
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
             ModalOutcome::Emit(Action::CloseEnvsPage)
@@ -432,7 +447,9 @@ pub(super) fn envs_page_handle_key(focus: EnvsPaneFocus, key: KeyEvent) -> Modal
 }
 
 pub(super) fn env_form_handle_key(key: KeyEvent) -> ModalOutcome {
-    let KeyEvent { code, modifiers, .. } = key;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     match (modifiers, code) {
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
             ModalOutcome::Emit(Action::CloseEnvForm)
@@ -453,7 +470,9 @@ pub(super) fn env_form_handle_key(key: KeyEvent) -> ModalOutcome {
 }
 
 pub(super) fn var_form_handle_key(focus: VarFormFocus, key: KeyEvent) -> ModalOutcome {
-    let KeyEvent { code, modifiers, .. } = key;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     match (modifiers, code) {
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
             ModalOutcome::Emit(Action::CloseVarForm)
@@ -483,10 +502,14 @@ pub(super) fn var_form_handle_key(focus: VarFormFocus, key: KeyEvent) -> ModalOu
 }
 
 pub(super) fn env_or_var_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
-    let KeyEvent { code, modifiers, .. } = key;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     match (modifiers, code) {
-        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c'))
-        | (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
+        (_, KeyCode::Esc)
+        | (KeyModifiers::CONTROL, KeyCode::Char('c'))
+        | (KeyModifiers::NONE, KeyCode::Char('n'))
+        | (KeyModifiers::NONE, KeyCode::Char('N')) => {
             ModalOutcome::Emit(Action::CancelEnvOrVarDelete)
         }
         (_, KeyCode::Enter)
@@ -521,9 +544,7 @@ pub(super) fn db_confirm_run_handle_key(key: KeyEvent) -> ModalOutcome {
 /// prompt's `PromptKind`.
 pub(super) fn prompt_handle_key(kind: PromptKind, key: KeyEvent) -> ModalOutcome {
     let action = match kind {
-        PromptKind::FenceEditAlias { .. } => {
-            crate::input::parser::lineedit::parse_fence_edit(key)
-        }
+        PromptKind::FenceEditAlias { .. } => crate::input::parser::lineedit::parse_fence_edit(key),
         PromptKind::Cmdline => crate::input::parser::lineedit::parse_cmdline(key),
         PromptKind::Search { .. } => crate::input::parser::lineedit::parse_search(key),
     };

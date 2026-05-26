@@ -2,9 +2,7 @@
 //! `apply/envs_page.rs` pra manter cada arquivo abaixo do limite
 //! 600L do DoD (TUI Vim Monolith Split). Sem mudança de comportamento.
 
-use crate::app::{
-    App, CloneVarRow, EnvCloneFormFocus, EnvCloneFormState, StatusKind,
-};
+use crate::app::{App, CloneVarRow, EnvCloneFormFocus, EnvCloneFormState, StatusKind};
 use crate::vim::lineedit::LineEdit;
 use crate::vim::mode::Mode;
 use httui_core::vault_config::SetVarInput;
@@ -57,17 +55,18 @@ pub(crate) fn open_env_clone_form(app: &mut App) {
 /// Per-var failures acumulam e são reportadas no status; o env já foi
 /// criado, então fechamos a modal mesmo no caso parcial.
 pub(crate) fn env_clone_form_submit(app: &mut App) {
-    let (name, source, picks) = if let Some(crate::modal::Modal::EnvCloneForm(s)) = app.modal.as_ref() {
-        let picks: Vec<(String, String, bool)> = s
-            .vars
-            .iter()
-            .filter(|v| v.checked)
-            .map(|v| (v.key.clone(), v.value.clone(), v.is_secret))
-            .collect();
-        (s.name.as_str().trim().to_string(), s.source.clone(), picks)
-    } else {
-        return;
-    };
+    let (name, source, picks) =
+        if let Some(crate::modal::Modal::EnvCloneForm(s)) = app.modal.as_ref() {
+            let picks: Vec<(String, String, bool)> = s
+                .vars
+                .iter()
+                .filter(|v| v.checked)
+                .map(|v| (v.key.clone(), v.value.clone(), v.is_secret))
+                .collect();
+            (s.name.as_str().trim().to_string(), s.source.clone(), picks)
+        } else {
+            return;
+        };
     if name.is_empty() {
         if let Some(crate::modal::Modal::EnvCloneForm(s)) = app.modal.as_mut() {
             s.error = Some("name is required".into());

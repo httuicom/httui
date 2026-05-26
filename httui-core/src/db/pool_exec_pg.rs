@@ -139,7 +139,10 @@ fn pg_row_to_json(row: &sqlx::postgres::PgRow) -> JsonRow {
 /// `try_get` cascade lost NUMERIC/TIMESTAMPTZ/JSONB/UUID/BYTEA — every
 /// non-matching branch fell through to `Null`, which the UI rendered
 /// as `(null)` even when the column held a real value.
-fn pg_decode_value(row: &sqlx::postgres::PgRow, col: &sqlx::postgres::PgColumn) -> serde_json::Value {
+fn pg_decode_value(
+    row: &sqlx::postgres::PgRow,
+    col: &sqlx::postgres::PgColumn,
+) -> serde_json::Value {
     let idx = col.ordinal();
     // Explicit NULL check up front so a real NULL doesn't get masked by
     // a decode failure (e.g. NUMERIC of a NULL value would error).
@@ -152,7 +155,11 @@ fn pg_decode_value(row: &sqlx::postgres::PgRow, col: &sqlx::postgres::PgColumn) 
     pg_decode_by_type(row, idx, &ty).unwrap_or_else(|| pg_fallback_decode(row, idx, &ty))
 }
 
-fn pg_decode_by_type(row: &sqlx::postgres::PgRow, idx: usize, ty: &str) -> Option<serde_json::Value> {
+fn pg_decode_by_type(
+    row: &sqlx::postgres::PgRow,
+    idx: usize,
+    ty: &str,
+) -> Option<serde_json::Value> {
     use sqlx::types::{chrono, BigDecimal, Json, Uuid};
     Some(match ty {
         "BOOL" => serde_json::Value::Bool(row.try_get::<bool, _>(idx).ok()?),
@@ -165,9 +172,9 @@ fn pg_decode_by_type(row: &sqlx::postgres::PgRow, idx: usize, ty: &str) -> Optio
         // emit JSON number when an f64 round-trip is exact; fall back
         // to string for values that would lose precision. Common money
         // amounts (`499.80`, `0.1`) export as proper numbers.
-        "NUMERIC" => super::pool::decimal_to_json(
-            &row.try_get::<BigDecimal, _>(idx).ok()?.to_string(),
-        ),
+        "NUMERIC" => {
+            super::pool::decimal_to_json(&row.try_get::<BigDecimal, _>(idx).ok()?.to_string())
+        }
         "TEXT" | "VARCHAR" | "BPCHAR" | "NAME" | "CHAR" | "CITEXT" => {
             serde_json::Value::String(row.try_get::<String, _>(idx).ok()?)
         }
@@ -176,9 +183,9 @@ fn pg_decode_by_type(row: &sqlx::postgres::PgRow, idx: usize, ty: &str) -> Optio
             v
         }
         "UUID" => serde_json::Value::String(row.try_get::<Uuid, _>(idx).ok()?.to_string()),
-        "DATE" => serde_json::Value::String(
-            row.try_get::<chrono::NaiveDate, _>(idx).ok()?.to_string(),
-        ),
+        "DATE" => {
+            serde_json::Value::String(row.try_get::<chrono::NaiveDate, _>(idx).ok()?.to_string())
+        }
         "TIME" => serde_json::Value::String(
             row.try_get::<chrono::NaiveTime, _>(idx)
                 .ok()?
@@ -196,9 +203,9 @@ fn pg_decode_by_type(row: &sqlx::postgres::PgRow, idx: usize, ty: &str) -> Optio
                 .ok()?
                 .to_rfc3339(),
         ),
-        "BYTEA" => serde_json::Value::String(
-            BASE64_STANDARD.encode(row.try_get::<Vec<u8>, _>(idx).ok()?),
-        ),
+        "BYTEA" => {
+            serde_json::Value::String(BASE64_STANDARD.encode(row.try_get::<Vec<u8>, _>(idx).ok()?))
+        }
         _ => return None,
     })
 }

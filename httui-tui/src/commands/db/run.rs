@@ -177,8 +177,7 @@ pub fn run_db_block_inner(
     // async. If any pre-flight step fails the run never spawns —
     // surface the error and bail.
     let env_vars: std::collections::HashMap<String, String> = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(load_active_env_vars(&app.environments_store))
+        tokio::runtime::Handle::current().block_on(load_active_env_vars(&app.environments_store))
     })
     .unwrap_or_default();
     let resolved = match app.document() {
@@ -482,7 +481,9 @@ mod tests {
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -500,9 +501,10 @@ mod tests {
     }
 
     fn place_cursor_in_block(app: &mut App, idx: usize) {
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InBlock { segment_idx: idx, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: 0,
+        });
     }
 
     #[test]
@@ -512,22 +514,42 @@ mod tests {
             port: Some(5433),
         };
         let v = build_db_executor_params("conn", "SELECT 1", &[], 0, 100, Some(5000), Some(&ov));
-        assert_eq!(v.get("connection_id").and_then(|v| v.as_str()), Some("conn"));
+        assert_eq!(
+            v.get("connection_id").and_then(|v| v.as_str()),
+            Some("conn")
+        );
         assert_eq!(v.get("query").and_then(|v| v.as_str()), Some("SELECT 1"));
-        assert_eq!(v.get("session_host_override").and_then(|v| v.as_str()), Some("h"));
-        assert_eq!(v.get("session_port_override").and_then(|v| v.as_i64()), Some(5433));
+        assert_eq!(
+            v.get("session_host_override").and_then(|v| v.as_str()),
+            Some("h")
+        );
+        assert_eq!(
+            v.get("session_port_override").and_then(|v| v.as_i64()),
+            Some(5433)
+        );
         assert_eq!(v.get("timeout_ms").and_then(|v| v.as_u64()), Some(5000));
     }
 
     #[test]
     fn build_executor_params_no_override_emits_nulls() {
         let v = build_db_executor_params("c", "SELECT 1", &[], 0, 50, None, None);
-        assert!(v.get("session_host_override").map(|v| v.is_null()).unwrap_or(false));
-        assert!(v.get("session_port_override").map(|v| v.is_null()).unwrap_or(false));
+        assert!(v
+            .get("session_host_override")
+            .map(|v| v.is_null())
+            .unwrap_or(false));
+        assert!(v
+            .get("session_port_override")
+            .map(|v| v.is_null())
+            .unwrap_or(false));
         assert!(v.get("timeout_ms").map(|v| v.is_null()).unwrap_or(false));
     }
 
-    fn stats() -> DbStats { DbStats { elapsed_ms: 12, rows_streamed: None } }
+    fn stats() -> DbStats {
+        DbStats {
+            elapsed_ms: 12,
+            rows_streamed: None,
+        }
+    }
 
     #[test]
     fn summarize_db_response_select() {
@@ -623,7 +645,9 @@ mod tests {
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         app.tabs.tabs.clear();
         run_db_block_inner(&mut app, 0, false, None, false); // no panic
@@ -670,11 +694,18 @@ mod tests {
         run_db_block_inner(&mut app, idx, false, None, false);
         {
             let s = app.status_message.as_ref().expect("status");
-            assert!(s.text.contains("not found") || s.text.contains("connection"), "got {:?}", s.text);
+            assert!(
+                s.text.contains("not found") || s.text.contains("connection"),
+                "got {:?}",
+                s.text
+            );
         }
         // Block state was flipped to Error.
         let block = app.document().unwrap().block_at(idx).unwrap().clone();
-        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+        assert!(matches!(
+            block.state,
+            crate::buffer::block::ExecutionState::Error(_)
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -684,7 +715,11 @@ mod tests {
         let (mut app, idx, _d, _v) = app_with_block(md).await;
         run_db_block_inner(&mut app, idx, false, None, false);
         let s = app.status_message.expect("status");
-        assert!(s.text.contains("not found") || s.text.contains("block"), "got {:?}", s.text);
+        assert!(
+            s.text.contains("not found") || s.text.contains("block"),
+            "got {:?}",
+            s.text
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -727,7 +762,10 @@ mod tests {
         let s = app.status_message.as_ref().expect("status");
         assert!(s.text.contains("read-only"), "got {:?}", s.text);
         let block = app.document().unwrap().block_at(idx).unwrap().clone();
-        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+        assert!(matches!(
+            block.state,
+            crate::buffer::block::ExecutionState::Error(_)
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -763,7 +801,9 @@ mod tests {
         // Wire an event_sender so spawn_db_query doesn't bail.
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
         app.event_sender = Some(tx);
-        run_db_block_inner(&mut app, idx, /*force_unscoped=*/ true, None, /*as_explain=*/ true);
+        run_db_block_inner(
+            &mut app, idx, /*force_unscoped=*/ true, None, /*as_explain=*/ true,
+        );
         // Either "explaining…" status (spawn happened) or some setup error.
         assert!(app.status_message.is_some());
     }

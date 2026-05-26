@@ -35,7 +35,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Op
         .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg)
-        .border_style(Style::default().fg(crate::ui::palette::BORDER).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(crate::ui::palette::BORDER)
+                .bg(Color::Black),
+        );
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
@@ -45,7 +49,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Op
         .split(inner);
     let body = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(24), Constraint::Length(1), Constraint::Min(0)])
+        .constraints([
+            Constraint::Length(24),
+            Constraint::Length(1),
+            Constraint::Min(0),
+        ])
         .split(rows[0]);
     render_env_list(frame, body[0], state);
     fill_col(frame, body[1], "│", Color::DarkGray);
@@ -87,7 +95,10 @@ fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
     if state.envs.is_empty() {
         let p = Paragraph::new(vec![
             Line::from(""),
-            Line::from(Span::styled(" no envs yet", Style::default().fg(Color::DarkGray))),
+            Line::from(Span::styled(
+                " no envs yet",
+                Style::default().fg(Color::DarkGray),
+            )),
             Line::from(""),
             Line::from(Span::styled(
                 " press n to add",
@@ -109,7 +120,9 @@ fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
             let active = state.active.as_deref() == Some(e.name.as_str());
             let marker = if active { "●" } else { " " };
             let style_name = if active {
-                Style::default().fg(Color::LightGreen).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::LightGreen)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
@@ -165,7 +178,10 @@ fn render_var_table(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
         };
         let p = Paragraph::new(vec![
             Line::from(""),
-            Line::from(Span::styled(format!("  {hint}"), Style::default().fg(Color::DarkGray))),
+            Line::from(Span::styled(
+                format!("  {hint}"),
+                Style::default().fg(Color::DarkGray),
+            )),
         ])
         .style(Style::default().bg(Color::Black));
         frame.render_widget(p, area);
@@ -265,16 +281,29 @@ pub(super) fn centered(area: Rect, w: u16, h: u16) -> Rect {
     let h = h.min(area.height.saturating_sub(2));
     let x = area.x + (area.width.saturating_sub(w)) / 2;
     let y = area.y + (area.height.saturating_sub(h)) / 2;
-    Rect { x, y, width: w, height: h }
+    Rect {
+        x,
+        y,
+        width: w,
+        height: h,
+    }
 }
 
 // ---- forms + confirms ----
 
-pub fn render_env_form(frame: &mut Frame, editor_area: Rect, state: &EnvFormState) -> Option<(u16, u16)> {
+pub fn render_env_form(
+    frame: &mut Frame,
+    editor_area: Rect,
+    state: &EnvFormState,
+) -> Option<(u16, u16)> {
     let area = centered(editor_area, 50, 9);
     let bg = Style::default().bg(Color::Black).fg(Color::White);
     fill(frame, area, bg);
-    let title = if state.editing.is_some() { " Rename env " } else { " New env " };
+    let title = if state.editing.is_some() {
+        " Rename env "
+    } else {
+        " New env "
+    };
     let outer = Block::default()
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded)
@@ -286,7 +315,9 @@ pub fn render_env_form(frame: &mut Frame, editor_area: Rect, state: &EnvFormStat
     let mut lines = vec![
         Line::from(Span::styled(
             "Name",
-            Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::LightYellow)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(
             if state.name.as_str().is_empty() {
@@ -295,7 +326,9 @@ pub fn render_env_form(frame: &mut Frame, editor_area: Rect, state: &EnvFormStat
                 state.name.as_str().to_string()
             },
             if state.name.as_str().is_empty() {
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC)
             } else {
                 Style::default().fg(Color::White)
             },
@@ -305,22 +338,35 @@ pub fn render_env_form(frame: &mut Frame, editor_area: Rect, state: &EnvFormStat
     if let Some(err) = state.error.as_deref() {
         lines.push(Line::from(Span::styled(
             format!("error: {err}"),
-            Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
         )));
         lines.push(Line::from(""));
     }
     lines.push(Line::from(Span::styled(
         " Enter save · Esc cancel",
-        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::ITALIC),
     )));
     let p = Paragraph::new(lines).style(bg).wrap(Wrap { trim: false });
-    let inner_pad = Rect { x: inner.x + 1, y: inner.y, width: inner.width.saturating_sub(1), height: inner.height };
+    let inner_pad = Rect {
+        x: inner.x + 1,
+        y: inner.y,
+        width: inner.width.saturating_sub(1),
+        height: inner.height,
+    };
     frame.render_widget(p, inner_pad);
     let cx = inner_pad.x + state.name.cursor_col() as u16;
     Some((cx, inner_pad.y + 1))
 }
 
-pub fn render_var_form(frame: &mut Frame, editor_area: Rect, state: &VarFormState) -> Option<(u16, u16)> {
+pub fn render_var_form(
+    frame: &mut Frame,
+    editor_area: Rect,
+    state: &VarFormState,
+) -> Option<(u16, u16)> {
     let area = centered(editor_area, 60, 16);
     let bg = Style::default().bg(Color::Black).fg(Color::White);
     fill(frame, area, bg);
@@ -342,7 +388,9 @@ pub fn render_var_form(frame: &mut Frame, editor_area: Rect, state: &VarFormStat
         Line::from(Span::styled(
             t.to_string(),
             if focused {
-                Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::LightYellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::DarkGray)
             },
@@ -352,10 +400,15 @@ pub fn render_var_form(frame: &mut Frame, editor_area: Rect, state: &VarFormStat
         if s.is_empty() {
             Line::from(Span::styled(
                 hint.to_string(),
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
             ))
         } else {
-            Line::from(Span::styled(s.to_string(), Style::default().fg(Color::White)))
+            Line::from(Span::styled(
+                s.to_string(),
+                Style::default().fg(Color::White),
+            ))
         }
     };
 
@@ -377,11 +430,20 @@ pub fn render_var_form(frame: &mut Frame, editor_area: Rect, state: &VarFormStat
     };
     lines.push(value(&v_text, ""));
     lines.push(Line::from(""));
-    let chip = if state.is_secret { " [x] secret " } else { " [ ] secret " };
+    let chip = if state.is_secret {
+        " [x] secret "
+    } else {
+        " [ ] secret "
+    };
     let chip_style = if sec_focused {
-        Style::default().fg(Color::Black).bg(Color::LightYellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::LightYellow)
+            .add_modifier(Modifier::BOLD)
     } else if state.is_secret {
-        Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::LightYellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::White)
     };
@@ -389,34 +451,53 @@ pub fn render_var_form(frame: &mut Frame, editor_area: Rect, state: &VarFormStat
         Span::styled(chip, chip_style),
         Span::styled(
             "  (space toggles)",
-            Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
         ),
     ]));
     if let Some(err) = state.error.as_deref() {
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
             format!("error: {err}"),
-            Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
         )));
     }
     lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
         " Tab next · Enter save · Esc cancel",
-        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::ITALIC),
     )));
     let p = Paragraph::new(lines).style(bg).wrap(Wrap { trim: false });
-    let inner_pad = Rect { x: inner.x + 1, y: inner.y, width: inner.width.saturating_sub(1), height: inner.height };
+    let inner_pad = Rect {
+        x: inner.x + 1,
+        y: inner.y,
+        width: inner.width.saturating_sub(1),
+        height: inner.height,
+    };
     frame.render_widget(p, inner_pad);
 
     match state.focus {
         VarFormFocus::Key => Some((inner_pad.x + state.key.cursor_col() as u16, inner_pad.y + 1)),
-        VarFormFocus::Value => Some((inner_pad.x + state.value.cursor_col() as u16, inner_pad.y + 4)),
+        VarFormFocus::Value => Some((
+            inner_pad.x + state.value.cursor_col() as u16,
+            inner_pad.y + 4,
+        )),
         VarFormFocus::Secret => None,
     }
 }
 
 pub fn render_env_delete_confirm(frame: &mut Frame, area: Rect, state: &EnvDeleteConfirmState) {
-    confirm_popup(frame, area, " Delete env ", &format!("Delete env \"{}\"?", state.name));
+    confirm_popup(
+        frame,
+        area,
+        " Delete env ",
+        &format!("Delete env \"{}\"?", state.name),
+    );
 }
 
 pub fn render_var_delete_confirm(frame: &mut Frame, area: Rect, state: &VarDeleteConfirmState) {
@@ -447,19 +528,27 @@ fn confirm_popup(frame: &mut Frame, editor_area: Rect, title: &str, prompt: &str
         Line::from(""),
         Line::from(Span::styled(
             format!("  {prompt}"),
-            Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::LightYellow)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(vec![
             Span::raw("  "),
             Span::styled(
                 " y / Enter ",
-                Style::default().fg(Color::Black).bg(Color::LightRed).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::LightRed)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled(" delete    ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 " n / Esc ",
-                Style::default().fg(Color::White).bg(Color::DarkGray).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::White)
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled(" cancel", Style::default().fg(Color::White)),
         ]),
@@ -503,7 +592,10 @@ mod tests {
         let line: String = (0..80)
             .map(|x| buf.cell((x, 0)).unwrap().symbol().to_string())
             .collect();
-        assert!(line.contains("c clone"), "hint envs deve conter 'c clone': {line:?}");
+        assert!(
+            line.contains("c clone"),
+            "hint envs deve conter 'c clone': {line:?}"
+        );
     }
 
     use crate::app::{EnvSummary, VarRow};
@@ -535,7 +627,10 @@ mod tests {
         })
         .unwrap();
         let frame = dump(&t);
-        assert!(frame.contains("no envs"), "expected 'no envs' hint, got\n{frame}");
+        assert!(
+            frame.contains("no envs"),
+            "expected 'no envs' hint, got\n{frame}"
+        );
         assert!(frame.contains("Variables"), "expected title chrome");
     }
 
@@ -543,12 +638,25 @@ mod tests {
     fn render_envs_page_with_data_lists_envs_and_vars() {
         let mut t = term(100, 40);
         let state = EnvsPageState {
-            envs: vec![EnvSummary { name: "dev".into() }, EnvSummary { name: "prod".into() }],
+            envs: vec![
+                EnvSummary { name: "dev".into() },
+                EnvSummary {
+                    name: "prod".into(),
+                },
+            ],
             active: Some("dev".into()),
             selected_env: 0,
             vars: vec![
-                VarRow { key: "API_KEY".into(), value: "abc".into(), is_secret: false },
-                VarRow { key: "SECRET".into(), value: "xyz".into(), is_secret: true },
+                VarRow {
+                    key: "API_KEY".into(),
+                    value: "abc".into(),
+                    is_secret: false,
+                },
+                VarRow {
+                    key: "SECRET".into(),
+                    value: "xyz".into(),
+                    is_secret: true,
+                },
             ],
             selected_var: 0,
             focus: EnvsPaneFocus::Envs,
@@ -578,7 +686,10 @@ mod tests {
         })
         .unwrap();
         let frame = dump(&t);
-        assert!(frame.contains("create an env first"), "expected env-first hint");
+        assert!(
+            frame.contains("create an env first"),
+            "expected env-first hint"
+        );
     }
 
     #[test]
@@ -608,7 +719,10 @@ mod tests {
         })
         .unwrap();
         let frame = dump(&t);
-        assert!(frame.contains("New env"), "expected new-env title, got\n{frame}");
+        assert!(
+            frame.contains("New env"),
+            "expected new-env title, got\n{frame}"
+        );
         assert!(frame.contains("required"), "expected placeholder hint");
 
         state.editing = Some("dev".into());
@@ -691,7 +805,9 @@ mod tests {
     #[test]
     fn render_env_delete_confirm_displays_name() {
         let mut t = term(100, 20);
-        let state = EnvDeleteConfirmState { name: "staging".into() };
+        let state = EnvDeleteConfirmState {
+            name: "staging".into(),
+        };
         t.draw(|f| {
             render_env_delete_confirm(f, Rect::new(0, 0, 100, 20), &state);
         })
@@ -746,8 +862,12 @@ mod tests {
         let mut t = term(100, 40);
         let state = EnvsPageState {
             envs: vec![
-                EnvSummary { name: "very-long-env-name-that-exceeds-17-chars".into() },
-                EnvSummary { name: "short".into() },
+                EnvSummary {
+                    name: "very-long-env-name-that-exceeds-17-chars".into(),
+                },
+                EnvSummary {
+                    name: "short".into(),
+                },
             ],
             active: Some("short".into()),
             ..EnvsPageState::default()
@@ -758,7 +878,10 @@ mod tests {
         .unwrap();
         let frame = dump(&t);
         // truncated name appears with the ellipsis
-        assert!(frame.contains("…"), "expected truncation marker, got\n{frame}");
+        assert!(
+            frame.contains("…"),
+            "expected truncation marker, got\n{frame}"
+        );
         // active env shows the marker
         assert!(frame.contains("●"), "expected active marker");
     }

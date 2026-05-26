@@ -15,7 +15,11 @@ use crate::app::{VaultCloneFormFocus, VaultCloneFormState};
 const POPUP_WIDTH: u16 = 64;
 const POPUP_HEIGHT: u16 = 14;
 
-pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultCloneFormState) -> Option<(u16, u16)> {
+pub fn render(
+    frame: &mut Frame,
+    editor_area: Rect,
+    state: &VaultCloneFormState,
+) -> Option<(u16, u16)> {
     let popup = centered_rect(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
     let bg_style = Style::default().bg(Color::Black).fg(Color::White);
 
@@ -95,7 +99,10 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultCloneFormState)
     let parent_focused = state.focus == VaultCloneFormFocus::Parent;
 
     frame.render_widget(label("Git URL", url_focused), rows[0]);
-    frame.render_widget(value(state.url.as_str(), "https://github.com/org/repo.git"), rows[1]);
+    frame.render_widget(
+        value(state.url.as_str(), "https://github.com/org/repo.git"),
+        rows[1],
+    );
     frame.render_widget(label("Parent dir", parent_focused), rows[3]);
     frame.render_widget(value(state.parent.as_str(), "/path/to/parent"), rows[4]);
 
@@ -170,9 +177,12 @@ mod tests {
         out
     }
 
-    fn state_with(url: &str, parent: &str, focus: VaultCloneFormFocus, error: Option<&str>)
-        -> VaultCloneFormState
-    {
+    fn state_with(
+        url: &str,
+        parent: &str,
+        focus: VaultCloneFormFocus,
+        error: Option<&str>,
+    ) -> VaultCloneFormState {
         VaultCloneFormState {
             url: LineEdit::from_str(url),
             parent: LineEdit::from_str(parent),
@@ -186,9 +196,11 @@ mod tests {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
         let s = state_with("https://x.git", "/tmp", VaultCloneFormFocus::Url, None);
-        terminal.draw(|f| {
-            render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &s);
+            })
+            .unwrap();
         let painted = dump(&terminal);
         assert!(painted.contains("Clone vault"));
         assert!(painted.contains("Git URL"));
@@ -201,9 +213,11 @@ mod tests {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
         let s = state_with("", "/tmp", VaultCloneFormFocus::Url, Some("nope"));
-        terminal.draw(|f| {
-            render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &s);
+            })
+            .unwrap();
         assert!(dump(&terminal).contains("error: nope"));
     }
 
@@ -212,11 +226,16 @@ mod tests {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
         let s = state_with("", "", VaultCloneFormFocus::Parent, None);
-        terminal.draw(|f| {
-            render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                render(f, f.area(), &s);
+            })
+            .unwrap();
         let painted = dump(&terminal);
-        assert!(painted.contains("https://github.com"), "url placeholder visible");
+        assert!(
+            painted.contains("https://github.com"),
+            "url placeholder visible"
+        );
     }
 
     #[test]
@@ -225,9 +244,11 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         let s = state_with("g", "/tmp", VaultCloneFormFocus::Url, None);
         let mut cursor = None;
-        terminal.draw(|f| {
-            cursor = render(f, f.area(), &s);
-        }).unwrap();
+        terminal
+            .draw(|f| {
+                cursor = render(f, f.area(), &s);
+            })
+            .unwrap();
         assert!(cursor.is_some());
     }
 

@@ -131,12 +131,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
     };
 
     frame.render_widget(
-        Paragraph::new(hint(&[
-            ("n", "new"),
-            ("c", "clone"),
-            ("o", "open"),
-        ]))
-        .style(bg_style),
+        Paragraph::new(hint(&[("n", "new"), ("c", "clone"), ("o", "open")])).style(bg_style),
         verbs_area,
     );
     frame.render_widget(

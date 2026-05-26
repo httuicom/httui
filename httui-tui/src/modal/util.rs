@@ -7,7 +7,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 /// pra `0` ou qualquer outra coisa. Usado pelo environment_picker e
 /// envs_page (focus=Envs) pra ativar env por índice.
 pub(super) fn digit_1_9(key: KeyEvent) -> Option<usize> {
-    let KeyEvent { code, modifiers, .. } = key;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     if modifiers != KeyModifiers::NONE {
         return None;
     }
@@ -29,9 +31,18 @@ mod tests {
 
     #[test]
     fn recognizes_1_to_9() {
-        assert_eq!(digit_1_9(k(KeyCode::Char('1'), KeyModifiers::NONE)), Some(1));
-        assert_eq!(digit_1_9(k(KeyCode::Char('5'), KeyModifiers::NONE)), Some(5));
-        assert_eq!(digit_1_9(k(KeyCode::Char('9'), KeyModifiers::NONE)), Some(9));
+        assert_eq!(
+            digit_1_9(k(KeyCode::Char('1'), KeyModifiers::NONE)),
+            Some(1)
+        );
+        assert_eq!(
+            digit_1_9(k(KeyCode::Char('5'), KeyModifiers::NONE)),
+            Some(5)
+        );
+        assert_eq!(
+            digit_1_9(k(KeyCode::Char('9'), KeyModifiers::NONE)),
+            Some(9)
+        );
     }
 
     #[test]
@@ -43,7 +54,10 @@ mod tests {
 
     #[test]
     fn requires_no_modifiers() {
-        assert_eq!(digit_1_9(k(KeyCode::Char('3'), KeyModifiers::CONTROL)), None);
+        assert_eq!(
+            digit_1_9(k(KeyCode::Char('3'), KeyModifiers::CONTROL)),
+            None
+        );
         assert_eq!(digit_1_9(k(KeyCode::Char('3'), KeyModifiers::SHIFT)), None);
     }
 }

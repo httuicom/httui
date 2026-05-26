@@ -67,10 +67,7 @@ mod tests {
     fn set_then_get_roundtrips() {
         let mut store = ConnectionOverrideStore::default();
         store.set("pg", ov(Some("db.staging"), Some(15432)));
-        assert_eq!(
-            store.get("pg"),
-            Some(&ov(Some("db.staging"), Some(15432)))
-        );
+        assert_eq!(store.get("pg"), Some(&ov(Some("db.staging"), Some(15432))));
     }
 
     #[test]

@@ -272,17 +272,21 @@ mod tests {
         tokio::spawn(run_event_loop(fake, tx, Duration::from_secs(3600)));
 
         let mut events = Vec::new();
-        while let Ok(Some(ev)) =
-            tokio::time::timeout(Duration::from_millis(200), rx.recv()).await
-        {
+        while let Ok(Some(ev)) = tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
             events.push(ev);
         }
-        let keys = events.iter().filter(|e| matches!(e, AppEvent::Key(_))).count();
+        let keys = events
+            .iter()
+            .filter(|e| matches!(e, AppEvent::Key(_)))
+            .count();
         let resizes = events
             .iter()
             .filter(|e| matches!(e, AppEvent::Resize(..)))
             .count();
-        let ticks = events.iter().filter(|e| matches!(e, AppEvent::Tick)).count();
+        let ticks = events
+            .iter()
+            .filter(|e| matches!(e, AppEvent::Tick))
+            .count();
         assert_eq!(keys, 1, "press forwarded, release filtered out");
         assert_eq!(resizes, 1);
         assert_eq!(ticks, 1, "only the immediate first tick");
@@ -297,6 +301,9 @@ mod tests {
         let handle = tokio::spawn(run_event_loop(fake, tx, Duration::from_millis(2)));
         drop(rx);
         let joined = tokio::time::timeout(Duration::from_secs(2), handle).await;
-        assert!(joined.is_ok(), "loop must exit once the receiver is dropped");
+        assert!(
+            joined.is_ok(),
+            "loop must exit once the receiver is dropped"
+        );
     }
 }

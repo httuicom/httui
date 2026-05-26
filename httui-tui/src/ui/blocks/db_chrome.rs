@@ -297,7 +297,13 @@ mod tests {
         ];
         let colors: Vec<_> = dots.iter().map(|s| s.style.fg).collect();
         // All distinct.
-        assert_eq!(colors.iter().collect::<std::collections::HashSet<_>>().len(), 5);
+        assert_eq!(
+            colors
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            5
+        );
     }
 
     #[test]
@@ -351,8 +357,7 @@ mod tests {
             "results": [{"kind": "select", "rows": [], "has_more": false}]
         }));
         let names: ConnectionNames = HashMap::new();
-        let (_l, right) =
-            db_footer_spans(&b, &names, Style::default(), Color::Green, "connected");
+        let (_l, right) = db_footer_spans(&b, &names, Style::default(), Color::Green, "connected");
         assert!(span_text(&right).contains("cached"));
     }
 }

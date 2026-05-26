@@ -22,12 +22,7 @@ pub(super) fn render_result_separator(frame: &mut Frame, area: Rect) {
 }
 
 /// Strip of chip-styled tabs for multi-statement results.
-pub(super) fn render_result_subtabs(
-    frame: &mut Frame,
-    area: Rect,
-    b: &BlockNode,
-    selected: usize,
-) {
+pub(super) fn render_result_subtabs(frame: &mut Frame, area: Rect, b: &BlockNode, selected: usize) {
     let Some(results) = b
         .cached_result
         .as_ref()

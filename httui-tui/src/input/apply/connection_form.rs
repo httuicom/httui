@@ -23,7 +23,9 @@ pub(crate) fn apply_open_connection_form(app: &mut App) {
 /// to `store.update`.
 pub(crate) fn apply_open_connection_edit_form(app: &mut App) {
     let detail = match app.modal.as_ref() {
-        Some(crate::modal::Modal::Connections(page)) => page.connections.get(page.selected).cloned(),
+        Some(crate::modal::Modal::Connections(page)) => {
+            page.connections.get(page.selected).cloned()
+        }
         _ => None,
     };
     let Some(detail) = detail else {
@@ -408,10 +410,7 @@ pub(crate) fn apply_test_selected_connection(app: &mut App) {
     });
     let elapsed_ms = started.elapsed().as_millis();
     match result {
-        Ok(()) => app.set_status(
-            StatusKind::Info,
-            format!("{name} · ok ({elapsed_ms}ms)"),
-        ),
+        Ok(()) => app.set_status(StatusKind::Info, format!("{name} · ok ({elapsed_ms}ms)")),
         Err(e) => app.set_status(StatusKind::Error, format!("{name} · {e}")),
     }
 }
@@ -764,8 +763,7 @@ mod tests {
         // entry is gone, the other one remains.
         match &app.modal {
             Some(crate::modal::Modal::Connections(page)) => {
-                let names: Vec<&str> =
-                    page.connections.iter().map(|c| c.name.as_str()).collect();
+                let names: Vec<&str> = page.connections.iter().map(|c| c.name.as_str()).collect();
                 assert!(!names.contains(&target.as_str()), "{target} should be gone");
                 assert_eq!(names.len(), 1);
             }
@@ -912,5 +910,4 @@ mod tests {
         let contents = std::fs::read_to_string(vault.path().join("connections.toml")).unwrap();
         assert!(contents.contains("[connections.stay]"));
     }
-
 }

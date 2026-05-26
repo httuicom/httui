@@ -61,8 +61,8 @@ pub fn handle_index_built(app: &mut App, result: Result<(), String>) {
         }
         Err(msg) => {
             if matches!(app.modal, Some(crate::modal::Modal::ContentSearch(_))) {
-        app.modal = None;
-    }
+                app.modal = None;
+            }
             app.vim.enter_normal();
             app.set_status(StatusKind::Error, msg);
         }
@@ -185,7 +185,9 @@ mod tests {
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let app = App::new(Config::default(), resolved, pool);
         (app, data, vault)
     }
@@ -286,10 +288,14 @@ mod tests {
         ];
         app.modal = Some(Modal::ContentSearch(state));
         move_content_search_cursor(&mut app, 1);
-        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert_eq!(s.selected, 1);
         move_content_search_cursor(&mut app, -1);
-        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert_eq!(s.selected, 0);
     }
 
@@ -303,7 +309,9 @@ mod tests {
         }
         content_search_char(&mut app, 'h');
         content_search_char(&mut app, 'i');
-        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert_eq!(s.query.as_str(), "hi");
     }
 
@@ -314,7 +322,9 @@ mod tests {
         state.query = crate::vim::lineedit::LineEdit::from_str("abc");
         app.modal = Some(Modal::ContentSearch(state));
         content_search_backspace(&mut app);
-        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert_eq!(s.query.as_str(), "ab");
     }
 
@@ -327,7 +337,9 @@ mod tests {
         state.query = le;
         app.modal = Some(Modal::ContentSearch(state));
         content_search_delete(&mut app);
-        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert_eq!(s.query.as_str(), "b");
     }
 
@@ -340,7 +352,9 @@ mod tests {
         app.modal = Some(Modal::ContentSearch(state));
         // Should NOT touch results because building=true short-circuits.
         requery(&mut app);
-        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::ContentSearch(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert!(s.results.is_empty());
     }
 

@@ -73,7 +73,14 @@ pub fn render(
 
     render_sidebar(frame, body[0], state, session_overrides, bg_style);
     render_divider(frame, body[1], bg_style);
-    render_detail(frame, body[2], state, schema_cache, session_overrides, bg_style);
+    render_detail(
+        frame,
+        body[2],
+        state,
+        schema_cache,
+        session_overrides,
+        bg_style,
+    );
     render_hint(frame, rows[1], bg_style);
 }
 
@@ -170,8 +177,7 @@ fn render_detail(
     bg: Style,
 ) {
     let Some(detail) = state.connections.get(state.selected) else {
-        let empty = Paragraph::new("  (no connection selected)")
-            .style(bg.fg(Color::DarkGray));
+        let empty = Paragraph::new("  (no connection selected)").style(bg.fg(Color::DarkGray));
         frame.render_widget(empty, area);
         return;
     };
@@ -269,14 +275,8 @@ fn used_in_lines(uses: &[crate::app::ConnectionUse]) -> Vec<Line<'static>> {
         const MAX_ROWS: usize = 6;
         for u in uses.iter().take(MAX_ROWS) {
             lines.push(Line::from(vec![
-                Span::styled(
-                    u.file.clone(),
-                    Style::default().fg(Color::White),
-                ),
-                Span::styled(
-                    format!(":{}", u.line),
-                    Style::default().fg(Color::DarkGray),
-                ),
+                Span::styled(u.file.clone(), Style::default().fg(Color::White)),
+                Span::styled(format!(":{}", u.line), Style::default().fg(Color::DarkGray)),
             ]));
         }
         if uses.len() > MAX_ROWS {
@@ -301,20 +301,15 @@ fn driver_chip(driver: &str) -> (&'static str, Color) {
 }
 
 fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
-    let label = |text: &str| {
-        Span::styled(
-            format!("{text:<10}"),
-            Style::default().fg(Color::DarkGray),
-        )
-    };
+    let label =
+        |text: &str| Span::styled(format!("{text:<10}"), Style::default().fg(Color::DarkGray));
     let value = |text: String| Span::styled(text, Style::default().fg(Color::White));
     let none = || Span::styled("—", Style::default().fg(Color::DarkGray));
     let opt = |s: &Option<String>| -> Span<'static> {
         s.as_ref().map(|v| value(v.clone())).unwrap_or_else(none)
     };
-    let opt_port = |p: Option<u16>| -> Span<'static> {
-        p.map(|v| value(v.to_string())).unwrap_or_else(none)
-    };
+    let opt_port =
+        |p: Option<u16>| -> Span<'static> { p.map(|v| value(v.to_string())).unwrap_or_else(none) };
     let (chip_label, chip_color) = driver_chip(&c.driver);
 
     let mut lines = vec![
@@ -436,10 +431,7 @@ fn session_override_lines(
     match overrides.get(connection_name) {
         Some(ov) if !ov.is_empty() => {
             let host = ov.host.as_deref().unwrap_or("—");
-            let port = ov
-                .port
-                .map(|p| p.to_string())
-                .unwrap_or_else(|| "—".into());
+            let port = ov.port.map(|p| p.to_string()).unwrap_or_else(|| "—".into());
             out.push(Line::from(vec![
                 Span::styled(
                     format!("{:<10}", "host"),
@@ -540,10 +532,7 @@ mod tests {
     #[test]
     fn render_populated_list_paints_entries_and_chips() {
         let state = ConnectionsPageState {
-            connections: vec![
-                detail("Test", "sqlite"),
-                detail("old-htui", "postgres"),
-            ],
+            connections: vec![detail("Test", "sqlite"), detail("old-htui", "postgres")],
             selected: 0,
             ..Default::default()
         };

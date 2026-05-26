@@ -26,12 +26,8 @@ pub fn render(frame: &mut Frame, state: &BootstrapState) -> Option<(u16, u16)> {
             render_cards(frame, area, state.selected_card);
             None
         }
-        Screen::Create(form) => {
-            crate::ui::vault_create_form::render(frame, area, form)
-        }
-        Screen::Clone(form) => {
-            crate::ui::vault_clone_form::render(frame, area, form)
-        }
+        Screen::Create(form) => crate::ui::vault_create_form::render(frame, area, form),
+        Screen::Clone(form) => crate::ui::vault_clone_form::render(frame, area, form),
         Screen::Open(picker) => {
             crate::ui::vault_open_picker::render(frame, area, picker);
             None
@@ -53,7 +49,7 @@ fn render_cards(frame: &mut Frame, area: Rect, selected: CardChoice) {
             Constraint::Length(1), // subtitle
             Constraint::Length(1), // spacer
             Constraint::Length(CARD_HEIGHT),
-            Constraint::Min(1), // flexible spacer
+            Constraint::Min(1),    // flexible spacer
             Constraint::Length(1), // footer
             Constraint::Length(1), // bottom padding
         ])
@@ -134,7 +130,11 @@ fn render_card(frame: &mut Frame, area: Rect, choice: CardChoice, selected: bool
         CardChoice::Clone => (
             " Clone ",
             "g",
-            &["Clone a git repo", "into a parent dir", "(GitHub, GitLab, …)"],
+            &[
+                "Clone a git repo",
+                "into a parent dir",
+                "(GitHub, GitLab, …)",
+            ],
         ),
         CardChoice::Create => (
             " Create ",
@@ -168,7 +168,12 @@ fn render_card(frame: &mut Frame, area: Rect, choice: CardChoice, selected: bool
 
     let body_lines = lines
         .iter()
-        .map(|s| Line::from(Span::styled((*s).to_string(), Style::default().fg(Color::White))))
+        .map(|s| {
+            Line::from(Span::styled(
+                (*s).to_string(),
+                Style::default().fg(Color::White),
+            ))
+        })
         .collect::<Vec<_>>();
     let body = Paragraph::new(body_lines)
         .alignment(ratatui::layout::Alignment::Center)

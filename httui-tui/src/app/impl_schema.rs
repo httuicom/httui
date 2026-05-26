@@ -247,10 +247,7 @@ mod tests {
         let (mut app, _pool, _d, _v) = app_fixture().await;
         // No active env at startup.
         assert_eq!(app.active_env_name, None);
-        app.environments_store
-            .create_env("staging")
-            .await
-            .unwrap();
+        app.environments_store.create_env("staging").await.unwrap();
         app.environments_store
             .set_active_env(Some("staging"))
             .await

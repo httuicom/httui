@@ -19,7 +19,10 @@ pub(crate) fn render_document_no_cursor(
     search_pattern: Option<&str>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
+    result_tabs: &std::collections::HashMap<
+        crate::buffer::block::BlockId,
+        crate::app::ResultPanelTab,
+    >,
 ) {
     // Same logic as `render_document`, but skip the cursor draw step.
     // Used while the prompt is open so the terminal caret isn't fighting
@@ -57,7 +60,10 @@ fn render_segment_no_cursor(
     search_pattern: Option<&str>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
+    result_tabs: &std::collections::HashMap<
+        crate::buffer::block::BlockId,
+        crate::app::ResultPanelTab,
+    >,
 ) {
     let seg = match doc.segments().get(layout.segment_idx) {
         Some(s) => s,
@@ -116,7 +122,10 @@ pub(crate) fn render_document(
     search_pattern: Option<&str>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
+    result_tabs: &std::collections::HashMap<
+        crate::buffer::block::BlockId,
+        crate::app::ResultPanelTab,
+    >,
 ) {
     let layouts = layout_document(doc, area.width);
     let cursor = doc.cursor();
@@ -155,7 +164,10 @@ fn render_segment(
     search_pattern: Option<&str>,
     connection_names: &blocks::ConnectionNames,
     result_viewport_top: &mut std::collections::HashMap<usize, u16>,
-    result_tabs: &std::collections::HashMap<crate::buffer::block::BlockId, crate::app::ResultPanelTab>,
+    result_tabs: &std::collections::HashMap<
+        crate::buffer::block::BlockId,
+        crate::app::ResultPanelTab,
+    >,
 ) {
     let seg = match doc.segments().get(layout.segment_idx) {
         Some(s) => s,

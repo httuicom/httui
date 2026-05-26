@@ -48,7 +48,9 @@ pub fn render_env_clone_form(
     let name_label = Line::from(Span::styled(
         "New env name",
         if name_focused {
-            Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::LightYellow)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::DarkGray)
         },
@@ -56,7 +58,9 @@ pub fn render_env_clone_form(
     let name_value = if state.name.as_str().is_empty() {
         Line::from(Span::styled(
             "(required)",
-            Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
         ))
     } else {
         Line::from(Span::styled(
@@ -71,7 +75,9 @@ pub fn render_env_clone_form(
         Span::styled(
             "Copy variables",
             if vars_focused {
-                Style::default().fg(Color::LightYellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::LightYellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::DarkGray)
             },
@@ -89,15 +95,14 @@ pub fn render_env_clone_form(
         width: inner_pad.width,
         height: 4,
     };
-    let header_p = Paragraph::new(header_lines).style(bg).wrap(Wrap { trim: false });
+    let header_p = Paragraph::new(header_lines)
+        .style(bg)
+        .wrap(Wrap { trim: false });
     frame.render_widget(header_p, header_area);
 
     let footer_h: u16 = if state.error.is_some() { 3 } else { 2 };
     let list_y = inner_pad.y.saturating_add(4);
-    let list_h = inner_pad
-        .height
-        .saturating_sub(4)
-        .saturating_sub(footer_h);
+    let list_h = inner_pad.height.saturating_sub(4).saturating_sub(footer_h);
     let list_area = Rect {
         x: inner_pad.x,
         y: list_y,
@@ -110,12 +115,16 @@ pub fn render_env_clone_form(
     if let Some(err) = state.error.as_deref() {
         footer_lines.push(Line::from(Span::styled(
             format!("error: {err}"),
-            Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
         )));
     }
     footer_lines.push(Line::from(Span::styled(
         " Tab next · space toggle · a all/none · Enter clone · Esc cancel",
-        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+        Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::ITALIC),
     )));
     let footer_area = Rect {
         x: inner_pad.x,
@@ -123,26 +132,28 @@ pub fn render_env_clone_form(
         width: inner_pad.width,
         height: footer_h,
     };
-    let footer_p = Paragraph::new(footer_lines).style(bg).wrap(Wrap { trim: false });
+    let footer_p = Paragraph::new(footer_lines)
+        .style(bg)
+        .wrap(Wrap { trim: false });
     frame.render_widget(footer_p, footer_area);
 
     if name_focused {
-        Some((inner_pad.x + state.name.cursor_col() as u16, inner_pad.y + 1))
+        Some((
+            inner_pad.x + state.name.cursor_col() as u16,
+            inner_pad.y + 1,
+        ))
     } else {
         None
     }
 }
 
-fn render_clone_var_list(
-    frame: &mut Frame,
-    area: Rect,
-    state: &EnvCloneFormState,
-    focused: bool,
-) {
+fn render_clone_var_list(frame: &mut Frame, area: Rect, state: &EnvCloneFormState, focused: bool) {
     if state.vars.is_empty() {
         let p = Paragraph::new(Line::from(Span::styled(
             "  (source env has no vars)",
-            Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::ITALIC),
         )))
         .style(Style::default().bg(Color::Black));
         frame.render_widget(p, area);
@@ -163,7 +174,11 @@ fn render_clone_var_list(
                 Span::styled(
                     mark.to_string(),
                     Style::default()
-                        .fg(if v.checked { Color::LightGreen } else { Color::DarkGray })
+                        .fg(if v.checked {
+                            Color::LightGreen
+                        } else {
+                            Color::DarkGray
+                        })
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(

@@ -122,7 +122,9 @@ mod tests {
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = match path {
@@ -150,9 +152,10 @@ mod tests {
             .iter()
             .position(|s| matches!(s, Segment::Block(_)))
             .expect("block");
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InBlock { segment_idx: block_idx, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: block_idx,
+            offset: 0,
+        });
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -168,7 +171,10 @@ mod tests {
         let (mut app, _d, _v) = app_with_doc(md, None).await;
         place_cursor_in_block(&mut app);
         let err = open_block_history(&mut app).unwrap_err();
-        assert!(err.contains("anonymous") || err.contains("alias"), "got {err:?}");
+        assert!(
+            err.contains("anonymous") || err.contains("alias"),
+            "got {err:?}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -177,7 +183,10 @@ mod tests {
         let (mut app, _d, _v) = app_with_doc(md, None).await;
         place_cursor_in_block(&mut app);
         let err = open_block_history(&mut app).unwrap_err();
-        assert!(err.contains("save the file") || err.contains("history"), "got {err:?}");
+        assert!(
+            err.contains("save the file") || err.contains("history"),
+            "got {err:?}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -245,7 +254,11 @@ mod tests {
         let Some(Modal::BlockHistory(state)) = app.modal.as_ref() else {
             panic!("expected BlockHistory modal");
         };
-        assert!(state.title.contains("POST") || state.title.contains("a"), "title: {}", state.title);
+        assert!(
+            state.title.contains("POST") || state.title.contains("a"),
+            "title: {}",
+            state.title
+        );
         assert_eq!(state.entries.len(), 1);
     }
 

@@ -245,5 +245,4 @@ mod tests {
         assert_eq!(s.pending_count, None);
         assert!(!s.pending_g);
     }
-
 }

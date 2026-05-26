@@ -62,11 +62,13 @@ pub fn open_db_settings_modal(app: &mut App) -> Result<(), String> {
         input: crate::vim::lineedit::LineEdit::from_str(timeout_str),
     });
 
-    app.modal = Some(crate::modal::Modal::DbSettings(crate::app::DbSettingsState {
-        segment_idx,
-        fields,
-        focus: 0,
-    }));
+    app.modal = Some(crate::modal::Modal::DbSettings(
+        crate::app::DbSettingsState {
+            segment_idx,
+            fields,
+            focus: 0,
+        },
+    ));
     app.vim.mode = crate::vim::mode::Mode::DbSettings;
     app.vim.reset_pending();
     Ok(())
@@ -197,7 +199,9 @@ mod tests {
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -215,9 +219,10 @@ mod tests {
             .iter()
             .position(|s| matches!(s, crate::buffer::Segment::Block(_)))
             .expect("block");
-        app.document_mut()
-            .unwrap()
-            .set_cursor(Cursor::InBlock { segment_idx: idx, offset: 0 });
+        app.document_mut().unwrap().set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: 0,
+        });
     }
 
     #[test]
@@ -332,10 +337,14 @@ mod tests {
             focus: 0,
         }));
         db_settings_focus_step(&mut app, 1);
-        let Some(Modal::DbSettings(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::DbSettings(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert_eq!(s.focus, 1);
         db_settings_focus_step(&mut app, -1);
-        let Some(Modal::DbSettings(s)) = app.modal.as_ref() else { panic!() };
+        let Some(Modal::DbSettings(s)) = app.modal.as_ref() else {
+            panic!()
+        };
         assert_eq!(s.focus, 0);
     }
 
@@ -390,8 +399,14 @@ mod tests {
                 _ => None,
             })
             .unwrap();
-        assert_eq!(block.params.get("limit").and_then(|v| v.as_u64()), Some(100));
-        assert_eq!(block.params.get("timeout_ms").and_then(|v| v.as_u64()), Some(3000));
+        assert_eq!(
+            block.params.get("limit").and_then(|v| v.as_u64()),
+            Some(100)
+        );
+        assert_eq!(
+            block.params.get("timeout_ms").and_then(|v| v.as_u64()),
+            Some(3000)
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -414,6 +429,9 @@ mod tests {
                 _ => None,
             })
             .unwrap();
-        assert!(block.params.get("limit").is_none(), "limit should be cleared");
+        assert!(
+            block.params.get("limit").is_none(),
+            "limit should be cleared"
+        );
     }
 }

@@ -11,7 +11,9 @@ use super::ModalOutcome;
 /// checklist e `space` toggla. Enter submete; Esc/Ctrl-C cancela.
 /// Backspace/printable apenas quando foco está em Name.
 pub(super) fn env_clone_form_handle_key(focus: EnvCloneFormFocus, key: KeyEvent) -> ModalOutcome {
-    let KeyEvent { code, modifiers, .. } = key;
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
     match (modifiers, code) {
         (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
             ModalOutcome::Emit(Action::CloseEnvCloneForm)
@@ -20,20 +22,20 @@ pub(super) fn env_clone_form_handle_key(focus: EnvCloneFormFocus, key: KeyEvent)
         (_, KeyCode::Tab) | (_, KeyCode::BackTab) => {
             ModalOutcome::Emit(Action::EnvCloneFormFocusToggle)
         }
-        (KeyModifiers::NONE, KeyCode::Down) => ModalOutcome::Emit(
-            if focus == EnvCloneFormFocus::Vars {
+        (KeyModifiers::NONE, KeyCode::Down) => {
+            ModalOutcome::Emit(if focus == EnvCloneFormFocus::Vars {
                 Action::EnvCloneFormMoveVarCursor(1)
             } else {
                 Action::EnvCloneFormFocusToggle
-            },
-        ),
-        (KeyModifiers::NONE, KeyCode::Up) => ModalOutcome::Emit(
-            if focus == EnvCloneFormFocus::Vars {
+            })
+        }
+        (KeyModifiers::NONE, KeyCode::Up) => {
+            ModalOutcome::Emit(if focus == EnvCloneFormFocus::Vars {
                 Action::EnvCloneFormMoveVarCursor(-1)
             } else {
                 Action::EnvCloneFormFocusToggle
-            },
-        ),
+            })
+        }
         (KeyModifiers::NONE, KeyCode::Char(' ')) if focus == EnvCloneFormFocus::Vars => {
             ModalOutcome::Emit(Action::EnvCloneFormToggleVar)
         }

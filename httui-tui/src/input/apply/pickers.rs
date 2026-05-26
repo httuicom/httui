@@ -11,7 +11,6 @@ use crate::buffer::{Cursor, Segment};
 use crate::input::action::Action;
 use crate::vim::mode::Mode;
 
-
 // ───────────── connections page (gC / Alt+P) ─────────────
 
 /// V3 (2026-05-23): open the fullscreen Connections page. Loads
@@ -89,8 +88,7 @@ fn preferred_connection_index(
         .get("connection_id")
         .or_else(|| block.params.get("connection"))
         .and_then(|v| v.as_str())?;
-    let resolved =
-        crate::commands::db::resolve_connection_id_sync(raw, &app.connection_names);
+    let resolved = crate::commands::db::resolve_connection_id_sync(raw, &app.connection_names);
     connections
         .iter()
         .position(|c| c.name == resolved || c.name == raw)
@@ -157,7 +155,10 @@ pub(crate) fn apply_clear_session_override(app: &mut App) {
     let Some(name) = name else { return };
     if app.session_overrides.is_active(&name) {
         app.session_overrides.clear(&name);
-        app.set_status(StatusKind::Info, format!("session override cleared · {name}"));
+        app.set_status(
+            StatusKind::Info,
+            format!("session override cleared · {name}"),
+        );
     } else {
         app.set_status(StatusKind::Info, format!("no override on {name}"));
     }
@@ -221,12 +222,10 @@ pub(crate) fn apply_open_tab_picker(app: &mut App) {
             crate::app::TabPickerEntry { idx, label, dirty }
         })
         .collect();
-    app.modal = Some(crate::modal::Modal::TabPicker(
-        crate::app::TabPickerState {
-            entries,
-            selected: active,
-        },
-    ));
+    app.modal = Some(crate::modal::Modal::TabPicker(crate::app::TabPickerState {
+        entries,
+        selected: active,
+    }));
     app.vim.mode = Mode::Modal;
     app.vim.reset_pending();
 }
@@ -430,16 +429,16 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
             ep::apply_move_environment_picker_cursor(app, delta)
         }
         Action::ConfirmEnvironmentPicker => ep::apply_confirm_environment_picker(app),
-        Action::ActivateEnvByIndex(idx) => super::env_activate::apply_activate_env_by_index(app, idx),
+        Action::ActivateEnvByIndex(idx) => {
+            super::env_activate::apply_activate_env_by_index(app, idx)
+        }
         Action::OpenConnectionsPage => {
             if let Err(msg) = open_connections_page(app) {
                 app.set_status(StatusKind::Error, msg);
             }
         }
         Action::CloseConnectionsPage => apply_close_connections_page(app),
-        Action::MoveConnectionsPageCursor(delta) => {
-            apply_move_connections_page_cursor(app, delta)
-        }
+        Action::MoveConnectionsPageCursor(delta) => apply_move_connections_page_cursor(app, delta),
         Action::OpenSessionOverrideForm => apply_open_session_override_form(app),
         Action::ClearSessionOverride => apply_clear_session_override(app),
         Action::OpenBlockTemplatePicker => {
@@ -556,4 +555,3 @@ pub(crate) fn apply_pickers(app: &mut App, action: Action, _recording: bool) {
         _ => unreachable!("apply_pickers: variante fora do grupo"),
     }
 }
-

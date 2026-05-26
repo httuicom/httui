@@ -100,8 +100,8 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
         crate::buffer::block::RawSection::Body { line, col } => (line, col),
         _ => {
             if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
-            app.modal = None;
-        }
+                app.modal = None;
+            }
             return;
         }
     };
@@ -114,8 +114,8 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
             Some(s) => s.to_string(),
             None => {
                 if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
-            app.modal = None;
-        }
+                    app.modal = None;
+                }
                 return;
             }
         }
@@ -147,8 +147,8 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
         );
         if items.is_empty() {
             if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
-            app.modal = None;
-        }
+                app.modal = None;
+            }
             return;
         }
         let prior_label = app
@@ -189,8 +189,8 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
         None if allow_empty_prefix => (offset, String::new()),
         None => {
             if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
-            app.modal = None;
-        }
+                app.modal = None;
+            }
             return;
         }
     };
@@ -280,13 +280,7 @@ pub(crate) fn apply_confirm_db_run(app: &mut App) {
         }
     };
     app.vim.enter_normal();
-    crate::commands::db::run_db_block_inner(
-        app,
-        segment_idx,
-        true,
-        None,
-        false,
-    );
+    crate::commands::db::run_db_block_inner(app, segment_idx, true, None, false);
 }
 
 pub(crate) fn apply_cancel_db_run(app: &mut App) {
@@ -323,8 +317,8 @@ pub(crate) fn apply_completion_prev(app: &mut App) {
 
 pub(crate) fn apply_completion_dismiss(app: &mut App) {
     if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
-            app.modal = None;
-        }
+        app.modal = None;
+    }
 }
 
 /// Splice the selected item's label in place of the prefix word at

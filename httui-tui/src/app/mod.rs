@@ -124,7 +124,10 @@ pub struct App {
     pub envs_dir_watcher: Option<crate::fs_watch::FileWatcher>,
     pub last_run_anchor: Option<LastRunAnchor>,
     pub standard: StandardState,
-    pub standard_keymap: Vec<(crate::input::keychord::KeyChord, crate::input::action::Action)>,
+    pub standard_keymap: Vec<(
+        crate::input::keychord::KeyChord,
+        crate::input::action::Action,
+    )>,
     pub config_path: Option<PathBuf>,
     pub modal: Option<crate::modal::Modal>,
     pub connections_store: Arc<httui_core::vault_config::ConnectionsStore>,
@@ -157,18 +160,21 @@ impl App {
         // legacy SQLite-only lookup is no longer used.
         let connections_store =
             httui_core::vault_config::ConnectionsStore::new(resolved.vault.clone());
-        let pool_manager =
-            Arc::new(PoolManager::new_standalone(connections_store.clone(), app_pool));
+        let pool_manager = Arc::new(PoolManager::new_standalone(
+            connections_store.clone(),
+            app_pool,
+        ));
         let connection_names = load_connection_names(&connections_store);
         // V4 P1: file-backed envs store. Falls back to the vault's
         // own `user.toml` if the global config path can't be
         // resolved (HOME unset, sandbox test). Side-effect: tests
         // get a per-temp-dir user.toml automatically.
-        let user_config_path =
-            httui_core::vault_config::user_store::default_user_config_path()
-                .unwrap_or_else(|_| resolved.vault.join("user.toml"));
-        let environments_store =
-            httui_core::vault_config::EnvironmentsStore::new(resolved.vault.clone(), user_config_path);
+        let user_config_path = httui_core::vault_config::user_store::default_user_config_path()
+            .unwrap_or_else(|_| resolved.vault.join("user.toml"));
+        let environments_store = httui_core::vault_config::EnvironmentsStore::new(
+            resolved.vault.clone(),
+            user_config_path,
+        );
         let standard_keymap = crate::input::keymap::resolve_standard_keymap(&config.keymap);
         let mut app = Self {
             config,

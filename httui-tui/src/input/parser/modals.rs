@@ -236,5 +236,3 @@ pub fn parse_content_search(key: KeyEvent) -> Action {
         _ => Action::Noop,
     }
 }
-
-

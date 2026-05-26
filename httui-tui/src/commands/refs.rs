@@ -7,14 +7,18 @@ use std::collections::HashSet;
 
 const MAX_DEPENDENCY_DEPTH: usize = 50;
 
-pub fn collect_unrun_deps(
-    segments: &[Segment],
-    target_idx: usize,
-) -> Result<Vec<usize>, String> {
+pub fn collect_unrun_deps(segments: &[Segment], target_idx: usize) -> Result<Vec<usize>, String> {
     let mut out: Vec<usize> = Vec::new();
     let mut seen: HashSet<usize> = HashSet::new();
     let mut in_progress: HashSet<usize> = HashSet::new();
-    walk_deps(segments, target_idx, &mut out, &mut seen, &mut in_progress, 0)?;
+    walk_deps(
+        segments,
+        target_idx,
+        &mut out,
+        &mut seen,
+        &mut in_progress,
+        0,
+    )?;
     Ok(out)
 }
 
@@ -273,7 +277,10 @@ GET /d?b={{b.body.y}}&c={{c.body.y}}
         let idxs = block_idxs(&d);
         let deps = collect_unrun_deps(d.segments(), idxs[3]).unwrap();
         let a_count = deps.iter().filter(|i| **i == idxs[0]).count();
-        assert_eq!(a_count, 1, "A must run once even for diamond; deps={deps:?}");
+        assert_eq!(
+            a_count, 1,
+            "A must run once even for diamond; deps={deps:?}"
+        );
         // A must come before both B and C.
         let a_pos = deps.iter().position(|i| *i == idxs[0]).unwrap();
         let b_pos = deps.iter().position(|i| *i == idxs[1]).unwrap();
@@ -330,7 +337,9 @@ GET /d?b={{b.body.y}}&c={{c.body.y}}
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -354,7 +363,10 @@ GET /d?b={{b.body.y}}&c={{c.body.y}}
     async fn apply_run_block_with_no_block_at_cursor_sets_status() {
         let (mut app, _d, _v) = app_with_doc("just prose\n").await;
         apply_run_block(&mut app);
-        assert!(app.run_chain.is_empty(), "no chain when cursor not in block");
+        assert!(
+            app.run_chain.is_empty(),
+            "no chain when cursor not in block"
+        );
         assert!(app.status_message.is_some(), "expected status hint");
     }
 
@@ -473,12 +485,11 @@ GET /d?b={{b.body.y}}&c={{c.body.y}}
         on_block_complete(&mut app, 7, false);
         assert!(app.run_chain.is_empty());
         // No "aborted" status — the chain was already on its last item.
-        assert!(
-            app.status_message
-                .as_ref()
-                .map(|s| !s.text.contains("aborted"))
-                .unwrap_or(true)
-        );
+        assert!(app
+            .status_message
+            .as_ref()
+            .map(|s| !s.text.contains("aborted"))
+            .unwrap_or(true));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -494,7 +505,9 @@ GET /d?b={{b.body.y}}&c={{c.body.y}}
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         // no tabs registered — document() returns None
         start_run_chain(&mut app, 0);

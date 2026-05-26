@@ -137,7 +137,9 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
 /// cached result is an error (error panel has no rows to land on).
 fn cursor_in_db_block_result_or_error(app: &App) -> bool {
     use crate::buffer::{Cursor, Segment};
-    let Some(doc) = app.document() else { return false };
+    let Some(doc) = app.document() else {
+        return false;
+    };
     match doc.cursor() {
         Cursor::InBlockResult { .. } => true,
         Cursor::InBlock { segment_idx, .. } => {
@@ -266,10 +268,7 @@ mod tests {
             &mut app,
             crate::input::action::Action::OpenEnvForm,
         );
-        assert!(matches!(
-            app.modal,
-            Some(crate::modal::Modal::EnvForm(_))
-        ));
+        assert!(matches!(app.modal, Some(crate::modal::Modal::EnvForm(_))));
         let before = app.document().unwrap().to_markdown();
         route(&mut app, key(KeyCode::F(11)));
         let after = app.document().unwrap().to_markdown();
@@ -566,7 +565,10 @@ mod tests {
         // panic, no half-state.
         let md = app.document().unwrap().to_markdown();
         if app.standard.anchor.is_none() {
-            assert!(md.len() < baseline.len(), "successful cut shrank the doc: {md:?}");
+            assert!(
+                md.len() < baseline.len(),
+                "successful cut shrank the doc: {md:?}"
+            );
         } else {
             assert_eq!(md, baseline, "failed cut preserved the doc");
         }
@@ -747,9 +749,8 @@ mod tests {
         // `apply::standard_sel::tests::roteiro_mirror_copy_move_paste`
         // with an injected FakeClipboard; here we only assert the
         // route seam decodes Ctrl+V correctly).
-        let keymap = crate::input::keymap::resolve_standard_keymap(
-            &crate::config::KeymapConfig::default(),
-        );
+        let keymap =
+            crate::input::keymap::resolve_standard_keymap(&crate::config::KeymapConfig::default());
         assert_eq!(
             crate::input::standard::resolve(&keymap, ctrl(KeyCode::Char('v'))),
             Some(crate::input::action::Action::PasteSystem)

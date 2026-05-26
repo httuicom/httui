@@ -96,7 +96,10 @@ pub fn apply_run_http_block(app: &mut App, segment_idx: usize) {
         let outcome = executor
             .execute_streamed(resolved, token_for_task, move |chunk| {
                 use httui_core::executor::http::types::HttpChunk;
-                if matches!(chunk, HttpChunk::Headers { .. } | HttpChunk::BodyChunk { .. }) {
+                if matches!(
+                    chunk,
+                    HttpChunk::Headers { .. } | HttpChunk::BodyChunk { .. }
+                ) {
                     let _ = sender_for_chunks.send(crate::event::AppEvent::HttpBlockChunk {
                         segment_idx: segment_idx_for_task,
                         chunk,
@@ -454,7 +457,9 @@ mod tests {
         let note = vault.path().join("note.md");
         std::fs::write(&note, md).unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         let doc = Document::from_markdown(md).unwrap();
         let pane = Pane::new(doc, note);
@@ -498,7 +503,9 @@ mod tests {
         let data = TempDir::new().unwrap();
         let vault = TempDir::new().unwrap();
         let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
         let mut app = App::new(Config::default(), resolved, pool);
         app.tabs.tabs.clear();
         apply_run_http_block(&mut app, 0); // no panic
@@ -514,7 +521,10 @@ mod tests {
         let s = app.status_message.as_ref().expect("status");
         assert!(s.text.contains("empty URL"), "got {:?}", s.text);
         let block = app.document().unwrap().block_at(idx).unwrap().clone();
-        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+        assert!(matches!(
+            block.state,
+            crate::buffer::block::ExecutionState::Error(_)
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -554,7 +564,10 @@ mod tests {
         handle_http_block_chunk(
             &mut app,
             idx,
-            HttpChunk::BodyChunk { offset: 100, bytes: vec![0u8; 50] },
+            HttpChunk::BodyChunk {
+                offset: 100,
+                bytes: vec![0u8; 50],
+            },
         );
         assert_eq!(app.running_query.as_ref().unwrap().bytes_received, 150);
     }
@@ -574,7 +587,10 @@ mod tests {
         handle_http_block_chunk(
             &mut app,
             999, // wrong idx
-            HttpChunk::BodyChunk { offset: 100, bytes: vec![0u8; 50] },
+            HttpChunk::BodyChunk {
+                offset: 100,
+                bytes: vec![0u8; 50],
+            },
         );
         assert_eq!(app.running_query.as_ref().unwrap().bytes_received, 0);
     }
@@ -586,7 +602,10 @@ mod tests {
         handle_http_block_chunk(
             &mut app,
             0,
-            HttpChunk::BodyChunk { offset: 0, bytes: vec![] },
+            HttpChunk::BodyChunk {
+                offset: 0,
+                bytes: vec![],
+            },
         );
         assert!(app.running_query.is_none());
     }
@@ -597,7 +616,10 @@ mod tests {
         let (mut app, idx, _d, _v) = app_with_block(md).await;
         handle_http_block_result(&mut app, idx, Ok(http_response()));
         let block = app.document().unwrap().block_at(idx).unwrap().clone();
-        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Success));
+        assert!(matches!(
+            block.state,
+            crate::buffer::block::ExecutionState::Success
+        ));
         assert!(block.cached_result.is_some());
         let s = app.status_message.as_ref().expect("status");
         assert!(s.text.contains("200"), "got {:?}", s.text);
@@ -609,7 +631,10 @@ mod tests {
         let (mut app, idx, _d, _v) = app_with_block(md).await;
         handle_http_block_result(&mut app, idx, Err("connection failed".into()));
         let block = app.document().unwrap().block_at(idx).unwrap().clone();
-        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+        assert!(matches!(
+            block.state,
+            crate::buffer::block::ExecutionState::Error(_)
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]

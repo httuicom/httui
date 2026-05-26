@@ -78,7 +78,6 @@ pub fn apply_slash_key(app: &mut App) {
         app.vim.mode = Mode::Modal;
         app.vim.reset_pending();
     }
-
 }
 
 #[cfg(test)]
@@ -251,6 +250,9 @@ mod tests {
         // Intentionally do NOT open any document.
 
         apply_slash_key(&mut app);
-        assert!(!matches!(app.modal, Some(crate::modal::Modal::BlockTemplatePicker(_))));
+        assert!(!matches!(
+            app.modal,
+            Some(crate::modal::Modal::BlockTemplatePicker(_))
+        ));
     }
 }

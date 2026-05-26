@@ -158,13 +158,12 @@ pub(crate) fn with_vault_create_form(
 /// the user can fix and resubmit. Success closes the modal and the
 /// status bar reflects the new active vault.
 pub(crate) fn apply_vault_create_form_submit(app: &mut App) {
-    let (parent_raw, name_raw) = if let Some(crate::modal::Modal::VaultCreateForm(s)) =
-        app.modal.as_ref()
-    {
-        (s.parent.as_str().to_string(), s.name.as_str().to_string())
-    } else {
-        return;
-    };
+    let (parent_raw, name_raw) =
+        if let Some(crate::modal::Modal::VaultCreateForm(s)) = app.modal.as_ref() {
+            (s.parent.as_str().to_string(), s.name.as_str().to_string())
+        } else {
+            return;
+        };
     let target = match crate::vault::helpers::submit_create(&parent_raw, &name_raw) {
         Ok(p) => p,
         Err(msg) => {
@@ -359,10 +358,7 @@ fn navigate_to(app: &mut App, target: Option<std::path::PathBuf>) {
     let canonical = match target.canonicalize() {
         Ok(p) => p,
         Err(e) => {
-            app.set_status(
-                StatusKind::Error,
-                format!("dir {}: {e}", target.display()),
-            );
+            app.set_status(StatusKind::Error, format!("dir {}: {e}", target.display()));
             return;
         }
     };
