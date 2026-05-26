@@ -149,9 +149,8 @@ mod tests {
     #[test]
     fn renders_diff_body_and_highlights_additions_deletions() {
         let mut state = GitLogPageState::new(vec![commit("abc1234", "abc1234deadbeef", "first")]);
-        state.diff = Some(
-            "commit abc1234\ndiff --git a/x b/x\n@@ -1 +1 @@\n-old\n+new\n".to_string(),
-        );
+        state.diff =
+            Some("commit abc1234\ndiff --git a/x b/x\n@@ -1 +1 @@\n-old\n+new\n".to_string());
         let text = render_to_text(&state, 100, 12);
         assert!(text.contains("+new"));
         assert!(text.contains("-old"));

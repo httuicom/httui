@@ -1,7 +1,5 @@
-//! `Ctrl+Y` share handler — composes the HTTPS URL from the vault's
-//! `origin` (or first) remote and copies it to the system clipboard.
-//! Split out of `apply::git_panel` to keep that file under the size
-//! gate.
+//! `Ctrl+Y` share handler — composes the HTTPS URL from `origin`
+//! (or the first remote) and copies it to the system clipboard.
 
 use crate::app::{App, StatusKind};
 
@@ -86,10 +84,9 @@ mod tests {
             .output()
             .unwrap();
         share_https_url(&mut app);
-        // Clipboard may not be available in headless test runners;
-        // either branch sets a status message — the assertion is that
-        // the share flow reached a terminal state without panicking
-        // and surfaces the composed URL.
+        // Clipboard may be unavailable on headless CI — either branch
+        // sets a status message; the assertion is that the flow ends
+        // cleanly and the composed URL is in there.
         let msg = app
             .status_message
             .as_ref()

@@ -51,9 +51,8 @@ pub const QUICK_OPEN: KeyChord = KeyChord::new(KeyModifiers::CONTROL, KeyCode::C
 /// `Ctrl+E` — toggle the file-tree sidebar focus.
 pub const TREE_TOGGLE: KeyChord = KeyChord::new(KeyModifiers::CONTROL, KeyCode::Char('e'));
 
-/// `Ctrl+G` — toggle the git side panel (right of editor). Shared
-/// chord across vim + standard profiles so the panel feels global,
-/// not modal.
+/// `Ctrl+G` — toggle the git side panel. Shared by vim + standard
+/// profiles so the panel feels global.
 pub const GIT_PANEL_TOGGLE: KeyChord = KeyChord::new(KeyModifiers::CONTROL, KeyCode::Char('g'));
 
 /// `Ctrl+F` — open the content-search modal (FTS5 over the vault's

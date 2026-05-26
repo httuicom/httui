@@ -153,7 +153,10 @@ async fn git_panel_hidden_does_not_paint_column() {
     open_doc(&mut app, "doc body\n");
     app.git_panel.visible = false;
     let (text, _c) = render(&mut app, 100, 14);
-    assert!(!text.contains("Git —"), "no panel title when hidden: {text:?}");
+    assert!(
+        !text.contains("Git —"),
+        "no panel title when hidden: {text:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

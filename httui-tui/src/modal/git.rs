@@ -1,6 +1,5 @@
-//! Per-key handlers for the git-specific modals. Split out of
-//! `modal/handlers.rs` to keep that file under the size gate; all
-//! three handlers reuse `super::handlers::*` primitives.
+//! Per-key handlers for the git-specific modals. Built on top of
+//! `super::handlers::*` primitives.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -64,21 +63,15 @@ pub(super) fn conflict_resolver_handle_key(key: KeyEvent) -> ModalOutcome {
         (_, KeyCode::Up) | (KeyModifiers::NONE, KeyCode::Char('k')) => {
             ModalOutcome::Emit(Action::MoveGitConflictResolverFile(-1))
         }
-        (KeyModifiers::NONE, KeyCode::Char('1')) => {
-            ModalOutcome::Emit(Action::ResolveGitConflict(
-                crate::git::ConflictVersion::Base,
-            ))
-        }
-        (KeyModifiers::NONE, KeyCode::Char('2')) => {
-            ModalOutcome::Emit(Action::ResolveGitConflict(
-                crate::git::ConflictVersion::Ours,
-            ))
-        }
-        (KeyModifiers::NONE, KeyCode::Char('3')) => {
-            ModalOutcome::Emit(Action::ResolveGitConflict(
-                crate::git::ConflictVersion::Theirs,
-            ))
-        }
+        (KeyModifiers::NONE, KeyCode::Char('1')) => ModalOutcome::Emit(Action::ResolveGitConflict(
+            crate::git::ConflictVersion::Base,
+        )),
+        (KeyModifiers::NONE, KeyCode::Char('2')) => ModalOutcome::Emit(Action::ResolveGitConflict(
+            crate::git::ConflictVersion::Ours,
+        )),
+        (KeyModifiers::NONE, KeyCode::Char('3')) => ModalOutcome::Emit(Action::ResolveGitConflict(
+            crate::git::ConflictVersion::Theirs,
+        )),
         _ => ModalOutcome::Continue,
     }
 }

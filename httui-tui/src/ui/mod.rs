@@ -18,7 +18,7 @@ pub mod db_row_detail;
 mod db_settings_modal;
 mod document;
 mod environment_picker;
-/// V4 P5: clone-env form renderer (extraído de envs_page).
+/// Clone-env form renderer (extracted from `envs_page`).
 mod envs_clone;
 mod envs_page;
 mod fence_edit;
@@ -42,7 +42,7 @@ mod status;
 mod tab_picker;
 mod tabs;
 mod tree;
-/// V4 P7: "Used in N" panel pra var selecionada na EnvsPage.
+/// "Used in N" panel for the var selected in EnvsPage.
 mod var_uses_panel;
 pub(crate) mod vault_clone_form;
 pub(crate) mod vault_create_form;

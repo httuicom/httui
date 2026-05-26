@@ -53,9 +53,8 @@ pub fn highlight_line(line: &str) -> Line<'static> {
     Line::from(inline_spans(line))
 }
 
-/// Highlight `<<<<<<<` / `=======` / `>>>>>>>` merge-conflict
-/// markers. Returns `None` when the line is not one of those — every
-/// other path falls through to the normal highlight pipeline.
+/// Style `<<<<<<<` / `=======` / `>>>>>>>` merge-conflict markers.
+/// `None` for any other line.
 fn conflict_marker(line: &str) -> Option<Vec<Span<'static>>> {
     if line.starts_with("<<<<<<<") {
         Some(vec![Span::styled(
@@ -68,7 +67,9 @@ fn conflict_marker(line: &str) -> Option<Vec<Span<'static>>> {
     } else if line.starts_with("=======") && line.trim_end_matches('=').is_empty() {
         Some(vec![Span::styled(
             line.to_string(),
-            Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::DIM),
         )])
     } else if line.starts_with(">>>>>>>") {
         Some(vec![Span::styled(
@@ -398,10 +399,7 @@ mod tests {
     fn conflict_marker_separator_paints_dim_gray() {
         let line = highlight_line("=======");
         assert_eq!(line.spans.len(), 1);
-        assert!(line.spans[0]
-            .style
-            .add_modifier
-            .contains(Modifier::DIM));
+        assert!(line.spans[0].style.add_modifier.contains(Modifier::DIM));
     }
 
     #[test]

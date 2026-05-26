@@ -1,21 +1,17 @@
 //! Git operations consumed by the side panel and the status bar.
-//! Every git invocation lives in `httui_core::git`; this module owns
-//! the wiring (sync calls, error propagation onto the panel state, /
-//! eventually status-bar refresh cadence).
+//! Every git invocation lives in `httui_core::git`; this module wires
+//! them to panel state and error propagation.
 
 use crate::app::App;
+use httui_core::git::git_remote_list;
 use httui_core::git::staging::{git_commit, stage_path};
 use httui_core::git::status::DiffMetrics;
 use httui_core::git::sync::{git_pull, git_push};
-use httui_core::git::git_remote_list;
 
-/// Refresh the panel's `git status` snapshot plus diff metrics.
-/// Errors (not a git repo, `git` missing) are surfaced through
-/// `status_error` so the renderer can show a friendly message; both
-/// `status` and `metrics` are reset in that case so stale data never
-/// bleeds across vaults. Shortstat is best-effort: a failure there is
-/// silently downgraded to zero counts (the status snapshot is the
-/// load-bearing piece — UI never gates on metrics).
+/// Refresh the `git status` snapshot + diff metrics. Errors (not a
+/// repo, `git` missing) flow to `status_error`; both `status` and
+/// `metrics` reset on error to avoid stale data across vaults.
+/// Shortstat is best-effort — status is the load-bearing piece.
 pub fn refresh_git_status(app: &mut App) {
     let vault = app.vault_path.clone();
     match httui_core::git::git_status(&vault) {
@@ -26,14 +22,10 @@ pub fn refresh_git_status(app: &mut App) {
             }
             app.git_panel.status = Some(status);
             app.git_panel.status_error = None;
-            app.git_panel.metrics =
-                httui_core::git::git_diff_shortstat(&vault).unwrap_or_default();
-            app.git_panel.recent_commits = httui_core::git::log::git_log(
-                &vault,
-                crate::git::HISTORY_PREVIEW_COUNT,
-                None,
-            )
-            .unwrap_or_default();
+            app.git_panel.metrics = httui_core::git::git_diff_shortstat(&vault).unwrap_or_default();
+            app.git_panel.recent_commits =
+                httui_core::git::log::git_log(&vault, crate::git::HISTORY_PREVIEW_COUNT, None)
+                    .unwrap_or_default();
         }
         Err(msg) => {
             app.git_panel.status = None;
@@ -44,20 +36,21 @@ pub fn refresh_git_status(app: &mut App) {
     }
 }
 
-/// Outcome of a Sync round (stage → commit → pull → push). The UI
-/// uses the variant to decide what to surface: success message,
-/// confirm-set-upstream modal, or an error message keyed to the
-/// failing stage.
+/// Outcome of a Sync round (stage → commit → pull → push).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SyncOutcome {
-    /// All requested steps succeeded.
     Done(String),
-    /// `git push` rejected the branch because it has no upstream
-    /// configured. The UI opens a confirmation modal; on accept it
-    /// calls [`push_with_set_upstream`] with these fields.
-    NeedsUpstream { remote: String, branch: String },
+    /// Push rejected — branch has no upstream. The UI confirms and
+    /// then calls [`push_with_set_upstream`] with these fields.
+    NeedsUpstream {
+        remote: String,
+        branch: String,
+    },
     /// A stage failed. Status snapshot is refreshed before returning.
-    Failed { stage: SyncStage, message: String },
+    Failed {
+        stage: SyncStage,
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,12 +60,10 @@ pub enum SyncStage {
     Push,
 }
 
-/// Stage every changed file from the panel's last snapshot and run
-/// `git commit -m <message>` (or `--amend` when `amend` is true).
-/// Returns `Ok(())` on success, `Err(msg)` when there's nothing to
-/// commit (and not amending — `--amend` works on a clean tree too),
-/// no fresh status snapshot, or git rejects the commit. Refreshes
-/// the panel's status snapshot regardless of outcome.
+/// Stage every changed file from the last snapshot and run
+/// `git commit -m <message>` (or `--amend` when set). `--amend`
+/// works on a clean tree; otherwise an empty change set errors.
+/// Always refreshes the snapshot afterwards.
 pub fn commit_changes(app: &mut App, message: &str, amend: bool) -> Result<(), String> {
     let vault = app.vault_path.clone();
     let Some(status) = app.git_panel.status.as_ref() else {
@@ -90,9 +81,8 @@ pub fn commit_changes(app: &mut App, message: &str, amend: bool) -> Result<(), S
     result
 }
 
-/// Run the 1-click Sync pipeline. When `commit_message` is `Some`
-/// and the working tree has changes, the commit step runs first;
-/// otherwise it's skipped. Pull is `--ff-only` (never auto-merge).
+/// 1-click Sync pipeline. Commits first if there are changes and
+/// `commit_message` is set. Pull is `--ff-only` (never auto-merge).
 /// Push without upstream returns [`SyncOutcome::NeedsUpstream`] so
 /// the UI can confirm before issuing `git push -u`.
 pub fn sync_changes(app: &mut App, commit_message: Option<&str>) -> SyncOutcome {
@@ -114,9 +104,7 @@ pub fn sync_changes(app: &mut App, commit_message: Option<&str>) -> SyncOutcome 
         }
     }
 
-    // Re-snapshot after the commit so `upstream` / `branch` reflect
-    // the post-commit world (the branch shouldn't change, but ahead/
-    // behind certainly do).
+    // Re-snapshot so ahead/behind reflect the post-commit world.
     refresh_git_status(app);
     let post = app.git_panel.status.clone();
     let upstream = post.as_ref().and_then(|s| s.upstream.clone());
@@ -277,10 +265,7 @@ mod tests {
             .arg(origin.path())
             .output();
         let picked = first_remote_and_branch(vault.path(), Some("main"));
-        assert_eq!(
-            picked,
-            Some(("origin".to_string(), "main".to_string()))
-        );
+        assert_eq!(picked, Some(("origin".to_string(), "main".to_string())));
     }
 
     #[tokio::test(flavor = "multi_thread")]

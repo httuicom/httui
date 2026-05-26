@@ -57,10 +57,8 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         tabs::render(frame, ta, &app.tabs);
     }
 
-    // Split the body horizontally when the tree or git panel is
-    // visible: `[tree? | editor | git_panel?]`. Editor keeps the
-    // center slot; each sidebar collapses out when hidden so the
-    // editor reclaims its width.
+    // `[tree? | editor | git_panel?]` — each sidebar collapses out
+    // when hidden so the editor reclaims its width.
     let tree_w = if app.tree.visible {
         Some(tree::width().min(body_area.width.saturating_sub(20)))
     } else {

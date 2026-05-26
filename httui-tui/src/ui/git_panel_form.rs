@@ -1,15 +1,9 @@
-//! Commit-form sub-renderer for the git side panel. Split out of
-//! `ui::git_panel` to keep that file under the size gate.
+//! Commit-form sub-renderer for the git side panel.
 //!
-//! The form is composed of two sibling rects:
-//!
-//! - [`render_message_box`]: bordered "message" container with ONLY
-//!   the draft / placeholder line. Returns the cursor position when
-//!   focused.
-//! - [`render_meta`]: amend toggle + key hints + optional error
-//!   message painted directly on the panel below the box (no
-//!   border, so they read as panel-level affordances, not part of
-//!   the message itself).
+//! - [`render_message_box`]: bordered draft/placeholder line.
+//!   Returns the cursor position when focused.
+//! - [`render_meta`]: amend toggle, hints, and optional error,
+//!   painted below the box (no border).
 
 use ratatui::{
     layout::Rect,
@@ -21,9 +15,8 @@ use ratatui::{
 
 use crate::git::{template::commit_template, GitPanel};
 
-/// Height the meta block needs: (optional error) + amend toggle +
-/// files-staged/commit hint + sync button. Callers reserve this
-/// much above the history region.
+/// Rows the meta block needs (amend + commit hint + sync, plus an
+/// extra row when an error is pending).
 pub(super) fn meta_height(panel: &GitPanel) -> u16 {
     let base = 3; // amend + commit hint + sync button
     if panel.commit_error.is_some() {
@@ -33,22 +26,15 @@ pub(super) fn meta_height(panel: &GitPanel) -> u16 {
     }
 }
 
-/// Build a `Line` with the right-hand spans pushed to `width`
-/// (filling the gap with spaces). Mirrors the desktop's
-/// `justify-content: space-between` rows in the SCM column.
+/// `Line` with the right spans pushed to `width` — space-between
+/// layout, padded with spaces.
 pub(super) fn two_col_line(
     left: Vec<Span<'static>>,
     right: Vec<Span<'static>>,
     width: u16,
 ) -> Line<'static> {
-    let left_w: usize = left
-        .iter()
-        .map(|s| s.content.chars().count())
-        .sum();
-    let right_w: usize = right
-        .iter()
-        .map(|s| s.content.chars().count())
-        .sum();
+    let left_w: usize = left.iter().map(|s| s.content.chars().count()).sum();
+    let right_w: usize = right.iter().map(|s| s.content.chars().count()).sum();
     let total = width as usize;
     let pad = total.saturating_sub(left_w + right_w);
     let mut spans = left;
@@ -143,17 +129,16 @@ fn amend_toggle_line(amend: bool, width: u16) -> Line<'static> {
     };
     two_col_line(
         vec![Span::styled(marker.to_string(), style)],
-        vec![Span::styled("[Ctrl+A]", Style::default().fg(crate::ui::palette::MUTED))],
+        vec![Span::styled(
+            "[Ctrl+A]",
+            Style::default().fg(crate::ui::palette::MUTED),
+        )],
         width,
     )
 }
 
 fn commit_hint_line(panel: &GitPanel, width: u16) -> Line<'static> {
-    let n = panel
-        .status
-        .as_ref()
-        .map(|s| s.changed.len())
-        .unwrap_or(0);
+    let n = panel.status.as_ref().map(|s| s.changed.len()).unwrap_or(0);
     let suffix = if n == 1 { "" } else { "s" };
     two_col_line(
         vec![Span::styled(
@@ -163,7 +148,9 @@ fn commit_hint_line(panel: &GitPanel, width: u16) -> Line<'static> {
         vec![
             Span::styled(
                 "[Enter] ",
-                Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Gray)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled("commit", Style::default().fg(Color::Gray)),
         ],
@@ -172,9 +159,7 @@ fn commit_hint_line(panel: &GitPanel, width: u16) -> Line<'static> {
 }
 
 fn sync_button_line(width: u16) -> Line<'static> {
-    // Sync renders as a visual button: inverted bg + spaced label,
-    // mirroring the desktop's Sync CTA. Centered when there's room;
-    // left-aligned otherwise.
+    // Inverted-bg label so the row reads as a button.
     let label = "  ⏵ Sync  ";
     let chord = "[Ctrl+⏎]";
     let label_w = label.chars().count();
@@ -247,11 +232,7 @@ mod tests {
 
     #[test]
     fn two_col_line_fills_gap_to_width() {
-        let line = two_col_line(
-            vec![Span::raw("a")],
-            vec![Span::raw("b")],
-            6,
-        );
+        let line = two_col_line(vec![Span::raw("a")], vec![Span::raw("b")], 6);
         let raw = span_text(&line);
         // a + 4 spaces + b
         assert_eq!(raw, "a    b");
@@ -259,11 +240,7 @@ mod tests {
 
     #[test]
     fn two_col_line_no_gap_when_already_wider() {
-        let line = two_col_line(
-            vec![Span::raw("abcd")],
-            vec![Span::raw("efgh")],
-            4,
-        );
+        let line = two_col_line(vec![Span::raw("abcd")], vec![Span::raw("efgh")], 4);
         let raw = span_text(&line);
         assert_eq!(raw, "abcdefgh");
     }

@@ -1,8 +1,7 @@
-//! History section of the git panel — pinta o cabeçalho
-//! `HISTORY [Ctrl+L] view all` (space-between) e cada commit
-//! recente como `<sha> <initials>  <subject>  <Xt ago>`. Split out
-//! of `ui::git_panel` to keep that file under the size gate and to
-//! own the time-ago / author-initials formatters.
+//! History section of the git panel. Renders the `HISTORY [Ctrl+L]
+//! view all` header (space-between) and each recent commit as
+//! `<sha> <initials>  <subject>  <Xt ago>`. Owns the time-ago /
+//! author-initials formatters.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -44,14 +43,8 @@ fn history_header_line(width: u16) -> Line<'static> {
                 .add_modifier(Modifier::BOLD),
         )],
         vec![
-            Span::styled(
-                "[Ctrl+L] ",
-                Style::default().fg(crate::ui::palette::MUTED),
-            ),
-            Span::styled(
-                "view all",
-                Style::default().fg(Color::Gray),
-            ),
+            Span::styled("[Ctrl+L] ", Style::default().fg(crate::ui::palette::MUTED)),
+            Span::styled("view all", Style::default().fg(Color::Gray)),
         ],
         width,
     )
@@ -71,7 +64,10 @@ fn commit_line(c: &CommitInfo, width: u16, now: i64) -> Line<'static> {
         Span::styled(initials_col, Style::default().fg(crate::ui::palette::MUTED)),
         Span::styled(subject, Style::default().fg(crate::ui::palette::SECONDARY)),
     ];
-    let right = vec![Span::styled(ago, Style::default().fg(crate::ui::palette::MUTED))];
+    let right = vec![Span::styled(
+        ago,
+        Style::default().fg(crate::ui::palette::MUTED),
+    )];
     two_col_line(left, right, width)
 }
 
@@ -224,11 +220,7 @@ mod tests {
         let raw = span_text(&line);
         assert!(raw.ends_with("ago"), "ago is visible: {raw:?}");
         assert!(raw.contains("…"), "subject truncated: {raw:?}");
-        assert_eq!(
-            raw.chars().count(),
-            30,
-            "fits panel width exactly: {raw:?}"
-        );
+        assert_eq!(raw.chars().count(), 30, "fits panel width exactly: {raw:?}");
     }
 
     #[test]

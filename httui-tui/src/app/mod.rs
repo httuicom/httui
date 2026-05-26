@@ -153,11 +153,9 @@ pub struct App {
     /// Auto-exec queue (deepest deps first, target last). Drained by
     /// `commands::refs::on_block_complete` as each link finishes.
     pub run_chain: Vec<usize>,
-    /// User-configured commit-message template from
-    /// `~/.config/httui/user.toml [ui].git_commit_template`. Shared
-    /// with the desktop. Empty → built-in default
-    /// (`Update <stem>` / `Update N notes`). Placeholders:
-    /// `{{notes}}`, `{{count}}`, `{{date}}`.
+    /// Commit-message template from `user.toml [ui].git_commit_template`.
+    /// Empty → built-in default. Placeholders: `{{notes}}`,
+    /// `{{count}}`, `{{date}}`.
     pub git_commit_template: String,
 }
 
@@ -183,12 +181,11 @@ impl App {
             resolved.vault.clone(),
             user_config_path.clone(),
         );
-        let git_commit_template =
-            httui_core::vault_config::atomic::read_toml::<httui_core::vault_config::UserFile>(
-                &user_config_path,
-            )
-            .map(|f| f.ui.git_commit_template)
-            .unwrap_or_default();
+        let git_commit_template = httui_core::vault_config::atomic::read_toml::<
+            httui_core::vault_config::UserFile,
+        >(&user_config_path)
+        .map(|f| f.ui.git_commit_template)
+        .unwrap_or_default();
         let standard_keymap = crate::input::keymap::resolve_standard_keymap(&config.keymap);
         let mut app = Self {
             config,
@@ -227,9 +224,8 @@ impl App {
         app.load_initial_document();
         app.refresh_active_env_name();
         app.scan_pending_secrets();
-        // Prime the status-bar git chip so the user sees the branch
-        // chip before opening the panel. Non-git vaults populate
-        // `status_error` and the chip silently sits out.
+        // Prime the status-bar git chip. Non-git vaults set
+        // `status_error` and the chip hides itself.
         crate::commands::git::refresh_git_status(&mut app);
         app
     }

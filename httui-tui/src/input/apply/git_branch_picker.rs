@@ -1,7 +1,5 @@
-//! Branch-picker modal handlers, split out of `apply::git_panel` to
-//! keep that file under the size gate. The picker is opened from the
-//! git panel (`Ctrl+B`), so the public surface lives in
-//! [`super::git_panel`] — this module just owns the four helpers.
+//! Branch-picker modal handlers — opened from the git panel
+//! (`Ctrl+B`). Public surface still lives in [`super::git_panel`].
 
 use crate::app::{App, StatusKind};
 use crate::git::GitBranchPickerState;
@@ -16,11 +14,8 @@ pub(super) fn open(app: &mut App) {
             app.vim.mode = Mode::Modal;
         }
         Ok(_) => {
-            // `for-each-ref refs/heads` returns empty until the
-            // first commit creates `refs/heads/<branch>` — that's
-            // the only case `branch_list` can be empty on a real
-            // git repo. Surface the actionable hint, not the
-            // technical "no branches" line.
+            // Empty list = repo has no commits yet (no
+            // `refs/heads/<branch>` to enumerate). Surface the fix.
             app.set_status(
                 StatusKind::Info,
                 "no branches yet — make a commit first".to_string(),
@@ -53,7 +48,9 @@ pub(super) fn confirm(app: &mut App) {
         Some(Modal::GitBranchPicker(s)) => s.branches.get(s.selected).map(|b| b.name.clone()),
         _ => None,
     };
-    let Some(branch) = target else { return; };
+    let Some(branch) = target else {
+        return;
+    };
     let vault = app.vault_path.clone();
     let short = strip_remote_prefix(&branch);
     match httui_core::git::checkout::git_checkout(&vault, &short) {

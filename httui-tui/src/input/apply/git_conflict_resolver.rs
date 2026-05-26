@@ -19,10 +19,7 @@ pub(super) fn open(app: &mut App) {
         None => Vec::new(),
     };
     if files.is_empty() {
-        app.set_status(
-            StatusKind::Info,
-            "no unmerged files to resolve".to_string(),
-        );
+        app.set_status(StatusKind::Info, "no unmerged files to resolve".to_string());
         return;
     }
     app.modal = Some(Modal::GitConflictResolver(GitConflictResolverState::new(
@@ -61,8 +58,8 @@ pub(super) fn resolve(app: &mut App, version: ConflictVersion) {
         }
         return;
     }
-    // Drop the resolved file from the list; if it was the last one,
-    // close the modal and refresh status.
+    // Drop the resolved file from the list; close the modal once
+    // empty.
     let resolved_label = version_label(version);
     if let Some(Modal::GitConflictResolver(state)) = app.modal.as_mut() {
         state.files.retain(|f| f != &path);

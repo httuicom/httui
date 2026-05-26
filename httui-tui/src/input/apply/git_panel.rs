@@ -57,15 +57,13 @@ pub(crate) fn apply_git_panel(app: &mut App, action: Action) {
         Action::ScrollGitLogDiff(delta) => git_log_page::scroll_diff(app, delta),
         Action::OpenGitConflictResolver => git_conflict_resolver::open(app),
         Action::CloseGitConflictResolver => git_conflict_resolver::close(app),
-        Action::MoveGitConflictResolverFile(delta) => {
-            git_conflict_resolver::move_file(app, delta)
-        }
+        Action::MoveGitConflictResolverFile(delta) => git_conflict_resolver::move_file(app, delta),
         Action::ResolveGitConflict(version) => git_conflict_resolver::resolve(app, version),
         Action::GitPanelShare => git_share::share_https_url(app),
         Action::GitPanelToggleAmend => {
             app.git_panel.amend = !app.git_panel.amend;
         }
-        _ => unreachable!("apply_git_panel: variante fora do grupo"),
+        _ => unreachable!("apply_git_panel: variant outside this group"),
     }
 }
 
@@ -75,10 +73,8 @@ fn close_panel(app: &mut App) {
     }
 }
 
-/// Run the commit flow: empty draft → template prefill; non-empty →
-/// stage every change and run `git commit`. Success clears the
-/// draft; failure parks an error message on the panel so the
-/// renderer can surface it.
+/// Commit flow. Empty draft → template prefill. Success clears the
+/// draft; failure parks an error message on the panel.
 fn submit_commit(app: &mut App) {
     let raw = app.git_panel.commit_message.as_str().trim().to_string();
     let effective = if raw.is_empty() {
@@ -97,8 +93,7 @@ fn submit_commit(app: &mut App) {
     let amend = app.git_panel.amend;
     match crate::commands::git::commit_changes(app, &effective, amend) {
         Ok(()) => {
-            app.git_panel.commit_message =
-                crate::vim::lineedit::LineEdit::from_str(String::new());
+            app.git_panel.commit_message = crate::vim::lineedit::LineEdit::from_str(String::new());
             app.git_panel.commit_error = None;
             app.git_panel.amend = false;
             let prefix = if amend { "Amended" } else { "Committed" };
@@ -139,8 +134,7 @@ fn submit_sync(app: &mut App) {
 fn handle_sync_outcome(app: &mut App, outcome: SyncOutcome) {
     match outcome {
         SyncOutcome::Done(msg) => {
-            app.git_panel.commit_message =
-                crate::vim::lineedit::LineEdit::from_str(String::new());
+            app.git_panel.commit_message = crate::vim::lineedit::LineEdit::from_str(String::new());
             app.git_panel.commit_error = None;
             app.set_status(StatusKind::Info, format!("Sync: {msg}"));
         }
@@ -171,10 +165,7 @@ fn confirm_set_upstream(app: &mut App) {
     app.modal = None;
     app.vim.mode = Mode::Git;
     match crate::commands::git::push_with_set_upstream(app, &remote, &branch) {
-        Ok(()) => app.set_status(
-            StatusKind::Info,
-            format!("Pushed (-u {remote}/{branch})"),
-        ),
+        Ok(()) => app.set_status(StatusKind::Info, format!("Pushed (-u {remote}/{branch})")),
         Err(message) => {
             app.git_panel.commit_error =
                 Some(format!("push -u: {}", message.lines().next().unwrap_or("")));
@@ -300,7 +291,10 @@ mod tests {
             apply_git_panel(&mut app, Action::GitPanelChar(c));
         }
         apply_git_panel(&mut app, Action::GitPanelCommit);
-        assert!(app.git_panel.commit_error.is_none(), "commit should succeed");
+        assert!(
+            app.git_panel.commit_error.is_none(),
+            "commit should succeed"
+        );
         assert!(app.git_panel.commit_message.as_str().is_empty());
         // After commit, status snapshot is clean.
         let status = app.git_panel.status.as_ref().expect("status snapshot");
@@ -315,7 +309,10 @@ mod tests {
         apply_git_panel(&mut app, Action::GitPanelToggle);
         // No keys typed → commit_message empty → template "Update note".
         apply_git_panel(&mut app, Action::GitPanelCommit);
-        assert!(app.git_panel.commit_error.is_none(), "template commit should succeed");
+        assert!(
+            app.git_panel.commit_error.is_none(),
+            "template commit should succeed"
+        );
         // git log to verify subject.
         let log = std::process::Command::new("git")
             .arg("-C")
@@ -328,7 +325,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    #[should_panic(expected = "apply_git_panel: variante fora do grupo")]
+    #[should_panic(expected = "apply_git_panel: variant outside this group")]
     async fn unexpected_variant_panics() {
         let (mut app, _d, _v) = build_app().await;
         apply_git_panel(&mut app, Action::Quit);

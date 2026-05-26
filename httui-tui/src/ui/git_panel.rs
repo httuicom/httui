@@ -1,7 +1,6 @@
-//! Git side-panel renderer — bordered column to the right of the
-//! editor. Header carries branch + ahead/behind; body splits into a
-//! metrics line (+N -M), staged group, unstaged group, and (when no
-//! repo) a friendly error message.
+//! Git side-panel renderer. Header carries branch + ahead/behind;
+//! body holds metrics, staged/unstaged groups, commit form, and
+//! recent history.
 
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -23,10 +22,10 @@ pub fn width() -> u16 {
     PANEL_WIDTH
 }
 
-/// Render the panel and, when `focused`, place the terminal cursor
-/// at the commit-message caret. `commit_tpl` comes from the user's
-/// `[ui].git_commit_template` (shared with the desktop); the
-/// placeholder text under an empty draft is computed from it.
+/// Render the panel. When `focused`, returns the commit-message
+/// caret position so the caller can place the terminal cursor.
+/// `commit_tpl` is the user's `[ui].git_commit_template` (drives the
+/// empty-draft placeholder).
 pub fn render(
     frame: &mut Frame,
     area: Rect,
@@ -42,7 +41,10 @@ pub fn render(
                 .add_modifier(Modifier::BOLD),
         )
     } else {
-        (crate::ui::palette::MUTED, Style::default().fg(crate::ui::palette::SECONDARY))
+        (
+            crate::ui::palette::MUTED,
+            Style::default().fg(crate::ui::palette::SECONDARY),
+        )
     };
 
     let block = Block::default()
@@ -52,15 +54,18 @@ pub fn render(
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    // Desktop SCM order with 1-row gaps between sections:
-    // header strip → status → message box → meta → history.
+    // header → status → message → meta → history, 1-row gaps.
     let meta_height = super::git_panel_form::meta_height(panel);
     let status_rows = status_body_rows(panel);
     let history_count = panel.recent_commits.len() as u16
-        + if panel.recent_commits.is_empty() { 0 } else { 1 };
+        + if panel.recent_commits.is_empty() {
+            0
+        } else {
+            1
+        };
     let fixed = 1 + MESSAGE_BOX_HEIGHT + meta_height + 4; // header + 4 gaps
-    let status_height = (status_rows.len() as u16)
-        .min(inner.height.saturating_sub(fixed + history_count));
+    let status_height =
+        (status_rows.len() as u16).min(inner.height.saturating_sub(fixed + history_count));
     let split = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -80,11 +85,16 @@ pub fn render(
 
     render_header_strip(frame, header_area, panel);
 
-    render_row_list(frame, status_area, &status_rows, selected_row(panel, &status_rows), focused);
-
-    let cursor = super::git_panel_form::render_message_box(
-        frame, message_area, panel, focused, commit_tpl,
+    render_row_list(
+        frame,
+        status_area,
+        &status_rows,
+        selected_row(panel, &status_rows),
+        focused,
     );
+
+    let cursor =
+        super::git_panel_form::render_message_box(frame, message_area, panel, focused, commit_tpl);
 
     super::git_panel_form::render_meta(frame, meta_area, panel);
 
@@ -118,9 +128,14 @@ fn render_header_strip(frame: &mut Frame, area: Rect, panel: &GitPanel) {
     let line = super::git_panel_form::two_col_line(
         vec![Span::styled(
             left_text,
-            Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
         )],
-        vec![Span::styled(right_text, Style::default().fg(crate::ui::palette::MUTED))],
+        vec![Span::styled(
+            right_text,
+            Style::default().fg(crate::ui::palette::MUTED),
+        )],
         area.width,
     );
     frame.render_widget(ratatui::widgets::Paragraph::new(line), area);
@@ -142,19 +157,29 @@ fn render_row_list(
         state.select(Some(idx));
     }
     let highlight = if focused {
-        Style::default().bg(Color::Yellow).fg(Color::Black).add_modifier(Modifier::BOLD)
+        Style::default()
+            .bg(Color::Yellow)
+            .fg(Color::Black)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().bg(Color::DarkGray).fg(Color::White)
     };
-    frame.render_stateful_widget(List::new(items).highlight_style(highlight), area, &mut state);
+    frame.render_stateful_widget(
+        List::new(items).highlight_style(highlight),
+        area,
+        &mut state,
+    );
 }
 
-/// Logical body rows for the status section only — history lives
-/// in `git_panel_history` because it needs space-between layout.
+/// Body rows for the status section. History uses its own renderer
+/// (`git_panel_history`) because it needs space-between layout.
 #[derive(Debug, Clone)]
 pub(super) enum BodyRow {
-    /// Caps section label with a count suffix: `UNSTAGED (3)`.
-    Section { label: &'static str, count: usize },
+    /// Caps section label + count suffix, e.g. `UNSTAGED (3)`.
+    Section {
+        label: &'static str,
+        count: usize,
+    },
     File(FileChange),
     Separator,
     Clean,
@@ -170,17 +195,17 @@ pub(super) fn body_rows(panel: &GitPanel) -> Vec<BodyRow> {
 pub(super) fn status_body_rows(panel: &GitPanel) -> Vec<BodyRow> {
     match (&panel.status, &panel.status_error) {
         (Some(status), _) => status_rows(status),
-        (None, Some(err)) => vec![BodyRow::Error(
-            err.lines().next().unwrap_or("").to_string(),
-        )],
+        (None, Some(err)) => vec![BodyRow::Error(err.lines().next().unwrap_or("").to_string())],
         (None, None) => vec![BodyRow::Loading],
     }
 }
 
 fn status_rows(status: &GitStatus) -> Vec<BodyRow> {
     let mut out = Vec::new();
-    let (staged, unstaged): (Vec<_>, Vec<_>) =
-        status.changed.iter().partition(|c| c.staged && !c.untracked);
+    let (staged, unstaged): (Vec<_>, Vec<_>) = status
+        .changed
+        .iter()
+        .partition(|c| c.staged && !c.untracked);
     // Desktop ordering: UNSTAGED first, STAGED below.
     if !unstaged.is_empty() {
         out.push(BodyRow::Section {
@@ -229,7 +254,9 @@ fn row_to_item(row: &BodyRow) -> ListItem<'static> {
             ListItem::new(Line::from(vec![
                 Span::styled(
                     format!("{glyph} "),
-                    Style::default().fg(glyph_color).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(glyph_color)
+                        .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(change.path.clone()),
             ]))
@@ -502,7 +529,12 @@ mod tests {
     #[test]
     fn row_to_item_paints_two_spans_for_files() {
         let panel = GitPanel {
-            status: Some(status("main", 0, 0, vec![change("x.md", ".M", false, false)])),
+            status: Some(status(
+                "main",
+                0,
+                0,
+                vec![change("x.md", ".M", false, false)],
+            )),
             ..GitPanel::default()
         };
         let rows = body_rows(&panel);

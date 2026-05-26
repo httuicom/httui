@@ -59,39 +59,37 @@ pub enum Modal {
     /// Connections page. `y`/`Enter` runs store.delete; `n`/`Esc`
     /// reopens the page unchanged.
     ConnectionDeleteConfirm(ConnectionDeleteConfirmState),
-    /// V4 P2: Vars + Envs page (gV / Alt+V).
+    /// Vars + Envs page.
     EnvsPage(EnvsPageState),
-    /// V4 P3: create/edit env form.
+    /// Create / edit env form.
     EnvForm(EnvFormState),
-    /// V4 P3: create/edit var form.
+    /// Create / edit var form.
     VarForm(VarFormState),
-    /// V4 P4: destructive confirm pra delete env.
+    /// Destructive confirm for env delete.
     EnvDeleteConfirm(EnvDeleteConfirmState),
-    /// V4 P4: destructive confirm pra delete var.
+    /// Destructive confirm for var delete.
     VarDeleteConfirm(VarDeleteConfirmState),
-    /// V4 P5 (2026-05-23): clone env form com checkboxes por var.
-    /// Aberto por `c` na EnvsPage com focus Envs. Cria env destino +
-    /// bulk set_var apenas das vars marcadas (default: todas ON).
+    /// Clone-env form with checkboxes per var. Opened from EnvsPage
+    /// (`c`, focus = Envs); creates target env + bulk set_var of the
+    /// ticked vars only (default: all ON).
     EnvCloneForm(EnvCloneFormState),
-    /// lista os vaults registrados no SQLite app
-    /// registry. Confirm chama `App::switch_vault` (in-place swap).
-    /// Aberto por Alt+W (configurável via keymap.toml).
+    /// Lists the vaults registered in the SQLite app registry. Confirm
+    /// calls `App::switch_vault` (in-place swap). Opened by Alt+W.
     VaultPicker(VaultPickerState),
-    /// form de criação de vault. Aberto por `n` dentro
-    /// do VaultPicker. Submit faz mkdir + git init + scaffold +
-    /// switch_vault (in-place).
+    /// Vault create form. Opened by `n` inside the VaultPicker.
+    /// Submit runs mkdir + git init + scaffold + switch_vault.
     VaultCreateForm(VaultCreateFormState),
-    /// form de clone. Aberto por `c` dentro do
-    /// VaultPicker. Submit faz git clone + switch_vault.
+    /// Vault clone form. Opened by `c` inside the VaultPicker.
+    /// Submit runs git clone + switch_vault.
     VaultCloneForm(VaultCloneFormState),
-    /// navegador de diretório. Aberto por `o` dentro
-    /// do VaultPicker. Enter num dir desce; Enter num vault ativa
-    /// (switch_vault); Backspace sobe um nível; Esc fecha.
+    /// Directory browser. Opened by `o` inside the VaultPicker.
+    /// Enter on a dir descends; on a vault → switch_vault; Backspace
+    /// goes up; Esc closes.
     VaultOpenPicker(VaultOpenPickerState),
-    /// first-run secrets modal. Aberto automaticamente
-    /// após switch_vault quando scan_missing_secrets retorna refs
-    /// sem entrada no keychain local. Tab/jk navega, type edita
-    /// value, Enter salva, `s` skip, Esc fecha.
+    /// First-run secrets modal. Opens automatically after
+    /// switch_vault when `scan_missing_secrets` returns refs without
+    /// a keychain entry. Tab/jk navigates, typing edits the value,
+    /// Enter saves, `s` skips, Esc closes.
     VaultMissingSecrets(VaultMissingSecretsState),
     /// DB row-detail modal. `<CR>` on a result row opens it with a
     /// sub-`Document` carrying the row's columns + values; the modal

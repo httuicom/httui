@@ -14,9 +14,9 @@ use crate::app::{App, StatusKind};
 use crate::buffer::Cursor;
 use crate::input::action::Action;
 use crate::input::block_swap::{action_needs_block_swap, InBlockSwap};
+use crate::input::parser::git_panel::parse_git_panel;
 use crate::modal::ModalOutcome;
 use crate::vim::mode::Mode;
-use crate::input::parser::git_panel::parse_git_panel;
 use crate::vim::parser::{
     parse_cmdline, parse_content_search, parse_db_row_detail, parse_db_settings_modal,
     parse_fence_edit, parse_http_response_detail, parse_insert, parse_normal, parse_quickopen,

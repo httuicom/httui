@@ -1,7 +1,6 @@
 //! Per-key parser for [`Mode::Git`](crate::vim::mode::Mode::Git).
-//! Input flows into the commit-message [`LineEdit`]; the surrounding
-//! actions (`Esc`, `Ctrl+G`, `Enter`) close the panel or trigger the
-//! commit.
+//! Routes typing into the commit-message draft and binds the panel
+//! chords (Ctrl+G/B/L/R/Y/A, Enter, Ctrl+Enter).
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -12,37 +11,27 @@ pub fn parse_git_panel(key: KeyEvent) -> Action {
         code, modifiers, ..
     } = key;
     match (modifiers, code) {
-        // Escape / Ctrl+C close the panel.
         (_, KeyCode::Esc) => Action::GitPanelCancel,
         (KeyModifiers::CONTROL, KeyCode::Char('c')) => Action::GitPanelCancel,
-        // Ctrl+G also acts as a toggle while focused — symmetrical
-        // with the open chord.
         (KeyModifiers::CONTROL, KeyCode::Char('g')) => Action::GitPanelToggle,
-        // Ctrl+B opens the branch picker.
         (KeyModifiers::CONTROL, KeyCode::Char('b')) => Action::OpenGitBranchPicker,
-        // Ctrl+L opens the full-screen git log page.
         (KeyModifiers::CONTROL, KeyCode::Char('l')) => Action::OpenGitLogPage,
-        // Ctrl+R opens the 3-way conflict resolver.
         (KeyModifiers::CONTROL, KeyCode::Char('r')) => Action::OpenGitConflictResolver,
-        // Ctrl+Y copies the repo's HTTPS share URL.
         (KeyModifiers::CONTROL, KeyCode::Char('y')) => Action::GitPanelShare,
-        // Ctrl+A toggles the amend-last flag.
         (KeyModifiers::CONTROL, KeyCode::Char('a')) => Action::GitPanelToggleAmend,
-        // Ctrl+Enter chains commit → pull → push (the 1-click Sync).
-        // Plain Enter just commits — same as the desktop's
-        // `GitCommitForm` Submit vs `GitSyncBar` Sync split.
+        // Ctrl+Enter = 1-click Sync; plain Enter just commits.
         (mods, KeyCode::Enter) if mods.contains(KeyModifiers::CONTROL) => Action::GitPanelSync,
         (_, KeyCode::Enter) => Action::GitPanelCommit,
-        // Line editing.
         (_, KeyCode::Backspace) => Action::GitPanelBackspace,
         (_, KeyCode::Delete) => Action::GitPanelDelete,
         (_, KeyCode::Left) => Action::GitPanelCursorLeft,
         (_, KeyCode::Right) => Action::GitPanelCursorRight,
         (_, KeyCode::Home) => Action::GitPanelCursorHome,
         (_, KeyCode::End) => Action::GitPanelCursorEnd,
-        // Plain character input (no modifier other than Shift).
+        // Plain typing (Shift is OK).
         (mods, KeyCode::Char(c))
-            if !mods.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER) =>
+            if !mods
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER) =>
         {
             Action::GitPanelChar(c)
         }
@@ -102,14 +91,26 @@ mod tests {
             parse_git_panel(key(KeyCode::Backspace)),
             Action::GitPanelBackspace
         );
-        assert_eq!(parse_git_panel(key(KeyCode::Delete)), Action::GitPanelDelete);
-        assert_eq!(parse_git_panel(key(KeyCode::Left)), Action::GitPanelCursorLeft);
+        assert_eq!(
+            parse_git_panel(key(KeyCode::Delete)),
+            Action::GitPanelDelete
+        );
+        assert_eq!(
+            parse_git_panel(key(KeyCode::Left)),
+            Action::GitPanelCursorLeft
+        );
         assert_eq!(
             parse_git_panel(key(KeyCode::Right)),
             Action::GitPanelCursorRight
         );
-        assert_eq!(parse_git_panel(key(KeyCode::Home)), Action::GitPanelCursorHome);
-        assert_eq!(parse_git_panel(key(KeyCode::End)), Action::GitPanelCursorEnd);
+        assert_eq!(
+            parse_git_panel(key(KeyCode::Home)),
+            Action::GitPanelCursorHome
+        );
+        assert_eq!(
+            parse_git_panel(key(KeyCode::End)),
+            Action::GitPanelCursorEnd
+        );
     }
 
     #[test]

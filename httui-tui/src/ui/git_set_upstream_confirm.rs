@@ -1,7 +1,5 @@
 //! Centered popup asking the user to confirm `git push -u <remote>
-//! <branch>` after a regular push found no upstream. Mirrors the
-//! shape of `connection_delete_confirm`: bordered Box, two prompt
-//! lines, a hint row.
+//! <branch>` after a regular push found no upstream.
 
 use ratatui::{
     layout::Rect,
@@ -36,15 +34,15 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &GitSetUpstreamConfir
 
     let lines = vec![
         Line::from(Span::styled(
-            format!("Push branch '{}' with upstream '{}'?", state.branch, state.remote),
+            format!(
+                "Push branch '{}' with upstream '{}'?",
+                state.branch, state.remote
+            ),
             Style::default().fg(Color::White),
         )),
         Line::from(Span::raw("")),
         Line::from(vec![
-            Span::styled(
-                "git push -u ",
-                Style::default().fg(Color::DarkGray),
-            ),
+            Span::styled("git push -u ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 format!("{} {}", state.remote, state.branch),
                 Style::default().fg(Color::Cyan),

@@ -1,8 +1,6 @@
-//! Handlers for [`Modal::GitLogPage`]: open / close / cursor / diff
-//! scroll. Diff fetching is lazy — the renderer asks for the body via
-//! [`ensure_diff_loaded`] right before painting, so navigating the
-//! list doesn't fire a `git show` for every keystroke (only on the
-//! first render after the cursor moves).
+//! Handlers for [`Modal::GitLogPage`]. Diff bodies are fetched lazily
+//! by [`ensure_diff_loaded`] right before painting, so cursor moves
+//! don't fire `git show` per keystroke.
 
 use crate::app::{App, StatusKind};
 use crate::git::GitLogPageState;

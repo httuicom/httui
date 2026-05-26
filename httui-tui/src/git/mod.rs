@@ -1,10 +1,6 @@
-//! Git panel state — sidebar mounted to the right of the editor.
-//!
-//! Mirrors `GitSidePanel` from the desktop (V10.1) functionally, not
-//! visually. `httui_core::git` owns every git invocation; this module
-//! only holds the panel's UI state (visibility, status snapshot,
-//! commit-form draft, list selection) so the renderer is a pure
-//! projection.
+//! Git panel state. `httui_core::git` owns every git invocation;
+//! this module only holds the panel's UI state so the renderer is a
+//! pure projection.
 
 use httui_core::git::log::CommitInfo;
 use httui_core::git::status::{DiffMetrics, GitStatus};
@@ -13,34 +9,29 @@ use crate::vim::lineedit::LineEdit;
 
 pub mod template;
 
-/// Number of recent commits surfaced inline in the panel's HISTORY
-/// section. The desktop's `GitSidePanel` keeps this short (3-5);
-/// "View all" jumps to the full-screen log page (`Ctrl+L`).
+/// Recent commits shown inline in the HISTORY section. Full log
+/// lives behind `Ctrl+L` (`Modal::GitLogPage`).
 pub const HISTORY_PREVIEW_COUNT: usize = 3;
 
-/// State carried by the set-upstream confirm modal. The user is
-/// asked whether to push the current branch with `-u <remote>`.
+/// Set-upstream confirm modal — asks whether to push with
+/// `-u <remote>`.
 #[derive(Debug, Clone)]
 pub struct GitSetUpstreamConfirmState {
     pub remote: String,
     pub branch: String,
 }
 
-/// State of the branch picker modal (opened by `Ctrl+B` while the
-/// git panel is focused). Lists every local branch + remote-tracking
-/// branch; Enter checks out the highlighted entry.
+/// Branch picker modal state.
 #[derive(Debug, Clone)]
 pub struct GitBranchPickerState {
     pub branches: Vec<httui_core::git::status::BranchInfo>,
     pub selected: usize,
-    /// Last error from the checkout attempt, kept around so the
-    /// renderer can show it inline (the picker stays open).
+    /// Last checkout error — keeps the picker open and rendered inline.
     pub error: Option<String>,
 }
 
-/// One of the three versions a conflicted file can be resolved to.
-/// `Base` writes the merge-ancestor blob; `Ours` keeps HEAD; `Theirs`
-/// takes the incoming side.
+/// `Base` writes the merge-ancestor blob; `Ours` keeps HEAD;
+/// `Theirs` takes the incoming side.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConflictVersion {
     Base,
@@ -48,14 +39,13 @@ pub enum ConflictVersion {
     Theirs,
 }
 
-/// State of the full-screen 3-way conflict resolver. Opened from
-/// the git panel when there are unmerged files in the working tree.
+/// Full-screen 3-way conflict resolver state.
 #[derive(Debug)]
 pub struct GitConflictResolverState {
     pub files: Vec<String>,
     pub selected_file: usize,
-    /// Cached three-stage versions for `files[selected_file]`.
-    /// Refreshed when the file cursor moves.
+    /// Cached three-stage versions for the current file. Reset on
+    /// cursor move.
     pub versions: Option<httui_core::git::conflict::ConflictVersions>,
     pub error: Option<String>,
 }
@@ -86,19 +76,16 @@ impl GitConflictResolverState {
     }
 }
 
-/// State for the full-screen git log page (opened by `Ctrl+L` while
-/// the git panel is focused). Lists the last N commits on the left;
-/// the diff for the selected commit fills the right pane.
+/// Full-screen git log page state — commit list + diff for the
+/// selected commit.
 #[derive(Debug)]
 pub struct GitLogPageState {
     pub commits: Vec<httui_core::git::log::CommitInfo>,
     pub selected: usize,
-    /// Cached diff body for `commits[selected]`. Refreshed when the
-    /// cursor moves; `None` while loading.
+    /// Cached diff for the selected commit. `None` while loading.
     pub diff: Option<String>,
     pub error: Option<String>,
-    /// Vertical scroll offset into the diff. Up/Down inside the diff
-    /// pane scrolls without changing the selected commit.
+    /// Vertical scroll into the diff pane; independent of `selected`.
     pub diff_scroll: u16,
 }
 
@@ -149,45 +136,30 @@ impl GitBranchPickerState {
 
 #[derive(Debug, Default)]
 pub struct GitPanel {
-    /// `true` when the side panel is rendered next to the editor.
-    /// Toggled by `Ctrl+G` (chord shared by vim + standard profiles).
     pub visible: bool,
-    /// Last `git status` snapshot, refreshed on open and after each
-    /// commit / stage / sync. `None` until the first refresh (or when
-    /// the vault isn't a git repo — `git_status` returns `Err`).
+    /// `None` until the first refresh, or when the vault isn't a git
+    /// repo (`git_status` returns `Err`).
     pub status: Option<GitStatus>,
-    /// Diff against `HEAD` aggregated by `git diff --shortstat`.
-    /// Tracked changes only — untracked files contribute to
-    /// [`status.changed`](GitStatus::changed) but never to +/- counts
-    /// because they have no baseline.
+    /// Diff against `HEAD`. Tracked changes only — untracked files
+    /// have no baseline and never contribute to +/- counts.
     pub metrics: DiffMetrics,
-    /// Last error from `git_status`, kept around so the renderer can
-    /// surface "not a git repo" / `git` missing without panicking.
     pub status_error: Option<String>,
-    /// Index into [`GitStatus::changed`] for the file-list cursor.
-    /// Clamped after every refresh.
+    /// File-list cursor into [`GitStatus::changed`]. Clamped after
+    /// every refresh.
     pub selected: usize,
-    /// Commit-message draft. Empty buffer + submit triggers the
-    /// template prefill (see [`template::commit_template`]).
+    /// Commit draft. Empty buffer + submit triggers template prefill
+    /// (see [`template::commit_template`]).
     pub commit_message: LineEdit,
-    /// Last error from a failed commit attempt (nothing to commit,
-    /// `git commit` rejected by hook, etc.). Cleared on the next
-    /// edit keystroke so the user sees they're making progress.
+    /// Cleared on the next edit keystroke so progress is visible.
     pub commit_error: Option<String>,
-    /// Latest `HISTORY_PREVIEW_COUNT` commits, refreshed alongside
-    /// the status snapshot. Surfaced inline in the panel; the full
-    /// log lives behind `Ctrl+L` (`Modal::GitLogPage`).
     pub recent_commits: Vec<CommitInfo>,
     /// `git commit --amend` toggle. Reset to `false` after every
-    /// successful commit so the next one defaults to a normal
-    /// commit. Flipped by `Ctrl+A` while the panel is focused.
+    /// successful commit.
     pub amend: bool,
 }
 
 impl GitPanel {
-    /// Flip [`visible`](Self::visible). Returns the new state so the
-    /// caller can decide what else to do (refresh status on open,
-    /// hand focus back to the editor on close).
+    /// Returns the new visibility state.
     pub fn toggle_visible(&mut self) -> bool {
         self.visible = !self.visible;
         self.visible
@@ -196,10 +168,9 @@ impl GitPanel {
 
 #[cfg(test)]
 pub(crate) mod test_helpers {
-    //! Local mirror of `httui_core::git::test_helpers` — that module
-    //! is `pub(crate)` so it can't be reached from another crate.
-    //! Tests across `httui-tui` (panel / commands / apply) share these
-    //! helpers to keep repo-init boilerplate out of every test.
+    //! Mirror of `httui_core::git::test_helpers` (that module is
+    //! `pub(crate)` so it can't cross crates). Used by panel /
+    //! commands / apply tests to share repo-init boilerplate.
 
     use std::path::Path;
     use std::process::Command;

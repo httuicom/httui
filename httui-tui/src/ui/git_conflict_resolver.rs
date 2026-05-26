@@ -60,9 +60,9 @@ fn render_file_list(frame: &mut Frame, area: Rect, state: &GitConflictResolverSt
 }
 
 fn render_versions(frame: &mut Frame, area: Rect, state: &GitConflictResolverState) {
-    let outer_block = Block::default().borders(Borders::ALL).border_style(
-        Style::default().fg(Color::DarkGray),
-    );
+    let outer_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::DarkGray));
     let inner = outer_block.inner(area);
     frame.render_widget(outer_block, area);
 

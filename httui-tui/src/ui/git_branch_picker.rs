@@ -71,12 +71,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &GitBranchPickerState
     frame.render_stateful_widget(list, list_area, &mut list_state);
 
     if let Some(err) = state.error.as_ref() {
-        let err_area = Rect::new(
-            inner.x,
-            inner.y + list_height,
-            inner.width,
-            error_height,
-        );
+        let err_area = Rect::new(inner.x, inner.y + list_height, inner.width, error_height);
         let paragraph = Paragraph::new(Line::from(Span::styled(
             err.clone(),
             Style::default().fg(Color::Red),
@@ -142,12 +137,8 @@ mod tests {
 
     #[test]
     fn move_cursor_wraps_around() {
-        let mut s = state_with(&[
-            ("a", true, false),
-            ("b", false, false),
-            ("c", false, false),
-        ]);
-        // `new()` set selected to the current branch — index 0 here.
+        let mut s = state_with(&[("a", true, false), ("b", false, false), ("c", false, false)]);
+        // `new()` highlights the current branch.
         assert_eq!(s.selected, 0);
         s.move_cursor(-1);
         assert_eq!(s.selected, 2, "wraps backward");
@@ -157,11 +148,7 @@ mod tests {
 
     #[test]
     fn new_selects_current_branch_if_present() {
-        let s = state_with(&[
-            ("a", false, false),
-            ("b", true, false),
-            ("c", false, false),
-        ]);
+        let s = state_with(&[("a", false, false), ("b", true, false), ("c", false, false)]);
         assert_eq!(s.selected, 1);
     }
 

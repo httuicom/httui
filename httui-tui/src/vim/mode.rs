@@ -52,9 +52,8 @@ pub enum Mode {
     /// query over `httui-core::search::search_index`. Up/Down (or
     /// Ctrl-n/p) navigate; Enter opens the picked file in a new tab.
     ContentSearch,
-    /// `Ctrl+G` toggles the right-side git panel and parks focus on
-    /// the commit-message input. Esc / Ctrl+G again return focus to
-    /// the editor. Input flows into [`crate::git::GitPanel::commit_message`].
+    /// Focus parked on the git side panel (commit-message input).
+    /// Toggled by `Ctrl+G`; Esc / `Ctrl+G` return to the editor.
     Git,
     Modal,
 }

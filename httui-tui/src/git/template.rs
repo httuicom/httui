@@ -1,19 +1,25 @@
-//! Commit-message prefill. Mirrors the desktop's
-//! `lib/blocks/commit-template.ts`:
+//! Commit-message prefill.
 //!
-//! - Default (template empty): "Update <stem>" for one change,
-//!   "Update N notes" otherwise.
-//! - Configurable (`user.toml [ui].git_commit_template`): placeholders
-//!   `{{notes}}` (stems comma-joined), `{{count}}` (N), `{{date}}`
+//! - Empty template → "Update <stem>" for one change, "Update N
+//!   notes" otherwise.
+//! - Configured (`user.toml [ui].git_commit_template`) → placeholders
+//!   `{{notes}}` (stems comma-joined), `{{count}}`, `{{date}}`
 //!   (`YYYY-MM-DD`).
 
 use httui_core::git::status::GitStatus;
 
-/// Render the prefill string for `status` using the configured
-/// template. Empty `template` falls back to the built-in conditional
-/// default. Empty `status.changed` collapses to `""` regardless.
+/// Render the prefill for `status`. Empty `template` uses the
+/// built-in default; empty `status.changed` collapses to `""`.
 pub fn commit_template(status: &GitStatus, template: &str) -> String {
-    render_template(&status.changed.iter().map(|c| c.path.clone()).collect::<Vec<_>>(), template, today_iso())
+    render_template(
+        &status
+            .changed
+            .iter()
+            .map(|c| c.path.clone())
+            .collect::<Vec<_>>(),
+        template,
+        today_iso(),
+    )
 }
 
 fn render_template(paths: &[String], template: &str, today: String) -> String {
@@ -35,9 +41,8 @@ fn render_template(paths: &[String], template: &str, today: String) -> String {
     format!("Update {count} notes")
 }
 
-/// Basename without a trailing `.md` (notes are markdown). Other
-/// extensions keep their full filename so config changes still read
-/// sensibly. Mirrors desktop `noteStem`.
+/// Basename without a trailing `.md`. Other extensions keep their
+/// full filename so non-note files read sensibly.
 fn note_stem(path: &str) -> String {
     let last = path.rsplit('/').next().unwrap_or(path);
     if let Some(stripped) = last.strip_suffix(".md") {
@@ -57,17 +62,16 @@ fn today_iso() -> String {
     iso_date_from_unix(secs)
 }
 
-/// Local `YYYY-MM-DD` for a Unix timestamp. Uses the proleptic
-/// Gregorian calendar — same algorithm as `chrono` for the date
-/// portion without taking on the dep.
+/// `YYYY-MM-DD` for a Unix timestamp using the proleptic Gregorian
+/// calendar — avoids pulling in `chrono` for just this.
 fn iso_date_from_unix(secs: i64) -> String {
     let days = secs.div_euclid(86_400);
     let (y, m, d) = civil_from_days(days);
     format!("{y:04}-{m:02}-{d:02}")
 }
 
-/// Howard Hinnant's `days_from_civil` inverse — proven correct for
-/// the entire Gregorian range. Returns `(year, month_1_12, day_1_31)`.
+/// Howard Hinnant's `days_from_civil` inverse. Returns
+/// `(year, month_1_12, day_1_31)`.
 fn civil_from_days(z: i64) -> (i32, u32, u32) {
     let z = z + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 }.div_euclid(146_097);
@@ -155,10 +159,7 @@ mod tests {
     #[test]
     fn template_substitutes_notes_placeholder() {
         let s = status_with(&["a.md", "sub/b.md"]);
-        assert_eq!(
-            commit_template(&s, "wip: {{notes}}"),
-            "wip: a, b"
-        );
+        assert_eq!(commit_template(&s, "wip: {{notes}}"), "wip: a, b");
     }
 
     #[test]
@@ -181,10 +182,7 @@ mod tests {
     #[test]
     fn template_trims_whitespace_before_checking_empty() {
         // A template that's just whitespace falls back to default.
-        assert_eq!(
-            commit_template(&status_with(&["a.md"]), "   "),
-            "Update a"
-        );
+        assert_eq!(commit_template(&status_with(&["a.md"]), "   "), "Update a");
     }
 
     #[test]

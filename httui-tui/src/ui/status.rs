@@ -134,10 +134,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         ],
         None => Vec::new(),
     };
-    // Git branch chip — permanent slot when the vault is a git
-    // repo. Surfaces the current branch plus ahead/behind so the
-    // user can see divergence without opening the panel. Hidden in
-    // non-git vaults.
+    // Git branch chip — branch + ahead/behind. Hidden in non-git vaults.
     let git_chip: Vec<Span<'static>> = match git_chip_label(app) {
         Some(label) => vec![
             Span::raw(" "),
@@ -271,19 +268,15 @@ fn running_chip_label(app: &App) -> Option<String> {
     }
 }
 
-/// Format the git status chip: `"<branch>"` when in sync, `"<branch>
-/// ↑N ↓M"` when ahead/behind. `None` when the panel never refreshed
-/// or the vault isn't a git repo.
+/// Git chip label: `"<branch>"` in sync, `"<branch> ↑N ↓M"` when
+/// diverged. `None` when no snapshot yet / not a git repo.
 fn git_chip_label(app: &App) -> Option<String> {
     let status = app.git_panel.status.as_ref()?;
     let branch = status.branch.as_deref().unwrap_or("detached");
     if status.ahead == 0 && status.behind == 0 {
         Some(branch.to_string())
     } else {
-        Some(format!(
-            "{branch} ↑{} ↓{}",
-            status.ahead, status.behind
-        ))
+        Some(format!("{branch} ↑{} ↓{}", status.ahead, status.behind))
     }
 }
 
