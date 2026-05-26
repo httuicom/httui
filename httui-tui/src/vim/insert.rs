@@ -502,4 +502,210 @@ mod tests {
             panic!()
         }
     }
+
+    fn doc_with_block() -> (Document, usize) {
+        let md = "```http alias=req1\nGET /x\n{{\n```\n";
+        let d = Document::from_markdown(md).expect("parse");
+        let idx = d
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("block");
+        (d, idx)
+    }
+
+    fn body_marker_offset(d: &Document, idx: usize, needle: &str) -> usize {
+        match d.segments().get(idx) {
+            Some(Segment::Block(b)) => b.raw.to_string().find(needle).expect("needle"),
+            _ => panic!("not a block"),
+        }
+    }
+
+    #[test]
+    fn position_line_above_in_prose_inserts_blank_line() {
+        let mut d = doc("first\nsecond\n");
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 7,
+        });
+        position_for_insert(&mut d, InsertPos::LineAbove);
+        if let Cursor::InProse { offset, .. } = d.cursor() {
+            assert_eq!(offset, 6);
+        } else {
+            panic!()
+        }
+        let text = match d.segments().first() {
+            Some(Segment::Prose(r)) => r.to_string(),
+            _ => panic!(),
+        };
+        assert!(text.starts_with("first\n\nsecond"), "got {text:?}");
+    }
+
+    #[test]
+    fn position_line_above_in_block_inserts_blank_line() {
+        let (mut d, idx) = doc_with_block();
+        let body_offset = body_marker_offset(&d, idx, "{{");
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: body_offset,
+        });
+        position_for_insert(&mut d, InsertPos::LineAbove);
+        if let Cursor::InBlock { offset, .. } = d.cursor() {
+            assert_eq!(offset, body_offset);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn position_line_below_in_prose_inserts_after_eol() {
+        let mut d = doc("first\nsecond\n");
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        position_for_insert(&mut d, InsertPos::LineBelow);
+        let text = match d.segments().first() {
+            Some(Segment::Prose(r)) => r.to_string(),
+            _ => panic!(),
+        };
+        assert!(text.contains("first\n\n"), "got {text:?}");
+    }
+
+    #[test]
+    fn position_after_in_block_moves_right_inside_body() {
+        let (mut d, idx) = doc_with_block();
+        let g_offset = body_marker_offset(&d, idx, "GET");
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: g_offset,
+        });
+        position_for_insert(&mut d, InsertPos::After);
+        if let Cursor::InBlock { offset, .. } = d.cursor() {
+            assert_eq!(offset, g_offset + 1);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn position_after_in_block_at_eol_stays() {
+        let (mut d, idx) = doc_with_block();
+        // newline right after `GET /x`
+        let nl_offset = body_marker_offset(&d, idx, "GET /x\n") + "GET /x".len();
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: nl_offset,
+        });
+        position_for_insert(&mut d, InsertPos::After);
+        if let Cursor::InBlock { offset, .. } = d.cursor() {
+            assert_eq!(offset, nl_offset);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn position_line_start_in_block_skips_indent() {
+        // `GET /x` has no indent; instead use raw mutation: re-parse markdown
+        // with leading spaces in body.
+        let md = "```http alias=req1\n   GET /x\n```\n";
+        let mut d = Document::from_markdown(md).expect("parse");
+        let idx = d
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("block");
+        let space_offset = body_marker_offset(&d, idx, "   GET");
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: space_offset,
+        });
+        position_for_insert(&mut d, InsertPos::LineStart);
+        if let Cursor::InBlock { offset, .. } = d.cursor() {
+            assert_eq!(offset, space_offset + 3);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn position_line_end_in_block_lands_at_eol() {
+        let (mut d, idx) = doc_with_block();
+        let g_offset = body_marker_offset(&d, idx, "GET");
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: g_offset,
+        });
+        position_for_insert(&mut d, InsertPos::LineEnd);
+        if let Cursor::InBlock { offset, .. } = d.cursor() {
+            assert_eq!(offset, g_offset + "GET /x".len());
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn recoil_in_block_moves_back_one() {
+        let (mut d, idx) = doc_with_block();
+        let g_offset = body_marker_offset(&d, idx, "GET");
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: g_offset + 2,
+        });
+        recoil_after_exit(&mut d);
+        if let Cursor::InBlock { offset, .. } = d.cursor() {
+            assert_eq!(offset, g_offset + 1);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn recoil_at_block_line_start_stays() {
+        let (mut d, idx) = doc_with_block();
+        let g_offset = body_marker_offset(&d, idx, "GET");
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: idx,
+            offset: g_offset,
+        });
+        recoil_after_exit(&mut d);
+        if let Cursor::InBlock { offset, .. } = d.cursor() {
+            assert_eq!(offset, g_offset);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn recoil_in_block_result_is_noop() {
+        let (mut d, idx) = doc_with_block();
+        d.set_cursor(Cursor::InBlockResult {
+            segment_idx: idx,
+            row: 0,
+        });
+        let before = d.cursor();
+        recoil_after_exit(&mut d);
+        assert_eq!(d.cursor(), before);
+    }
+
+    #[test]
+    fn position_for_insert_block_result_variants_are_noop() {
+        let (mut d, idx) = doc_with_block();
+        d.set_cursor(Cursor::InBlockResult {
+            segment_idx: idx,
+            row: 0,
+        });
+        let before = d.cursor();
+        for pos in [
+            InsertPos::After,
+            InsertPos::LineStart,
+            InsertPos::LineEnd,
+            InsertPos::LineAbove,
+            InsertPos::LineBelow,
+        ] {
+            position_for_insert(&mut d, pos);
+            assert_eq!(d.cursor(), before);
+        }
+    }
 }
