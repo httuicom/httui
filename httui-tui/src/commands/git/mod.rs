@@ -4,11 +4,15 @@
 //! eventually status-bar refresh cadence).
 
 use crate::app::App;
+use httui_core::git::status::DiffMetrics;
 
-/// Refresh the panel's `git status` snapshot. Errors (not a git repo,
-/// `git` missing) are surfaced through `status_error` so the renderer
-/// can show a friendly message; `status` is reset to `None` in that
-/// case so stale data never bleeds across vaults.
+/// Refresh the panel's `git status` snapshot plus diff metrics.
+/// Errors (not a git repo, `git` missing) are surfaced through
+/// `status_error` so the renderer can show a friendly message; both
+/// `status` and `metrics` are reset in that case so stale data never
+/// bleeds across vaults. Shortstat is best-effort: a failure there is
+/// silently downgraded to zero counts (the status snapshot is the
+/// load-bearing piece — UI never gates on metrics).
 pub fn refresh_git_status(app: &mut App) {
     let vault = app.vault_path.clone();
     match httui_core::git::git_status(&vault) {
@@ -19,10 +23,13 @@ pub fn refresh_git_status(app: &mut App) {
             }
             app.git_panel.status = Some(status);
             app.git_panel.status_error = None;
+            app.git_panel.metrics =
+                httui_core::git::git_diff_shortstat(&vault).unwrap_or_default();
         }
         Err(msg) => {
             app.git_panel.status = None;
             app.git_panel.status_error = Some(msg);
+            app.git_panel.metrics = DiffMetrics::default();
         }
     }
 }

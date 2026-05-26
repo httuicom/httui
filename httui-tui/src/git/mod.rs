@@ -6,7 +6,7 @@
 //! commit-form draft, list selection) so the renderer is a pure
 //! projection.
 
-use httui_core::git::status::GitStatus;
+use httui_core::git::status::{DiffMetrics, GitStatus};
 
 #[derive(Debug, Default)]
 pub struct GitPanel {
@@ -17,6 +17,11 @@ pub struct GitPanel {
     /// commit / stage / sync. `None` until the first refresh (or when
     /// the vault isn't a git repo — `git_status` returns `Err`).
     pub status: Option<GitStatus>,
+    /// Diff against `HEAD` aggregated by `git diff --shortstat`.
+    /// Tracked changes only — untracked files contribute to
+    /// [`status.changed`](GitStatus::changed) but never to +/- counts
+    /// because they have no baseline.
+    pub metrics: DiffMetrics,
     /// Last error from `git_status`, kept around so the renderer can
     /// surface "not a git repo" / `git` missing without panicking.
     pub status_error: Option<String>,
