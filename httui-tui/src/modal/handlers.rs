@@ -324,7 +324,7 @@ pub(super) fn db_export_picker_handle_key(key: KeyEvent) -> ModalOutcome {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum ListPickerKey {
+pub(super) enum ListPickerKey {
     Up,
     Down,
     Confirm,

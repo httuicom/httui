@@ -416,14 +416,14 @@ pub fn render_var_form(frame: &mut Frame, editor_area: Rect, state: &VarFormStat
 }
 
 pub fn render_env_delete_confirm(frame: &mut Frame, area: Rect, state: &EnvDeleteConfirmState) {
-    confirm_popup(frame, area, &format!(" Delete env "), &format!("Delete env \"{}\"?", state.name));
+    confirm_popup(frame, area, " Delete env ", &format!("Delete env \"{}\"?", state.name));
 }
 
 pub fn render_var_delete_confirm(frame: &mut Frame, area: Rect, state: &VarDeleteConfirmState) {
     confirm_popup(
         frame,
         area,
-        &format!(" Delete var "),
+        " Delete var ",
         &format!("Delete \"{}\" from {}?", state.key, state.env_name),
     );
 }

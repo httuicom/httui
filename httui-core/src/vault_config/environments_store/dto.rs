@@ -73,14 +73,16 @@ mod tests {
 
     #[test]
     fn env_to_public_propagates_meta_and_counts() {
-        let mut file = EnvFile::default();
-        file.meta = EnvMeta {
-            description: Some("d".into()),
-            read_only: true,
-            require_confirm: true,
-            color: Some("red".into()),
-            temporary: true,
-            connections_used: vec!["c1".into()],
+        let mut file = EnvFile {
+            meta: EnvMeta {
+                description: Some("d".into()),
+                read_only: true,
+                require_confirm: true,
+                color: Some("red".into()),
+                temporary: true,
+                connections_used: vec!["c1".into()],
+            },
+            ..EnvFile::default()
         };
         file.vars.insert("a".into(), "1".into());
         file.vars.insert("b".into(), "2".into());

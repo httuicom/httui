@@ -11,7 +11,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use serde::Serialize;
 use tokio::sync::RwLock;
 
 use crate::db::keychain::{delete_secret, env_var_key, get_secret, store_secret};
