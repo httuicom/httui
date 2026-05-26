@@ -13,6 +13,7 @@ pub mod connection_picker;
 pub mod env_activate;
 /// V10 (tui-V10): environment picker handlers, split out of `pickers.rs`.
 pub mod env_picker;
+pub mod git_panel;
 /// V4 P5 (2026-05-23): handlers do clone-env form. Extraído de
 /// `envs_page` pra respeitar size limit do DoD.
 pub mod envs_clone;

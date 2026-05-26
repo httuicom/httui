@@ -444,6 +444,9 @@ pub fn parse_normal(state: &mut VimState, key: KeyEvent) -> Action {
     if kb::matches_tree_toggle(&key) {
         return Action::TreeToggle;
     }
+    if kb::matches_git_panel_toggle(&key) {
+        return Action::GitPanelToggle;
+    }
     if kb::matches_focus_swap(&key) {
         return Action::FocusSwap;
     }

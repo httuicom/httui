@@ -16,8 +16,8 @@ use super::{
     anchor, block_history, block_template_picker, completion_popup, connection_delete_confirm,
     connection_form, connection_picker, connections_page, content_search, db_confirm_run,
     db_export_picker, db_row_detail, db_settings_modal, environment_picker, envs_page, fence_edit,
-    help, http_response_detail, quickopen, render_empty_state_inline, render_pane_tree, status,
-    tab_picker, tabs, tree, vault_clone_form, vault_create_form, vault_missing_secrets,
+    git_panel, help, http_response_detail, quickopen, render_empty_state_inline, render_pane_tree,
+    status, tab_picker, tabs, tree, vault_clone_form, vault_create_form, vault_missing_secrets,
     vault_open_picker, vault_picker, VisualOverlay,
 };
 
@@ -56,16 +56,47 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         tabs::render(frame, ta, &app.tabs);
     }
 
-    // Split the body horizontally when the tree is visible.
-    let (sidebar_area, editor_area) = if app.tree.visible {
-        let sidebar_w = tree::width().min(body_area.width.saturating_sub(20));
-        let split = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Length(sidebar_w), Constraint::Min(1)])
-            .split(body_area);
-        (Some(split[0]), split[1])
+    // Split the body horizontally when the tree or git panel is
+    // visible: `[tree? | editor | git_panel?]`. Editor keeps the
+    // center slot; each sidebar collapses out when hidden so the
+    // editor reclaims its width.
+    let tree_w = if app.tree.visible {
+        Some(tree::width().min(body_area.width.saturating_sub(20)))
     } else {
-        (None, body_area)
+        None
+    };
+    let git_w = if app.git_panel.visible {
+        let budget = body_area.width.saturating_sub(20 + tree_w.unwrap_or(0));
+        Some(git_panel::width().min(budget))
+    } else {
+        None
+    };
+    let mut constraints: Vec<Constraint> = Vec::new();
+    if let Some(w) = tree_w {
+        constraints.push(Constraint::Length(w));
+    }
+    constraints.push(Constraint::Min(1));
+    if let Some(w) = git_w {
+        constraints.push(Constraint::Length(w));
+    }
+    let slots = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(constraints)
+        .split(body_area);
+    let mut idx = 0;
+    let sidebar_area = if tree_w.is_some() {
+        let r = slots[idx];
+        idx += 1;
+        Some(r)
+    } else {
+        None
+    };
+    let editor_area = slots[idx];
+    idx += 1;
+    let git_area = if git_w.is_some() {
+        Some(slots[idx])
+    } else {
+        None
     };
 
     // Highlight matches of the last executed search across visible prose.
@@ -188,6 +219,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let tree_focused = matches!(app.vim.mode, Mode::Tree | Mode::TreePrompt);
     if let Some(sa) = sidebar_area {
         tree::render(frame, sa, &app.tree, tree_focused);
+    }
+    if let Some(ga) = git_area {
+        git_panel::render(frame, ga, &app.git_panel, false);
     }
     status::render_status_bar(frame, status_area, app);
 

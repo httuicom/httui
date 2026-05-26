@@ -130,6 +130,45 @@ async fn tree_hidden_uses_full_width_editor() {
     assert!(text.contains("wide editor"), "got: {text:?}");
 }
 
+// ---- git side panel --------------------------------------------
+
+#[tokio::test(flavor = "multi_thread")]
+async fn git_panel_visible_paints_right_column() {
+    // Vault isn't a git repo here; the renderer surfaces the
+    // "no repo" / fatal message instead of crashing, which is the
+    // header contract.
+    let (mut app, _d, _v) = app_with_files(&[("a.md", "doc body\n")]).await;
+    open_doc(&mut app, "doc body\n");
+    app.git_panel.visible = true;
+    app.git_panel.status_error = Some("fatal: not a git repository".to_string());
+    let (text, _c) = render(&mut app, 100, 18);
+    assert!(text.contains("doc body"), "editor preserved: {text:?}");
+    assert!(text.contains("Git"), "panel title painted: {text:?}");
+    assert!(text.contains("no repo"), "header label painted: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn git_panel_hidden_does_not_paint_column() {
+    let (mut app, _d, _v) = app_with_files(&[("a.md", "doc body\n")]).await;
+    open_doc(&mut app, "doc body\n");
+    app.git_panel.visible = false;
+    let (text, _c) = render(&mut app, 100, 14);
+    assert!(!text.contains("Git —"), "no panel title when hidden: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn git_panel_and_tree_share_body_with_editor_in_middle() {
+    let (mut app, _d, _v) = app_with_files(&[("a.md", "middle slot\n")]).await;
+    open_doc(&mut app, "middle slot\n");
+    app.tree.visible = true;
+    app.git_panel.visible = true;
+    let (text, _c) = render(&mut app, 110, 16);
+    // All three columns coexist: tree title, editor content, panel title.
+    assert!(text.contains("Files"), "tree painted: {text:?}");
+    assert!(text.contains("middle slot"), "editor painted: {text:?}");
+    assert!(text.contains("Git"), "git panel painted: {text:?}");
+}
+
 // ---- mode-specific cursor placement ----------------------------
 
 #[tokio::test(flavor = "multi_thread")]

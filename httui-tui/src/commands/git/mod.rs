@@ -1,0 +1,87 @@
+//! Git operations consumed by the side panel and the status bar.
+//! Every git invocation lives in `httui_core::git`; this module owns
+//! the wiring (sync calls, error propagation onto the panel state, /
+//! eventually status-bar refresh cadence).
+
+use crate::app::App;
+
+/// Refresh the panel's `git status` snapshot. Errors (not a git repo,
+/// `git` missing) are surfaced through `status_error` so the renderer
+/// can show a friendly message; `status` is reset to `None` in that
+/// case so stale data never bleeds across vaults.
+pub fn refresh_git_status(app: &mut App) {
+    let vault = app.vault_path.clone();
+    match httui_core::git::git_status(&vault) {
+        Ok(status) => {
+            let max = status.changed.len().saturating_sub(1);
+            if app.git_panel.selected > max {
+                app.git_panel.selected = max;
+            }
+            app.git_panel.status = Some(status);
+            app.git_panel.status_error = None;
+        }
+        Err(msg) => {
+            app.git_panel.status = None;
+            app.git_panel.status_error = Some(msg);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use tempfile::TempDir;
+
+    async fn build_app() -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool);
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn non_git_vault_sets_status_error() {
+        let (mut app, _d, _v) = build_app().await;
+        refresh_git_status(&mut app);
+        assert!(app.git_panel.status.is_none());
+        let err = app
+            .git_panel
+            .status_error
+            .as_ref()
+            .expect("error populated for non-git vault");
+        assert!(err.contains("not a git repository") || err.contains("fatal"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn git_repo_clears_previous_error() {
+        let (mut app, _d, vault) = build_app().await;
+        // Prime with a stale error.
+        app.git_panel.status_error = Some("stale".to_string());
+        crate::git::test_helpers::init_repo(vault.path());
+
+        refresh_git_status(&mut app);
+        assert!(app.git_panel.status_error.is_none());
+        assert!(app.git_panel.status.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn refresh_clamps_selection_when_list_shrinks() {
+        let (mut app, _d, vault) = build_app().await;
+        crate::git::test_helpers::init_repo(vault.path());
+        std::fs::write(vault.path().join("a.md"), "x\n").unwrap();
+        refresh_git_status(&mut app);
+        // 1 untracked file → selected may be 0; force it past the end
+        // and ensure refresh clamps.
+        app.git_panel.selected = 9;
+        refresh_git_status(&mut app);
+        let len = app.git_panel.status.as_ref().unwrap().changed.len();
+        assert!(app.git_panel.selected <= len.saturating_sub(1));
+    }
+}

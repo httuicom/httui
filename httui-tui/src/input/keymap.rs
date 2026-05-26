@@ -160,6 +160,7 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         spec("content_search", "ctrl+f", Action::OpenContentSearch),
         // Workspace.
         spec("tree_toggle", "ctrl+b", Action::TreeToggle),
+        spec("git_panel_toggle", "ctrl+g", Action::GitPanelToggle),
         spec("tab_next", "ctrl+pagedown", Action::TabNext),
         spec("tab_prev", "ctrl+pageup", Action::TabPrev),
         // `Tab` / `Shift+Tab` reuse the same `TabNext`/`TabPrev`
@@ -276,6 +277,7 @@ pub fn is_editor_global_shortcut(action: Action) -> bool {
             | Action::EnterQuickOpen
             | Action::OpenContentSearch
             | Action::TreeToggle
+            | Action::GitPanelToggle
             | Action::TabNext
             | Action::TabPrev
             | Action::WriteAll

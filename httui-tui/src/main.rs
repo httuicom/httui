@@ -16,6 +16,7 @@ mod empty_state;
 mod error;
 mod event;
 mod fs_watch;
+mod git;
 mod input;
 mod modal;
 mod pane;

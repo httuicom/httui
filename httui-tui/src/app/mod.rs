@@ -11,6 +11,7 @@ use sqlx::SqlitePool;
 use crate::config::Config;
 use crate::document_loader;
 use crate::event::AppEvent;
+use crate::git::GitPanel;
 use crate::pane::{Pane, TabState};
 use crate::tree::FileTree;
 use crate::vault::ResolvedVault;
@@ -53,6 +54,7 @@ pub struct App {
     pub vault_path: PathBuf,
     pub vim: VimState,
     pub tree: FileTree,
+    pub git_panel: GitPanel,
     pub tabs: TabBar,
     pub status_message: Option<StatusMessage>,
     pub should_quit: bool,
@@ -181,6 +183,7 @@ impl App {
             vault_path: resolved.vault,
             vim: VimState::new(),
             tree: FileTree::default(),
+            git_panel: GitPanel::default(),
             tabs: TabBar::default(),
             status_message: None,
             should_quit: false,

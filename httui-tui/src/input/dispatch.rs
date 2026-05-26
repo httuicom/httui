@@ -373,6 +373,9 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::TreeToggle => {
             crate::input::apply::tree_nav::apply_tree_nav(app, action, recording)
         }
+        Action::GitPanelToggle => {
+            crate::input::apply::git_panel::apply_git_panel(app, action)
+        }
         Action::CloseBlockHistory
         | Action::CloseContentSearch
         | Action::CloseDbExportPicker

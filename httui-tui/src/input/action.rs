@@ -70,6 +70,11 @@ pub enum Action {
     /// `Ctrl+E` — toggle the file-tree sidebar (and shift focus to it
     /// when opening). Issued from any non-modal mode.
     TreeToggle,
+    /// `Ctrl+G` — toggle the git side panel (right of editor). Open
+    /// → refresh `git status`; close → hand focus back to the editor.
+    /// Issued from any non-modal mode; shared default for vim and
+    /// standard profiles.
+    GitPanelToggle,
     /// `Tab` — when the tree is visible, swap focus between sidebar
     /// and editor without changing visibility.
     FocusSwap,
