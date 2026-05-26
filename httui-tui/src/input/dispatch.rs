@@ -387,7 +387,11 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::GitPanelCancel
         | Action::GitPanelSync
         | Action::GitConfirmSetUpstream
-        | Action::GitCancelSetUpstream => {
+        | Action::GitCancelSetUpstream
+        | Action::OpenGitBranchPicker
+        | Action::CloseGitBranchPicker
+        | Action::MoveGitBranchPickerCursor(..)
+        | Action::ConfirmGitBranchPicker => {
             crate::input::apply::git_panel::apply_git_panel(app, action)
         }
         Action::CloseBlockHistory

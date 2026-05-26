@@ -10,6 +10,8 @@ use crate::input::action::Action;
 use crate::modal::Modal;
 use crate::vim::mode::Mode;
 
+use super::git_branch_picker;
+
 pub(crate) fn apply_git_panel(app: &mut App, action: Action) {
     match action {
         Action::GitPanelToggle => {
@@ -45,6 +47,10 @@ pub(crate) fn apply_git_panel(app: &mut App, action: Action) {
         Action::GitPanelSync => submit_sync(app),
         Action::GitConfirmSetUpstream => confirm_set_upstream(app),
         Action::GitCancelSetUpstream => cancel_set_upstream(app),
+        Action::OpenGitBranchPicker => git_branch_picker::open(app),
+        Action::CloseGitBranchPicker => git_branch_picker::close(app),
+        Action::MoveGitBranchPickerCursor(delta) => git_branch_picker::move_cursor(app, delta),
+        Action::ConfirmGitBranchPicker => git_branch_picker::confirm(app),
         _ => unreachable!("apply_git_panel: variante fora do grupo"),
     }
 }
@@ -445,6 +451,111 @@ mod tests {
             .as_ref()
             .expect("push fails — no remote");
         assert!(err.starts_with("push:"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_branch_picker_with_real_repo_seeds_state() {
+        let (mut app, _d, vault) = build_app().await;
+        crate::git::test_helpers::init_repo(vault.path());
+        std::fs::write(vault.path().join("a.md"), "x\n").unwrap();
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(vault.path())
+            .args(["add", "."])
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(vault.path())
+            .args(["commit", "-m", "seed"])
+            .output()
+            .unwrap();
+        apply_git_panel(&mut app, Action::GitPanelToggle);
+        apply_git_panel(&mut app, Action::OpenGitBranchPicker);
+        match app.modal.as_ref() {
+            Some(Modal::GitBranchPicker(s)) => {
+                assert!(s.branches.iter().any(|b| b.name == "main"));
+            }
+            other => panic!("expected branch picker, got {other:?}"),
+        }
+        assert_eq!(app.vim.mode, Mode::Modal);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn move_and_close_branch_picker() {
+        let (mut app, _d, vault) = build_app().await;
+        crate::git::test_helpers::init_repo(vault.path());
+        std::fs::write(vault.path().join("a.md"), "x\n").unwrap();
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(vault.path())
+            .args(["add", "."])
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(vault.path())
+            .args(["commit", "-m", "seed"])
+            .output()
+            .unwrap();
+        apply_git_panel(&mut app, Action::GitPanelToggle);
+        apply_git_panel(&mut app, Action::OpenGitBranchPicker);
+        // Single branch — move wraps back to 0.
+        apply_git_panel(&mut app, Action::MoveGitBranchPickerCursor(1));
+        match app.modal.as_ref() {
+            Some(Modal::GitBranchPicker(s)) => assert_eq!(s.selected, 0),
+            _ => panic!("expected branch picker"),
+        }
+        apply_git_panel(&mut app, Action::CloseGitBranchPicker);
+        assert!(app.modal.is_none());
+        assert_eq!(app.vim.mode, Mode::Git);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn confirm_branch_picker_switches_branch() {
+        let (mut app, _d, vault) = build_app().await;
+        crate::git::test_helpers::init_repo(vault.path());
+        std::fs::write(vault.path().join("a.md"), "x\n").unwrap();
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(vault.path())
+            .args(["add", "."])
+            .output()
+            .unwrap();
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(vault.path())
+            .args(["commit", "-m", "seed"])
+            .output()
+            .unwrap();
+        // Create a second branch so the picker has something to switch to.
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(vault.path())
+            .args(["branch", "feature"])
+            .output()
+            .unwrap();
+        apply_git_panel(&mut app, Action::GitPanelToggle);
+        apply_git_panel(&mut app, Action::OpenGitBranchPicker);
+        // Select `feature` (whichever index it's at).
+        if let Some(Modal::GitBranchPicker(s)) = app.modal.as_mut() {
+            s.selected = s
+                .branches
+                .iter()
+                .position(|b| b.name == "feature")
+                .expect("feature branch in list");
+        }
+        apply_git_panel(&mut app, Action::ConfirmGitBranchPicker);
+        assert!(app.modal.is_none(), "modal closes on success");
+        assert_eq!(app.vim.mode, Mode::Git);
+        // Status refreshed → branch chip is `feature`.
+        assert_eq!(
+            app.git_panel
+                .status
+                .as_ref()
+                .and_then(|s| s.branch.as_deref()),
+            Some("feature"),
+        );
     }
 
     #[test]

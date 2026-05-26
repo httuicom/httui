@@ -538,6 +538,17 @@ pub(super) fn db_confirm_run_handle_key(key: KeyEvent) -> ModalOutcome {
     }
 }
 
+/// j/k/arrows navigate; Enter checks out; Esc closes.
+pub(super) fn git_branch_picker_handle_key(key: KeyEvent) -> ModalOutcome {
+    match list_picker_key(key) {
+        ListPickerKey::Up => ModalOutcome::Emit(Action::MoveGitBranchPickerCursor(-1)),
+        ListPickerKey::Down => ModalOutcome::Emit(Action::MoveGitBranchPickerCursor(1)),
+        ListPickerKey::Cancel => ModalOutcome::Emit(Action::CloseGitBranchPicker),
+        ListPickerKey::Confirm => ModalOutcome::Emit(Action::ConfirmGitBranchPicker),
+        ListPickerKey::Other => ModalOutcome::Continue,
+    }
+}
+
 /// `y` / `Enter` → confirm push -u; `n` / `Esc` / `Ctrl-C` → cancel.
 pub(super) fn git_set_upstream_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
     let KeyEvent {

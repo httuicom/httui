@@ -22,6 +22,7 @@ mod environment_picker;
 mod envs_clone;
 mod envs_page;
 mod fence_edit;
+mod git_branch_picker;
 mod git_panel;
 mod git_set_upstream_confirm;
 mod help;

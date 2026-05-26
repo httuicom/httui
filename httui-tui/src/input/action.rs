@@ -99,6 +99,14 @@ pub enum Action {
     /// `n` / `Esc` in the set-upstream confirm modal — close it
     /// without pushing.
     GitCancelSetUpstream,
+    /// `Ctrl+B` inside the panel — open the branch picker modal
+    /// (`Modal::GitBranchPicker`).
+    OpenGitBranchPicker,
+    CloseGitBranchPicker,
+    MoveGitBranchPickerCursor(i32),
+    /// `Enter` in the branch picker — `git checkout <branch>` and
+    /// refresh the panel.
+    ConfirmGitBranchPicker,
     /// `Tab` — when the tree is visible, swap focus between sidebar
     /// and editor without changing visibility.
     FocusSwap,

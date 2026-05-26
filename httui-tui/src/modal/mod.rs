@@ -128,6 +128,10 @@ pub enum Modal {
     /// the git panel hits a branch with no upstream. `y` / `Enter`
     /// runs `git push -u <remote> <branch>`; `n` / `Esc` cancels.
     GitSetUpstreamConfirm(crate::git::GitSetUpstreamConfirmState),
+    /// Branch picker — opens with `Ctrl+B` while the git panel is
+    /// focused. `j`/`k`/Up/Down navigate; Enter checks out the
+    /// highlighted branch; Esc closes.
+    GitBranchPicker(crate::git::GitBranchPickerState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -209,6 +213,7 @@ impl Modal {
                 ModalOutcome::Emit(crate::input::parser::modals::parse_db_settings_modal(key))
             }
             Modal::GitSetUpstreamConfirm(_) => git_set_upstream_confirm_handle_key(key),
+            Modal::GitBranchPicker(_) => git_branch_picker_handle_key(key),
         }
     }
 

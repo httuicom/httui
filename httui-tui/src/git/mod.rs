@@ -20,6 +20,39 @@ pub struct GitSetUpstreamConfirmState {
     pub branch: String,
 }
 
+/// State of the branch picker modal (opened by `Ctrl+B` while the
+/// git panel is focused). Lists every local branch + remote-tracking
+/// branch; Enter checks out the highlighted entry.
+#[derive(Debug, Clone)]
+pub struct GitBranchPickerState {
+    pub branches: Vec<httui_core::git::status::BranchInfo>,
+    pub selected: usize,
+    /// Last error from the checkout attempt, kept around so the
+    /// renderer can show it inline (the picker stays open).
+    pub error: Option<String>,
+}
+
+impl GitBranchPickerState {
+    pub fn new(branches: Vec<httui_core::git::status::BranchInfo>) -> Self {
+        let selected = branches.iter().position(|b| b.current).unwrap_or(0);
+        Self {
+            branches,
+            selected,
+            error: None,
+        }
+    }
+
+    pub fn move_cursor(&mut self, delta: i32) {
+        if self.branches.is_empty() {
+            self.selected = 0;
+            return;
+        }
+        let len = self.branches.len() as i32;
+        let next = (self.selected as i32 + delta).rem_euclid(len);
+        self.selected = next as usize;
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct GitPanel {
     /// `true` when the side panel is rendered next to the editor.

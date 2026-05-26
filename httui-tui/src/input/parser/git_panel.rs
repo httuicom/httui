@@ -18,6 +18,8 @@ pub fn parse_git_panel(key: KeyEvent) -> Action {
         // Ctrl+G also acts as a toggle while focused — symmetrical
         // with the open chord.
         (KeyModifiers::CONTROL, KeyCode::Char('g')) => Action::GitPanelToggle,
+        // Ctrl+B opens the branch picker.
+        (KeyModifiers::CONTROL, KeyCode::Char('b')) => Action::OpenGitBranchPicker,
         // Ctrl+Enter chains commit → pull → push (the 1-click Sync).
         // Plain Enter just commits — same as the desktop's
         // `GitCommitForm` Submit vs `GitSyncBar` Sync split.
