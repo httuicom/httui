@@ -391,7 +391,11 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::OpenGitBranchPicker
         | Action::CloseGitBranchPicker
         | Action::MoveGitBranchPickerCursor(..)
-        | Action::ConfirmGitBranchPicker => {
+        | Action::ConfirmGitBranchPicker
+        | Action::OpenGitLogPage
+        | Action::CloseGitLogPage
+        | Action::MoveGitLogPageCursor(..)
+        | Action::ScrollGitLogDiff(..) => {
             crate::input::apply::git_panel::apply_git_panel(app, action)
         }
         Action::CloseBlockHistory

@@ -15,6 +15,9 @@ mod clone_form;
 /// route keys through the vim engine over a read-only sub-`Document`,
 /// so they live apart from the simple per-variant dispatch table.
 mod detail;
+/// Git-specific modal handlers — split out of `handlers.rs` to keep
+/// that file under the size gate.
+mod git;
 mod handlers;
 mod util;
 
@@ -132,6 +135,10 @@ pub enum Modal {
     /// focused. `j`/`k`/Up/Down navigate; Enter checks out the
     /// highlighted branch; Esc closes.
     GitBranchPicker(crate::git::GitBranchPickerState),
+    /// Full-screen git log page — list of commits on the left, diff
+    /// for the selected one on the right. Opened by `Ctrl+L` from
+    /// inside the git panel.
+    GitLogPage(crate::git::GitLogPageState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -212,8 +219,9 @@ impl Modal {
             Modal::DbSettings(_) => {
                 ModalOutcome::Emit(crate::input::parser::modals::parse_db_settings_modal(key))
             }
-            Modal::GitSetUpstreamConfirm(_) => git_set_upstream_confirm_handle_key(key),
-            Modal::GitBranchPicker(_) => git_branch_picker_handle_key(key),
+            Modal::GitSetUpstreamConfirm(_) => git::set_upstream_confirm_handle_key(key),
+            Modal::GitBranchPicker(_) => git::branch_picker_handle_key(key),
+            Modal::GitLogPage(_) => git::log_page_handle_key(key),
         }
     }
 

@@ -107,6 +107,15 @@ pub enum Action {
     /// `Enter` in the branch picker — `git checkout <branch>` and
     /// refresh the panel.
     ConfirmGitBranchPicker,
+    /// `Ctrl+L` inside the panel — open the full-screen git log page.
+    OpenGitLogPage,
+    CloseGitLogPage,
+    /// j/k/arrows in the log page — change selected commit, refresh
+    /// the diff pane.
+    MoveGitLogPageCursor(i32),
+    /// PageUp/PageDown / Ctrl+U/D in the log page — scroll the diff
+    /// pane by `<delta>` rows without changing the selected commit.
+    ScrollGitLogDiff(i32),
     /// `Tab` — when the tree is visible, swap focus between sidebar
     /// and editor without changing visibility.
     FocusSwap,

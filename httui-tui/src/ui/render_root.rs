@@ -16,10 +16,10 @@ use super::{
     anchor, block_history, block_template_picker, completion_popup, connection_delete_confirm,
     connection_form, connection_picker, connections_page, content_search, db_confirm_run,
     db_export_picker, db_row_detail, db_settings_modal, environment_picker, envs_page, fence_edit,
-    git_branch_picker, git_panel, git_set_upstream_confirm, help, http_response_detail,
-    quickopen, render_empty_state_inline, render_pane_tree, status, tab_picker, tabs, tree,
-    vault_clone_form, vault_create_form, vault_missing_secrets, vault_open_picker, vault_picker,
-    VisualOverlay,
+    git_branch_picker, git_log_page, git_panel, git_set_upstream_confirm, help,
+    http_response_detail, quickopen, render_empty_state_inline, render_pane_tree, status,
+    tab_picker, tabs, tree, vault_clone_form, vault_create_form, vault_missing_secrets,
+    vault_open_picker, vault_picker, VisualOverlay,
 };
 
 pub fn render(frame: &mut Frame, app: &mut App) {
@@ -483,6 +483,13 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     if let Some(crate::modal::Modal::GitBranchPicker(state)) = app.modal.as_ref() {
         git_branch_picker::render(frame, editor_area, state);
+    }
+
+    if matches!(app.modal, Some(crate::modal::Modal::GitLogPage(_))) {
+        crate::input::apply::git_log_page::ensure_diff_loaded(app);
+        if let Some(crate::modal::Modal::GitLogPage(state)) = app.modal.as_ref() {
+            git_log_page::render(frame, editor_area, state);
+        }
     }
 
     // V4 P2-P4: envs/vars surfaces.

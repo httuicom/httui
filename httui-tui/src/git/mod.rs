@@ -32,6 +32,46 @@ pub struct GitBranchPickerState {
     pub error: Option<String>,
 }
 
+/// State for the full-screen git log page (opened by `Ctrl+L` while
+/// the git panel is focused). Lists the last N commits on the left;
+/// the diff for the selected commit fills the right pane.
+#[derive(Debug)]
+pub struct GitLogPageState {
+    pub commits: Vec<httui_core::git::log::CommitInfo>,
+    pub selected: usize,
+    /// Cached diff body for `commits[selected]`. Refreshed when the
+    /// cursor moves; `None` while loading.
+    pub diff: Option<String>,
+    pub error: Option<String>,
+    /// Vertical scroll offset into the diff. Up/Down inside the diff
+    /// pane scrolls without changing the selected commit.
+    pub diff_scroll: u16,
+}
+
+impl GitLogPageState {
+    pub fn new(commits: Vec<httui_core::git::log::CommitInfo>) -> Self {
+        Self {
+            commits,
+            selected: 0,
+            diff: None,
+            error: None,
+            diff_scroll: 0,
+        }
+    }
+
+    pub fn move_cursor(&mut self, delta: i32) {
+        if self.commits.is_empty() {
+            self.selected = 0;
+            return;
+        }
+        let len = self.commits.len() as i32;
+        let next = (self.selected as i32 + delta).rem_euclid(len);
+        self.selected = next as usize;
+        self.diff = None;
+        self.diff_scroll = 0;
+    }
+}
+
 impl GitBranchPickerState {
     pub fn new(branches: Vec<httui_core::git::status::BranchInfo>) -> Self {
         let selected = branches.iter().position(|b| b.current).unwrap_or(0);
