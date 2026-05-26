@@ -11,7 +11,6 @@ use ratatui::{
     Frame,
 };
 
-use httui_core::git::log::CommitInfo;
 use httui_core::git::status::{FileChange, GitStatus};
 
 use crate::git::GitPanel;
@@ -46,25 +45,27 @@ pub fn render(
         (Color::DarkGray, Style::default().fg(Color::Gray))
     };
 
-    let title = format!(" Git — {} ", header_label(panel));
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
-        .title(Span::styled(title, title_style));
+        .title(Span::styled(" Git ", title_style));
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    // Desktop SCM order with 1-row gaps between the four sections:
-    // status → message box → meta (amend / hints) → history.
+    // Desktop SCM order with 1-row gaps between sections:
+    // header strip → status → message box → meta → history.
     let meta_height = super::git_panel_form::meta_height(panel);
     let status_rows = status_body_rows(panel);
-    let history_rows = history_body_rows(panel);
-    let fixed = MESSAGE_BOX_HEIGHT + meta_height + 3; // 3 gaps
+    let history_count = panel.recent_commits.len() as u16
+        + if panel.recent_commits.is_empty() { 0 } else { 1 };
+    let fixed = 1 + MESSAGE_BOX_HEIGHT + meta_height + 4; // header + 4 gaps
     let status_height = (status_rows.len() as u16)
-        .min(inner.height.saturating_sub(fixed + history_rows.len() as u16));
+        .min(inner.height.saturating_sub(fixed + history_count));
     let split = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(1), // header strip
+            Constraint::Length(1),
             Constraint::Length(status_height),
             Constraint::Length(1),
             Constraint::Length(MESSAGE_BOX_HEIGHT),
@@ -74,8 +75,10 @@ pub fn render(
             Constraint::Min(0),
         ])
         .split(inner);
-    let (status_area, message_area, meta_area, history_area) =
-        (split[0], split[2], split[4], split[6]);
+    let (header_area, status_area, message_area, meta_area, history_area) =
+        (split[0], split[2], split[4], split[6], split[8]);
+
+    render_header_strip(frame, header_area, panel);
 
     render_row_list(frame, status_area, &status_rows, selected_row(panel, &status_rows), focused);
 
@@ -85,9 +88,42 @@ pub fn render(
 
     super::git_panel_form::render_meta(frame, meta_area, panel);
 
-    render_row_list(frame, history_area, &history_rows, None, false);
+    super::git_panel_history::render_history(frame, history_area, panel);
 
     cursor
+}
+
+fn render_header_strip(frame: &mut Frame, area: Rect, panel: &GitPanel) {
+    if area.height == 0 {
+        return;
+    }
+    let (left_text, right_text) = match (&panel.status, &panel.status_error) {
+        (Some(s), _) => {
+            let mut left = s.branch.as_deref().unwrap_or("detached").to_string();
+            if s.ahead != 0 || s.behind != 0 {
+                left.push_str(&format!(" ↑{} ↓{}", s.ahead, s.behind));
+            }
+            let right = if s.changed.is_empty() {
+                "clean".to_string()
+            } else {
+                let n = s.changed.len();
+                let suffix = if n == 1 { "" } else { "s" };
+                format!("{n} change{suffix}")
+            };
+            (left, right)
+        }
+        (None, Some(_)) => ("no repo".to_string(), String::new()),
+        (None, None) => ("loading…".to_string(), String::new()),
+    };
+    let line = super::git_panel_form::two_col_line(
+        vec![Span::styled(
+            left_text,
+            Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+        )],
+        vec![Span::styled(right_text, Style::default().fg(Color::DarkGray))],
+        area.width,
+    );
+    frame.render_widget(ratatui::widgets::Paragraph::new(line), area);
 }
 
 fn render_row_list(
@@ -113,55 +149,22 @@ fn render_row_list(
     frame.render_stateful_widget(List::new(items).highlight_style(highlight), area, &mut state);
 }
 
-fn header_label(panel: &GitPanel) -> String {
-    match (&panel.status, &panel.status_error) {
-        (Some(status), _) => {
-            let mut s = status.branch.as_deref().unwrap_or("detached").to_string();
-            if status.ahead != 0 || status.behind != 0 {
-                s.push_str(&format!(" ↑{} ↓{}", status.ahead, status.behind));
-            }
-            let n = status.changed.len();
-            if n > 0 {
-                s.push_str(&format!(" · {n} change{}", if n == 1 { "" } else { "s" }));
-            }
-            s
-        }
-        (None, Some(_)) => "no repo".to_string(),
-        (None, None) => "loading…".to_string(),
-    }
-}
-
-/// Logical body rows. Decoupled from `ListItem` so [`selected_row`]
-/// can walk the structure without re-parsing rendered text.
+/// Logical body rows for the status section only — history lives
+/// in `git_panel_history` because it needs space-between layout.
 #[derive(Debug, Clone)]
 pub(super) enum BodyRow {
     /// Caps section label with a count suffix: `UNSTAGED (3)`.
     Section { label: &'static str, count: usize },
     File(FileChange),
     Separator,
-    /// `HISTORY` section header with the `View all` affordance on
-    /// the right (the chord to open it is `Ctrl+L`).
-    HistoryHeader,
-    /// One row from `recent_commits` — `<short_sha> <subject>`.
-    Commit(CommitInfo),
     Clean,
     Loading,
     Error(String),
 }
 
-/// Combined rows — kept for the existing test surface. The
-/// production renderer uses [`status_body_rows`] and
-/// [`history_body_rows`] separately so the commit form can sit
-/// between them (desktop SCM ordering).
 #[cfg(test)]
 pub(super) fn body_rows(panel: &GitPanel) -> Vec<BodyRow> {
-    let mut out = status_body_rows(panel);
-    let history = history_body_rows(panel);
-    if !out.is_empty() && !history.is_empty() {
-        out.push(BodyRow::Separator);
-    }
-    out.extend(history);
-    out
+    status_body_rows(panel)
 }
 
 pub(super) fn status_body_rows(panel: &GitPanel) -> Vec<BodyRow> {
@@ -172,18 +175,6 @@ pub(super) fn status_body_rows(panel: &GitPanel) -> Vec<BodyRow> {
         )],
         (None, None) => vec![BodyRow::Loading],
     }
-}
-
-pub(super) fn history_body_rows(panel: &GitPanel) -> Vec<BodyRow> {
-    if panel.recent_commits.is_empty() {
-        return Vec::new();
-    }
-    let mut out = Vec::with_capacity(panel.recent_commits.len() + 1);
-    out.push(BodyRow::HistoryHeader);
-    for c in &panel.recent_commits {
-        out.push(BodyRow::Commit(c.clone()));
-    }
-    out
 }
 
 fn status_rows(status: &GitStatus) -> Vec<BodyRow> {
@@ -244,28 +235,9 @@ fn row_to_item(row: &BodyRow) -> ListItem<'static> {
             ]))
         }
         BodyRow::Separator => ListItem::new(Line::from(Span::raw(""))),
-        BodyRow::HistoryHeader => ListItem::new(Line::from(vec![
-            Span::styled(
-                "HISTORY",
-                Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(
-                "  [Ctrl+L] view all",
-                Style::default().fg(Color::DarkGray),
-            ),
-        ])),
-        BodyRow::Commit(c) => ListItem::new(Line::from(vec![
-            Span::styled(
-                format!("{} ", c.short_sha),
-                Style::default().fg(Color::DarkGray),
-            ),
-            Span::raw(c.subject.clone()),
-        ])),
         BodyRow::Clean => ListItem::new(Line::from(Span::styled(
             "Working tree clean.",
-            Style::default().fg(Color::Green),
+            Style::default().fg(Color::DarkGray),
         ))),
         BodyRow::Loading => ListItem::new(Line::from(Span::styled(
             "Loading git status…",
@@ -378,8 +350,6 @@ mod tests {
             BodyRow::Section { label, count } => format!("{label} ({count})"),
             BodyRow::File(c) => format!("{} {}", status_glyph(c), c.path),
             BodyRow::Separator => String::new(),
-            BodyRow::HistoryHeader => "HISTORY".into(),
-            BodyRow::Commit(c) => format!("{} {}", c.short_sha, c.subject),
             BodyRow::Clean => "Working tree clean.".into(),
             BodyRow::Loading => "Loading git status…".into(),
             BodyRow::Error(msg) => msg.clone(),
@@ -388,32 +358,6 @@ mod tests {
 
     fn labels(rows: &[BodyRow]) -> Vec<String> {
         rows.iter().map(row_label).collect()
-    }
-
-    #[test]
-    fn header_uses_branch_when_synced() {
-        let panel = panel_with_status(status("main", 0, 0, vec![]));
-        assert_eq!(header_label(&panel), "main");
-    }
-
-    #[test]
-    fn header_includes_ahead_behind_arrows_when_diverged() {
-        let panel = panel_with_status(status("feature", 2, 1, vec![]));
-        assert_eq!(header_label(&panel), "feature ↑2 ↓1");
-    }
-
-    #[test]
-    fn header_falls_back_to_detached_for_no_branch() {
-        let mut s = status("ignored", 0, 0, vec![]);
-        s.branch = None;
-        let panel = panel_with_status(s);
-        assert_eq!(header_label(&panel), "detached");
-    }
-
-    #[test]
-    fn header_says_no_repo_on_status_error() {
-        let panel = panel_with_error("fatal: not a git repository");
-        assert_eq!(header_label(&panel), "no repo");
     }
 
     #[test]
@@ -451,26 +395,6 @@ mod tests {
         assert!(raw.iter().any(|s| s.contains("notes/a.md")));
         assert!(raw.iter().any(|s| s.contains("notes/b.md")));
         assert!(raw.iter().any(|s| s.contains("new.md")));
-    }
-
-    #[test]
-    fn body_includes_history_section_after_changes() {
-        let panel = GitPanel {
-            status: Some(status("main", 0, 0, vec![])),
-            recent_commits: vec![CommitInfo {
-                sha: "abc".into(),
-                short_sha: "abc1234".into(),
-                author_name: "A".into(),
-                author_email: "a@b".into(),
-                timestamp: 0,
-                subject: "seed".into(),
-            }],
-            ..GitPanel::default()
-        };
-        let rows = body_rows(&panel);
-        let raw = labels(&rows);
-        assert!(raw.iter().any(|s| s == "HISTORY"));
-        assert!(raw.iter().any(|s| s == "abc1234 seed"));
     }
 
     #[test]
