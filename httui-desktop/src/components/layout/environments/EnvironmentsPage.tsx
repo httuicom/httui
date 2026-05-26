@@ -1,3 +1,4 @@
+
 import { Box, Flex, Grid, Popover, Portal, Text } from "@chakra-ui/react";
 import { useCallback, type ReactNode } from "react";
 
@@ -77,7 +78,8 @@ export function EnvironmentsPage({
         </Box>
         <Popover.Root
           open={!!inlineFormSlot}
-          onOpenChange={() => {}}
+          onOpenChange={() => {
+          }}
           positioning={{ placement: "bottom-end", gutter: 8 }}
         >
           <Popover.Trigger asChild>

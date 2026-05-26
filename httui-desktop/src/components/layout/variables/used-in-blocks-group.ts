@@ -1,3 +1,4 @@
+
 import type { VarUseEntry } from "@/lib/tauri/var-uses";
 
 export interface UsedInBlocksHit {

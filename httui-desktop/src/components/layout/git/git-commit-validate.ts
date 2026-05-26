@@ -1,3 +1,4 @@
+
 export interface CommitValidation {
   valid: boolean;
   errors: ReadonlyArray<string>;

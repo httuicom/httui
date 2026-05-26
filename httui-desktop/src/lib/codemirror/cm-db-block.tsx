@@ -572,6 +572,7 @@ function buildDbDecorations(
         });
       }
     }
+
   }
 }
 

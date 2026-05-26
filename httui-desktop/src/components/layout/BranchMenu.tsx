@@ -24,7 +24,7 @@ export interface BranchMenuProps {
    * absent the menu falls back to the read-only placeholder. */
   branches?: ReadonlyArray<BranchInfo>;
   branchesBusy?: boolean;
-  /** Called when the menu opens — consumer lazy-loads branches. */
+    /** Called when the menu opens — consumer lazy-loads branches. */
   onMenuOpen?: () => void;
   onSelectBranch?: (branch: BranchInfo) => void;
   onCreateBranch?: (name: string) => void;

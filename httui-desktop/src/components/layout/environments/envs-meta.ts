@@ -1,3 +1,4 @@
+
 const LOCAL_SUFFIX = ".local.toml";
 const TOML_SUFFIX = ".toml";
 

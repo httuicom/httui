@@ -1,3 +1,4 @@
+
 import type { VariableScope } from "./variable-scopes";
 
 /** Discriminator for a variable's home; "secret" lives separately as
