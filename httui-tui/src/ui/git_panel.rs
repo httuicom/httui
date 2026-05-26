@@ -54,30 +54,28 @@ pub fn render(
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    // Desktop SCM order: status → message box → meta (amend / hints)
-    // → history. The bordered "message" box wraps the draft line
-    // only; amend + key hints sit on the panel below as separate
-    // affordances.
+    // Desktop SCM order with 1-row gaps between the four sections:
+    // status → message box → meta (amend / hints) → history.
     let meta_height = super::git_panel_form::meta_height(panel);
     let status_rows = status_body_rows(panel);
     let history_rows = history_body_rows(panel);
-    let fixed = MESSAGE_BOX_HEIGHT + meta_height;
-    let status_height = (status_rows.len() as u16).min(
-        inner.height.saturating_sub(fixed + history_rows.len() as u16),
-    );
+    let fixed = MESSAGE_BOX_HEIGHT + meta_height + 3; // 3 gaps
+    let status_height = (status_rows.len() as u16)
+        .min(inner.height.saturating_sub(fixed + history_rows.len() as u16));
     let split = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(status_height),
+            Constraint::Length(1),
             Constraint::Length(MESSAGE_BOX_HEIGHT),
+            Constraint::Length(1),
             Constraint::Length(meta_height),
+            Constraint::Length(1),
             Constraint::Min(0),
         ])
         .split(inner);
-    let status_area = split[0];
-    let message_area = split[1];
-    let meta_area = split[2];
-    let history_area = split[3];
+    let (status_area, message_area, meta_area, history_area) =
+        (split[0], split[2], split[4], split[6]);
 
     render_row_list(frame, status_area, &status_rows, selected_row(panel, &status_rows), focused);
 
