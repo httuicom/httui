@@ -4,24 +4,34 @@
 //! repo) a friendly error message.
 
 use ratatui::{
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
 
 use httui_core::git::status::{DiffMetrics, FileChange, GitStatus};
 
-use crate::git::GitPanel;
+use crate::git::{template::commit_template, GitPanel};
 
 const PANEL_WIDTH: u16 = 36;
+const COMMIT_FORM_HEIGHT: u16 = 5;
 
 pub fn width() -> u16 {
     PANEL_WIDTH
 }
 
-pub fn render(frame: &mut Frame, area: Rect, panel: &GitPanel, focused: bool) {
+/// Render the panel and, when `focused`, place the terminal cursor
+/// at the commit-message caret. Returns the absolute cursor cell
+/// when set, so callers can avoid duplicate `set_cursor_position`
+/// calls if they manage cursor themselves.
+pub fn render(
+    frame: &mut Frame,
+    area: Rect,
+    panel: &GitPanel,
+    focused: bool,
+) -> Option<(u16, u16)> {
     let (border_color, title_style) = if focused {
         (
             Color::LightYellow,
@@ -41,6 +51,17 @@ pub fn render(frame: &mut Frame, area: Rect, panel: &GitPanel, focused: bool) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
+    // Reserve space for the commit form at the bottom when there's
+    // room; tiny panels collapse the form away so the list stays
+    // legible.
+    let form_height = COMMIT_FORM_HEIGHT.min(inner.height.saturating_sub(2));
+    let split = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1), Constraint::Length(form_height)])
+        .split(inner);
+    let list_area = split[0];
+    let form_area = split[1];
+
     let rows = body_rows(panel);
     let items: Vec<ListItem<'static>> = rows.iter().map(row_to_item).collect();
     let mut state = ListState::default();
@@ -55,7 +76,74 @@ pub fn render(frame: &mut Frame, area: Rect, panel: &GitPanel, focused: bool) {
     } else {
         Style::default().bg(Color::DarkGray).fg(Color::White)
     });
-    frame.render_stateful_widget(list, inner, &mut state);
+    frame.render_stateful_widget(list, list_area, &mut state);
+
+    render_commit_form(frame, form_area, panel, focused)
+}
+
+fn render_commit_form(
+    frame: &mut Frame,
+    area: Rect,
+    panel: &GitPanel,
+    focused: bool,
+) -> Option<(u16, u16)> {
+    if area.height < 2 {
+        return None;
+    }
+    let border_color = if focused {
+        Color::LightYellow
+    } else {
+        Color::DarkGray
+    };
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(border_color))
+        .title(Span::styled(
+            " message ",
+            Style::default().fg(Color::Gray),
+        ));
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    let draft = panel.commit_message.as_str();
+    let placeholder = panel
+        .status
+        .as_ref()
+        .map(commit_template)
+        .unwrap_or_default();
+    let (text, style) = if draft.is_empty() {
+        if placeholder.is_empty() {
+            (
+                "type a commit message…".to_string(),
+                Style::default().fg(Color::DarkGray),
+            )
+        } else {
+            (placeholder, Style::default().fg(Color::DarkGray))
+        }
+    } else {
+        (draft.to_string(), Style::default().fg(Color::White))
+    };
+    let lines: Vec<Line<'static>> = if let Some(err) = panel.commit_error.as_ref() {
+        vec![
+            Line::from(Span::styled(text, style)),
+            Line::from(Span::styled(
+                err.lines().next().unwrap_or("").to_string(),
+                Style::default().fg(Color::Red),
+            )),
+        ]
+    } else {
+        vec![Line::from(Span::styled(text, style))]
+    };
+    let paragraph = Paragraph::new(lines);
+    frame.render_widget(paragraph, inner);
+
+    if focused && inner.width > 0 && inner.height > 0 {
+        let cursor_col = panel.commit_message.cursor_col() as u16;
+        let x = inner.x + cursor_col.min(inner.width.saturating_sub(1));
+        Some((x, inner.y))
+    } else {
+        None
+    }
 }
 
 fn header_label(panel: &GitPanel) -> String {

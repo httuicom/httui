@@ -75,6 +75,20 @@ pub enum Action {
     /// Issued from any non-modal mode; shared default for vim and
     /// standard profiles.
     GitPanelToggle,
+    /// Commit-message input inside the git panel.
+    GitPanelChar(char),
+    GitPanelBackspace,
+    GitPanelDelete,
+    GitPanelCursorLeft,
+    GitPanelCursorRight,
+    GitPanelCursorHome,
+    GitPanelCursorEnd,
+    /// `Enter` inside the panel — stage every change and commit the
+    /// draft. Empty draft → prefill via [`crate::git::template::commit_template`].
+    GitPanelCommit,
+    /// `Esc` inside the panel — close it (mode → Normal) without
+    /// committing.
+    GitPanelCancel,
     /// `Tab` — when the tree is visible, swap focus between sidebar
     /// and editor without changing visibility.
     FocusSwap,

@@ -8,6 +8,10 @@
 
 use httui_core::git::status::{DiffMetrics, GitStatus};
 
+use crate::vim::lineedit::LineEdit;
+
+pub mod template;
+
 #[derive(Debug, Default)]
 pub struct GitPanel {
     /// `true` when the side panel is rendered next to the editor.
@@ -28,6 +32,13 @@ pub struct GitPanel {
     /// Index into [`GitStatus::changed`] for the file-list cursor.
     /// Clamped after every refresh.
     pub selected: usize,
+    /// Commit-message draft. Empty buffer + submit triggers the
+    /// template prefill (see [`template::commit_template`]).
+    pub commit_message: LineEdit,
+    /// Last error from a failed commit attempt (nothing to commit,
+    /// `git commit` rejected by hook, etc.). Cleared on the next
+    /// edit keystroke so the user sees they're making progress.
+    pub commit_error: Option<String>,
 }
 
 impl GitPanel {

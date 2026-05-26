@@ -138,6 +138,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             | Mode::DbRowDetail
             | Mode::HttpResponseDetail
             | Mode::ContentSearch
+            | Mode::Git
             | Mode::Modal
     ) || modal_owns_input;
 
@@ -220,9 +221,12 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     if let Some(sa) = sidebar_area {
         tree::render(frame, sa, &app.tree, tree_focused);
     }
-    if let Some(ga) = git_area {
-        git_panel::render(frame, ga, &app.git_panel, false);
-    }
+    let git_cursor = if let Some(ga) = git_area {
+        let focused = app.vim.mode == Mode::Git;
+        git_panel::render(frame, ga, &app.git_panel, focused)
+    } else {
+        None
+    };
     status::render_status_bar(frame, status_area, app);
 
     // Mode-specific terminal-cursor placement (the editor cursor was
@@ -248,6 +252,11 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         Mode::ContentSearch => {
             if let Some(state) = app.content_search() {
                 let (cx, cy) = content_search::render(frame, editor_area, state);
+                frame.set_cursor_position((cx, cy));
+            }
+        }
+        Mode::Git => {
+            if let Some((cx, cy)) = git_cursor {
                 frame.set_cursor_position((cx, cy));
             }
         }

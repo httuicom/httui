@@ -4,6 +4,7 @@
 //! eventually status-bar refresh cadence).
 
 use crate::app::App;
+use httui_core::git::staging::{git_commit, stage_path};
 use httui_core::git::status::DiffMetrics;
 
 /// Refresh the panel's `git status` snapshot plus diff metrics.
@@ -32,6 +33,29 @@ pub fn refresh_git_status(app: &mut App) {
             app.git_panel.metrics = DiffMetrics::default();
         }
     }
+}
+
+/// Stage every changed file from the panel's last snapshot and run
+/// `git commit -m <message>`. Returns `Ok(())` on success, `Err(msg)`
+/// when there's nothing to commit, no fresh status snapshot, or git
+/// rejects the commit (hook failure, identity unset, etc.). Refreshes
+/// the panel's status snapshot regardless of outcome so the user
+/// sees the new state.
+pub fn commit_changes(app: &mut App, message: &str) -> Result<(), String> {
+    let vault = app.vault_path.clone();
+    let Some(status) = app.git_panel.status.as_ref() else {
+        return Err("no git status snapshot — refresh first".to_string());
+    };
+    if status.changed.is_empty() {
+        return Err("nothing to commit".to_string());
+    }
+    let paths: Vec<String> = status.changed.iter().map(|c| c.path.clone()).collect();
+    for path in &paths {
+        stage_path(&vault, path)?;
+    }
+    let result = git_commit(&vault, message, false);
+    refresh_git_status(app);
+    result
 }
 
 #[cfg(test)]
