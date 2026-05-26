@@ -665,24 +665,20 @@ async fn render_paints_env_var_delete_confirm_modals() {
 async fn render_paints_env_form_and_var_form() {
     let (mut app, _d, _v) = app_with_files(&[]).await;
     open_doc(&mut app, "x\n");
-    app.modal = Some(crate::modal::Modal::EnvForm(
-        crate::app::EnvFormState {
-            name: crate::vim::lineedit::LineEdit::from_str("dev"),
-            editing: None,
-            error: None,
-        },
-    ));
+    app.modal = Some(crate::modal::Modal::EnvForm(crate::app::EnvFormState {
+        name: crate::vim::lineedit::LineEdit::from_str("dev"),
+        editing: None,
+        error: None,
+    }));
     let _ = render(&mut app, 80, 20);
-    app.modal = Some(crate::modal::Modal::VarForm(
-        crate::app::VarFormState {
-            env_name: "dev".into(),
-            key: crate::vim::lineedit::LineEdit::from_str("K"),
-            value: crate::vim::lineedit::LineEdit::from_str("V"),
-            is_secret: false,
-            focus: crate::app::VarFormFocus::Key,
-            editing: None,
-            error: None,
-        },
-    ));
+    app.modal = Some(crate::modal::Modal::VarForm(crate::app::VarFormState {
+        env_name: "dev".into(),
+        key: crate::vim::lineedit::LineEdit::from_str("K"),
+        value: crate::vim::lineedit::LineEdit::from_str("V"),
+        is_secret: false,
+        focus: crate::app::VarFormFocus::Key,
+        editing: None,
+        error: None,
+    }));
     let _ = render(&mut app, 80, 20);
 }
