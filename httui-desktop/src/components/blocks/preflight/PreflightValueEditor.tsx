@@ -1,7 +1,23 @@
 // coverage:exclude file
-// Single-line CM6 editor for the pre-flight check popover value input.
-// A transactionFilter strips \n/\r to enforce single-line; Enter commits.
-// Coverage excluded: CM6 contenteditable needs a real DOM (browser tests cover it).
+// polish — single-line CodeMirror editor used as the value input
+// inside the pre-flight check popover. Mirrors the inline
+// forms in HTTP/DB blocks: the user gets the same autocomplete UX
+// they're used to (CM6 native dropdown + Tab/Enter accept) instead of
+// a custom <Input + suggestions list>.
+//
+// Per kind, the completion source pulls from a different data source:
+//   - connection → vault connection names (listConnections Tauri)
+//   - env_var    → active environment's variable keys (store)
+//   - branch / file_exists / command → no completion
+//
+// Single-line guard: a transactionFilter strips any \n / \r so the
+// editor stays at 1 visual line; Enter is repurposed as commit.
+//
+// Coverage exclude: CM6 contenteditable behavior (popup positioning,
+// selection state, keymap precedence) needs a real DOM. Mirrors the
+// MarkdownEditor.tsx pattern — the shell is tested via browser tests
+// (Playwright) while the pure deps (suggestion provider) have unit
+// coverage in `preflight-suggestions.test.ts`.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box } from "@chakra-ui/react";
@@ -83,12 +99,17 @@ export function PreflightValueEditor({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const cmRef = useRef<ReactCodeMirrorRef>(null);
 
-  // Focus via ref rather than `autoFocus` — the autoFocus prop swallowed
-  // @uiw/react-codemirror's onChange listener in testing.
+  // Focus on mount — applied via cmRef inside an effect instead of the
+  // `autoFocus` prop. The earlier seed-on-mount + autoFocus combo
+  // somehow swallowed @uiw/react-codemirror's onChange listener (typing
+  // worked visually but the parent never received updates). Mirroring
+  // the HttpInlineCM pattern (controlled-direct value, focus via ref)
+  // restored the chain.
   useEffect(() => {
     cmRef.current?.view?.focus();
   }, []);
 
+  // Fetch suggestions on kind change.
   useEffect(() => {
     if (!getSuggestions) {
       setSuggestions([]);
@@ -107,8 +128,10 @@ export function PreflightValueEditor({
     };
   }, [kind, getSuggestions]);
 
-  // Build extensions once; read suggestions + callbacks from refs so
-  // closures stay fresh without re-mounting the editor on each render.
+  // Build extensions once. Suggestions + callbacks are read fresh from
+  // refs so closures inside the keymap never go stale across renders
+  // (re-creating the extensions array would re-mount the editor and
+  // reset the cursor).
   const suggestionsRef = useRef<string[]>([]);
   suggestionsRef.current = suggestions;
   const onCommitRef = useRef(onCommit);
@@ -124,7 +147,9 @@ export function PreflightValueEditor({
       if (list.length === 0) return null;
       const word = ctx.matchBefore(/[\w./-]*/);
       const from = word ? word.from : ctx.pos;
-      // Don't open on every cursor move — only on explicit Ctrl-Space or typed input.
+      // Open the dropdown even on empty input (explicit Ctrl-Space) but
+      // not on every cursor move when there's nothing to match — `null`
+      // returns let CM6 close the menu.
       if (!word && !ctx.explicit) return null;
       const options: Completion[] = list.map((label) => ({
         label,
@@ -135,6 +160,7 @@ export function PreflightValueEditor({
 
     return [
       EditorView.lineWrapping,
+      // Single-line: discard any transaction that introduces a newline.
       EditorState.transactionFilter.of((tr) => {
         if (!tr.docChanged) return tr;
         const next = tr.newDoc.toString();

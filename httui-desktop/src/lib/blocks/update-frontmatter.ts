@@ -1,8 +1,15 @@
-// Pure mutators that rewrite YAML frontmatter inside a markdown document.
-// Each function takes the full document content and the new field value and
-// returns the modified document. Mirrors the Rust slice-1 schema.
-// Deliberately conservative: only the minimum slice is modified; body,
-// whitespace, other frontmatter keys, and line-ending style are preserved.
+// mutators that rewrite YAML frontmatter inside a markdown document.
+// Pure string-in / string-out: each function takes
+// the full document content and the new field value, and returns the
+// modified document. Mirrors the Rust slice-1 schema (single-line scalar
+// `title:` / `abstract:`, flow-style `tags: [a, b]`,
+// `tasks: ["[ ] foo", "[x] bar"]`).
+//
+// These helpers are deliberately conservative — they only modify the
+// minimum slice of the document needed and preserve everything else
+// (body, leading whitespace, other frontmatter keys, line-ending
+// style). The DocHeader's editable fields call into these on commit so
+// the source of truth stays the `.md` file, not React state.
 
 import { stringifyTaskItem, type TaskItem } from "./task-item";
 
@@ -50,6 +57,7 @@ function splitDoc(content: string): SplitDoc | null {
     buf.push(line);
     rest = rest.slice(lineEnd);
   }
+  // Hit EOF without seeing the closing fence — treat as no frontmatter.
   return null;
 }
 
@@ -67,6 +75,7 @@ function findFieldLineRange(
   for (const line of lines) {
     const lineLen = line.length;
     const lineEndCursor = cursor + lineLen;
+    // skip leading whitespace check — only top-level keys count.
     if (line.length > 0 && (line[0] === " " || line[0] === "\t")) {
       cursor = lineEndCursor + 1;
       continue;
@@ -141,6 +150,9 @@ function updateFrontmatterScalar(
     return split.before + next + split.after;
   }
 
+  // Field is missing — insert at the requested side. `fmBody` always
+  // ends in `\n` when non-empty (each YAML line carries its own
+  // terminator), so concatenation produces well-formed output.
   let nextBody: string;
   if (split.fmBody.length === 0) {
     nextBody = `${newLine}\n`;
@@ -276,9 +288,14 @@ export function updateFrontmatterTags(
 }
 
 /**
- * Replace, insert, or remove the `tasks:` field. Same empty-list semantics
- * as `updateFrontmatterTags`. Items serialised via `stringifyTaskItem` and
- * wrapped in a flow-list, within the slice-1 schema.
+ * Replace, insert, or remove the `tasks:` field. Uses the same
+ * empty-list semantics as `updateFrontmatterTags`: empty input drops
+ * the line when present, no-ops when absent. Items are serialised via
+ * `stringifyTaskItem` (`[ ] foo` / `[x] bar`) and wrapped in a
+ * flow-list — staying within the slice-1 schema. The legacy
+ * `preflight:` flow-list (M6) was renamed to `tasks:`
+ * 9 so the V6 typed pre-flight checks (block-list of kinds) own the
+ * `preflight:` key without colliding.
  */
 export function updateFrontmatterTasks(
   content: string,

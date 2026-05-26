@@ -1,3 +1,10 @@
+// Keyboard pill atom (design canvas §0).
+//
+// 18×18 min, mono 10px weight 500, `--bg-2` bg, 1px line border with
+// raised 2px bottom border, 4px radius. Sized for inline use next to
+// labels and inside `<Tooltip>`s. Examples: `<Kbd>⌘K</Kbd>`,
+// `<Kbd>⌘P</Kbd>`.
+
 import { Box, type BoxProps } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 

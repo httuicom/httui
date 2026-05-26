@@ -1,3 +1,11 @@
+// Status-bar branch picker — replaces the standalone branch button
+// in the TopBar. Trigger reads as a status-bar cell (branch label +
+// optional `↑a ↓b +n ~m -d` counts); clicking opens a placeholder
+// dropdown until V10 wires the real branch switcher.
+//
+// Pure presentational over `useGitStatus`: the parent passes the
+// label and parsed counts in.
+
 import { Box, HStack, Menu, Portal, chakra } from "@chakra-ui/react";
 import { LuGitBranch } from "react-icons/lu";
 
@@ -20,11 +28,12 @@ export interface BranchMenuProps {
   modified?: number;
   /** Deleted files in the worktree (`-D`). */
   deleted?: number;
+  // --- Branch switcher -------------------
   /** Branch list for the dropdown picker. When `onSelectBranch` is
    * absent the menu falls back to the read-only placeholder. */
   branches?: ReadonlyArray<BranchInfo>;
   branchesBusy?: boolean;
-    /** Called when the menu opens — consumer lazy-loads branches. */
+  /** Called when the menu opens — consumer lazy-loads branches. */
   onMenuOpen?: () => void;
   onSelectBranch?: (branch: BranchInfo) => void;
   onCreateBranch?: (name: string) => void;

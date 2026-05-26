@@ -7,9 +7,18 @@ import {
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 
+import {
+  getRegisteredBlockIcons,
+  getRegisteredBlockSlashCommands,
+} from "@/lib/blocks/block-registry";
+
+// ── Sections ────────────────────────────────────────────────────────────────
+
 const BASIC: CompletionSection = { name: "Basic blocks", rank: 0 };
 const FORMAT: CompletionSection = { name: "Formatting", rank: 1 };
 const EXEC: CompletionSection = { name: "Executable", rank: 2 };
+
+// ── Lucide SVG paths (same paths used by react-icons/lu) ────────────────────
 
 const ICON_SVGS: Record<string, string> = {
   h1: '<path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/><path d="m17 12 3-2v8"/>',
@@ -55,6 +64,8 @@ function createIconSvg(type: string): SVGElement | null {
   return svg;
 }
 
+// ── Commands ────────────────────────────────────────────────────────────────
+
 interface SlashCommand {
   label: string;
   type: string;
@@ -65,6 +76,7 @@ interface SlashCommand {
 }
 
 const COMMANDS: SlashCommand[] = [
+  // Basic blocks
   {
     label: "Heading 1",
     type: "h1",
@@ -115,6 +127,7 @@ const COMMANDS: SlashCommand[] = [
     section: BASIC,
   },
 
+  // Formatting
   {
     label: "Divider",
     type: "divider",
@@ -160,65 +173,13 @@ const COMMANDS: SlashCommand[] = [
     section: FORMAT,
   },
 
-  {
-    label: "PostgreSQL Query",
-    type: "database",
-    insert: "```db-postgres alias=db1\n\n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  {
-    label: "MySQL Query",
-    type: "database",
-    insert: "```db-mysql alias=db1\n\n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  {
-    label: "SQLite Query",
-    type: "database",
-    insert: "```db-sqlite alias=db1\n\n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  {
-    label: "HTTP Request",
-    type: "http",
-    insert: "```http alias=req1\nGET \n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  {
-    label: "HTTP GET",
-    type: "http",
-    insert: "```http alias=req1\nGET \n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
-  {
-    label: "HTTP POST",
-    type: "http",
-    insert:
-      "```http alias=req1\nPOST \nContent-Type: application/json\n\n{}\n```\n",
-    cursorOffset: -23,
-    section: EXEC,
-  },
-  {
-    label: "HTTP PUT",
-    type: "http",
-    insert:
-      "```http alias=req1\nPUT \nContent-Type: application/json\n\n{}\n```\n",
-    cursorOffset: -23,
-    section: EXEC,
-  },
-  {
-    label: "HTTP DELETE",
-    type: "http",
-    insert: "```http alias=req1\nDELETE \n```\n",
-    cursorOffset: -5,
-    section: EXEC,
-  },
+  // Executable — block types contribute their slash entries via
+  // `block-registry`, so adding a new block type doesn't require an
+  // edit here (DB / HTTP / future).
+  ...getRegisteredBlockSlashCommands(EXEC),
 ];
+
+// ── Completion source ───────────────────────────────────────────────────────
 
 function slashCompletionSource(
   context: CompletionContext,
@@ -262,6 +223,8 @@ function slashCompletionSource(
   return { from, options, filter: false };
 }
 
+// ── addToOptions icon renderer (exported for MarkdownEditor) ────────────────
+
 /** Renders Lucide SVG icons in autocomplete items via CM6 addToOptions API */
 export const slashIconOption = {
   render(completion: Completion): HTMLElement | null {
@@ -275,7 +238,10 @@ export const slashIconOption = {
   position: 20, // before label (50) and detail (100)
 };
 
+// ── Theme ───────────────────────────────────────────────────────────────────
+
 const slashMenuTheme = EditorView.theme({
+  // Container
   ".cm-tooltip-autocomplete": {
     background: "var(--chakra-colors-bg) !important",
     border: "1px solid var(--chakra-colors-border) !important",
@@ -287,6 +253,7 @@ const slashMenuTheme = EditorView.theme({
     maxHeight: "380px",
     overflow: "hidden auto !important",
   },
+  // List
   ".cm-tooltip-autocomplete ul": {
     fontFamily: "var(--chakra-fonts-body) !important",
     fontSize: "14px !important",
@@ -294,6 +261,7 @@ const slashMenuTheme = EditorView.theme({
     margin: "0",
     padding: "0",
   },
+  // Section headers
   ".cm-tooltip-autocomplete .cm-completionSection": {
     padding: "8px 10px 6px !important",
     fontSize: "12px !important",
@@ -306,6 +274,7 @@ const slashMenuTheme = EditorView.theme({
     borderTop: "none !important",
     marginTop: "0 !important",
   },
+  // Items
   ".cm-tooltip-autocomplete ul li": {
     padding: "7px 10px !important",
     display: "flex !important",
@@ -320,9 +289,11 @@ const slashMenuTheme = EditorView.theme({
   ".cm-tooltip-autocomplete ul li[aria-selected]": {
     background: "var(--chakra-colors-bg-subtle) !important",
   },
+  // Hide CM6 default icon (we use addToOptions instead)
   ".cm-tooltip-autocomplete .cm-completionIcon": {
     display: "none !important",
   },
+  // Custom SVG icon from addToOptions
   ".cm-slash-icon": {
     display: "inline-flex",
     alignItems: "center",
@@ -332,12 +303,14 @@ const slashMenuTheme = EditorView.theme({
     flexShrink: "0",
     color: "var(--chakra-colors-fg)",
   },
+  // Label
   ".cm-tooltip-autocomplete .cm-completionLabel": {
     fontSize: "14px !important",
     fontWeight: "400 !important",
     color: "var(--chakra-colors-fg) !important",
     flex: "1 !important",
   },
+  // Shortcut
   ".cm-tooltip-autocomplete .cm-completionDetail": {
     fontSize: "12px !important",
     fontFamily: "var(--chakra-fonts-body) !important",
@@ -347,11 +320,13 @@ const slashMenuTheme = EditorView.theme({
     flexShrink: "0",
     opacity: "1 !important",
   },
+  // Matched text
   ".cm-tooltip-autocomplete .cm-completionMatchedText": {
     textDecoration: "none !important",
     fontWeight: "600 !important",
     color: "var(--chakra-colors-fg) !important",
   },
+  // Scrollbar
   ".cm-tooltip-autocomplete::-webkit-scrollbar": { width: "4px" },
   ".cm-tooltip-autocomplete::-webkit-scrollbar-track": {
     background: "transparent",

@@ -285,6 +285,7 @@ export function resolveAllReferences(
   const warnings: ReferenceWarning[] = [];
   let resolved = text;
 
+  // Replace from end to start to preserve positions
   for (let i = refs.length - 1; i >= 0; i--) {
     const ref = refs[i];
     try {
@@ -299,6 +300,7 @@ export function resolveAllReferences(
         continue;
       }
 
+      // Try block reference first (block ref > env var when alias collides)
       const matchingBlock = blocks.find(
         (b) => b.alias === ref.alias && b.pos < currentPos,
       );
@@ -316,6 +318,7 @@ export function resolveAllReferences(
         envVariables &&
         ref.alias in envVariables
       ) {
+        // Fallback to environment variable: {{KEY}} (no dots, no matching block)
         value = envVariables[ref.alias];
       } else {
         // No block, no env var — let resolveReference produce the proper error
@@ -366,6 +369,7 @@ export function resolveRefsToBindParams(
 
   let sql = query;
 
+  // Collect substitutions from end to start so positions stay valid.
   for (let i = refs.length - 1; i >= 0; i--) {
     const ref = refs[i];
     const {
@@ -398,6 +402,8 @@ export function resolveRefsToBindParams(
       }
     }
 
+    // Prepend (since we iterate backwards, the natural push order is
+    // reverse-document; reverse at the end for execution-order stability).
     bindValues.unshift(value);
     sql = sql.slice(0, ref.start) + "?" + sql.slice(ref.end);
   }

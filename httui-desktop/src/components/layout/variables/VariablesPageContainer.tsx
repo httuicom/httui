@@ -1,3 +1,14 @@
+// Smart wrapper around <VariablesPage /> (V5). Owns:
+// - cross-env variable load + merge (per-key map of values per env)
+// - vault-grep `entries` per key (Tauri `grep_var_uses`); count
+//   derives from length, full list feeds the detail panel
+// - detail panel composition: VariableDetailContent with per-env
+//   value rows, secret reveal/edit, used-in-blocks list, and the
+//   is_secret toggle wired to setVariable
+// - file watcher refresh on `config-changed` (category "environment")
+//
+// Mirrors the V4 ConnectionsPageContainer pattern: presentational
+// page stays prop-driven, data + IPC live here.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConfigSyncedResource } from "@/hooks/useConfigSyncedResource";
@@ -22,12 +33,9 @@ interface VariablesPageContainerProps {
   onNavigateFile?: (filePath: string) => void;
 }
 
-interface EnvVarsBundle {
-  env: Environment;
-  vars: EnvVariable[];
-}
-
-/** Merge per-env variable lists into one row per key. Values keyed by env name. */
+/** Merge per-env variable lists into one row per key. Values map is
+ * keyed by env *name* so the page's `envColumnNames` (also names)
+ * resolves directly. Secret rows mask via `isSecret = true`. */
 export function mergeCrossEnvVariables(
   bundles: ReadonlyArray<EnvVarsBundle>,
 ): VariableRow[] {
@@ -41,7 +49,9 @@ export function mergeCrossEnvVariables(
       } else {
         byKey.set(v.key, {
           key: v.key,
-          // Personal/captured discrimination deferred until backend exposes per-env meta.
+          // scope inference is `workspace` for every
+          // env-defined var. Personal/captured discrimination ships
+          // alongside the per-env meta backend (later).
           scope: "workspace",
           isSecret: Boolean(v.is_secret),
           values: { [env.name]: v.value },
@@ -71,53 +81,29 @@ export function VariablesPageContainer({
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    void refreshEnvs();
-  }, [refreshEnvs]);
+  // Refresh on mount + on external `envs/*.toml` edits (backend
+  // `config-changed` category "environment").
+  useConfigSyncedResource("environment", refreshEnvs);
 
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | null = null;
-    void (async () => {
-      const fn = await listen<{ category: string }>("config-changed", (e) => {
-        if (e.payload.category === "environment") {
-          void refreshEnvs();
-        }
-      });
-      if (cancelled) {
-        fn();
-      } else {
-        unlisten = fn;
-      }
-    })();
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, [refreshEnvs]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (environments.length === 0) {
-      setRows([]);
-      return;
-    }
-    void Promise.all(
-      environments.map(async (env) => ({
-        env,
-        vars: await listEnvVariables(env.id).catch(() => [] as EnvVariable[]),
-      })),
-    ).then((bundles) => {
-      if (cancelled) return;
-      const merged = mergeCrossEnvVariables(bundles);
-      const annotated = merged.map((r) => ({
+  // Shared cross-env fan-out (audit 05 §A.3 / backlog S2). The async
+  // load lives in the hook; the merge + usesCount annotation stay a
+  // synchronous memo here. Output is identical to the old effect — and
+  // the annotation no longer re-fires the per-env IPC when only
+  // `usesEntriesByKey` (the grep result) changes, which the old effect
+  // did redundantly.
+  const bundles = useCrossEnvVariables();
+  const rows = useMemo<VariableRow[]>(
+    () =>
+      mergeCrossEnvVariables(bundles).map((r) => ({
         ...r,
         usesCount: usesEntriesByKey[r.key]?.length ?? 0,
       })),
     [bundles, usesEntriesByKey],
   );
 
-  // Vault grep is invariant to env changes — only refetch when the key set or vault changes.
+  // One-shot vault grep per key. Cheap (regex over *.md) and the
+  // result is invariant to env changes — refetch only when the key
+  // set changes or vault switches.
   const keysSignature = useMemo(
     () => [...new Set(rows.map((r) => r.key))].sort().join(""),
     [rows],
@@ -142,6 +128,8 @@ export function VariablesPageContainer({
     return () => {
       cancelled = true;
     };
+    // keysSignature collapses identical key sets so we don't refetch
+    // when env-only props change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vaultPath, keysSignature]);
 
@@ -184,7 +172,11 @@ export function VariablesPageContainer({
     [envByName, selectedRow, setVariable],
   );
 
-  // For demotion, resolve via resolveEnvVariables because row.values[env] is masked.
+  // flip the is_secret flag for every env that defines
+  // this key. Prompts in both directions: promotion moves the
+  // cleartext into the keychain, demotion writes it back to the TOML.
+  // For demotion we resolve via `resolveEnvVariables` because
+  // `row.values[env]` is masked once the var is secret.
   const handleToggleSecret = useCallback(
     async (next: boolean) => {
       if (!selectedRow) return;

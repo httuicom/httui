@@ -86,6 +86,7 @@ describe("VariableListRow", () => {
         envColumnNames={["local"]}
       />,
     );
+    // first env present + 2 placeholders
     expect(
       screen.getByTestId("variables-row-API_BASE-value-local").textContent,
     ).toBe("x");

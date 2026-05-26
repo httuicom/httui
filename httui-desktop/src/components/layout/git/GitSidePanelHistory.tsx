@@ -1,3 +1,13 @@
+// compact recent-commit history for the side
+// panel. Last N commits (short sha + subject + relative time, via
+// the carry GitLogList). Clicking a row fetches its diff and shows
+// it inline (the roteiro allows "pane-tab OU inline"; inline keeps
+// the side panel self-contained — the full deep-dive is one click
+// away via "View all" / the header "Details" → pane-tab).
+//
+// Extracted from GitSidePanel so that component stays within the
+// SRP / line budget.
+
 import { useCallback, useState } from "react";
 import { Box, Button, Flex, Text } from "@chakra-ui/react";
 

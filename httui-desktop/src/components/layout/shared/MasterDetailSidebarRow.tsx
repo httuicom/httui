@@ -1,16 +1,30 @@
+// Master-detail sidebar row (V5).
+//
+// One row inside a sidebar section: icon slot + label + right-aligned
+// count. Used by Connections KIND and Variables SCOPES so the rows
+// render pixel-identical and stay in sync over time. Pure
+// presentational; consumer owns selection state, click handler, and
+// the icon node (so kind-coloured icons coexist with plain lucide
+// glyphs without bloating the prop API).
+
 import { Box, Text, chakra } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 
 const RowButton = chakra("button");
 
 export interface MasterDetailSidebarRowProps {
+  /** Leftmost icon slot — caller provides the right element (a
+   * `<ConnectionKindIcon>` for kinds, a lucide `<LuX size={18} />`
+   * for plain rows). */
   iconSlot: ReactNode;
   label: string;
-  /** Right-aligned numeric chip. */
+  /** Right-aligned numeric chip; rendered when defined. */
   count?: number | string;
   selected: boolean;
   onClick: () => void;
   testId?: string;
+  /** Optional testid attached to the count chip (consumers that
+   * assert per-row counts in tests, e.g. Variables scopes). */
   countTestId?: string;
 }
 

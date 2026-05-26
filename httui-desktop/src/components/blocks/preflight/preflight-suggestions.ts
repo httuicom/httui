@@ -1,5 +1,13 @@
-// Autocomplete suggestion provider for the pre-flight check popover.
-// `connection` → vault connection names; `env_var` → active env keys; others → empty.
+// suggestion provider for the pre-flight check
+// builder popover. Returns autocomplete candidates per kind.
+//
+// MVP scope:
+//   - `connection` → vault connection names (Tauri `listConnections`).
+//   - `env_var`    → active environment's variable keys (store).
+//   - others       → empty list (text-only input).
+//
+// Pure data-fetcher. The popover renders the dropdown below the value
+// input and filters by substring match on the typed text.
 
 import { listConnections } from "@/lib/tauri/connections";
 import { useEnvironmentStore } from "@/stores/environment";
@@ -10,7 +18,9 @@ export type SuggestionProvider = (
   kind: PreflightCheckKind,
 ) => Promise<string[]>;
 
-/** Default provider. Tests inject their own to avoid live stores / Tauri. */
+/** Default provider used by the inline DocHeader builder. Tests pass
+ *  their own provider to inject deterministic data without touching
+ *  the live stores / Tauri layer. */
 export const defaultSuggestionProvider: SuggestionProvider = async (kind) => {
   switch (kind) {
     case "connection":

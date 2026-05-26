@@ -1,5 +1,11 @@
-// Center column of the Connections page: header, search, list rows, empty state.
-// Pure presentational — counts come from the consumer.
+// Canvas §5 — center column of the Connections refined page.
+//
+// This slice ships the header (H1 + status text), action buttons
+// ("▶ Test all" + "+ Nova"), the search box, and the
+// no-connection-selected empty state. Compact list rows + row
+// selection wire up in the next slice (follow-up).
+//
+// Pure presentational; counts come from the consumer.
 
 import { Flex, HStack, Stack, Text } from "@chakra-ui/react";
 import { LuPlus } from "react-icons/lu";
@@ -20,11 +26,16 @@ export interface ConnectionsListPanelProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   onCreateNew: () => void;
-  /** Empty array → empty-state hint renders. */
+  /** Compact list rows. Empty array → empty-state hint renders.
+   * Slice 1 left this region as a placeholder; slice 2 wires it to
+   * the real connections via the page consumer. */
   rows?: ListRowItem[];
+  /** Currently-selected connection id (or `null`). */
   selectedId?: string | null;
+  /** Click on a row → caller updates selection. */
   onSelectRow?: (id: string) => void;
-  /** ⋮ row-actions. If all omitted the menu trigger is hidden. */
+  /** ⋮ row-actions. Each is optional — if all omitted the menu
+   * trigger is hidden. */
   onEditRow?: (id: string) => void;
   onTestRow?: (id: string) => void;
   onDuplicateRow?: (id: string) => void;

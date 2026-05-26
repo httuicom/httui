@@ -1,4 +1,9 @@
 // coverage:exclude file — pure invoke() wrappers + IPC types.
+//
+// Tauri wrappers for `block_run_history` (last-run summary).
+// Extracted from `commands.ts` when
+// the parent file crossed the 600-line size gate (the split was
+// anticipated — see tech-debt.md).
 
 import { invoke } from "@tauri-apps/api/core";
 

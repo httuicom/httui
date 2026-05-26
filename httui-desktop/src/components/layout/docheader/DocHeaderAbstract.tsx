@@ -1,3 +1,18 @@
+// abstract paragraph for the DocHeader card.
+//
+// Pure presentational. Consumes `deriveAbstractDisplay` (shipped in
+// 0efa952 as part of `docheader-derive.ts`) and the `frontmatter`
+// prop the consumer passes in. Renders nothing when the abstract
+// is empty/missing — the card hides the slot in that case.
+//
+// Long abstracts (> ABSTRACT_FADE_THRESHOLD = 250 chars) collapse
+// to ~3 lines via CSS line-clamp with a soft fade-out gradient at
+// the bottom; a "more" / "less" button toggles the clamp.
+//
+// / M4 — when `onAbstractSave` is provided the abstract becomes
+// an editable Notion-mode textarea. Newlines collapse
+// to a single space on commit (slice-1 schema is single-line scalar).
+
 import { useEffect, useRef, useState } from "react";
 import { Box, Text, chakra } from "@chakra-ui/react";
 

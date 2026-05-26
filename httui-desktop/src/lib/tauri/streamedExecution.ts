@@ -1,6 +1,10 @@
 /**
  * Cancel-aware block execution over a Tauri Channel.
- * Wires `execute_db_streamed` / `execute_http_streamed` / `cancel_block`.
+ *
+ * Wires the `execute_db_streamed` / `execute_http_streamed` / `cancel_block`
+ * Rust commands. Today's UI still uses the synchronous `execute_block` path
+ * for HTTP blocks; the streamed API lands here so the toolbar/drawer work
+ * can swap it in without re-doing plumbing.
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
@@ -60,7 +64,9 @@ export interface ExecuteDbStreamedOptions {
 }
 
 /**
- * Run a DB query against the cancel-aware backend. Resolves with the final outcome.
+ * Run a DB query against the cancel-aware backend. Resolves with the final
+ * outcome; intermediate chunks (once the executor is cursor-based in stage 6)
+ * can be observed by subscribing to the returned `Channel` instead.
  */
 export async function executeDbStreamed(
   options: ExecuteDbStreamedOptions,
@@ -68,6 +74,7 @@ export async function executeDbStreamed(
   const { executionId, params, signal } = options;
 
   if (signal?.aborted) {
+    // Consumer aborted before we even started — don't bother the backend.
     return { status: "cancelled" };
   }
 
@@ -105,6 +112,9 @@ export async function executeDbStreamed(
     });
   } catch (e) {
     signal?.removeEventListener("abort", onAbort);
+    // The backend command itself failed (validation, pool unavailable). Return
+    // an error outcome rather than rejecting — streamed API resolves with a
+    // tagged outcome for a single consumer path.
     return {
       status: "error",
       message: e instanceof Error ? e.message : String(e),
@@ -125,6 +135,8 @@ export function cancelBlockExecution(executionId: string): Promise<boolean> {
   return invoke<boolean>("cancel_block", { executionId });
 }
 
+// ─────────────────────── HTTP streaming ───────────────────────
+
 /** Per-execution timing breakdown emitted by the HTTP executor. */
 export interface HttpTimingBreakdown {
   total_ms: number;
@@ -132,6 +144,10 @@ export interface HttpTimingBreakdown {
   connect_ms?: number | null;
   tls_ms?: number | null;
   ttfb_ms?: number | null;
+  /**
+   * V1: always `false`. Detection requires a custom connector — deferred
+   * to V2 alongside the isahc swap (see `docs/http-timing-isahc-future.md`).
+   */
   connection_reused: boolean;
 }
 
@@ -162,10 +178,12 @@ export interface HttpResponseFull {
   cookies: HttpCookieRaw[];
 }
 
-/**
- * Backend-emitted chunk on the HTTP execution channel.
+/** Backend-emitted chunk on the HTTP execution channel.
+ *
  * Wire order on success: `headers` → `body_chunk` × N → `complete`.
- * The consolidated body lives in `complete`; `body_chunk` byte count drives progress.
+ * V1 frontend ignores the body bytes inside `body_chunk` (the consolidated
+ * body lives in `complete`), but uses the cumulative byte count to drive
+ * a "downloading X kb…" progress indicator.
  */
 export type HttpChunk =
   | {
@@ -203,7 +221,12 @@ export interface ExecuteHttpStreamedOptions {
     status_text: string;
     ttfb_ms: number;
   }) => void;
-  /** Called per `BodyChunk` with cumulative bytes received — drive a progress indicator. */
+  /**
+   * Called per `BodyChunk` with the cumulative bytes received so far.
+   * V1: bytes themselves are discarded — the consolidated body arrives in
+   * the terminal `Complete` chunk. Use this purely to drive a download
+   * progress indicator ("downloading 1.2 MB…").
+   */
   onProgress?: (bytesReceived: number) => void;
 }
 
@@ -235,6 +258,9 @@ export async function executeHttpStreamed(
           });
           break;
         case "body_chunk":
+          // V1: discard the bytes themselves — `complete` carries the final
+          // consolidated body. Only notify the progress counter so the UI
+          // can show "downloading X kb…" for long downloads.
           options.onProgress?.(chunk.offset + chunk.bytes.length);
           break;
         case "complete":
@@ -278,9 +304,10 @@ export async function executeHttpStreamed(
 }
 
 /**
- * Normalize a raw HTTP backend response into `HttpResponseFull`.
- * Accepts both the current shape (with `timing` + `cookies`) and the legacy
- * cached shape so older cached results keep working.
+ * Normalize a raw HTTP backend response into a stable `HttpResponseFull`.
+ * Accepts both the new shape (with `timing` + `cookies`) and the legacy
+ * cached shape (`{status_code, status_text, headers, body, size_bytes}`),
+ * so cached results from older app versions keep working.
  */
 export function normalizeHttpResponse(raw: unknown): HttpResponseFull {
   const obj = (raw && typeof raw === "object" ? raw : {}) as Record<
@@ -304,6 +331,8 @@ export function normalizeHttpResponse(raw: unknown): HttpResponseFull {
         ? obj.duration_ms
         : 0;
 
+  // Build the timing object explicitly so legacy cached responses (which
+  // may not have `connection_reused` or `ttfb_ms`) get a stable shape.
   const rawTiming =
     obj.timing && typeof obj.timing === "object"
       ? (obj.timing as Partial<HttpTimingBreakdown>)

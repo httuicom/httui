@@ -10,12 +10,15 @@ export function initTauriBridge() {
   if (initialized) return;
   initialized = true;
 
+  // Setup all Tauri event listeners
   setupPaneListeners();
   setupChatListeners();
   setupWorkspaceListeners();
 
+  // Setup store subscriptions
   setupSessionWatcher();
 
+  // Initialize stores with async data
   useChatStore.getState().initSessions();
   useSettingsStore.getState().loadSettings();
   useEnvironmentStore.getState().refresh();

@@ -1,3 +1,18 @@
+// Right-side outline panel — mount.
+//
+// Sibling toggle to `<SchemaPanel>`. Reads the active editor's
+// content from the pane store, derives an outline via
+// `extractOutline`, and renders `<OutlineList>` with click-to-
+// navigate that dispatches a CM6 selection on the registered
+// active editor (`getActiveEditor()` from
+// `lib/codemirror/active-editor.ts` — same registry SchemaPanel
+// uses).
+//
+// Listens to editorContents map mutations indirectly via the
+// pane-store subscription, so the outline updates as the user
+// types (the parser short-circuits when there are no changes
+// — useMemo on content keeps re-renders cheap).
+
 import { useCallback, useMemo } from "react";
 import { Box, HStack, IconButton, Text } from "@chakra-ui/react";
 import { LuListTree, LuX } from "react-icons/lu";
@@ -23,8 +38,10 @@ export function OutlinePanel({ width, onClose }: OutlinePanelProps) {
   const handleSelect = useCallback((entry: OutlineEntry) => {
     const view = getActiveEditor();
     if (!view) return;
-    // Clamp against current doc length — entry.offset may be stale if
-    // the doc was edited between parse and click.
+    // Clamp the offset against current doc length — the active
+    // editor may have been edited between parse and click, leaving
+    // entry.offset stale. Past-end offsets land at the document
+    // end, which is the safe sane behaviour.
     const safeAnchor = Math.min(entry.offset, view.state.doc.length);
     view.dispatch({
       selection: { anchor: safeAnchor },

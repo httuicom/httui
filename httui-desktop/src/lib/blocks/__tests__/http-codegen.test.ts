@@ -55,7 +55,9 @@ describe("toCurl", () => {
 
   it("escapes single quotes inside values via close-escape-reopen", () => {
     const out = toCurl(POST_TRICKY);
+    // URL contains an apostrophe — single-quote escape uses '\''
     expect(out).toContain("'https://api.example.com/it'\\''s-fine");
+    // Header value with single quote escaped
     expect(out).toContain("'X-Auth: tok '\\''with'\\'' quote'");
   });
 
@@ -71,6 +73,8 @@ describe("toCurl", () => {
   });
 
   it("does NOT emit --data-raw for GET even when body has text", () => {
+    // Some users leave a body around when toggling methods; the generator
+    // must not silently include it for GET.
     const get = { ...GET_SIMPLE, body: "leftover" };
     expect(toCurl(get)).not.toContain("--data-raw");
   });
@@ -83,6 +87,8 @@ describe("toFetch", () => {
     expect(out).toContain("method: 'POST'");
     expect(out).toContain("headers: {");
     expect(out).toContain("'Content-Type': 'application/json'");
+    // Body is JSON with double quotes — single-quoted JS literal needs no
+    // escape since `"` is fine inside `'...'`.
     expect(out).toContain(`body: '{"name":"alice"}'`);
   });
 

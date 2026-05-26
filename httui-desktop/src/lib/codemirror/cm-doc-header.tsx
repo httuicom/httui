@@ -42,6 +42,8 @@ import {
   type FrontmatterRange,
 } from "./cm-doc-header-state";
 
+// Re-export the public registry surface so existing call sites keep
+// importing from `cm-doc-header` without churn.
 export {
   dispatchDocReplace,
   getDocHeaderEntries,
@@ -63,6 +65,8 @@ function vimOwnsMotion(view: EditorView): boolean {
   if (!v) return false;
   return !v.insertMode;
 }
+
+// ───── Frontmatter detection ─────
 
 /**
  * Detect a YAML frontmatter block at the very top of the document.
@@ -97,11 +101,15 @@ export function findFrontmatterRange(doc: CMText): FrontmatterRange | null {
   return null;
 }
 
+// ───── Per-extension instance IDs ─────
+
 let nextInstanceId = 0;
 function createInstanceId(): string {
   nextInstanceId += 1;
   return `doc_header_${nextInstanceId}`;
 }
+
+// ───── Widget ─────
 
 class DocHeaderWidget extends WidgetType {
   constructor(
@@ -160,6 +168,8 @@ class DocHeaderWidget extends WidgetType {
   }
 }
 
+// ───── Decorations ─────
+
 function buildDocHeaderDecorations(
   state: EditorState,
   instanceId: string,
@@ -193,6 +203,8 @@ function buildDocHeaderDecorations(
 
   return { decorations: builder.finish(), range };
 }
+
+// ───── Public extension factory ─────
 
 export interface DocHeaderExtensionHandle {
   /** The CM6 extension to add to the editor's `extensions` array. */
@@ -363,6 +375,10 @@ export function createDocHeaderExtension(): DocHeaderExtensionHandle {
     instanceId,
   };
 }
+
+// Thin accessors that hide the registry's private map from this file.
+// Kept narrow so the CM6 wiring stays decoupled from the registry
+// internals.
 
 function getTitleInputFor(instanceId: string): HTMLInputElement | null {
   return getDocHeaderEntries().get(instanceId)?.titleInput ?? null;

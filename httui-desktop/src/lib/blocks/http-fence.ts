@@ -164,6 +164,7 @@ export function parseHttpMessageBody(body: string): HttpMessageParsed {
   const lines = body.split("\n");
 
   let i = 0;
+  // skip blank/leading comment lines until the first method line
   while (i < lines.length && lines[i].trim() === "") i++;
 
   let pendingDescription: string | undefined;
@@ -190,6 +191,7 @@ export function parseHttpMessageBody(body: string): HttpMessageParsed {
   i++;
 
   const params: HttpKVRow[] = [];
+  // Seed params from inline query (if any).
   if (inlineQuery.length > 0) {
     for (const seg of inlineQuery.split("&")) {
       if (seg.length === 0) continue;
@@ -198,6 +200,7 @@ export function parseHttpMessageBody(body: string): HttpMessageParsed {
     }
   }
 
+  // Phase 1: query continuations and headers, until first blank line.
   const headers: HttpKVRow[] = [];
   let sawHeader = false;
 
@@ -273,9 +276,10 @@ export function parseHttpMessageBody(body: string): HttpMessageParsed {
     i++;
   }
 
-  // body
+  // Phase 2: body.
   const bodyLines = lines.slice(i);
-  // Drop trailing blank lines (idempotency: stringifier never emits them).
+  // Drop trailing blank lines (idempotency: stringifier never emits trailing
+  // blank lines).
   while (bodyLines.length > 0 && bodyLines[bodyLines.length - 1] === "") {
     bodyLines.pop();
   }
@@ -380,6 +384,8 @@ export function stringifyHttpMessageBody(parsed: HttpMessageParsed): string {
       if (p.description) {
         const prefix = p.enabled ? "" : "# ";
         out.push(`${prefix}${DESC_PREFIX}${p.description}`);
+        // Description applies to the next emitted line; we emit the row right
+        // below.
       }
       const seg = formatParam(p, true);
       const lead = isFirst ? "?" : "&";
@@ -395,7 +401,7 @@ export function stringifyHttpMessageBody(parsed: HttpMessageParsed): string {
       out.push(`${prefix}${DESC_PREFIX}${h.description}`);
     }
     if (h.key.length === 0) {
-      // raw/unparsed header: preserve as-is
+      // raw / unparsed header preserved as-is
       out.push(h.value);
     } else {
       const prefix = h.enabled ? "" : "# ";
@@ -417,6 +423,7 @@ function canInlineQuery(
   params: HttpKVRow[],
 ): boolean {
   if (params.length === 0) return true;
+  // Force continuation if any disabled or any has description.
   if (params.some((p) => !p.enabled || p.description !== undefined))
     return false;
   const inline = params.map((p) => formatParam(p, true)).join("&");
@@ -747,6 +754,7 @@ export function inferContentType(filename: string): string {
 }
 
 function basename(p: string): string {
+  // Cross-platform-ish: split on both / and \ and take the last segment.
   const parts = p.split(/[\\/]/).filter((x) => x.length > 0);
   return parts.length > 0 ? parts[parts.length - 1] : p;
 }

@@ -155,6 +155,9 @@ export function hasExportableRows(result: SelectResult): boolean {
   return result.rows.length > 0 && result.columns.length > 0;
 }
 
+// Re-export a narrowed type for consumers that don't want to depend on the
+// full DbResult union.
 export type ExportableResult = SelectResult;
 
+// Silence unused-import warnings for utility types consumed via generics.
 export type _ExportInternal = DbColumn & DbRow;

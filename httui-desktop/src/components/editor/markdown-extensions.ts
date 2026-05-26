@@ -111,6 +111,9 @@ export function buildExtensions(params: BuildExtensionsParams) {
     search({ top: false }),
     highlightSelectionMatches(),
     history(),
+    // Doc-line ArrowUp/Down — bails out when vim owns motion (normal /
+    // visual). In insert mode and when vim is off, replaces the
+    // pixel-based teleport through tall DB block widgets.
     docLineNavKeymap,
     keymap.of([
       // Explicit Ctrl-Space for autocomplete — avoids relying on the
@@ -126,7 +129,8 @@ export function buildExtensions(params: BuildExtensionsParams) {
     moveBlocksKeymap(),
     hybridRendering(),
     // After hybridRendering so conflict line backgrounds + the inline
-    // accept toolbar layer over the live-preview styling.
+    // accept toolbar layer over the live-preview styling (V10 manual
+    // -test follow-up — a conflicted .md must read as conflicted).
     mergeConflict(),
     ...(docHeaderHandle ? [docHeaderHandle.extension] : []),
     // Block-type CM6 extensions — iterates `block-registry.ts`. Order
@@ -150,17 +154,22 @@ export function buildExtensions(params: BuildExtensionsParams) {
       override: [
         slashCompletionSource,
         createWikilinkCompletion(() => flattenFiles(entriesRef.current)),
-        createDbBlockCompletionSource(() => filePath),
-        createDbSchemaCompletionSource(),
-        createHttpBlockCompletionSource(() => filePath),
+        // Block-type completion sources — each module contributes 1+
+        // sources (DB returns 2: {{ref}} + schema-aware SQL; HTTP
+        // returns 1: {{ref}}). Activates only inside that type's
+        // fenced body.
+        ...blockRegistry.flatMap((m) => m.completionSources(() => filePath)),
       ],
       icons: false,
       addToOptions: [slashIconOption],
     }),
-    // `{{ref}}` visual highlight + hover tooltip. CM6 tooltips default to
-    // `position: fixed`, so the outer Box's `overflow: hidden` does NOT clip
-    // them — no custom `tooltips({ parent })` needed (setting one breaks
-    // baseTheme styling scoped to `.cm-editor`).
+    // `{{ref}}` visual highlight + hover tooltip. The tooltip resolves
+    // the reference against blocks above the enclosing fence (DB or
+    // http/e2e) and shows the cached value — or the resolution error.
+    // CM6 tooltips default to `position: fixed`, so the outer Box's
+    // `overflow: hidden` does NOT clip them; we don't need a custom
+    // `tooltips({ parent })` here (and setting one breaks baseTheme
+    // styling, which is scoped to `.cm-editor`).
     ...referenceHighlight,
     refClickExtension,
     createMarkdownReferenceTooltip(() => filePath, getActiveVariables),

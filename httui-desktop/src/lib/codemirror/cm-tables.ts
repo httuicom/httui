@@ -14,6 +14,8 @@ import {
   keymap,
 } from "@codemirror/view";
 
+// ── Table detection ──────────────────────────────────────────────────────────
+
 interface TableRange {
   from: number;
   to: number;
@@ -69,6 +71,8 @@ function findTables(doc: {
   return tables;
 }
 
+// ── Table formatting (align columns with spaces) ────────────────────────────
+
 function formatTable(
   doc: EditorState["doc"],
   table: TableRange,
@@ -76,6 +80,7 @@ function formatTable(
   const startLine = doc.lineAt(table.from).number;
   const endLine = doc.lineAt(table.to).number;
 
+  // Parse all rows (including separator)
   const allLines: string[] = [];
   const parsedRows: (string[] | "separator")[] = [];
 
@@ -90,6 +95,7 @@ function formatTable(
     }
   }
 
+  // Compute max width per column
   const colCount = Math.max(
     ...parsedRows
       .filter((r): r is string[] => r !== "separator")
@@ -105,6 +111,7 @@ function formatTable(
     }
   }
 
+  // Build formatted lines
   const formatted: string[] = [];
   for (const row of parsedRows) {
     if (row === "separator") {
@@ -123,6 +130,8 @@ function formatTable(
   const original = allLines.join("\n");
   return result !== original ? result : null;
 }
+
+// ── Table widget ─────────────────────────────────────────────────────────────
 
 class TableWidget extends WidgetType {
   constructor(
@@ -181,6 +190,9 @@ class TableWidget extends WidgetType {
   }
 }
 
+// ── Decoration builder ──────────────────────────────────────────────────────
+
+// Track which table the cursor was previously inside (for format-on-exit)
 let prevCursorTableIdx = -1;
 
 function buildTableDecorations(
@@ -200,6 +212,7 @@ function buildTableDecorations(
 
   const tables = findTables(state.doc);
 
+  // Find which table cursor is currently in
   let currentTableIdx = -1;
 
   for (let t = 0; t < tables.length; t++) {
@@ -215,6 +228,7 @@ function buildTableDecorations(
     }
   }
 
+  // Format-on-exit: if cursor left a table, format it
   if (
     prevCursorTableIdx !== -1 &&
     currentTableIdx !== prevCursorTableIdx &&
@@ -224,6 +238,7 @@ function buildTableDecorations(
     if (prevTable) {
       const formatted = formatTable(state.doc, prevTable);
       if (formatted) {
+        // Schedule the format dispatch after this update completes
         queueMicrotask(() => {
           view.dispatch({
             changes: {
@@ -243,6 +258,7 @@ function buildTableDecorations(
     const isCursorIn = t === currentTableIdx;
 
     if (isCursorIn) {
+      // Cursor inside — show raw pipes (mono font only)
       const tableStartLine = state.doc.lineAt(table.from).number;
       const tableEndLine = state.doc.lineAt(table.to).number;
       for (let line = tableStartLine; line <= tableEndLine; line++) {
@@ -256,6 +272,7 @@ function buildTableDecorations(
       continue;
     }
 
+    // Cursor outside — render as HTML table widget
     builder.add(
       table.from,
       table.to,
@@ -284,6 +301,7 @@ const tableField = StateField.define<DecorationSet>({
 
     if (cursorLineMoved) {
       lastTableCursorLine = currentLine;
+      // Pass the view for format-on-exit
       const view = (tr as unknown as { view?: EditorView }).view;
       return buildTableDecorations(tr.state, view);
     }
@@ -294,6 +312,8 @@ const tableField = StateField.define<DecorationSet>({
   },
   provide: (f) => EditorView.decorations.from(f),
 });
+
+// ── Arrow key navigation into tables ─────────────────────────────────────────
 
 function findTableAtBoundary(
   doc: EditorState["doc"],
@@ -341,7 +361,10 @@ const tableKeymap = keymap.of([
   },
 ]);
 
+// ── Theme ────────────────────────────────────────────────────────────────────
+
 const tableTheme = EditorView.theme({
+  // Rendered table widget (cursor outside)
   ".cm-table-widget": {
     borderCollapse: "collapse",
     width: "100%",
@@ -361,11 +384,14 @@ const tableTheme = EditorView.theme({
   ".cm-table-widget tr:hover td": {
     backgroundColor: "var(--chakra-colors-bg-subtle)",
   },
+  // Raw table lines (cursor inside) — just mono font, no extra decoration
   ".cm-table-raw": {
     fontFamily: "var(--chakra-fonts-mono)",
     fontSize: "13px",
   },
 });
+
+// ── Export ────────────────────────────────────────────────────────────────────
 
 /** GFM table extension — renders pipe tables as HTML widgets, raw when cursor is inside */
 export function tables(): Extension {

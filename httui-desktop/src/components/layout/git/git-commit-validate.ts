@@ -1,3 +1,9 @@
+// pure validators for the commit form.
+//
+// Frontend-only. The actual `git_commit` Tauri command lives on the
+// consumer site once backend lands; the form validator
+// guards the user from sending obviously bad messages (empty, only
+// whitespace, leading whitespace on the subject, subject too long).
 
 export interface CommitValidation {
   valid: boolean;
@@ -22,7 +28,9 @@ export function validateCommitMessage(message: string): CommitValidation {
     return { valid: false, errors, subject: "", body: "" };
   }
 
-  // Body starts after the first blank line (git convention); when absent, body is empty.
+  // Split into subject + body. The body starts after the first blank
+  // line (per git convention); when there's no blank line, body is
+  // empty and subject is the entire single-line message.
   const lines = trimmed.split("\n");
   const subject = lines[0]!.replace(/^\s+/u, "");
   const blankIdx = lines.findIndex((l, i) => i > 0 && l.trim().length === 0);

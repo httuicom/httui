@@ -1,3 +1,9 @@
+// Hosts the MVP-to-v1 migration banner: combines the detection hook
+// with the `migrate_vault_to_v1` Tauri dispatch and surfaces success
+// / error inline. Mounted in AppShell when a vault is active. The
+// pure presentational <MigrationBanner> stays unaware of the wiring.
+//.
+
 import { useCallback, useState } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
@@ -26,6 +32,8 @@ export function MigrationBannerHost({ vaultPath }: MigrationBannerHostProps) {
       const report = await migrateVaultToV1(vaultPath, false);
       const summary = `${report.connections_migrated} connection(s), ${report.environments_migrated} environment(s), ${report.variables_migrated} variable(s)`;
       setStatus({ kind: "success", summary });
+      // Refresh detection — `.httui/` is now there so the banner
+      // hides on the next probe.
       refresh();
     } catch (err) {
       setStatus({
@@ -35,8 +43,9 @@ export function MigrationBannerHost({ vaultPath }: MigrationBannerHostProps) {
     }
   }, [vaultPath, refresh]);
 
-  // Keep this after the migrate status check so a success summary still
-  // renders for one paint after refresh() clears the banner.
+  // Banner gone: nothing to render. Keep this AFTER the migrate
+  // status so a success summary still renders for one paint after
+  // refresh() clears the banner.
   if (!shouldShowBanner && status.kind !== "success") return null;
 
   return (

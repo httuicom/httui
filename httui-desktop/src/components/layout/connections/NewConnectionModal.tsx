@@ -1,6 +1,19 @@
-// New-connection modal shell: 880×660, two-column (220px kind picker + 1fr form).
-// Tab strip uses the `Tabbar` atom. Pure presentational — save/test/cancel
-// dispatched up via callbacks.
+// Canvas §5 — "Nova conexão" modal shell.
+//
+// Outer 880×~660 modal centered on a dimmed page bg. Two-column
+// grid: 220px sidebar pick-kind + 1fr form area. Form area drives 4
+// tabs (Form / Connection string / SSH tunnel / SSL); a `renderTabBody`
+// prop lets phase 2+3 inject the per-tab panels without forcing this
+// shell to grow. Phase 1 ships the layout + dispatch surface only.
+//
+// Tab strip uses the design-system `Tabbar` atom — its active state
+// renders a 1px top accent line (canvas §0). The prose says
+// "2px accent underline"; we follow the atom to keep the design
+// system the single source of truth (audit-034).
+//
+// Pure presentational — owns selectedKind + activeTab so consumers
+// don't need to thread the wiring; save/test/cancel callbacks are
+// dispatched up.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Box, Flex, Portal, Text } from "@chakra-ui/react";
@@ -46,32 +59,48 @@ const KIND_SUB_LABEL: Record<ConnectionKind, string> = {
 
 export interface NewConnectionModalProps {
   open: boolean;
+  /** Initial selected kind. Defaults to "postgres" (canvas spec). */
   initialKind?: ConnectionKind;
-  /** Controlled kind; routes selection up so a pasted connection string can patch it. */
+  /** Controlled selected kind (Phase 3). When supplied, the picker
+   * routes selection up via `onKindChange` instead of holding local
+   * state — lets the consumer patch the kind from a connection-string
+   * paste. */
   kind?: ConnectionKind;
   onKindChange?: (next: ConnectionKind) => void;
-  /** Controlled active tab. */
+  /** Controlled active tab (Phase 3). When supplied, the modal calls
+   * `onTabChange` instead of holding local state. */
   activeTab?: NewConnectionTabId;
   onTabChange?: (next: NewConnectionTabId) => void;
+  /** Called when the user dismisses (Esc, overlay click, Cancel). */
   onCancel: () => void;
+  /** Save dispatch — Phase 1 stub; phases 2+3 wire form state. */
   onSave?: (args: {
     kind: ConnectionKind;
     tab: NewConnectionTabId;
   }) => void | Promise<void>;
+  /** Test dispatch — Phase 1 stub. */
   onTest?: (args: {
     kind: ConnectionKind;
     tab: NewConnectionTabId;
   }) => void | Promise<void>;
-  /** Render the active tab body; omit for a placeholder. */
+  /** Renders the active tab's body. Phase 1 ships a placeholder
+   * when omitted; phases 2+3 inject the real panels. */
   renderTabBody?: (args: {
     kind: ConnectionKind;
     tab: NewConnectionTabId;
   }) => ReactNode;
+  /** Disables Save (e.g. invalid form). */
   saveDisabled?: boolean;
-  /** Kinds outside this list render a "Coming soon" state with tabs/footer hidden. */
+  /** Subset of kinds the consumer can actually create. Kinds outside
+   * this list render a "Coming soon" empty state in the modal body
+   * with the tabs + Save / Test footer hidden. Defaults to all kinds
+   * supported (legacy behavior). */
   supportedKinds?: ReadonlyArray<ConnectionKind>;
-  /** "edit" locks the kind picker; title and Save label adapt. */
+  /** "create" (default) shows the kind picker; "edit" shows it
+   * disabled with a single-row read-only header — driver/name is the
+   * natural key, can't change. Title and Save label adapt. */
   mode?: "create" | "edit";
+  /** When in edit mode, used in the title (e.g. "Edit connection: payments-db"). */
   editingName?: string;
   /** Save/IPC failure message. Rendered as an alert above the footer;
    * the consumer keeps the modal open so the user can retry. */
@@ -128,12 +157,16 @@ export function NewConnectionModal({
     if (e.target === overlayRef.current) onCancel();
   }
 
+  // Only show tabs that make sense for the selected kind. Sqlite, for
+  // example, is file-based — connection-string / SSH tunnel / SSL
+  // don't apply.
   const allowedTabs = new Set(tabsForKind(selectedKind));
   const tabItems: TabItem[] = NEW_CONNECTION_TABS.filter((t) =>
     allowedTabs.has(t.id),
   ).map((t) => ({ id: t.id, label: t.label }));
   const showTabbar = tabItems.length > 1;
-  // Fall back to "form" if the active tab isn't valid for this kind (e.g. SSL → SQLite).
+  // If the active tab isn't in the allowed set (e.g. user switched
+  // from postgres to sqlite while on SSL), fall back to "form".
   const effectiveTab = allowedTabs.has(activeTab) ? activeTab : "form";
 
   return (

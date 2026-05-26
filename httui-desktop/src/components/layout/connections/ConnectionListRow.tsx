@@ -1,5 +1,6 @@
-// Compact connection list row.
-// Grid: 26px icon / 1.5fr name+chip / 1.4fr host / 80px env / 70px status / 60px uses + ⋮ menu.
+// Canvas §5 — compact connection list row.
+// Grid: 26px icon / 1.5fr name+chip / 1.4fr host / 80px env / 70px
+// status / 60px uses + ⋮ menu. Selected: 2px accent left border + bg.
 
 import {
   Box,
@@ -29,7 +30,8 @@ export interface ListRowItem {
   /** Stable id (`Connection.id` from the store). */
   id: string;
   name: string;
-  /** `null` → fallback icon for unmapped drivers. */
+  /** Optional canvas-spec kind. `null` → fallback icon (sqlite or
+   * other unmapped drivers). */
   kind: ConnectionKind | null;
   host: string | null;
   env: string | null;
@@ -39,7 +41,8 @@ export interface ListRowItem {
   status: "ok" | "slow" | "down" | "untested";
   /** Hit count from `block_run_history` (canvas: "N uses"). */
   uses: number;
-  /** True when the name contains `prod` (case-insensitive). */
+  /** True when the connection name matches the canvas "PROD" chip
+   * pattern (case-insensitive substring `prod`). */
   isProd: boolean;
 }
 
@@ -47,7 +50,8 @@ export interface ConnectionListRowProps {
   item: ListRowItem;
   selected: boolean;
   onSelect: (id: string) => void;
-  /** ⋮ row-actions. If none provided, the menu trigger is hidden. */
+  /** ⋮ row-actions. Each is optional — if none provided, the menu
+   * trigger is hidden entirely. */
   onEdit?: (id: string) => void;
   onTest?: (id: string) => void;
   onDuplicate?: (id: string) => void;

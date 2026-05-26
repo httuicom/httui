@@ -1,3 +1,15 @@
+// DocHeader inline, mounted as a CM6 block widget at the top of the
+// document (no separate React layer). The inlineHeader
+// prop carries the data the standalone shell used to read; the
+// MarkdownEditor's CM6 extension creates a portal slot that this
+// component fills via the same DocHeaderShell render path.
+//
+// Pre-V2 the DocHeader was a sibling React layer above the editor with
+// its own scroll surface. It's now a single-scroll editor with the
+// header inline, matching the Notion-style mockup. ConflictBanner
+// stays outside the CM6 editor so it pushes the whole pane down on
+// stale-on-disk.
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box } from "@chakra-ui/react";
 
@@ -23,7 +35,9 @@ export interface DocHeaderedEditorProps {
   content: string;
   vimEnabled: boolean;
   showConflict: boolean;
-  /** Whether the active tab has unsaved edits — drives the `· unsaved` suffix. */
+  /** Whether the active tab has unsaved edits (drives the meta-strip
+   * `· unsaved` suffix on the `Edited Xm ago` chip). PaneNode reads
+   * this from `unsavedFiles.has(filePath)`. */
   dirty: boolean;
   onConflictReload: () => void;
   onConflictKeep: () => void;
@@ -52,8 +66,12 @@ export function DocHeaderedEditor({
     recheck: preflightRecheck,
   } = useFilePreflight({ filePath, vaultPath });
 
-  // Refresh mtime on the dirty→clean rising edge (save just resolved).
-  // Without this the meta strip would show "Edited 2m ago · unsaved" stale.
+  // Refresh the mtime poll on the dirty → clean rising edge — this
+  // means a save just succeeded (the auto-save path flips
+  // `unsavedFiles` from true → false after `writeNote` resolves).
+  // Without this, the meta strip would lag until the next focus
+  // event arrives, leaving "Edited 2m ago · unsaved" stale on
+  // screen post-save.
   const prevDirtyRef = useRef(dirty);
   useEffect(() => {
     if (prevDirtyRef.current && !dirty) {
@@ -64,8 +82,10 @@ export function DocHeaderedEditor({
 
   const branch = useMemo<BranchSummaryData | null>(() => {
     if (!gitStatus) return null;
-    // Per-file +N ~M requires a future `git_diff_stat_for_file` command.
-    // Zero counts are omitted by formatBranchSummary, so chip shows "Branch <name>".
+    // Per-file `+N ~M` requires a future Tauri command (`git_diff_stat
+    // _for_file`) — for now we only surface the branch name. The
+    // BranchSummaryData shape allows zero counts; formatBranchSummary
+    // omits them, so the chip just shows "Branch <name>".
     return {
       branch: gitStatus.branch,
       addedLines: 0,
@@ -73,8 +93,11 @@ export function DocHeaderedEditor({
     };
   }, [gitStatus]);
 
-  // Vault-relative path for breadcrumb + git lookup (POSIX only — vault
-  // layer normalises on open).
+  // Vault-relative path for the breadcrumb + git lookup. `filePath` is
+  // absolute, `vaultPath` is the vault root absolute path; trimming
+  // the prefix gives the path the breadcrumb / git path-filter
+  // expects. POSIX separators only — the vault layer normalizes on
+  // open.
   const relativeFilePath = useMemo<string | null>(() => {
     if (!filePath) return null;
     if (vaultPath && filePath.startsWith(vaultPath + "/")) {
@@ -83,7 +106,8 @@ export function DocHeaderedEditor({
     return filePath;
   }, [filePath, vaultPath]);
 
-  // First-commit author (follows renames). `null` while loading or untracked.
+  // Author chip: first-commit author of the file (follows renames).
+  // `null` while loading or when the file isn't tracked yet.
   const [author, setAuthor] = useState<AuthorInfo | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -108,7 +132,9 @@ export function DocHeaderedEditor({
     };
   }, [vaultPath, relativeFilePath]);
 
-  // Aggregated last-run summary from `block_run_history`. 5s session window lives in Rust.
+  // Last-run chip: aggregated session summary from the
+  // `block_run_history` table. The 5s session window heuristic lives
+  // in Rust; we just map the raw shape and display.
   const [lastRun, setLastRun] = useState<LastRunSummary | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -133,10 +159,18 @@ export function DocHeaderedEditor({
     };
   }, [filePath]);
 
+  // Run-all gate. The actual block execution flow
+  // hooks in via `onRunAll`; for now we log + the audit
+  // note carries the override status forward when the future Run-all
+  // report lands. The dialog open/close state lives in the hook.
   const { trigger: triggerRunAll, dialog: runAllDialog } =
     useRunAllPreflightGate({
       items: preflightItems,
       onRunAll: (decision) => {
+        // Placeholder for the Run-all execution. The spec
+        // gates on the dialog appearing; the actual block run is
+        // tracked. Surface decision metadata so a future
+        // listener (custom event / store) can pick it up.
         // eslint-disable-next-line no-console
         console.info(
           `[run-all] ${filePath} — failed=${decision.failedCount} skipped=${decision.skippedCount} note=${decision.auditNote ?? "(none)"}`,
@@ -144,8 +178,9 @@ export function DocHeaderedEditor({
       },
     });
 
-  // ⌘⇧R triggers the Run-all gate. Multi-pane safety: only the pane
-  // containing the active focus target reacts.
+  // ⌘⇧R triggers the Run-all gate from anywhere in the app while
+  // this DocHeaderedEditor is mounted. Multi-pane safety: only the
+  // pane whose root contains the active focus target reacts.
   const rootRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -164,6 +199,12 @@ export function DocHeaderedEditor({
     return () => window.removeEventListener("keydown", handler);
   }, [triggerRunAll]);
 
+  // The frontmatter and the editable callbacks live inside
+  // `DocHeaderWidgetPortal` now — it dispatches transactions directly
+  // into CM6 and reads the parsed frontmatter off the StateField,
+  // bypassing the non-reactive `editorContents` Map in the pane store.
+  // This component just provides the ambient metadata (mtime / dirty /
+  // branch / compact) that doesn't depend on doc content.
   const inlineHeader = useMemo<InlineDocHeader>(
     () => ({
       filePath,
@@ -180,8 +221,11 @@ export function DocHeaderedEditor({
       preflightItems,
       preflightRechecking,
       onPreflightRecheck: preflightRecheck,
-      // `onRunAll` intentionally absent — ▶ Run all was dropped from the
-      // workspace chrome; the gate triggers only via ⌘⇧R.
+      // `onRunAll` intentionally not threaded into the Action Row.
+      // Per `feedback_no_run_all_topbar`, the user
+      // dropped the ▶ Run all button from the workspace chrome (TopBar
+      // + DocHeader); the gate triggers only via ⌘⇧R keyboard shortcut.
+      // The Action Row hides Run-all entirely when the prop is absent.
     }),
     [
       filePath,

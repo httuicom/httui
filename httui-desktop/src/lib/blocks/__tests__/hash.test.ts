@@ -11,6 +11,8 @@ import { computeHttpCacheHash, computeDbCacheHash } from "../hash";
 
 beforeEach(() => {
   invokeMock.mockReset();
+  // Echo the keyed input back as the "hash" so tests can assert exact
+  // canonical text without locking onto a real digest.
   invokeMock.mockImplementation((_cmd: string, args: Record<string, unknown>) =>
     Promise.resolve(args.content as string),
   );

@@ -9,6 +9,8 @@ import { useGitRemotes } from "@/hooks/useGitRemotes";
 beforeEach(() => {
   clearTauriMocks();
   resetGitStore();
+  // The store-backed shim also polls status; keep it quiet so these
+  // remotes-only specs stay deterministic.
   mockTauriCommand("git_status_cmd", () => ({
     branch: "main",
     upstream: null,
@@ -52,8 +54,10 @@ describe("useGitRemotes", () => {
   });
 
   it("treats empty-list as a successful load (no remotes configured)", async () => {
-    // Empty array isn't an error — `loaded: true` lets consumers distinguish
-    // "haven't fetched" from "fetched and got nothing".
+    // Empty array isn't an error — the popover renders the empty
+    // state with a "configure a remote" link. `loaded` stays true
+    // so the consumer can distinguish "haven't fetched" from
+    // "fetched and got nothing".
     mockTauriCommand("git_remote_list_cmd", () => []);
     const { result } = renderHook(() => useGitRemotes("/v"));
     await act(async () => {

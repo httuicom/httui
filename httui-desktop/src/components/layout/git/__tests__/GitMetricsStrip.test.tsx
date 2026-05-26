@@ -56,6 +56,7 @@ describe("GitMetricsStrip", () => {
         lastSyncAt={null}
       />,
     );
+    // a.md modified, b.md added, c.md untracked
     expect(screen.getByTestId("git-metric-changes")).toHaveTextContent(
       "M1 A1 D0 ?1 U0",
     );

@@ -71,6 +71,9 @@ export function findDocDbBlocks(content: string): DocDbBlock[] {
       if (m) {
         const tag = m[1];
         const info = (m[2] ?? "").trim();
+        // `parseDbFenceInfo` is the source of truth for what counts
+        // as a DB block — accepts `db`, `db-postgres`, `db-mysql`,
+        // `db-sqlite`. Other languages return null and we ignore.
         const meta = parseDbFenceInfo(`${tag} ${info}`.trim());
         openFence = { tag, line: lineNo, offset, meta };
       }

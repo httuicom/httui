@@ -72,6 +72,10 @@ export function DocHeaderWidgetPortal({
 
   const ctx = useMemo(() => ({ instanceId }), [instanceId]);
 
+  // The action callbacks live in `doc-header-callbacks.ts` so the
+  // per-action branches (no-view bail, dup-tag skip, missing-tag skip,
+  // navigate-to-body) get unit coverage without rendering the portal +
+  // round-tripping through the registry.
   const callbacks = useMemo(
     () => buildDocHeaderCallbacks(entry, instanceId),
     [entry, instanceId],

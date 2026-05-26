@@ -1,6 +1,9 @@
-// Bridges `useSettingsStore.colorMode` to Chakra/next-themes. The store
-// can't call `setColorMode` directly (it's a hook), so this component
-// watches the persisted preference and applies it to the html class attribute.
+// Bridge between `useSettingsStore.colorMode` and Chakra/next-themes.
+// `useColorMode().setColorMode` is React-only (hook), so the store
+// can't call it directly. Mount this component once near the root —
+// it watches the persisted preference and applies it to the
+// `<html class="dark|light">` attribute that `lib/theme.ts`
+// semanticTokens react to.
 
 import { useEffect } from "react";
 import { useTheme } from "next-themes";
@@ -14,8 +17,9 @@ export function ColorModeSync() {
 
   useEffect(() => {
     if (!loaded) return;
-    // Use next-themes directly — Chakra's `useColorMode` wrapper narrows
-    // the type to "light"|"dark", losing the "system" sentinel.
+    // next-themes accepts the literal "system" sentinel; Chakra's
+    // `useColorMode` wrapper narrows the type to "light" | "dark", so
+    // we go through `useTheme()` directly to keep "system" usable.
     setTheme(colorMode);
   }, [colorMode, loaded, setTheme]);
 

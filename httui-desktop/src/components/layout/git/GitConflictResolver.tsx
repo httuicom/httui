@@ -1,3 +1,13 @@
+// 3-way merge resolver.
+//
+// Reuses @codemirror/merge (same lib the chat DiffViewer mounts).
+// The left pane is OURS and is editable — the user shapes it into
+// the final merged file. The right pane is THEIRS, read-only, for
+// reference. The merge BASE (common ancestor) is available behind a
+// toggle so all three conflict stages are reachable (the "3-way"
+// contract). "Mark resolved" writes the left pane back to disk and
+// stages it; the consumer owns the IPC.
+
 import { useEffect, useRef, useState } from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { MergeView } from "@codemirror/merge";

@@ -1,3 +1,8 @@
+// Sync button + per-step progress + the no-
+// upstream confirm. Pure presentational over `useGitSync` so the
+// orchestration stays testable on its own. Never a Dialog (CM6
+// focus). Icons only, no emoji glyphs.
+
 import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
 import { LuCircleAlert, LuRefreshCw } from "react-icons/lu";
 

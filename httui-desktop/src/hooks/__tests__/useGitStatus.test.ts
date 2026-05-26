@@ -18,6 +18,8 @@ beforeEach(() => {
   clearTauriMocks();
   resetGitStore();
   vi.useFakeTimers();
+  // The store-backed shim polls remotes on the same tick — keep it
+  // quiet so these status-only specs stay deterministic.
   mockTauriCommand("git_remote_list_cmd", () => []);
 });
 

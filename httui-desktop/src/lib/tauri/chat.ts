@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
+// --- Types ---
+
 export interface ChatSession {
   id: number;
   claude_session_id: string | null;
@@ -37,6 +39,8 @@ export interface AttachmentInput {
   media_type: string;
   path: string;
 }
+
+// --- Commands ---
 
 export function createChatSession(cwd?: string): Promise<ChatSession> {
   return invoke("create_chat_session", { cwd: cwd ?? null });
@@ -111,6 +115,8 @@ export function updateChatSessionCwd(
   return invoke("update_chat_session_cwd", { sessionId, cwd });
 }
 
+// --- Permission management ---
+
 export interface ToolPermission {
   id: number;
   tool_name: string;
@@ -131,6 +137,8 @@ export function listToolPermissions(
 export function deleteToolPermission(id: number): Promise<void> {
   return invoke("delete_tool_permission", { id });
 }
+
+// --- Usage stats ---
 
 export interface DailyUsage {
   date: string;

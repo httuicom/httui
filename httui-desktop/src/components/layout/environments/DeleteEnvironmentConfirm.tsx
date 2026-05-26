@@ -1,3 +1,9 @@
+// Canvas §6 Environments — delete confirmation.
+//
+// Inline destructive-action banner. The user must type the env name
+// into the confirm input before the Delete button enables — the
+// industry-standard guardrail against accidental clicks. Surfaces
+// the var + secret counts so it's clear what's about to be lost.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { useState } from "react";

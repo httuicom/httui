@@ -1,3 +1,13 @@
+// "Clone vault" card — V1 vertical 1.
+//
+// Expandable card: collapsed state shows the icon/title/body and a
+// CTA pill; expanded state shows a URL input + optional parent
+// folder picker + Clone submit. The consumer wires
+// `onClone(url, parent)` to the Tauri `clone_vault_cmd` command;
+// the backend always derives the leaf folder name from the URL,
+// so `parent` is just the *container* (defaults to `~/Documents`
+// when null).
+
 import { useState, useCallback } from "react";
 import { Box, HStack, Stack, Text, chakra } from "@chakra-ui/react";
 
@@ -6,10 +16,14 @@ import { Btn, Input } from "@/components/atoms";
 const CardBox = chakra("div");
 
 export interface CloneVaultCardProps {
-  /** `parent` is the container folder; leaf is derived from the URL on the backend. */
+  /** `(url, parent)` → consumer runs the clone + switchVault.
+   * `parent` is the container folder; the leaf is always derived
+   * from the URL on the backend. */
   onClone: (url: string, parent: string | null) => Promise<void>;
-  /** Open a directory picker. Returns absolute path or `null` on cancel. */
+  /** Open a directory picker for the parent folder. Returns absolute
+   * path or `null` when the user cancels. */
   onPickParent: () => Promise<string | null>;
+  /** Disable while another card is mid-flow. */
   busy?: boolean;
 }
 

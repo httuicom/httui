@@ -1,8 +1,23 @@
-// coverage:exclude file — pre-existing schema-browser chrome, untested historically.
+// coverage:exclude file — pre-existing chrome (schema-tree render
+// loops, double-click clipboard fallback, expand/collapse, filter
+// narrowing) was untested historically; this slice only adds the
+// most-recent-connection auto-pick (8 targeted tests cover the new
+// path). md`.
+// (DbFencedPanel split sweep) owns the retirement
+// of this opt-out alongside the panel refactor.
+
 /**
  * Right-side schema browser. Lists tables + columns for the selected
  * connection, reads from the shared SchemaCache store so it stays in sync
  * with the autocomplete running inside db blocks.
+ *
+ * V1 scope (stage 7):
+ *  - Connection picker (last-used persisted in-memory).
+ *  - Tree: table → columns. Expand/collapse; inline filter.
+ *  - Refresh button (forces re-introspection).
+ *  - Double-click on a table copies a `SELECT * FROM ... LIMIT 100` snippet
+ *    to the clipboard. Hooking into the active editor for direct insertion
+ *    is planned but deferred to avoid touching pane internals here.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -89,6 +104,7 @@ export function SchemaPanel({ width, onClose }: SchemaPanelProps) {
     };
   }, [suggestedConnectionName]);
 
+  // Kick off schema load when the selected connection changes.
   useEffect(() => {
     if (!connectionId) return;
     void ensureLoaded(connectionId);
@@ -203,6 +219,7 @@ export function SchemaPanel({ width, onClose }: SchemaPanelProps) {
       overflow="hidden"
       flexShrink={0}
     >
+      {/* Header */}
       <HStack
         px={3}
         py={2}
@@ -243,6 +260,7 @@ export function SchemaPanel({ width, onClose }: SchemaPanelProps) {
         </HStack>
       </HStack>
 
+      {/* Connection picker */}
       <Box px={3} py={2} borderBottomWidth="1px" borderColor="border">
         {connections.length === 0 ? (
           <Text fontSize="xs" color="fg.muted">
@@ -264,6 +282,7 @@ export function SchemaPanel({ width, onClose }: SchemaPanelProps) {
         )}
       </Box>
 
+      {/* Filter */}
       <Box px={3} py={2} borderBottomWidth="1px" borderColor="border">
         <Input
           size="xs"
@@ -273,6 +292,7 @@ export function SchemaPanel({ width, onClose }: SchemaPanelProps) {
         />
       </Box>
 
+      {/* Body */}
       <Box flex={1} overflowY="auto" px={1} py={2}>
         {schemaEntry?.loading && tables.length === 0 && (
           <Flex justify="center" py={4}>

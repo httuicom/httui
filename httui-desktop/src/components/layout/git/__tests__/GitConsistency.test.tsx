@@ -1,3 +1,8 @@
+// the side panel and the pane-tab must never
+// diverge: they read/write the same useGitStore. This renders BOTH
+// at once over one in-memory git backend and proves a stage / commit
+// done in the side panel surfaces in the pane-tab.
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import userEvent from "@testing-library/user-event";
 

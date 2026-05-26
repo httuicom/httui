@@ -168,10 +168,16 @@ export const useTagIndexStore = create<TagIndexState>()(
 
       loadFromVault: async (vaultPath) => {
         const entries = await scanVaultTags(vaultPath);
-        // Build maps in one pass to avoid N individual store updates.
+        // Build the maps from scratch in one pass — calling
+        // setTagsForFile per entry would dispatch N store updates
+        // and N React renders. The walker already filters out files
+        // with empty tag lists, so every entry is non-empty.
         const byTag: Record<string, Record<string, true>> = {};
         const byFile: Record<string, ReadonlyArray<string>> = {};
         for (const entry of entries) {
+          // Defensive: ignore entries the backend mis-shaped (extra
+          // walker calls might surface a future bug here without
+          // crashing the whole store load).
           if (
             !entry ||
             typeof entry.path !== "string" ||
@@ -179,7 +185,8 @@ export const useTagIndexStore = create<TagIndexState>()(
           ) {
             continue;
           }
-          // Dedup tags within a file before indexing.
+          // Dedup tags within a file before indexing — covers
+          // user-typed `tags: [foo, foo]`.
           const uniq = Array.from(new Set(entry.tags));
           byFile[entry.path] = uniq;
           for (const tag of uniq) {

@@ -1,3 +1,17 @@
+// Fetch / Pull / Push button row.
+//
+// Pure presentational. Three small buttons that fire callbacks the
+// consumer wires to the future `git_fetch` / `git_pull` / `git_push`
+// Tauri commands (carries — the backend slice). Each button
+// disables itself while its op is in flight via `inFlight` prop;
+// success / error toasts are the consumer's responsibility (we
+// just emit the click intent).
+//
+// Push gates on `hasRemote`: when no remote is configured, the
+// Push button surfaces as a disabled button + an inline hint
+// pointing to the share popover (consumer wires
+// `onConfigureRemote`).
+
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { LuArrowDown, LuArrowUp } from "react-icons/lu";
 

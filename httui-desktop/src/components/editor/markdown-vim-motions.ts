@@ -27,6 +27,7 @@ import {
   type vimState,
 } from "@replit/codemirror-vim";
 
+// Compartment for toggling vim mode without recreating the editor.
 export const vimCompartment = new Compartment();
 
 // Vim-aware guard: bail out when vim is active in a non-insert mode so

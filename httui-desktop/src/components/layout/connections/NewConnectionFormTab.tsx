@@ -1,6 +1,16 @@
-// "Form" tab for the new-connection modal.
-// Postgres/MySQL: full field grid. SQLite: file path + browse.
-// Other kinds: "coming soon" stub. Pure presentational — value lifted to consumer.
+// Canvas §5 — "Formulário" tab for the "Nova conexão" modal.
+//
+// Renders the Postgres-shape field grid: Nome (full row); Host
+// (2fr) + Porta (90px); Database + Usuário; Senha (password) with
+// keychain hint + suffix. Below the fields the consumer can compose
+// the env binder and the inline test banner via the `envBinder` /
+// `testBanner` slot props — keeps this file size-honest.
+//
+// Postgres is the canvas-detailed shape; non-postgres kinds
+// (mongo/grpc/graphql/...) render a "form em breve" stub here until
+// later phases ship per-kind variants.
+//
+// Pure presentational: form value + slots lifted to the consumer.
 
 import {
   Box,
@@ -22,7 +32,9 @@ import type { ConnectionKind } from "./connection-kinds";
 const KEYCHAIN_HINT =
   "Saved only in your local keychain. New device → re-register.";
 
-/** Field set for the Postgres-shape form (also used by MySQL/SQLite subsets). */
+/** Field set covered by the Postgres-shape form. Other kinds may
+ * map onto a subset (e.g. shell ignores host/port/database). The
+ * MVP ships postgres only; other kinds render a stub. */
 export interface PostgresFormValue {
   name: string;
   host: string;
@@ -41,7 +53,8 @@ export const EMPTY_POSTGRES_VALUE: PostgresFormValue = {
   password: "",
 };
 
-/** Per-kind form defaults (port, host) for when the user switches drivers. */
+/** Per-kind defaults for the network-shape form. Keeps port + sample
+ * placeholders honest when the user switches between drivers. */
 export function emptyFormValueForKind(kind: ConnectionKind): PostgresFormValue {
   switch (kind) {
     case "mysql":
@@ -57,7 +70,9 @@ export interface NewConnectionFormTabProps {
   kind: ConnectionKind;
   value: PostgresFormValue;
   onChange: (next: PostgresFormValue) => void;
+  /** Slot for the env-binder pills (component-level composition). */
   envBinder?: ReactNode;
+  /** Slot for the inline test result banner. */
   testBanner?: ReactNode;
 }
 
@@ -119,7 +134,7 @@ export function NewConnectionFormTab({
                     patch("database", picked);
                   }
                 } catch {
-                  // ignore — user dismissed or dialog plugin unavailable
+                  // User dismissed or dialog plugin unavailable.
                 }
               }}
             >

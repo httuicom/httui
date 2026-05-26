@@ -89,6 +89,8 @@ describe("RenameEnvironmentForm", () => {
         onCancel={onCancel}
       />,
     );
+    // Input is already pre-filled with "staging" — clicking Save
+    // without changing the value should fall through to onCancel.
     await userEvent
       .setup()
       .click(screen.getByTestId("rename-environment-save"));
@@ -122,6 +124,8 @@ describe("RenameEnvironmentForm", () => {
     const user = userEvent.setup();
     const input = screen.getByTestId("rename-environment-name");
     await user.clear(input);
+    // Change case only — would collide with "staging.toml" without
+    // the self-filter, but here we ARE the source so it's fine.
     await user.type(input, "STAGING");
     await user.click(screen.getByTestId("rename-environment-save"));
     expect(onSubmit).toHaveBeenCalledWith({

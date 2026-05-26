@@ -1,3 +1,10 @@
+// log filter control.
+//
+// Single input + author/path mode toggle. Pure presentational —
+// `LogFilterState` lives in the consumer, which decides whether to
+// re-fetch (`path` mode) or filter the in-memory list (`author`
+// mode).
+
 import { Box, Flex } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 

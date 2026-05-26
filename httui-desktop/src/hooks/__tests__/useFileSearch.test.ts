@@ -27,6 +27,7 @@ describe("useFileSearch", () => {
   });
 
   async function flush() {
+    // Advance debounce window + flush microtasks
     await act(async () => {
       vi.advanceTimersByTime(150);
       await Promise.resolve();
@@ -107,6 +108,7 @@ describe("useFileSearch", () => {
       }),
     );
 
+    // Initial mount call
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -117,6 +119,7 @@ describe("useFileSearch", () => {
     act(() => result.current.handleSearch("ab"));
     act(() => result.current.handleSearch("abc"));
 
+    // Inside debounce window — no extra calls yet
     expect(calls).toBe(initialCalls);
 
     await act(async () => {
@@ -144,7 +147,7 @@ describe("useFileSearch", () => {
     act(() => {
       result.current.setSelectedIndex(99);
     });
-    expect(result.current.safeIndex).toBe(0);
+    expect(result.current.safeIndex).toBe(0); // results still empty
   });
 
   it("safeIndex is 0 when results empty", () => {
@@ -294,6 +297,8 @@ describe("useFileSearch", () => {
 
   describe("tag mode", () => {
     it("`#payments` lists files with the payments tag from the store", async () => {
+      // Bootstrap two tagged files in the store; search_files is mocked
+      // but should NOT be called for tag queries.
       useTagIndexStore
         .getState()
         .setTagsForFile(`${VAULT}/runbooks/refund.md`, ["payments", "api"]);
@@ -317,6 +322,7 @@ describe("useFileSearch", () => {
           onClose: vi.fn(),
         }),
       );
+      // Drain the mount-load (loadOnMount calls search_files with "")
       await act(async () => {
         await Promise.resolve();
         await Promise.resolve();
@@ -331,6 +337,7 @@ describe("useFileSearch", () => {
         `${VAULT}/notes/billing.md`,
         `${VAULT}/runbooks/refund.md`,
       ]);
+      // `name` is the leaf without `.md` for cleaner display.
       expect(
         result.current.results.find((r) => r.path.endsWith("billing.md"))?.name,
       ).toBe("billing");

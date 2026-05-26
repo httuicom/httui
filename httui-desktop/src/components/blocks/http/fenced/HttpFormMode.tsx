@@ -68,8 +68,12 @@ export function HttpFormMode({
   InlineCM,
   renderBodyTab,
 }: HttpFormModeProps) {
-  // Pending rows: rows with empty `key` are dropped by the stringifier, so
-  // they stay local until the user fills the key (avoids premature round-trip loss).
+  // ── Pending rows (local, not yet committed to the doc) ──
+  // Rows with empty `key` would be dropped by the canonical stringifier
+  // (a `?` query segment with no key, or a blank header line that breaks
+  // header parsing). Keeping them in local state until the user types a
+  // key avoids round-trip loss while still letting the doc remain the
+  // source of truth for everything that's actually filled in.
   const [pending, setPending] = useState<{
     params: HttpKVRow[];
     headers: HttpKVRow[];
@@ -227,6 +231,8 @@ export function HttpFormMode({
     </Box>
   );
 }
+
+// ─────────────────────── KV row ───────────────────────
 
 interface KVRowProps {
   kind: "params" | "headers";

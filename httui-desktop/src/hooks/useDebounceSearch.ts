@@ -51,8 +51,10 @@ export function useDebounceSearch<T>({
 
   useEscapeClose(onClose);
 
-  // Mount-load runs immediately (no debounce) when deps change.
-  // `loadOnMount` intentionally omitted from deps — only semantic deps (e.g. vaultPath) should re-trigger.
+  // Mount-load — runs immediately (no debounce) when deps change.
+  // The function is intentionally not in the deps list to mirror the
+  // behaviour of the original hooks, which only re-loaded on the
+  // semantic dep (e.g. vaultPath).
   useEffect(() => {
     if (!loadOnMount) return;
     const promise = loadOnMount();

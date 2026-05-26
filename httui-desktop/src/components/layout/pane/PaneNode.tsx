@@ -42,11 +42,12 @@ export function PaneNode({
   const closeOthers = usePaneStore((s) => s.closeOthers);
   const closeAll = usePaneStore((s) => s.closeAll);
   const vimEnabled = useSettingsStore((s) => s.vimEnabled);
-  // navigateFile passed via prop chain — WorkspaceContext subscription would
-  // re-render on every file-tree change, resetting CM6 scroll position.
+  // navigateFile passed via prop chain to avoid WorkspaceContext subscription
+  // (which would re-render on every file tree change, resetting CM6 scroll)
 
-  // Re-read files cached as HTML by the legacy TipTap editor on first open.
-  // Detected by a leading `<` — markdown never starts with an HTML tag.
+  // Re-read files cached as HTML by the legacy TipTap editor on first open
+  // after upgrade. Detected by the leading `<` — markdown never starts with
+  // an HTML tag at column 0.
   const recoveredRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (layout.type !== "leaf") return;

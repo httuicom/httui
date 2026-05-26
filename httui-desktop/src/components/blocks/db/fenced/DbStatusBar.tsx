@@ -77,7 +77,11 @@ export function DbStatusBar({
       ? formatElapsed(durationMs)
       : null;
 
-  // Seed the relative timestamp only once a run completes, not on mount.
+  // Capture "when the latest run finished" so we can show a relative
+  // timestamp that drifts as the user leaves the block idle. Seeded with a
+  // per-mount clock so the `n seconds ago` only starts once a run
+  // actually succeeds — otherwise we'd claim pre-run cached data was
+  // "just now".
   const [lastRunAt, setLastRunAt] = useState<number | null>(null);
   useEffect(() => {
     if (executionState === "success" || executionState === "error") {
@@ -85,7 +89,8 @@ export function DbStatusBar({
     }
   }, [executionState, response]);
 
-  // 30s tick — finer cadence is visual noise for "X minutes ago".
+  // Ticking clock so the relative label stays fresh without prop pressure.
+  // 30s cadence — anything faster is visual noise for a "X minutes ago" line.
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     if (lastRunAt === null) return;
@@ -96,6 +101,9 @@ export function DbStatusBar({
   const relativeRan =
     lastRunAt !== null ? formatRelativeTime(lastRunAt, nowTick) : null;
 
+  // Contextual shortcut hint — varies by execution state. Spec §2.7 asks
+  // for one hint that updates as the state changes, rather than a static
+  // tooltip.
   const hint: string | null =
     executionState === "running"
       ? "⌘. to cancel"
@@ -103,6 +111,7 @@ export function DbStatusBar({
         ? "⌘↵ to run"
         : null;
 
+  // State → user-facing label.
   const stateLabel: string | null =
     executionState === "running"
       ? "running"
@@ -148,6 +157,7 @@ export function DbStatusBar({
       fontSize="xs"
       color="fg.muted"
     >
+      {/* Left cluster: connection state */}
       <HStack gap={2} align="center" flexShrink={0}>
         <Box boxSize="2" borderRadius="full" bg={dotColor} flexShrink={0} />
         {stateLabel && (
@@ -178,6 +188,7 @@ export function DbStatusBar({
         )}
       </HStack>
 
+      {/* Centre cluster: data counts */}
       {rowCount && (
         <>
           {pipe}
@@ -185,8 +196,10 @@ export function DbStatusBar({
         </>
       )}
 
+      {/* Filler so right-cluster pushes to the end */}
       <Flex flex={1} />
 
+      {/* Right cluster: duration · cached · last run · hint */}
       {duration && <Text>{duration}</Text>}
       {cached && duration && pipe}
       {cached && (
@@ -227,6 +240,8 @@ export function DbStatusBar({
     </Flex>
   );
 }
+
+// ─────────────────────── Export menu ───────────────────────
 
 interface ExportMenuProps {
   response: DbResponse | null;

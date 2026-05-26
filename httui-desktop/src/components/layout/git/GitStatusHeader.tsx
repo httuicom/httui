@@ -1,3 +1,9 @@
+// top section of the Git panel: branch label,
+// upstream, ahead/behind chips, dirty count.
+//
+// Pure presentational. Consumer fetches `GitStatus` via
+// `gitStatus(vaultPath)` and passes it as a prop.
+
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import type { GitStatus } from "@/lib/tauri/git";

@@ -77,7 +77,9 @@ export function useFileOperations({
       try {
         await renameNote(vaultPath, path, newPath);
         await refreshFileTree(vaultPath);
-        // Drop old-path tag entry; next save re-indexes under the new path.
+        // Tag index is keyed by old path — drop it. The next save
+        // (or the vault-walker re-run) re-indexes under the new
+        // path. Cheap; keeps quick-open #tag results coherent.
         useTagIndexStore.getState().removeFile(path);
       } catch (err) {
         console.error("Failed to rename:", err);
@@ -111,7 +113,8 @@ export function useFileOperations({
       try {
         await renameNote(vaultPath, sourcePath, newPath);
         await refreshFileTree(vaultPath);
-        // Drop old-path tag entry; next save re-indexes under the new path.
+        // Drop the old path's tag entry — same semantic as
+        // handleRename. Next save under the new path re-indexes.
         useTagIndexStore.getState().removeFile(sourcePath);
       } catch (err) {
         console.error("Failed to move file:", err);

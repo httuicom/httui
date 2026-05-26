@@ -1,3 +1,16 @@
+// Empty-vault sidebar — (canvas §3).
+//
+// 260px sidebar shown on the welcome screen alongside the main
+// EmptyVaultScreen content. Five sections:
+//   • WORKSPACE label + workspace pill (square avatar + name)
+//   • CTA "Novo runbook" (accent bg, plus icon)
+//   • RECENTES — empty-state copy
+//   • EXPLORAR — Templates / Connections / Variables / Members
+//
+// Pure presentational. The workspace concept is a placeholder until
+// per-machine workspace identity ships (canvas teams.jsx implies a
+// "workspace name" separate from per-vault).
+
 import { Box, HStack, Stack, Text, chakra } from "@chakra-ui/react";
 import { LuPlus, LuChevronDown } from "react-icons/lu";
 
@@ -6,9 +19,13 @@ import { Btn } from "@/components/atoms";
 const WorkspacePill = chakra("button");
 
 export interface EmptyVaultSidebarProps {
+  /** Workspace label shown in the pill. Defaults to "default". */
   workspaceName?: string;
+  /** Callback for the "Novo runbook" CTA — typically opens the
+   * scaffold flow (EmptyVaultScreen's "Create" path). */
   onCreateRunbook: () => void;
-  /** Workspace pill click (placeholder for future workspace-list popover). */
+  /** Callback for the workspace pill (workspace switcher; placeholder
+   * for the future workspace-list popover). */
   onWorkspaceClick?: () => void;
 }
 
@@ -58,6 +75,7 @@ export function EmptyVaultSidebar({
       borderRightWidth="1px"
       borderRightColor="border"
     >
+      {/* Workspace section */}
       <Stack gap={2}>
         <SectionLabel>WORKSPACE</SectionLabel>
         <WorkspacePill
@@ -108,6 +126,7 @@ export function EmptyVaultSidebar({
         </Btn>
       </Stack>
 
+      {/* Recentes */}
       <Stack gap={2}>
         <SectionLabel>RECENTES</SectionLabel>
         <Text
@@ -120,6 +139,7 @@ export function EmptyVaultSidebar({
         </Text>
       </Stack>
 
+      {/* Explorar */}
       <Stack gap={2}>
         <SectionLabel>EXPLORAR</SectionLabel>
         <Stack gap={1.5}>

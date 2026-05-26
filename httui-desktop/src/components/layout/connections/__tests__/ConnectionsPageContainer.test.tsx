@@ -162,11 +162,13 @@ describe("ConnectionsPageContainer", () => {
       vaultPath: "/tmp/vault",
       connectionName: "payments-db",
     });
+    // The schema cache feeding the schemaProp memo is now populated.
     await waitFor(() => {
       expect(
         useSchemaCacheStore.getState().byConnection["payments-db"]?.schema,
       ).toBeTruthy();
     });
+    // The mapped usage row renders in the detail panel.
     expect(await screen.findByTestId("used-in-row-0")).toBeInTheDocument();
   });
 
@@ -195,6 +197,7 @@ describe("ConnectionsPageContainer", () => {
     await user.click(await screen.findByTestId("credentials-edit"));
     const modal = await screen.findByTestId("new-connection-modal");
     expect(modal).toBeTruthy();
+    // Edit mode reflects the selected connection's name.
     expect(modal.textContent).toContain("payments-db");
     await user.keyboard("{Escape}");
     await waitFor(() => {
@@ -315,6 +318,7 @@ describe("ConnectionsPageContainer", () => {
     );
     await user.click(await screen.findByText("Edit"));
     expect(await screen.findByTestId("new-connection-modal")).toBeTruthy();
+    // Close it — exercises the onClose (setNewOpen(false)+setEditingId(null)).
     await user.keyboard("{Escape}");
     await waitFor(() => {
       expect(screen.queryByTestId("new-connection-modal")).toBeNull();
@@ -339,6 +343,7 @@ describe("ConnectionsPageContainer", () => {
     });
     await user.click(screen.getByTestId("connections-create-new"));
     expect(await screen.findByTestId("new-connection-modal")).toBeTruthy();
+    // Save is gated on a non-empty name; fill it then submit.
     await user.type(
       await screen.findByTestId("new-connection-field-name"),
       "fresh-db",
@@ -348,9 +353,11 @@ describe("ConnectionsPageContainer", () => {
     await waitFor(() => {
       expect(created).toMatchObject({ input: { name: "fresh-db" } });
     });
+    // onCreated → reload (list_connections re-called).
     await waitFor(() => {
       expect(listCalls).toBeGreaterThan(before);
     });
+    // onClose → modal unmounts.
     await waitFor(() => {
       expect(screen.queryByTestId("new-connection-modal")).toBeNull();
     });

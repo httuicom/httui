@@ -121,10 +121,17 @@ export function buildDocHeaderCallbacks(
     deps.flushSave();
   };
 
+  // clicking the static H1 returns the cursor to the first body line.
+  // Same path used by Enter / ArrowDown / Escape on
+  // the editable input (/ M3).
   const onTitleNavigateToBody = () => {
     deps.returnFocusToBody(instanceId);
   };
 
+  // typed pre-flight checks. The block-list lives
+  // under the `preflight:` YAML key (TaskItem moved to `tasks:` in
+  // the rename commit). Each callback round-trips through the doc
+  // text: read current checks → mutate → write back.
   const onAddPreflightCheck = (check: PreflightCheck) => {
     const v = entry?.view;
     if (!v) return;

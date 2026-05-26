@@ -623,7 +623,8 @@ describe("GitPanelContainer", () => {
       });
       expect(screen.getByTestId("git-tab-status")).toBeInTheDocument();
       expect(screen.getByTestId("git-tab-log")).toBeInTheDocument();
-      // Audit tab dropped: identical to Log without action-type filters (deferred).
+      // Audit dropped — was identical to Log without the v1.x
+      // action-type filters.
       expect(screen.queryByTestId("git-tab-audit")).not.toBeInTheDocument();
     });
   });

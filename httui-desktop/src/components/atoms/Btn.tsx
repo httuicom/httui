@@ -1,3 +1,10 @@
+// Button atom (design canvas §0).
+//
+// 24px tall, 0 10px padding, 4px radius. Two variants: `primary`
+// (accent bg + accent-fg, weight 600) and `ghost` (transparent bg,
+// no border). The Chakra `<Button>` defaults are too tall (32px+)
+// and don't match the canvas atoms — wrap with the spec sizes.
+
 import { Button, type ButtonProps } from "@chakra-ui/react";
 import { forwardRef } from "react";
 

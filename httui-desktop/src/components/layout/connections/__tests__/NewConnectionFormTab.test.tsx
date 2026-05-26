@@ -246,6 +246,7 @@ describe("NewConnectionFormTab", () => {
       expect(
         screen.getByTestId("new-connection-field-database-browse"),
       ).toBeInTheDocument();
+      // The postgres-shape grid must NOT render for sqlite.
       expect(
         screen.queryByTestId("new-connection-form-tab"),
       ).not.toBeInTheDocument();

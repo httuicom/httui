@@ -12,6 +12,8 @@ import {
 } from "@/types/pane";
 import { forceReloadFile } from "@/lib/tauri/commands";
 
+// --- Types ---
+
 export interface DiffTabParams {
   filePath: string;
   vaultPath: string;
@@ -26,6 +28,7 @@ interface FileReloadedPayload {
 }
 
 interface PaneState {
+  // State
   layout: PaneLayout;
   activePaneId: string;
   editorContents: Map<string, string>;
@@ -86,6 +89,8 @@ interface PaneState {
     vaultPath: string | null,
   ) => Promise<void>;
 }
+
+// --- Pure helper functions (exported for testing) ---
 
 export function findLeaf(node: PaneLayout, id: string): LeafPane | null {
   if (node.type === "leaf") return node.id === id ? node : null;
@@ -151,6 +156,8 @@ export function replacePaneInLayout(
   };
 }
 
+// --- Singleton tab helper ---
+
 type SingletonTabKind = "connections" | "variables" | "environments" | "git";
 
 function openSingletonTab(
@@ -191,11 +198,14 @@ function openSingletonTab(
   });
 }
 
+// --- Store ---
+
 const initialLeaf = createLeafPane();
 
 export const usePaneStore = create<PaneState>()(
   devtools(
     (set, get) => ({
+      // Initial state
       layout: initialLeaf,
       activePaneId: initialLeaf.id,
       editorContents: new Map<string, string>(),
@@ -204,10 +214,14 @@ export const usePaneStore = create<PaneState>()(
       conflictFiles: new Set<string>(),
       saveSignal: 0,
 
+      // Computed
       getActiveLeaf: () => findLeaf(get().layout, get().activePaneId),
+
+      // --- Pane actions ---
 
       openFile: (filePath, content, vaultPath) => {
         const { activePaneId } = get();
+        // Mutate content in place (non-reactive, like updateContent)
         get().editorContents.set(filePath, content);
 
         set((state) => {
@@ -469,6 +483,7 @@ export const usePaneStore = create<PaneState>()(
       },
 
       restoreLayout: (savedLayout, savedActivePaneId, contents) => {
+        // Mutate content map in place (non-reactive)
         if (contents) {
           const editorContents = get().editorContents;
           for (const [filePath, html] of contents) {
@@ -477,6 +492,8 @@ export const usePaneStore = create<PaneState>()(
         }
         set({ layout: savedLayout, activePaneId: savedActivePaneId });
       },
+
+      // --- Conflict actions ---
 
       hasConflict: (filePath) => get().conflictFiles.has(filePath),
 
@@ -499,14 +516,18 @@ export const usePaneStore = create<PaneState>()(
   ),
 );
 
+// --- Tauri event listeners ---
+
 export function setupPaneListeners() {
   listen<FileReloadedPayload>("file-reloaded", (event) => {
     const { path } = event.payload;
     const { editorContents, unsavedFiles, conflictFiles } =
       usePaneStore.getState();
 
+    // Only care about open files
     if (!editorContents.has(path)) return;
 
+    // If file has unsaved edits, show conflict banner
     if (unsavedFiles.has(path)) {
       usePaneStore.setState({
         conflictFiles: new Set(conflictFiles).add(path),
@@ -514,6 +535,8 @@ export function setupPaneListeners() {
     }
   });
 }
+
+// --- Selectors ---
 
 export const selectLayout = (s: PaneState) => s.layout;
 export const selectActivePaneId = (s: PaneState) => s.activePaneId;

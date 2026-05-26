@@ -294,6 +294,8 @@ describe("parseHttpMessageBody — comments", () => {
     const parsed = parseHttpMessageBody(
       ["GET https://example.com", "#desc: oops", "Accept: x"].join("\n"),
     );
+    // The line is treated as a free-form `#desc: oops` (no space after `#`),
+    // which doesn't match `# desc: ` exactly, so no description is attached.
     expect(parsed.headers).toEqual([
       { key: "Accept", value: "x", enabled: true },
     ]);

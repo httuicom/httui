@@ -1,3 +1,9 @@
+// Canvas §6 Variables — TEMPORARY chip.
+//
+// Tiny accent-bg chip with serif italic label, marking a variable
+// value that is currently being overridden in the session. When
+// `onClear` is supplied the chip becomes a button that drops the
+// override on click.
 
 import { chakra } from "@chakra-ui/react";
 

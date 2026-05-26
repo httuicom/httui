@@ -1,3 +1,10 @@
+// pure derivations for the Git panel UI.
+//
+// Kept framework-free so the same helpers feed `GitStatusHeader`,
+// `GitFileList`, and `GitLogList` plus their tests. Consumers (the
+// future panel container) call `gitStatus`/`gitLog` and pass results
+// straight to the presentational components.
+
 import type { CommitInfo, GitFileChange, GitStatus } from "@/lib/tauri/git";
 
 export interface FilePartition {
@@ -55,7 +62,10 @@ export interface ChangeCounts {
   conflicted: number;
 }
 
-/** Tally changes by kind. Renamed/copied fold into `modified`. */
+/** Tally the working-tree changes by kind for the pane-tab metrics
+ * strip. Renamed/copied/other fold into `modified` — the
+ * strip wants a dense at-a-glance count, not the
+ *  full porcelain taxonomy. */
 export function summarizeChangeCounts(
   changed: ReadonlyArray<GitFileChange>,
 ): ChangeCounts {
@@ -90,7 +100,9 @@ export function summarizeChangeCounts(
 /** Map a 2-char porcelain v2 XY status to a single human-readable token. */
 export function labelFileStatus(file: GitFileChange): string {
   if (file.untracked) return "untracked";
-  // XY porcelain v2: prefer worktree char when set, else staged char.
+  // status is the XY field from `git status --porcelain=v2`.
+  // First char = staged, second = worktree. We collapse to the most
+  // informative letter, preferring worktree when present.
   const xy = file.status ?? "..";
   const staged = xy.charAt(0);
   const worktree = xy.charAt(1);
@@ -137,7 +149,11 @@ export function relativeTime(
   return `${Math.floor(diffSec / 86400)}d ago`;
 }
 
-/** Two-letter author initials from `author_name`. Falls back to `?`. */
+/**
+ * Two-letter author initials derived from `author_name`. Used in the
+ * log row to keep it compact (the spec requests "author initials").
+ * Falls back to `?` when no usable letters can be extracted.
+ */
 export function authorInitials(commit: CommitInfo): string {
   const name = commit.author_name?.trim() ?? "";
   if (!name) return "?";

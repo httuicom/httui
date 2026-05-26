@@ -1,3 +1,8 @@
+// Color-mode picker for Settings → General. Three radio cells:
+// System / Light / Dark. Persists via `useSettingsStore.setColorMode`,
+// which writes through to `user.toml [ui].color_mode` and triggers
+// `<ColorModeSync />` to re-apply the Chakra mode.
+
 import { chakra, HStack, Text, VStack } from "@chakra-ui/react";
 import { LuLaptop, LuMoon, LuSun } from "react-icons/lu";
 

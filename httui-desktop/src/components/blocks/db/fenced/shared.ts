@@ -1,15 +1,25 @@
-export type ExecutionState =
-  | "idle"
-  | "running"
-  | "success"
-  | "error"
-  | "cancelled";
+/**
+ * Shared types and helpers for the DB fenced-block UI.
+ *
+ * Lives next to DbFencedPanel.tsx so the sub-components extracted from it
+ * (DbToolbar, DbStatusBar, etc.) can import without pulling the whole
+ * panel module.
+ */
+
+// Canonical union lives in blocks/execution-state; re-exported so the
+// DB sub-components keep importing it unchanged from "./shared".
+export type { ExecutionState } from "@/components/blocks/execution-state";
 
 // Canonical formatter lives in lib/format; re-exported so the DB
 // sub-components keep importing it unchanged from "./shared".
 export { formatElapsed } from "@/lib/format/time";
 
-/** Human-friendly relative timestamp: "just now", "3m ago", "2h ago", "1d ago". Falls back to ISO date after 7 days. */
+/**
+ * Human-friendly relative timestamp: "just now", "3m ago", "2h ago", "1d ago".
+ * Used to render the "last run" hint in the status bar without a dependency
+ * on a date library. Capped at days — anything older is suspiciously stale
+ * and we render the ISO date instead.
+ */
 export function formatRelativeTime(from: number, now: number): string {
   const delta = Math.max(0, Math.floor((now - from) / 1000)); // seconds
   if (delta < 5) return "just now";

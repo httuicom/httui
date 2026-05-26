@@ -1,3 +1,13 @@
+// derive the HTTPS / SSH / Web URLs of the repo's
+// first remote and expose copy + open actions. Shared by the git
+// panel toolbar and the status-bar ShareMenu so the "both" mount
+// stays DRY.
+//
+// The forge is detected from the remote host via the existing
+// `parseRemoteUrl` port. When no remote is configured
+// or its URL doesn't parse — `options` is empty and the popover
+// renders its "configure a remote" empty state.
+
 import { useCallback, useMemo } from "react";
 
 import { useGitRemotes } from "@/hooks/useGitRemotes";
@@ -48,7 +58,8 @@ export function useShareRepoUrl(
   }, [remotes]);
 
   const copy = useCallback((url: string) => {
-    // No await before writeText — clipboard permission is silently denied outside a click gesture.
+    // Must run inside the click gesture — no await before writeText
+    // or the clipboard permission is silently denied.
     void navigator.clipboard.writeText(url);
   }, []);
 

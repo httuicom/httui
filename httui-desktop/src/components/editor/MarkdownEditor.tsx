@@ -83,6 +83,7 @@ export function MarkdownEditor({
     [hasInlineHeader],
   );
 
+  // Read workspace state imperatively (non-reactive)
   const entriesRef = useRef<FileEntry[]>(useWorkspaceStore.getState().entries);
   useEffect(() => {
     return useWorkspaceStore.subscribe((state) => {
@@ -136,6 +137,8 @@ export function MarkdownEditor({
     [vimEnabled],
   );
 
+  // Vim toggle after initial creation. The doc-line ArrowUp/Down
+  // keymap inspects the live vim state and bails when vim owns motion.
   useEffect(() => {
     viewRef.current?.dispatch({
       effects: vimCompartment.reconfigure(vimEnabled ? vim() : []),
@@ -151,6 +154,7 @@ export function MarkdownEditor({
     };
   }, [filePath]);
 
+  // Listen for external file reloads
   useEffect(() => {
     const unlisten = listen<{ path: string; markdown: string }>(
       "file-reloaded",

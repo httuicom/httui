@@ -3,9 +3,12 @@ import { afterEach } from "vitest";
 
 import { resetGitStore } from "@/stores/git";
 
-// The git store is a module singleton. Without a reset between specs,
-// status from a prior test would leak into the next render. Also tears
-// down any leaked poll interval so timers never cross test boundaries.
+// V10.1 — the git store is a module singleton (status/remotes/commits
+// are polled once and shared by every consumer). Without a reset
+// between specs, a `status` from a prior test would leak into the
+// next render — the V10 per-hook `useState` was naturally fresh per
+// render, so we restore that contract globally here. Also tears down
+// any leaked poll interval so timers never cross test boundaries.
 afterEach(() => {
   resetGitStore();
 });

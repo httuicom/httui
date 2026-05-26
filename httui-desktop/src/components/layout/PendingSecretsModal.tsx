@@ -1,5 +1,21 @@
-// First-run secrets modal. Uses Portal+Box (not Dialog.Root) so closing
-// returns focus to the editor — Dialog's focus trap prevents CM6 input.
+// First-run secrets modal.
+//
+// Renders a list of `MissingRef`s the user needs to provide a value
+// for. Each row has Save (persist + remove from store) and Skip
+// (hide from this session of the modal, but **keep** the ref in the
+// store so the badge still counts it).
+//
+// Footer: "Skip all" / "Done" both call `dismiss()` — they hide the
+// modal but never touch the store. Whatever wasn't saved stays
+// pending and the StatusBar badge surfaces the count.
+//
+// Re-opening the modal (via the badge) clears the per-session
+// "skipped" set so all still-pending refs render again.
+//
+// Per CLAUDE.md note: do NOT use Chakra `Dialog.Root` — use Portal +
+// Box instead so closing returns focus to whatever the user had
+// active before. Dialog's focus trap leaves the editor unable to
+// receive keyboard input after dismissal.
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import {
@@ -22,8 +38,10 @@ const Backdrop = chakra("div");
 
 export function PendingSecretsModal() {
   const open = usePendingSecretsStore((s) => s.modalOpen);
-  // Inner component owns the session-local "skipped" set and only mounts
-  // while visible — re-opening starts with a fresh Set, no reset effect needed.
+  // Outer just gates on `open`. The inner component owns the
+  // session-local "skipped" set and only mounts while the modal is
+  // visible — so re-opening after a dismiss starts with a fresh
+  // `skipped` Set without any useEffect-vs-useEffect race.
   if (!open) return null;
   return <PendingSecretsModalContent />;
 }
@@ -33,6 +51,8 @@ function PendingSecretsModalContent() {
   const removePending = usePendingSecretsStore((s) => s.removePending);
   const dismiss = usePendingSecretsStore((s) => s.dismiss);
 
+  // Session-local "skipped" set. Mounted fresh every time the modal
+  // opens (outer remount), so we don't need a reset effect.
   const [skipped, setSkipped] = useState<Set<string>>(() => new Set());
 
   const visible = useMemo(
@@ -40,8 +60,10 @@ function PendingSecretsModalContent() {
     [pending, skipped],
   );
 
-  // Auto-close when every row has been Saved or Skipped. Skipped refs
-  // stay in the store so the badge keeps counting them.
+  // When the visible list empties out — every row was either Saved
+  // or Skipped this session — close the modal automatically. Refs
+  // skipped this session stay in the store so the badge keeps
+  // counting them; refs Saved are already gone from `pending`.
   useEffect(() => {
     if (visible.length === 0) {
       dismiss();

@@ -1,3 +1,17 @@
+// popover for adding / editing a single pre-flight
+// check inline in the DocHeader pill row.
+//
+// Two stages:
+//   1. Kind picker — 5 buttons (connection / env_var / branch /
+//      file_exists / command). Skipped when the popover opens with an
+//      `initialKind` (edit mode pre-binds the kind).
+//   2. Value input — single-line CM6 editor with native autocompletion
+//      (mirrors the inline forms in HTTP/DB blocks). Save / Cancel
+//      buttons; Remove appears in edit mode only.
+//
+// Pure presentational. The consumer (PreflightPills) handles open/close
+// state + binds the callbacks to the frontmatter writer.
+
 import { useEffect, useState } from "react";
 import { Box, Flex, HStack, Stack, Text } from "@chakra-ui/react";
 
@@ -45,16 +59,23 @@ const KIND_OPTIONS: ReadonlyArray<KindOption> = [
 ];
 
 export interface PreflightCheckPopoverProps {
-  /** Anchor rect — popover positions below this point. */
+  /** Anchor coords (right edge of the trigger). The popover positions
+   *  itself absolute below that point. */
   anchorRect?: DOMRect | null;
-  /** Edit mode: pre-bind kind + value. */
+  /** Edit mode: pre-bind kind + value so the user lands directly on
+   *  the value input. */
   initialKind?: PreflightCheckKind;
   initialValue?: string;
+  /** Save callback. Receives the assembled check. */
   onSave: (check: PreflightCheck) => void;
   /** Remove callback (edit mode only). */
   onRemove?: () => void;
+  /** Esc / outside-click / explicit close. */
   onClose: () => void;
-  /** Autocomplete provider per kind. Tests inject deterministic data. */
+  /** polish — autocomplete provider per kind. Returns
+   *  candidate values; popover filters by substring match on the
+   *  current input. Tests inject deterministic providers; the inline
+   *  builder uses `defaultSuggestionProvider`. */
   getSuggestions?: (kind: PreflightCheckKind) => Promise<string[]>;
 }
 
@@ -72,7 +93,9 @@ export function PreflightCheckPopover({
   );
   const [value, setValue] = useState(initialValue ?? "");
 
-  // Once a kind is picked, the CM6 editor owns Esc (dismisses autocomplete first).
+  // Esc at the kind-picker stage falls through to here. Once the user
+  // picks a kind, the CM6 editor owns Esc via its keymap (so it can
+  // also dismiss its autocomplete popup first).
   useEffect(() => {
     if (kind !== null) return;
     const handler = (e: KeyboardEvent) => {
@@ -92,7 +115,9 @@ export function PreflightCheckPopover({
     onSave({ kind, value: trimmed });
   };
 
-  // Falls back to centered when no anchor rect is supplied (test mounts).
+  // Position: anchored below + slightly right-aligned to the trigger.
+  // Falls back to a centered top-left when no anchor is supplied (test
+  // mounts that just check render).
   const position = anchorRect
     ? {
         top: `${anchorRect.bottom + 4}px`,

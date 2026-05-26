@@ -1,6 +1,11 @@
-// Connections page: 3-column grid (220px sidebar / 1fr list / 420px detail).
-// Derives sidebar counts, env summary, list rows, and status counts from
-// `connections-derive.ts` and threads selection into the detail panel.
+// Canvas §5 — Connections refined page.
+//
+// 3-column grid: 220px kind sidebar / 1fr list / 420px detail.
+// Slice 2 (this file): consumes a `connections: Connection[]` +
+// optional `enrichment` array, derives sidebar counts / env summary
+// / list rows / status counts via the pure helpers in
+// `connections-derive.ts`, and threads selection through the
+// detail panel.
 
 import { useMemo, useState } from "react";
 import { Flex } from "@chakra-ui/react";
@@ -29,11 +34,18 @@ import {
 import type { ConnectionKind } from "./connection-kinds";
 
 export interface ConnectionsPageProps {
+  /** Raw connection list from `listConnections()`. Optional —
+   * defaults to empty so the page renders the empty state. */
   connections?: Connection[];
+  /** Per-row enrichment (env / latency / uses) keyed by
+   * connection id. Defaults to empty; rows then render with
+   * "untested" status / 0 uses / null env. */
   enrichment?: ConnectionEnrichment[];
-  /** Override derived sidebar counts (e.g. in tests). */
+  /** Override sidebar counts (e.g. for tests). When omitted,
+   * counts derive from `connections`. */
   countsByKind?: Partial<Record<ConnectionKind, number>>;
-  /** Override derived env summary list. */
+  /** Override env summary list. When omitted, derives from
+   * `enrichment`. */
   envs?: EnvSummary[];
   onCreateNew?: () => void;
   /** ⋮ row-menu handlers. */
@@ -41,13 +53,17 @@ export interface ConnectionsPageProps {
   onTestRow?: (id: string) => void;
   onDuplicateRow?: (id: string) => void;
   onDeleteRow?: (id: string) => void;
+  /** Save handler for the credentials Edit/Save flow. */
   onSaveCredentials?: (
     id: string,
     input: UpdateConnectionInput,
   ) => Promise<void> | void;
+  /** Rotate-password handler. */
   onRotatePassword?: (id: string, newPassword: string) => Promise<void> | void;
-  /** Open the modal in edit mode instead of inline editing. */
+  /** When provided, the detail panel "Edit" delegates to this
+   * (opens the modal in edit mode) instead of inline edit. */
   onRequestEditCredentials?: (id: string) => void;
+  /** schema state for the selected connection. */
   schemaByConnection?: Record<
     string,
     {
@@ -56,15 +72,29 @@ export interface ConnectionsPageProps {
       error: string | null;
     }
   >;
+  /** Hot-tables map (canvas: top 5 from `block_run_history`). */
   hotTablesByConnection?: Record<string, HotTableEntry[]>;
+  /** Click "Refresh" in the schema preview — consumer should call
+   * `useSchemaCacheStore.refresh(id)`. */
   onRefreshSchema?: (id: string) => void;
+  /** runbook usages keyed by connection id. Consumer
+   * fills via a vault-grep Tauri command driven by
+   * `connection-usages.ts`. */
   usagesByConnection?: Record<string, RunbookUsage[]>;
+  /** True while the consumer is loading usages for a connection. */
   usagesLoadingByConnection?: Record<string, boolean>;
+  /** Click on a usage row → consumer opens the file at the line
+   * (typically `useEditorSession.handleFileSelect` + cursor scroll). */
   onOpenUsage?: (filePath: string, line: number) => void;
+  /** footer actions, dispatched with the selected
+   * connection's id. */
   onTestConnection?: (id: string) => Promise<number>;
   onDuplicateConnection?: (id: string) => Promise<void> | void;
   onDeleteConnection?: (id: string) => Promise<void> | void;
-  /** Controlled selection — omit both props for uncontrolled behaviour. */
+  /** Controlled selection (V4). When provided, the page becomes a
+   * controlled component and emits changes via `onSelectId`.
+   * Omit both to keep the legacy uncontrolled behaviour (used by
+   * the 05 test suite). */
   selectedId?: string | null;
   onSelectId?: (id: string | null) => void;
 }

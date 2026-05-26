@@ -1,3 +1,11 @@
+// Status-bar shell atom (design canvas §0).
+// 22px tall, 11px mono, gap 14, `bg.1` bg, top border `line`.
+//
+// Pure container. Consumers (workbench `<StatusBarShell>`,
+// chat-status, etc.) compose `<Dot>`, `<Kbd>`, text, etc. as
+// children. Distinct from `layout/StatusBar.tsx` which is the wired-
+// up feature component.
+
 import { HStack, type StackProps } from "@chakra-ui/react";
 
 export type StatusBarShellProps = StackProps;

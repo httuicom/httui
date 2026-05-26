@@ -38,6 +38,7 @@ export function DbSettingsDrawer({
   onDelete,
   onConnectionsChanged,
 }: DbSettingsDrawerProps) {
+  // Close on ESC
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();

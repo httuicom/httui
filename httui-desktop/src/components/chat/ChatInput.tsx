@@ -118,6 +118,7 @@ export function ChatInput() {
     [addAttachmentFromBlob],
   );
 
+  // Tauri native drag-drop for image files
   useEffect(() => {
     const unlisten = getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type === "drop") {
@@ -179,6 +180,7 @@ export function ChatInput() {
       bg={isDragOver ? "brand.500/5" : "bg"}
       transition="border-color 0.15s, background 0.15s"
     >
+      {/* Attachment previews */}
       {attachments.length > 0 && (
         <Flex gap={1} mb={1.5} flexWrap="wrap">
           {attachments.map((att, i) => (

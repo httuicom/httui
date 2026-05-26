@@ -1,6 +1,10 @@
-// Pure helper for the "Connection string" tab. Accepts a pasted URL (postgres /
-// postgresql / mysql; other schemes reject explicitly) and returns a discriminated
-// result with the form fields + SSL payload extracted from query params.
+// Canvas §5 — Connection-string parser.
+//
+// Pure helper for the "Connection string" tab in the Nova Conexão
+// modal. Accepts a URL the user pasted (postgres / postgresql / mysql
+// for v1; other kinds reject explicitly until we ship per-kind shapes)
+// and returns a discriminated result with the form fields + a parsed
+// SSL payload extracted from query params.
 
 import type { ConnectionKind } from "./connection-kinds";
 import {

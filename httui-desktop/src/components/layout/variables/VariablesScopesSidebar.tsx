@@ -1,3 +1,9 @@
+// Canvas §6 Variables — 200px scopes sidebar.
+//
+// Three sections: SCOPES list, HELPERS list, hint card pinned at the
+// bottom. Pure presentational; `selectedScope` + `onSelectScope` and
+// `countsByScope` drive the rendering. Counts default to 0 when the
+// consumer omits a scope.
 
 import { Box, Flex } from "@chakra-ui/react";
 import { LuKey } from "react-icons/lu";

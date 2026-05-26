@@ -10,6 +10,7 @@ import { useWorkspaceStore } from "@/stores/workspace";
 import { useSettingsStore } from "@/stores/settings";
 import type { PaneLayout } from "@/types/pane";
 
+// Remove tabs for files that no longer exist from the layout
 function filterDeletedTabs(
   node: PaneLayout,
   existingFiles: Set<string>,
@@ -36,6 +37,7 @@ function filterDeletedTabs(
 export function useSessionPersistence(): void {
   const sessionRestored = useRef(false);
 
+  // Load session on startup — single IPC roundtrip
   useEffect(() => {
     (async () => {
       try {
@@ -50,6 +52,7 @@ export function useSessionPersistence(): void {
           useWorkspaceStore.getState().setVaultPath(session.active_vault);
           useWorkspaceStore.getState().setEntries(session.file_tree);
 
+          // Fire-and-forget: start watching + rebuild index
           startWatching(session.active_vault).catch(() => {});
           rebuildSearchIndex(session.active_vault).catch(() => {});
 
@@ -72,6 +75,7 @@ export function useSessionPersistence(): void {
               );
               restoreLayout(cleanedLayout, session.active_pane_id, contents);
 
+              // Restore scroll positions
               if (session.scroll_positions) {
                 try {
                   const positions = JSON.parse(
@@ -105,6 +109,7 @@ export function useSessionPersistence(): void {
     })();
   }, []);
 
+  // Save pane layout on changes (only after session restore completes)
   useEffect(() => {
     return usePaneStore.subscribe((state, prevState) => {
       if (!sessionRestored.current) return;
@@ -122,6 +127,7 @@ export function useSessionPersistence(): void {
     });
   }, []);
 
+  // Save vim preference on changes (only after session restore completes)
   useEffect(() => {
     return useSettingsStore.subscribe((state, prevState) => {
       if (!sessionRestored.current) return;

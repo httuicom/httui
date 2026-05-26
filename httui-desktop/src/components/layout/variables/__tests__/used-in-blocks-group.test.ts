@@ -43,7 +43,8 @@ describe("groupVarUsesByFile", () => {
   });
 
   it("starts a new group when the file path changes (even briefly)", () => {
-    // Groups consecutive runs only — does not assume Rust pre-sorts by file path.
+    // The Rust side sorts by file path, but the helper shouldn't
+    // assume that — it groups consecutive runs only.
     const groups = groupVarUsesByFile([
       entry("a.md", 1),
       entry("b.md", 1),

@@ -1,3 +1,16 @@
+// DocHeader card scaffold.
+//
+// Pure presentational. Renders above the CM6 editor for `.md` tabs.
+// (meta strip) + (abstract paragraph) +
+// (action row) extend the card; (compact mode) flips a data
+// attribute. The frontmatter parser is this card
+// accepts already-parsed `frontmatter` and `firstHeading` props.
+//
+// / M2 — when `onTitleSave` is provided the H1
+// becomes an editable input (Notion-mode), debounced 300ms before
+// firing the callback. Static H1 path is preserved for callers that
+// don't pass `onTitleSave` (kept the diff viewer + tests working).
+
 import { useContext, useEffect, useRef, useState } from "react";
 import { Box, Flex, Heading, Text, chakra } from "@chakra-ui/react";
 
@@ -155,6 +168,7 @@ function DocHeaderTitleInput({ value, onSave }: DocHeaderTitleInputProps) {
   // commits (which round-trip through the parent and arrive as a new
   // value identical to the local state).
   const lastExternalRef = useRef(value);
+  // Sync external changes (loaded a new file, undo/redo in body, etc.)
   useEffect(() => {
     if (value !== lastExternalRef.current && value !== local) {
       lastExternalRef.current = value;
@@ -180,6 +194,7 @@ function DocHeaderTitleInput({ value, onSave }: DocHeaderTitleInputProps) {
     return () => clearTimeout(timer);
   }, [local, value]);
 
+  // Register the live ref so the CM6 ArrowUp handler can focus us.
   useEffect(() => {
     if (!instanceId) return;
     registerDocHeaderTitleInput(instanceId, inputRef.current);

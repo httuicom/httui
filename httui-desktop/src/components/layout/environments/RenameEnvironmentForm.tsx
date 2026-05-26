@@ -1,3 +1,10 @@
+// Canvas §6 Environments — rename inline form.
+//
+// Pre-filled with the source name. Reuses `validateEnvName` so the
+// rejection set is identical to create/clone. Important: the source
+// env's own filename is filtered out of the duplicate check so the
+// user can land on the same name (no-op rename) or change case
+// without colliding with itself.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 
@@ -28,10 +35,8 @@ export function RenameEnvironmentForm({
   onSubmit,
   onCancel,
 }: RenameEnvironmentFormProps) {
-  const [name, setName] = useState(env.name);
-  const [touched, setTouched] = useState(false);
-
-  // Exclude source so same-name or case-only renames pass the duplicate check.
+  // Filter out the source filename so renaming to the same name (or
+  // changing case) doesn't trip the duplicate check.
   const others = existingFilenames.filter((f) => f !== env.filename);
   const nameField = useInlineForm(env.name, (n) => validateEnvName(n, others));
   const noChange = nameField.value.trim() === env.name;

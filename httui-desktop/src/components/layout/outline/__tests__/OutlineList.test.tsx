@@ -91,6 +91,7 @@ describe("OutlineList", () => {
   it("indent class scales with level via inline padding", () => {
     renderWithProviders(<OutlineList entries={SAMPLE} />);
     const rows = screen.getAllByTestId("outline-row");
+    // Just smoke — the padding is computed via the level math.
     expect(rows[0]).toHaveStyle({ paddingLeft: "12px" }); // level 1
     expect(rows[1]).toHaveStyle({ paddingLeft: "24px" }); // level 2
     expect(rows[4]).toHaveStyle({ paddingLeft: "36px" }); // level 3

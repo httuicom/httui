@@ -1,3 +1,9 @@
+// the configurable commit-message template field.
+//
+// Extracted from GeneralSection so that section stays within the
+// max-lines-per-function budget (SRP — this owns its own store
+// wiring). Empty value = the built-in conditional default.
+
 import { Box, Flex, Input, Text } from "@chakra-ui/react";
 
 import { useSettingsStore } from "@/stores/settings";

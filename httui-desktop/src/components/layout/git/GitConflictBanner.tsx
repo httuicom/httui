@@ -1,3 +1,13 @@
+// conflict banner + per-file resolution row.
+//
+// Pure presentational. Consumer derives `conflicts: string[]` (a
+// list of vault-relative paths) from `git_status`'s `changed[]`
+// where `status.includes("U")` (porcelain v2 unmerged marker), and
+// passes onResolve handlers. The actual DiffViewer mount is
+// already shipped (`src/components/editor/DiffViewer.tsx`) — this
+// component just opens it via `onOpenDiff(path)` and the page
+// consumer drops the diff tab.
+
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import { Btn } from "@/components/atoms";

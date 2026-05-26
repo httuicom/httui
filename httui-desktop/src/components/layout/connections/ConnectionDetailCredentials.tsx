@@ -1,8 +1,13 @@
-// Detail panel credentials section.
+// Canvas §5 — Detail panel credentials section.
 //
-// Read-only summary by default; "Edit" toggles inputs + Save/Cancel.
-// "Rotate" opens an inline form to write a new password via keychain.
-// Pure presentational: takes the `Connection` plus async callbacks.
+// Read-only summary by default (host / port / user / database / `••••••••`).
+// "Edit" toggles inputs + reveals Save/Cancel.
+// "Rotate" button opens a small inline form to write a new password
+// (consumer pushes through the keychain).
+//
+// Pure presentational: takes the `Connection` plus async `onSave` /
+// `onRotatePassword` callbacks. No store coupling so tests can mock
+// behavior with vi.fn() promises.
 
 import { useEffect, useState } from "react";
 import { Box, Flex, HStack, Stack, Text, chakra } from "@chakra-ui/react";
@@ -61,6 +66,7 @@ export function ConnectionDetailCredentials({
   const [rotateBusy, setRotateBusy] = useState(false);
   const [rotateError, setRotateError] = useState<string | null>(null);
 
+  // Reset draft when the selected connection changes.
   useEffect(() => {
     setDraft(draftFrom(connection));
     setEditing(false);

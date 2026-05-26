@@ -1,9 +1,16 @@
 /**
- * React panel for a db-* fenced block. Mounted via `createPortal` into
- * three container divs (toolbar, result, statusbar) registered by the
- * `cm-db-block.tsx` CM6 extension. Settings drawer uses a Chakra Portal
- * (not Dialog — would trap focus away from CM6). Results persisted to the
- * SQLite block-result cache for `{{alias.response.col}}` resolution.
+ * React panel for a db-* fenced block (stage 5 of the redesign).
+ *
+ * Lives outside CM6's document flow: the CM extension `cm-db-block.tsx`
+ * registers three container divs per block (toolbar, result, statusbar),
+ * and this component mounts React into each via `createPortal`. The
+ * settings drawer uses a Chakra Portal anchored to document.body (not
+ * Dialog — would trap focus away from CM6).
+ *
+ * Execution runs through `executeDbStreamed` from stage 3. Results are
+ * persisted to the SQLite block-result cache (hashed by query + connection
+ * + limit + env-snapshot placeholder) so block references
+ * (`{{alias.response.col}}`) continue to work across reloads.
  */
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -48,12 +55,15 @@ interface DbFencedPanelProps {
   filePath: string;
 }
 
+// ExecutionState moved to ./shared.ts
 import { type ExecutionState } from "./shared";
 import { DbToolbar } from "./DbToolbar";
 import { DbStatusBar } from "./DbStatusBar";
 import { DbResult } from "./DbResultTabs";
 import { DbSettingsDrawer as DbDrawer } from "./DbSettingsDrawer";
 import { ConfirmRunDialog } from "./ConfirmRunDialog";
+
+// ───── Main panel ─────
 
 export const DbFencedPanel = memo(function DbFencedPanel({
   blockId,
@@ -98,6 +108,7 @@ export const DbFencedPanel = memo(function DbFencedPanel({
     [connections, block.metadata.connection],
   );
 
+  // Load connections once
   useEffect(() => {
     listConnections()
       .then(setConnections)
@@ -161,8 +172,12 @@ export const DbFencedPanel = memo(function DbFencedPanel({
     };
   }, [executionState]);
 
-  // Migrate legacy JSON body (pre-SQL-fence format) in-place, at most once
-  // per (blockId + body-hash) to prevent re-entry after the dispatch.
+  // ── Legacy JSON body conversion ──
+  // Vaults written before stage 4 store a JSON object in the body instead
+  // of raw SQL. Convert the block in-place on the document: replace the
+  // body with the extracted query and merge connection/limit/timeout into
+  // the info string. This runs at most once per (blockId + body-hash)
+  // combination to prevent re-entry after the dispatch mutates the doc.
   const migratedRef = useRef<string | null>(null);
   useEffect(() => {
     if (migratedRef.current === block.body) return;
@@ -242,7 +257,9 @@ export const DbFencedPanel = memo(function DbFencedPanel({
     };
   }, [filePath, block.body, activeConnection?.id, block.metadata.connection]);
 
-  // Internal dispatch — `runBlock` applies read-only/mutation gating before calling this.
+  // ── Execution ──
+  // Internal: actually dispatches the backend call. `runBlock` (below)
+  // applies read-only / unscoped-mutation gating before calling this.
   const executeRun = useCallback(async () => {
     if (executionState === "running") return;
     const connId = activeConnection?.id;
@@ -267,6 +284,9 @@ export const DbFencedPanel = memo(function DbFencedPanel({
     const startedAt = performance.now();
 
     try {
+      // ── Resolve {{ref}} references into bind params ──
+      // Collect blocks above (for {{alias.response.col}} resolution) and
+      // the active environment's variables (for {{ENV_KEY}}).
       const blocksAbove = await collectBlocksAboveCM(
         view.state.doc,
         block.from,
@@ -641,6 +661,7 @@ export const DbFencedPanel = memo(function DbFencedPanel({
     view,
   ]);
 
+  // Register actions with the registry so ⌘↵ / ⌘. / ⌘⇧E can dispatch
   useEffect(() => {
     setDbBlockActions(blockId, {
       onRun: runBlock,
@@ -650,6 +671,7 @@ export const DbFencedPanel = memo(function DbFencedPanel({
     });
   }, [blockId, runBlock, cancelBlock, runExplain]);
 
+  // ── Info-string editing (drawer) ──
   const updateMetadata = useCallback(
     (patch: Partial<DbBlockMetadata>) => {
       const next: DbBlockMetadata = { ...block.metadata, ...patch };
@@ -676,6 +698,8 @@ export const DbFencedPanel = memo(function DbFencedPanel({
     view.dispatch({ changes: { from, to, insert: "" } });
     setDrawerOpen(false);
   }, [block.from, block.to, view]);
+
+  // ── Portals ──
 
   const toolbarNode = entry.toolbar;
   const resultNode = entry.result;
@@ -752,3 +776,4 @@ export const DbFencedPanel = memo(function DbFencedPanel({
   );
 });
 
+// DbStatusBar moved to ./DbStatusBar.tsx

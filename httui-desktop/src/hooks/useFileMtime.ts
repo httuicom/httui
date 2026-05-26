@@ -1,3 +1,17 @@
+// Polls the disk mtime of a vault note via the `get_file_mtime` Tauri
+// command. Idles until both `vaultPath` and `filePath` are set;
+// re-polls on window focus and exposes a `refresh()` for save-driven
+// callers. Returns the mtime in epoch milliseconds (or `null` while
+// unavailable / before the first poll completes).
+//
+// Carry-over from feeds the editor toolbar's
+// "edited Xm ago" label without standing up a continuous timer the
+// way the git-status poll does. The toolbar's relative-time renderer
+// re-formats independently as the wall clock advances.
+//
+// Backed by `httui_core::vault_config::merge::mtime_or_none` so a
+// renamed / deleted file naturally returns `null`.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getFileMtime } from "@/lib/tauri/files";
@@ -27,7 +41,9 @@ export function useFileMtime(
       setMtime(next);
     } catch {
       if (cancelledRef.current) return;
-      // Swallow transient errors (mid-rename/mid-write); next focus or save recovers.
+      // Same posture as `useGitStatus`: swallow transient errors
+      // (file may be mid-rename / mid-write); next focus / save
+      // refresh recovers.
       setMtime(null);
     }
   }, [vaultPath, filePath]);

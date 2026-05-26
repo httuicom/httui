@@ -66,10 +66,12 @@ export function AppShell() {
   const openEnvSwitcher = useEnvSwitcherStore((s) => s.openSwitcher);
   const openNewVariable = useNewVariablePopoverStore((s) => s.openForm);
 
+  // Initialize all Tauri listeners and stores once
   useEffect(() => {
     initTauriBridge();
   }, []);
 
+  // Hooks
   useAutoUpdate();
   useSessionPersistence();
   usePendingSecretsScan();
@@ -79,6 +81,7 @@ export function AppShell() {
     startResize,
   } = useSidebarResize();
 
+  // Workspace store
   const vaultPath = useWorkspaceStore((s) => s.vaultPath);
   const vaults = useWorkspaceStore((s) => s.vaults);
   const entries = useWorkspaceStore((s) => s.entries);
@@ -86,12 +89,14 @@ export function AppShell() {
   const openVault = useWorkspaceStore((s) => s.openVault);
   const refreshFileTree = useWorkspaceStore((s) => s.refreshFileTree);
 
+  // Pane store
   const getActiveLeaf = usePaneStore((s) => s.getActiveLeaf);
   const splitVertical = usePaneStore((s) => s.splitVertical);
   const splitHorizontal = usePaneStore((s) => s.splitHorizontal);
   const closeTab = usePaneStore((s) => s.closeTab);
   const nextTab = usePaneStore((s) => s.nextTab);
 
+  // Editor session (reads from stores internally)
   const editorSession = useEditorSession();
   const fileOps = useFileOperations({
     vaultPath,
@@ -139,6 +144,7 @@ export function AppShell() {
   );
   useKeyboardShortcuts(shortcutActions);
 
+  // WorkspaceContext still needed for fileOps (local UI state)
   const workspaceValue = useMemo(
     () => ({
       vaultPath,

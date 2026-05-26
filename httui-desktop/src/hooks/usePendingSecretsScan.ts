@@ -1,3 +1,16 @@
+// first-run secrets scan trigger.
+//
+// Watches `vaultPath` and, on every transition into a defined vault,
+// calls `list_missing_secrets` and pushes the result into the
+// `pendingSecrets` store. The modal subscribes to the store and
+// opens automatically when the list is non-empty.
+//
+// Failures are logged and swallowed — a vault with no readable
+// `connections.toml` (e.g. the freshly-cloned Hello-World) shouldn't
+// block the workbench from opening. The MissingRef scanner already
+// returns `Ok([])` for vaults without refs, so the only failure
+// path is something exceptional (permission, IO).
+
 import { useEffect } from "react";
 
 import { listMissingSecrets } from "@/lib/tauri/commands";

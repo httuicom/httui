@@ -1,3 +1,4 @@
+// Shared TypeScript types
 export type DisplayMode = "input" | "output" | "split";
 export type ExecutionState =
   | "idle"

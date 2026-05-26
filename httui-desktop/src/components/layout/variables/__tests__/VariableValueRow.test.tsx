@@ -389,6 +389,7 @@ describe("VariableValueRow (edit mode)", () => {
     await user.type(input, "rotated-token");
     await user.click(screen.getByTestId("variable-value-row-staging-save"));
     expect(onCommit).toHaveBeenCalledWith("staging", "rotated-token");
+    // After save, the revealed display should reflect the new draft.
     expect(
       screen.getByTestId("variable-value-row-staging-display").textContent,
     ).toBe("rotated-token");

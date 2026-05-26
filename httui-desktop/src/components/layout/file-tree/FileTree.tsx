@@ -74,7 +74,9 @@ export function FileTree() {
   );
 }
 
-/** Flips `showArchived`. Hidden when the vault has no archived files. */
+/** small toggle that flips `useArchiveFilterStore.
+ *  showArchived`. Hidden entirely when the vault has no archived
+ *  files yet so the chrome stays clean. */
 function ArchiveFilterToggle() {
   const archivedCount = useTagIndexStore(
     (s) => Object.keys(s.archivedFiles).length,

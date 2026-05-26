@@ -1,3 +1,10 @@
+// ⌘⇧V quick "new variable" popover.
+//
+// cmd+K-style centered Portal+Box (NOT Dialog — keeps CM6
+// focusable). Type selector (Text/Number/Bool/Secret) +
+// template-helper inserts ({{uuid()}}/{{now()}}/{{base64()}}/
+// {{env()}}/{{$prev…}}). Save → useEnvironmentStore.setVariable on
+// the active env (Secret ⇒ is_secret). Esc / outside-click cancels.
 
 import { Box, Flex, HStack, Portal, Text } from "@chakra-ui/react";
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +33,9 @@ export function NewVariablePopover() {
   const open = useNewVariablePopoverStore((s) => s.open);
   const close = useNewVariablePopoverStore((s) => s.closeForm);
   if (!open) return null;
-  // NOT Dialog — no focus trap; return focus to CM6 on close.
+  // Return focus to the last-focused editor so typing keeps flowing
+  // into CM6 after the popover closes (no Dialog trap; this
+  // mirrors closeRefPopover's view.focus).
   const handleClose = () => {
     close();
     getActiveEditor()?.focus();
@@ -59,7 +68,7 @@ function NewVariableForm({ onClose }: { onClose: () => void }) {
         onClose();
       }
     };
-    // Defer so the opening click doesn't immediately self-close.
+    // Defer so the opening keystroke/click doesn't self-close.
     const t = setTimeout(
       () => document.addEventListener("mousedown", onDown, true),
       0,

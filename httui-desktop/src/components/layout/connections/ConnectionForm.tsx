@@ -51,41 +51,6 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
     connection,
     initConnectionFormState,
   );
-  const [host, setHost] = useState(connection?.host ?? "localhost");
-  const [port, setPort] = useState(connection?.port?.toString() ?? "5432");
-  const [dbName, setDbName] = useState(connection?.database_name ?? "");
-  const [username, setUsername] = useState(connection?.username ?? "");
-  const [password, setPassword] = useState("");
-  const [sslMode, setSslMode] = useState(connection?.ssl_mode ?? "disable");
-
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [timeoutMs, setTimeoutMs] = useState(
-    (connection?.timeout_ms ?? 10000).toString(),
-  );
-  const [queryTimeoutMs, setQueryTimeoutMs] = useState(
-    (connection?.query_timeout_ms ?? 30000).toString(),
-  );
-  const [ttlSeconds, setTtlSeconds] = useState(
-    (connection?.ttl_seconds ?? 300).toString(),
-  );
-  const [maxPoolSize, setMaxPoolSize] = useState(
-    (connection?.max_pool_size ?? 5).toString(),
-  );
-
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<"success" | "error" | null>(
-    null,
-  );
-  const [testError, setTestError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Only update default port for new connections — editing keeps the existing port.
-  useEffect(() => {
-    if (!isEdit) {
-      setPort(DRIVER_CONFIG[driver].defaultPort);
-    }
-  }, [driver, isEdit]);
 
   const handleSave = useCallback(async () => {
     const check = validateConnection(s);
@@ -138,6 +103,7 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
     [onClose],
   );
 
+  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -173,6 +139,7 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
           overflowY="auto"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Header */}
           <Flex
             align="center"
             px={5}
@@ -199,6 +166,7 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
           </Flex>
 
           <VStack gap={0} align="stretch">
+            {/* Name + Driver picker */}
             <VStack gap={3} p={4} pb={3} align="stretch">
               <Input
                 size="sm"
@@ -221,6 +189,7 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
               />
             </VStack>
 
+            {/* Driver-specific fields */}
             <Box bg="bg.subtle" mx={4} rounded="lg" p={3} mb={3}>
               <VStack gap={2.5} align="stretch">
                 {isSqlite ? (
@@ -262,6 +231,7 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
               </VStack>
             </Box>
 
+            {/* Connection-string preview */}
             <Box mx={4} mb={3}>
               <Text
                 fontSize="2xs"
@@ -343,6 +313,7 @@ export function ConnectionForm({ connection, onClose }: ConnectionFormProps) {
             )}
           </VStack>
 
+          {/* Footer */}
           <Flex
             px={4}
             py={3}

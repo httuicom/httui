@@ -1,3 +1,12 @@
+// shared commit action.
+//
+// The git call + post-commit refresh + draft reset is the same for
+// the GitSidePanel and the V10 pane-tab, so it lives here once
+// (single source — the vertical's Cleanup directive). Callers layer
+// their own view-state resets and log refresh on top: the side
+// panel reloads the full log, the pane-tab re-applies its path
+// filter.
+
 import { useCallback, useState } from "react";
 
 import { gitCommit } from "@/lib/tauri/git";

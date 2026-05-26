@@ -60,6 +60,7 @@ export function DiffViewer({ tab }: DiffViewerProps) {
   const proposed = tab.proposedContent ?? "";
   const stats = computeLineStats(original, proposed);
 
+  // Create MergeView
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -94,10 +95,10 @@ export function DiffViewer({ tab }: DiffViewerProps) {
     };
   }, [original, proposed]);
 
-  // Auto-close when permission is resolved externally (e.g. by PermissionBanner).
-  // Skip the first render — pendingPermission is valid at mount time.
+  // Auto-close when permission is resolved externally (not by this component)
   const mountedRef = useRef(false);
   useEffect(() => {
+    // Skip the first render — pendingPermission is valid at mount time
     if (!mountedRef.current) {
       mountedRef.current = true;
       return;
@@ -125,6 +126,7 @@ export function DiffViewer({ tab }: DiffViewerProps) {
 
   return (
     <Box h="100%" display="flex" flexDirection="column" overflow="hidden">
+      {/* Header */}
       <HStack
         px={3}
         py={1.5}
@@ -148,6 +150,7 @@ export function DiffViewer({ tab }: DiffViewerProps) {
           </Badge>
         )}
 
+        {/* Scope selector */}
         <HStack gap={0}>
           {(["once", "session", "always"] as PermissionScope[]).map((s) => (
             <Box
@@ -212,6 +215,7 @@ export function DiffViewer({ tab }: DiffViewerProps) {
         </Box>
       </HStack>
 
+      {/* Labels */}
       <HStack
         gap={0}
         flexShrink={0}
@@ -237,6 +241,7 @@ export function DiffViewer({ tab }: DiffViewerProps) {
         </Box>
       </HStack>
 
+      {/* MergeView container */}
       <Box
         ref={containerRef}
         flex={1}

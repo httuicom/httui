@@ -1,15 +1,34 @@
+// Workspace dropdown — replaces the previous "click to cycle" behavior
+// on the breadcrumb workspace segment. Lists every known vault with
+// the active one marked, plus an "Abrir outro vault…" item that opens
+// a directory picker.
+//
+// Pure presentational over the workspace store: parent wires
+// `vaults`, `activeVault`, `onSwitch`, `onOpenOther`. Style mirrors
+// the breadcrumb workspace Segment (transparent bg, fg.2 default,
+// fg on hover, ellipsis at 160px) so the trigger feels at home in
+// the breadcrumb row.
+
 import { Box, Menu, Portal, chakra } from "@chakra-ui/react";
 import { LuCheck, LuChevronDown, LuFolderOpen } from "react-icons/lu";
 
 const Trigger = chakra("button");
 
 export interface WorkspaceMenuProps {
+  /** Active vault's basename (display label). */
   workspace: string;
-  /** Whether this is the deepest breadcrumb segment (drives fg vs fg.muted). */
+  /** Whether this segment is the deepest one in the breadcrumb (no
+   * file segments to the right). Drives the `fg` vs `fg.2` color so
+   * the trigger matches the rest of the breadcrumb. */
   isLeaf: boolean;
+  /** All known vaults (absolute paths). Empty array means only the
+   * "Open other vault…" item is shown. */
   vaults: string[];
+  /** Active vault's absolute path — used to mark the current item. */
   activeVault: string | null;
+  /** Switch to the picked vault. */
   onSwitch: (path: string) => void;
+  /** Trigger the directory picker for a brand-new vault. */
   onOpenOther: () => void;
 }
 

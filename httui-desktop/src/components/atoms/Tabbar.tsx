@@ -1,4 +1,7 @@
-// Active tab has a 1px top accent line (top, NOT bottom).
+// Tabbar shell atom (design canvas §0).
+// 32px tall container; the active tab has a 1px **top** accent line
+// (canvas: top, NOT bottom). The atom owns the strip + tab visuals;
+// consumers wire id/onSelect/active state.
 
 import { chakra, HStack, type StackProps } from "@chakra-ui/react";
 import type { ReactNode } from "react";

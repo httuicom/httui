@@ -8,6 +8,8 @@ import {
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
 
+// ── Widgets ──────────────────────────────────────────────────────────────────
+
 class BulletWidget extends WidgetType {
   toDOM() {
     const span = document.createElement("span");
@@ -28,7 +30,7 @@ class CheckboxWidget extends WidgetType {
     cb.type = "checkbox";
     cb.checked = this.checked;
     cb.className = "cm-task-checkbox";
-    cb.disabled = true;
+    cb.disabled = true; // Read-only when rendered; interactive version can be added later
     return cb;
   }
   eq(other: CheckboxWidget) {
@@ -182,6 +184,8 @@ function flash(
   }, 1400);
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 /** Get the set of line numbers that contain any part of the cursor/selection */
 function getCursorLines(state: {
   doc: { lineAt(pos: number): { number: number } };
@@ -213,6 +217,8 @@ function overlapsWithCursor(
   return false;
 }
 
+// ── Heading line classes ─��───────────────────────────────────────────────────
+
 const headingLineClasses: Record<string, Decoration> = {
   ATXHeading1: Decoration.line({ class: "cm-heading cm-heading-1" }),
   ATXHeading2: Decoration.line({ class: "cm-heading cm-heading-2" }),
@@ -221,6 +227,8 @@ const headingLineClasses: Record<string, Decoration> = {
   ATXHeading5: Decoration.line({ class: "cm-heading cm-heading-5" }),
   ATXHeading6: Decoration.line({ class: "cm-heading cm-heading-6" }),
 };
+
+// ── Main decoration builder ──────────────────────────────────────────────────
 
 function buildDecorations(view: EditorView): DecorationSet {
   const { state } = view;
@@ -232,13 +240,16 @@ function buildDecorations(view: EditorView): DecorationSet {
     enter(node: SyntaxNode) {
       const name = node.type.name;
 
+      // ── Headings (Tier 2: always styled, reveal # on cursor) ──
       if (name.startsWith("ATXHeading") && headingLineClasses[name]) {
+        // Always apply heading line class — keeps font size/weight even on cursor line
         const line = state.doc.lineAt(node.from);
         decorations.push({
           from: line.from,
           to: line.from,
           deco: headingLineClasses[name],
         });
+        // Only hide # marks when cursor is NOT on this line
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
           const headerMark = node.node.getChild("HeaderMark");
           if (headerMark) {
@@ -252,18 +263,22 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
+      // ── Bold (StrongEmphasis) ──
       if (name === "StrongEmphasis") {
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
+          // Hide opening **
           decorations.push({
             from: node.from,
             to: node.from + 2,
             deco: Decoration.replace({}),
           });
+          // Hide closing **
           decorations.push({
             from: node.to - 2,
             to: node.to,
             deco: Decoration.replace({}),
           });
+          // Apply bold styling
           decorations.push({
             from: node.from + 2,
             to: node.to - 2,
@@ -272,6 +287,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
+      // ── Italic (Emphasis) ──
       if (name === "Emphasis") {
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
           decorations.push({
@@ -292,6 +308,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
+      // ── Strikethrough ──
       if (name === "Strikethrough") {
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
           decorations.push({
@@ -312,13 +329,16 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
+      // ── Inline code ──
       if (name === "InlineCode") {
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
+          // Hide opening `
           decorations.push({
             from: node.from,
             to: node.from + 1,
             deco: Decoration.replace({}),
           });
+          // Hide closing `
           decorations.push({
             from: node.to - 1,
             to: node.to,
@@ -332,14 +352,17 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
+      // ── Links [text](url) ──
       if (name === "Link") {
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
           const urlNode = node.node.getChild("URL");
           const linkMarkOpen = node.node.getChild("LinkMark");
           if (urlNode && linkMarkOpen) {
-            const textStart = linkMarkOpen.to;
-            const textEnd = urlNode.from - 2;
+            // Get link text content
+            const textStart = linkMarkOpen.to; // after [
+            const textEnd = urlNode.from - 2; // before ](
             if (textStart < textEnd) {
+              // Replace entire link with just styled text
               decorations.push({
                 from: node.from,
                 to: textStart,
@@ -360,6 +383,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
+      // ── Images ![alt](url) ──
       if (name === "Image") {
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
           const urlNode = node.node.getChild("URL");
@@ -368,6 +392,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             const altMark = node.node.getChild("LinkMark");
             let alt = "";
             if (altMark) {
+              // Text between ![ and ]
               alt = state.doc.sliceString(altMark.to, urlNode.from - 2);
             }
             decorations.push({
@@ -382,6 +407,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
+      // ── Horizontal rule (Tier 2: always a styled line) ──
       if (name === "HorizontalRule") {
         const line = state.doc.lineAt(node.from);
         const onCursor = overlapsWithCursor(
@@ -399,11 +425,13 @@ function buildDecorations(view: EditorView): DecorationSet {
         });
       }
 
+      // ── List bullets (- or *) ──
       if (name === "ListMark") {
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
           const text = state.doc.sliceString(node.from, node.to).trim();
-          // Only replace unordered markers (- or *), not ordered (1.)
+          // Only replace unordered list markers (- or *), not ordered (1.)
           if (text === "-" || text === "*") {
+            // Check if this is NOT a task list item (task items have TaskMarker)
             const parent = node.node.parent;
             const hasTaskMarker = parent?.getChild("TaskMarker");
             if (!hasTaskMarker) {
@@ -423,8 +451,10 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
+      // ── Task list items — hide the "- " before the checkbox ──
       if (name === "TaskMarker") {
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
+          // Hide the ListMark (- ) before the task marker
           const listMark = node.node.parent?.getChild("ListMark");
           if (listMark) {
             const hideEnd = Math.min(
@@ -450,12 +480,15 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
-      // Executable blocks (http/db) are handled by their own CM6 extensions.
+      // ── Fenced code blocks (```lang ... ```) ──
+      // Executable blocks (http/db) are handled separately by their own
+      // CM6 extensions (`cm-http-block.tsx` / `cm-db-block.tsx`).
       if (name === "FencedCode") {
         const codeInfo = node.node.getChild("CodeInfo");
         const lang = codeInfo
           ? state.doc.sliceString(codeInfo.from, codeInfo.to).trim()
           : "";
+        // CodeInfo covers the entire info string (lang + key=value attrs).
         // Only the first token is the dialect; use it for the executable check.
         const langToken = lang.split(/\s+/)[0];
         const isExecutable = /^(http|db(?:-[\w:-]+)?)$/.test(langToken);
@@ -468,6 +501,7 @@ function buildDecorations(view: EditorView): DecorationSet {
             node.to,
             cursorLines,
           );
+          // Visually collapsed range when cursor is away: [startLine + 1, endLine - 1]
           const contentStart = onCursor ? startLine : startLine + 1;
           const contentEnd = onCursor ? endLine : endLine - 1;
           for (let i = startLine; i <= endLine; i++) {
@@ -484,6 +518,7 @@ function buildDecorations(view: EditorView): DecorationSet {
               deco: Decoration.line({ class: cls }),
             });
           }
+          // When cursor is away, hide fence marker lines (replace content).
           if (!onCursor) {
             const openLine = state.doc.line(startLine);
             if (openLine.length > 0) {
@@ -504,6 +539,8 @@ function buildDecorations(view: EditorView): DecorationSet {
               }
             }
           }
+          // Floating toolbar (badge + Copy + Format) anchored to the first visible
+          // content line — always shown so Copy/Format remain accessible while editing.
           if (contentStart <= endLine) {
             const toolbarAnchor = state.doc.line(contentStart).from;
             decorations.push({
@@ -518,6 +555,7 @@ function buildDecorations(view: EditorView): DecorationSet {
         }
       }
 
+      // ── Blockquote markers (Tier 2: always styled, reveal > on cursor) ──
       if (name === "QuoteMark") {
         const line = state.doc.lineAt(node.from);
         decorations.push({
@@ -526,6 +564,7 @@ function buildDecorations(view: EditorView): DecorationSet {
           deco: Decoration.line({ class: "cm-blockquote-line" }),
         });
         if (!overlapsWithCursor(state, node.from, node.to, cursorLines)) {
+          // Hide the > character
           const hideEnd = Math.min(node.to + 1, line.to);
           decorations.push({
             from: node.from,
@@ -537,6 +576,7 @@ function buildDecorations(view: EditorView): DecorationSet {
     },
   });
 
+  // Sort by from position, then by whether it's a line decoration (from === to means line or point)
   decorations.sort((a, b) => a.from - b.from || a.to - b.to);
 
   const builder = new RangeSetBuilder<Decoration>();
@@ -545,6 +585,8 @@ function buildDecorations(view: EditorView): DecorationSet {
   }
   return builder.finish();
 }
+
+// ── Extension ────────────────────────────────────────────────────────────────
 
 import { ViewPlugin, type ViewUpdate } from "@codemirror/view";
 
@@ -579,8 +621,10 @@ const hybridPlugin = ViewPlugin.fromClass(
   },
 );
 
+// ── Theme ───────────────���────────────────────────────────────────────────────
+
 const hybridTheme = EditorView.theme({
-  // Headings — no margins (avoid layout shift on cursor move)
+  // Headings — clean Notion-like style, no margins (avoid layout shift on cursor move)
   ".cm-heading-1": {
     fontSize: "1.875em",
     fontWeight: "700",
@@ -603,6 +647,7 @@ const hybridTheme = EditorView.theme({
     color: "var(--chakra-colors-fg-muted)",
   },
 
+  // Inline formatting
   ".cm-strong": { fontWeight: "600" },
   ".cm-em": { fontStyle: "italic" },
   ".cm-strikethrough": { textDecoration: "line-through", opacity: "0.6" },
@@ -615,6 +660,7 @@ const hybridTheme = EditorView.theme({
     color: "var(--chakra-colors-pink-500)",
   },
 
+  // Links — Notion-style subtle underline
   ".cm-link": {
     color: "var(--chakra-colors-fg)",
     textDecoration: "underline",
@@ -626,6 +672,7 @@ const hybridTheme = EditorView.theme({
     },
   },
 
+  // Horizontal rule — full-width line, text sits on top when editing
   ".cm-hr-line": {
     position: "relative",
     color: "transparent",
@@ -646,6 +693,7 @@ const hybridTheme = EditorView.theme({
     display: "none",
   },
 
+  // Task checkboxes — larger, Notion-style
   ".cm-task-checkbox": {
     marginRight: "8px",
     verticalAlign: "middle",
@@ -655,6 +703,7 @@ const hybridTheme = EditorView.theme({
     cursor: "pointer",
   },
 
+  // List bullet — Notion-style
   ".cm-list-bullet": {
     display: "inline-block",
     width: "6px",
@@ -666,6 +715,7 @@ const hybridTheme = EditorView.theme({
     opacity: "0.6",
   },
 
+  // Blockquotes — Notion-style
   ".cm-blockquote-line": {
     borderLeft: "3px solid var(--chakra-colors-fg)",
     paddingLeft: "16px",
@@ -673,6 +723,7 @@ const hybridTheme = EditorView.theme({
     color: "var(--chakra-colors-fg-subtle)",
   },
 
+  // Fenced code blocks — unified visual container across lines
   ".cm-fenced-code-line": {
     backgroundColor: "var(--chakra-colors-bg-subtle)",
     fontFamily: "var(--chakra-fonts-mono)",
@@ -695,6 +746,7 @@ const hybridTheme = EditorView.theme({
     borderBottomRightRadius: "6px",
     paddingBottom: "6px",
   },
+  // Fence lines (``` ... ```) shown only when cursor is inside the block
   ".cm-fenced-code-fence-hidden": {
     height: "0 !important",
     padding: "0 !important",
@@ -704,6 +756,7 @@ const hybridTheme = EditorView.theme({
     lineHeight: "0 !important",
     border: "none !important",
   },
+  // Floating toolbar (badge + action buttons) anchored to the top-right of the block
   ".cm-code-toolbar": {
     position: "absolute",
     right: "8px",

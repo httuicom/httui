@@ -1,3 +1,20 @@
+// Workbench top bar — canvas §4 (36px tall).
+//
+// Layout:
+//   [Sidebar toggle][Brand][Breadcrumb] ━━━
+//   [SearchPlaceholder ⌘K] [Schema][Chat][Settings]
+//
+// The Sidebar/Chat/Schema/Settings toggles are functional necessities
+// and live on the right edge. Brand wordmark is centered with the
+// Tauri drag region in mind (`pl="80px"` reserves space for macOS
+// traffic-light buttons).
+//
+// Search ⌘K re-dispatches Cmd+P so the existing keyboard route picks
+// it up. The previous Run-all button (dropped 2026-05-01), env
+// switcher (moved to StatusBar `EnvMenu`) and branch button (moved
+// to StatusBar `BranchMenu`) are no longer in the topbar — V2 keeps
+// the chrome to the breadcrumb + search + the right-edge toggles.
+
 import { Box, HStack, IconButton, chakra } from "@chakra-ui/react";
 import {
   LuMenu,
@@ -45,8 +62,8 @@ interface TopBarProps {
 }
 
 function defaultSearchTrigger() {
-  // Re-dispatches Cmd+P so the existing keyboard hook route handles it,
-  // avoiding coupling TopBar to QuickOpen state.
+  // Re-dispatch the Cmd+P shortcut so the existing keyboard hook
+  // route handles it. Avoids couping the TopBar to QuickOpen state.
   if (typeof window === "undefined") return;
   const ev = new KeyboardEvent("keydown", {
     key: "p",

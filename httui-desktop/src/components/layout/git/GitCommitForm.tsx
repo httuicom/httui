@@ -1,3 +1,15 @@
+// (partial — frontend) — commit form.
+//
+// Pure presentational. Textarea for the commit message + "Commit"
+// button + "Amend last" checkbox. The consumer wires `onCommit` to
+// the future `git_commit` Tauri command (shipped alongside the rest
+// in a backend-focused slice).
+//
+// Validation is local: empty message blocks; oversized subject warns
+// but does not block. Validation errors render under the textarea
+// with `data-role="error"` so the consumer can choose to escalate
+// (toast, focus return) without us re-doing focus management here.
+
 import { Box, Flex, Text, Textarea } from "@chakra-ui/react";
 
 import { Btn } from "@/components/atoms";

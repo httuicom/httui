@@ -36,6 +36,8 @@ import { queryInternalDb, type AuditQueryResult } from "@/lib/tauri/audit";
 
 const FETCH_SIZE = 80;
 
+// ─── Data model ─────────────────────────────────────────────
+
 interface AuditView {
   id: string;
   label: string;
@@ -58,6 +60,8 @@ interface TableDoc {
   description: string;
   columns: { name: string; type: string; description: string }[];
 }
+
+// ─── Category definitions ───────────────────────────────────
 
 const CATEGORIES: AuditCategory[] = [
   {
@@ -242,6 +246,8 @@ const CATEGORIES: AuditCategory[] = [
     ],
   },
 ];
+
+// ─── Schema documentation ───────────────────────────────────
 
 const SCHEMA_DOCS: TableDoc[] = [
   {
@@ -574,6 +580,8 @@ const SCHEMA_DOCS: TableDoc[] = [
   },
 ];
 
+// ─── CodeMirror themes ──────────────────────────────────────
+
 const cmTransparentBg = EditorView.theme({
   "&": { backgroundColor: "transparent !important" },
   "& .cm-gutters": {
@@ -596,6 +604,8 @@ const cmBorderTheme = EditorView.theme({
   },
 });
 
+// ─── Helpers ────────────────────────────────────────────────
+
 function rowsToRecords(
   columns: { name: string; type: string }[],
   rows: unknown[][],
@@ -608,6 +618,8 @@ function rowsToRecords(
     return record;
   });
 }
+
+// ─── Sub-components ─────────────────────────────────────────
 
 function ViewRunner({ view }: { view: AuditView }) {
   const { colorMode } = useColorMode();
@@ -636,11 +648,13 @@ function ViewRunner({ view }: { view: AuditView }) {
     [],
   );
 
+  // Auto-load on mount
   useEffect(() => {
     runQuery(view.query);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.id]);
 
+  // Reset when view changes
   useEffect(() => {
     setEditorValue(view.query);
     setCustomOpen(false);
@@ -705,6 +719,7 @@ function ViewRunner({ view }: { view: AuditView }) {
 
   return (
     <Flex direction="column" gap={3}>
+      {/* View description */}
       <Box>
         <Text fontSize="sm" fontWeight="medium">
           {view.label}
@@ -714,6 +729,7 @@ function ViewRunner({ view }: { view: AuditView }) {
         </Text>
       </Box>
 
+      {/* Insight box */}
       <Flex
         gap={2}
         px={3}
@@ -732,6 +748,7 @@ function ViewRunner({ view }: { view: AuditView }) {
         </Text>
       </Flex>
 
+      {/* Status bar */}
       <HStack gap={2} fontSize="xs">
         {loading && <Spinner size="xs" />}
         {durationMs !== null && !loading && (
@@ -748,6 +765,7 @@ function ViewRunner({ view }: { view: AuditView }) {
         )}
       </HStack>
 
+      {/* Error */}
       {error && (
         <Box
           px={3}
@@ -763,6 +781,7 @@ function ViewRunner({ view }: { view: AuditView }) {
         </Box>
       )}
 
+      {/* Results table */}
       {result && result.columns.length > 0 && !loading && (
         <Box overflow="hidden">
           <ResultTable
@@ -775,6 +794,7 @@ function ViewRunner({ view }: { view: AuditView }) {
         </Box>
       )}
 
+      {/* Column legend */}
       {result && result.columns.length > 0 && !loading && (
         <Box
           borderWidth="1px"
@@ -806,6 +826,7 @@ function ViewRunner({ view }: { view: AuditView }) {
         </Box>
       )}
 
+      {/* Empty state */}
       {result && result.columns.length === 0 && !error && !loading && (
         <Flex
           justify="center"
@@ -818,6 +839,7 @@ function ViewRunner({ view }: { view: AuditView }) {
         </Flex>
       )}
 
+      {/* Advanced: custom SQL */}
       <Separator />
       <Box>
         <Flex
@@ -962,6 +984,8 @@ function SchemaExplorer() {
   );
 }
 
+// ─── Main component ─────────────────────────────────────────
+
 export function AuditSection() {
   const [activeCategoryId, setActiveCategoryId] = useState(CATEGORIES[0].id);
   const [activeViewIndex, setActiveViewIndex] = useState(0);
@@ -979,6 +1003,7 @@ export function AuditSection() {
 
   return (
     <Flex direction="column" gap={3} h="100%">
+      {/* Category tabs */}
       <HStack gap={1} flexWrap="wrap">
         {CATEGORIES.map((cat) => (
           <Button
@@ -1003,14 +1028,18 @@ export function AuditSection() {
         </Button>
       </HStack>
 
+      {/* Schema explorer */}
       {showSchema && <SchemaExplorer />}
 
+      {/* Category content */}
       {!showSchema && (
         <>
+          {/* Category description */}
           <Text fontSize="xs" color="fg.muted">
             {activeCategory.description}
           </Text>
 
+          {/* View selector */}
           {activeCategory.views.length > 1 && (
             <HStack gap={1}>
               {activeCategory.views.map((view, i) => (
@@ -1027,6 +1056,7 @@ export function AuditSection() {
             </HStack>
           )}
 
+          {/* Active view */}
           {activeView && <ViewRunner key={activeView.id} view={activeView} />}
         </>
       )}

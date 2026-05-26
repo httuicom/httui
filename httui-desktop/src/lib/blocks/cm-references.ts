@@ -101,6 +101,7 @@ export function createReferenceTooltip(
     const line = state.doc.lineAt(pos);
     const lineText = line.text;
 
+    // Find {{...}} pattern at hover position
     const regex = /\{\{([^}]+)\}\}/g;
     let match: RegExpExecArray | null;
     while ((match = regex.exec(lineText)) !== null) {
@@ -119,6 +120,7 @@ export function createReferenceTooltip(
         let resolvedText: string;
         let isError = false;
 
+        // Same priority as resolveAllReferences: block ref > env var
         const matchingBlock = blocks.find(
           (b) => b.alias === ref.alias && b.pos < currentPos,
         );
@@ -178,8 +180,9 @@ export function createMarkdownReferenceTooltip(
     const line = state.doc.lineAt(pos);
     const lineText = line.text;
 
-    // CM6 can hand us a position a couple of chars off the span edge; accept
-    // a small tolerance window around each match.
+    // Find a `{{…}}` whose range contains `pos`. CM6 can sometimes hand us
+    // a position a couple of chars off the span edge, so we also accept a
+    // small tolerance window around each match.
     const regex = /\{\{([^}]+)\}\}/g;
     let chosen: { raw: string; from: number; to: number } | null = null;
     let best: { raw: string; from: number; to: number; dist: number } | null =
@@ -206,7 +209,10 @@ export function createMarkdownReferenceTooltip(
     const refFrom = chosen.from;
     const refTo = chosen.to;
 
-    // Find the enclosing block's `.from` to drive the "above" filter.
+    // Find the enclosing executable block so we can resolve refs relative
+    // to "blocks above this block". DB blocks expose a body range; http /
+    // e2e fences cover the whole block. Either is fine — we just need
+    // `.from` to drive the "above" filter.
     let blockFrom: number | null = null;
     for (const b of findDbBlocks(state.doc)) {
       if (pos >= b.bodyFrom && pos <= b.bodyTo) {

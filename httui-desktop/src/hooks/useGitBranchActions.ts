@@ -1,3 +1,14 @@
+// branch list + checkout actions for the status-bar
+// BranchMenu. Lazy: `loadBranches()` is called when the menu opens
+// (branches change rarely, polling is overkill — matches the
+// `useGitRemotes` posture). `selectBranch` / `createBranch` route to
+// the existing git_checkout / git_checkout_b commands, then refresh
+// the workspace file tree so the sidebar reflects the new branch.
+//
+// Idle when `vaultPath` is null. `busy` guards against double-fire
+// while a checkout is in flight (git locks the index anyway, but the
+// UI shouldn't queue a second checkout).
+
 import { useCallback, useRef, useState } from "react";
 
 import {

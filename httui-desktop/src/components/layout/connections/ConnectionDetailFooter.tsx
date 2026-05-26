@@ -1,5 +1,13 @@
-// Detail panel footer: Test (inline latency), Duplicate, Delete (two-step confirm).
-// Pure presentational — test result and delete-confirm state are local.
+// Canvas §5 — Detail panel footer actions.
+//
+// Three buttons: Test (with inline latency result), Duplicate
+// (clones the connection with " (copy)" suffix), Delete (two-step
+// confirm). The Rotate flow stays inside the credentials
+// section — the "Rotate" task is handled there
+// (audit-032 documents the consolidation).
+//
+// Pure presentational: takes async callbacks. Test result + delete
+// confirm state lives locally so each test runs cleanly.
 
 import { useEffect, useRef, useState } from "react";
 import { Box, Flex, HStack, Text } from "@chakra-ui/react";
@@ -14,13 +22,18 @@ export type TestResult =
   | { kind: "err"; message: string };
 
 export interface ConnectionDetailFooterProps {
-  /** Resolves to elapsed ms on success; rejects with an Error on failure. */
+  /** Run the connection test. Resolves to elapsed ms on success;
+   * rejects with an Error on failure. */
   onTest: () => Promise<number>;
-  /** Clone with " (copy)" suffix; no password copied. */
+  /** Clone the current connection with " (copy)" suffix. Consumer
+   * issues the create call (no password copied). */
   onDuplicate: () => Promise<void> | void;
-  /** Delete after two-step confirm. */
+  /** Delete after a two-step confirm. Consumer removes the
+   * connection from `connections.toml` + the keychain entry. */
   onDelete: () => Promise<void> | void;
-  /** Ms without a second click before the confirm state resets. Default 4000. */
+  /** Reset window for the delete confirmation in milliseconds.
+   * After this many ms without a second click, Delete reverts to
+   * "Delete" state. Default 4000ms. */
   deleteConfirmTimeoutMs?: number;
 }
 

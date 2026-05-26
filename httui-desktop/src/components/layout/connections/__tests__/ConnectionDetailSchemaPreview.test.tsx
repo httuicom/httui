@@ -201,6 +201,7 @@ describe("ConnectionDetailSchemaPreview — hot tables", () => {
         hotTables={long}
       />,
     );
+    // First HOT_TABLES_LIMIT visible, the rest hidden
     for (let i = 0; i < HOT_TABLES_LIMIT; i++) {
       expect(screen.getByTestId(`schema-hot-row-t${i}`)).toBeInTheDocument();
     }

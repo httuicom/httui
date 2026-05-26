@@ -1,7 +1,13 @@
-// Pure validator for create/clone forms. Env names become filenames
-// (`envs/<name>.toml` or `envs/<name>.local.toml`): no whitespace,
-// no slash/backslash, no leading dot, no trailing `.toml`, no
-// case-insensitive duplicate (compared without suffix).
+// Canvas §6 Environments — env-name validation.
+//
+// Pure validator for the create/clone inline forms. Env names become
+// filenames (`envs/<name>.toml` or `envs/<name>.local.toml`), so the
+// rejection set is stricter than variable names: no whitespace, no
+// slash / backslash, no leading dot, no trailing `.toml` (we add the
+// suffix), no case-insensitive duplicate against existing names.
+// Existing names are compared without their `.toml` / `.local.toml`
+// suffix so `staging` collides with both `staging.toml` and
+// `staging.local.toml`.
 
 import { envNameFromFilename } from "./envs-meta";
 

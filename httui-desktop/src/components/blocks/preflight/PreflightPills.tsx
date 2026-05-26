@@ -1,3 +1,14 @@
+// pill row UI for the DocHeader pre-flight
+// checklist. added the inline builder (add / edit /
+// remove) so users can configure checks visually instead of editing
+// the YAML by hand.
+//
+// Pure presentational for the rendering side; the popover state and
+// the callbacks that mutate the frontmatter live in the consumer. The
+// pill row owns the popover OPEN/CLOSE state because both the `+ Add
+// check` button and click-on-pill are local UI concerns — anchoring
+// the popover next to the trigger is a render-time job.
+
 import { useRef, useState } from "react";
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { LuPlus } from "react-icons/lu";
@@ -41,9 +52,13 @@ export interface PreflightPillsProps {
   rechecking?: boolean;
   onSelectFailure?: (item: PreflightPillItem) => void;
   onRecheck?: () => void;
-  /** When wired, shows the `+ Add check` button at the end of the row. */
+  /** when wired, surfaces the `+ Add check` button
+   *  at the end of the row. `undefined` keeps the read-only legacy
+   *  rendering. */
   onAddCheck?: (check: PreflightCheck) => void;
+  /** replace the check at index `idx` with `next`. */
   onEditCheck?: (idx: number, next: PreflightCheck) => void;
+  /** drop the check at index `idx`. */
   onRemoveCheck?: (idx: number) => void;
 }
 
@@ -94,6 +109,10 @@ export function PreflightPills({
     });
   };
 
+  // Hide entirely when there's nothing to render — keeps the row off
+  // the canvas for users who haven't declared any checks yet (the
+  // `+ Add check` button moves to the action row in that case;
+  // consumers can still mount it when needed).
   if (items.length === 0 && !onAddCheck) {
     return null;
   }
@@ -190,7 +209,9 @@ function Pill({
   item: PreflightPillItem;
   forceRunning: boolean;
   onSelectFailure?: (item: PreflightPillItem) => void;
-  /** When wired, click opens the edit popover (takes precedence over `onSelectFailure`). */
+  /** when wired, click opens the edit popover. Takes
+   *  precedence over `onSelectFailure`; the suggestion text remains
+   *  in the title attribute as a hover hint. */
   onEdit?: (target: HTMLElement) => void;
 }) {
   const kind: PillKind = forceRunning

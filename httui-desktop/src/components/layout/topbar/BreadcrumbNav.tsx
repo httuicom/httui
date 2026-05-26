@@ -1,3 +1,12 @@
+// Breadcrumb `workspace › project › file` — canvas §4.
+//
+// Last segment is `--fg`, earlier segments `--fg-2`. Trailing 6×6
+// `dot-warn` indicator shown when the active tab is dirty. Each
+// segment is a button: clicking the workspace switches vault list,
+// clicking middle path segments navigates to a parent (no-op for now
+// — folders aren't navigable as runbook stand-ins), and clicking the
+// active file segment is a no-op (already focused).
+
 import { Box, HStack, Text, chakra } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 
@@ -6,16 +15,25 @@ import { Dot } from "@/components/atoms";
 const Segment = chakra("button");
 
 export interface BreadcrumbNavProps {
+  /** Vault root display name (basename of `vaultPath`). */
   workspace: string | null;
+  /** Active tab's file path, relative or absolute. `null` when no tab is open. */
   filePath: string | null;
+  /** Whether the active tab has unsaved edits. */
   unsaved: boolean;
+  /** Optional click on the workspace segment (vault picker). Ignored
+   *  when `workspaceSlot` is provided. */
   onWorkspaceClick?: () => void;
-  /** Replaces the workspace button (e.g. vault-picker dropdown). */
+  /** Optional override for the workspace segment. When provided,
+   *  replaces the plain button (e.g. with a vault-picker dropdown).
+   *  Receives no props — render with knowledge of `workspace` /
+   *  `isLeaf` from the consumer. */
   workspaceSlot?: ReactNode;
 }
 
 function deriveSegments(filePath: string | null): string[] {
   if (!filePath) return [];
+  // Drop leading vault path; show only the runbook-relative chain.
   const trimmed = filePath.replace(/^.*?\/runbooks\//, "");
   return trimmed.split("/").filter(Boolean);
 }

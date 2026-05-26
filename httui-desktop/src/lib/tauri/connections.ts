@@ -94,6 +94,8 @@ export function findConnectionUses(
   return invoke("find_connection_uses_cmd", { vaultPath, connectionName });
 }
 
+// --- Schema introspection ---
+
 export interface SchemaEntry {
   /** Null for SQLite; the namespace for Postgres/MySQL (`public`, `vendas`, …). */
   schema_name: string | null;

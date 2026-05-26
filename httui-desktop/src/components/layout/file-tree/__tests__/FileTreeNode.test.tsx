@@ -108,6 +108,7 @@ describe("FileTreeNode", () => {
       inlineCreate: { type: "note", dirPath: "folder" },
     });
 
+    // InlineInput renders a Chakra Input; query by role
     expect(screen.getByRole("textbox")).toBeInTheDocument();
   });
 
@@ -130,6 +131,8 @@ describe("FileTreeNode", () => {
     });
 
     renderTree(noteEntry, 1);
+    // The wrapper button receives bg.emphasized when isActive — we just
+    // confirm the row renders without crashing and the text is present
     expect(screen.getByText("note")).toBeInTheDocument();
   });
 

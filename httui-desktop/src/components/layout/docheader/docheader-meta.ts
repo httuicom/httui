@@ -1,3 +1,10 @@
+// pure derivations for the DocHeader meta strip.
+//
+// Each helper takes the raw data the consumer fetched (via Tauri or
+// stores) and turns it into the chip copy + state the strip
+// component renders. Pure to keep the strip component
+// presentation-only.
+
 export interface AuthorInfo {
   /** First commit author of the file. `null` when the file isn't
    *  tracked or git lookup failed. */

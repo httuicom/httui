@@ -124,6 +124,7 @@ describe("GitBranchPicker", () => {
     );
     await user.click(screen.getByTestId("git-branch-picker-create-submit"));
     expect(onCreateBranch).toHaveBeenCalledWith("feat/new");
+    // Form closes after submit.
     expect(
       screen.queryByTestId("git-branch-picker-create-form"),
     ).not.toBeInTheDocument();

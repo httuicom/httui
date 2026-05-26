@@ -59,20 +59,13 @@ export function ConnectionsList() {
   const [pings, setPings] = useState<Record<string, PingState>>({});
   const overrides = useConnectionSessionOverrideStore((s) => s.overrides);
 
-  const refresh = useCallback(async () => {
-    try {
-      const conns = await listConnections();
-      setConnections(conns);
-    } catch {
-      // ignore
-    }
-  }, []);
-
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  // Fire-and-forget ping per connection; slow ones don't block others.
+  // Auto-ping every connection on mount + whenever the connection
+  // list changes. Fire-and-forget per id so a slow one doesn't block
+  // the others. Failures land as `status="err"` in the ping map.
   useEffect(() => {
     let cancelled = false;
     for (const conn of connections) {
@@ -107,8 +100,9 @@ export function ConnectionsList() {
   const handleDuplicate = useCallback(
     async (conn: Connection) => {
       try {
-        // Password is keychain-only and can't be read back — the copy starts without one.
-        await createConnection({
+        // Password lives in the keychain and can't be read back — the
+        // copy starts without one (rotate it from the popover).
+        await createConn({
           name: `${conn.name} copy`,
           driver: conn.driver,
           host: conn.host ?? undefined,
@@ -123,7 +117,8 @@ export function ConnectionsList() {
           is_readonly: conn.is_readonly,
         });
       } catch {
-        // ignore
+        // Name collision / backend reject — ignore (matches the
+        // list's existing fire-and-forget error posture).
       }
     },
     [refresh],

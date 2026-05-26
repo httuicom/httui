@@ -1,9 +1,18 @@
+// "Open vault" card — V1 vertical 1.
+//
+// One of the three first-screen cards. Picks an existing folder via
+// the OS directory picker; the consumer wires the actual switchVault
+// call to the workspace store. Pure presentational + click handler;
+// busy/error states live one level up at EmptyVaultScreen.
+
 import { Box, Stack, Text, chakra } from "@chakra-ui/react";
 
 const CardBox = chakra("button");
 
 export interface OpenVaultCardProps {
+  /** Click → consumer opens the directory picker. */
   onOpenClick: () => void;
+  /** Disable while another card is mid-flow. */
   busy?: boolean;
 }
 

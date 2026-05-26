@@ -94,6 +94,9 @@ describe("extractOutline", () => {
   });
 
   it("treats unterminated frontmatter as plain body", () => {
+    // Open `---` but no closing — fall back to walking from
+    // offset 0; the leading `---` line won't match a heading
+    // and the rest of the doc gets scanned normally.
     const content = "---\nbroken\n# would-be-heading\n";
     const r = extractOutline(content);
     expect(r).toEqual([

@@ -1,3 +1,11 @@
+// Canvas §6 Variables — detail panel composer.
+//
+// Four sections inside the 380px detail slot: header (key + scope +
+// secret chip), VALUE PER ENV list (one row per env, with Show/Hide
+// + Edit/Save/Cancel for secrets), is_secret toggle (slice 3), USED
+// IN BLOCKS slot (slice 4 plugs the references list here). Pure
+// presentational; consumer plugs `fetchSecret`, `onCommitValue`,
+// `onToggleSecret`, and `confirmDemote`.
 
 import { Box, Flex, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
@@ -62,8 +70,9 @@ export function VariableDetailContent({
           <EmptyEnvsHint />
         ) : (
           envNames.map((env) => (
-            // Include row.key in key so switching variables remounts rows,
-            // preventing reveal/edit state from leaking the previous cleartext.
+            // Key includes `row.key` so switching variables forces a
+            // remount — the per-row reveal/edit local state would
+            // otherwise leak the previous variable's cleartext.
             <VariableValueRow
               key={`${row.key}:${env}`}
               env={env}

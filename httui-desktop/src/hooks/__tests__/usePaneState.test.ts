@@ -5,6 +5,7 @@ const V = "/test-vault";
 
 describe("paneStore", () => {
   beforeEach(() => {
+    // Reset store to initial state before each test
     usePaneStore.setState({
       layout: { type: "leaf", id: "test-pane-1", tabs: [], activeTab: 0 },
       activePaneId: "test-pane-1",

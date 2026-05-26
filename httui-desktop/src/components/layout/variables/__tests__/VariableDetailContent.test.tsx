@@ -160,6 +160,7 @@ describe("VariableDetailContent", () => {
     expect(
       screen.getByTestId("variable-value-row-local-display").textContent,
     ).toBe("X");
+    // staging is not in row.values → undefined → em-dash
     expect(
       screen.getByTestId("variable-value-row-staging-display").textContent,
     ).toBe("—");

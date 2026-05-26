@@ -1,3 +1,18 @@
+// / M6 — editable pre-flight checklist for the DocHeader.
+// Displayed below the tag column when the doc has any
+// items, or when the consumer is in editable mode (`onChecklistSave`
+// provided).
+//
+// Storage shape lives in `frontmatter.preflight` as a list of
+// `{ text, done }` items. The consumer rebuilds the full list on each
+// edit (toggle / text change / add / remove) and calls
+// `onChecklistSave` with the new array; the writer
+// (`updateFrontmatterPreflight`) handles the YAML round-trip.
+//
+// Static rendering (no `onChecklistSave`) shows the same rows as
+// disabled boxes so the diff viewer / read-only contexts still display
+// the checklist visually.
+
 import { useState } from "react";
 import { Box, Flex, Text, chakra } from "@chakra-ui/react";
 

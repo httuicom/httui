@@ -172,7 +172,9 @@ describe("DocHeaderCard", () => {
       const input = screen.getByTestId("docheader-title") as HTMLInputElement;
       await user.click(input);
       await user.keyboard("Hello");
+      // No commit yet — still inside the debounce window.
       expect(onTitleSave).not.toHaveBeenCalled();
+      // Advance past the debounce.
       vi.advanceTimersByTime(300);
       expect(onTitleSave).toHaveBeenCalledTimes(1);
       expect(onTitleSave).toHaveBeenCalledWith("Hello");

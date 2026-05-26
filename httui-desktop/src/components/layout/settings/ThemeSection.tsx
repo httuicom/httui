@@ -25,6 +25,8 @@ import {
 } from "@/lib/theme/config";
 import { THEME_PRESETS } from "@/lib/theme/presets";
 
+// ─── Color swatch component ────────────────────────────────
+
 function ColorSwatch({
   color,
   selected,
@@ -66,6 +68,8 @@ function ColorSwatch({
   );
 }
 
+// ─── Radius preview ─────────────────────────────────────────
+
 function RadiusOption({
   value,
   selected,
@@ -97,6 +101,8 @@ function RadiusOption({
   );
 }
 
+// ─── Border width option ────────────────────────────────────
+
 function BorderWidthOption({
   value,
   selected,
@@ -127,6 +133,8 @@ function BorderWidthOption({
     </Flex>
   );
 }
+
+// ─── Color input with native picker ─────────────────────────
 
 function ColorInput({
   label,
@@ -188,6 +196,8 @@ function ColorInput({
   );
 }
 
+// ─── Section wrapper ────────────────────────────────────────
+
 function SettingGroup({
   title,
   description,
@@ -211,6 +221,8 @@ function SettingGroup({
     </Box>
   );
 }
+
+// ─── Main component ─────────────────────────────────────────
 
 export function ThemeSection() {
   const theme = useSettingsStore((s) => s.theme);
@@ -246,6 +258,7 @@ export function ThemeSection() {
   const clearCustomColors = useCallback(() => {
     if (!theme.customColors) return;
     const updated = { ...theme.customColors, [currentMode]: null };
+    // If both are null, remove customColors entirely
     if (!updated.light && !updated.dark) {
       updateTheme({ customColors: null });
     } else {
@@ -279,6 +292,7 @@ export function ThemeSection() {
 
   return (
     <Flex direction="column" gap={4}>
+      {/* Header with reset */}
       <Flex align="center" justify="space-between">
         <Box>
           <Text fontWeight="semibold" fontSize="sm">
@@ -296,6 +310,7 @@ export function ThemeSection() {
 
       <Separator />
 
+      {/* Presets */}
       <SettingGroup
         title="Presets"
         description="Quick-apply a predefined theme combination"
@@ -354,6 +369,7 @@ export function ThemeSection() {
 
       <Separator />
 
+      {/* Accent color */}
       <SettingGroup
         title="Accent color"
         description="Primary color used for buttons, links, and highlights"
@@ -373,6 +389,7 @@ export function ThemeSection() {
 
       <Separator />
 
+      {/* Gray tone */}
       <SettingGroup
         title="Gray tone"
         description="Neutral color palette for backgrounds, text, and borders"
@@ -392,8 +409,10 @@ export function ThemeSection() {
 
       <Separator />
 
+      {/* Shape */}
       <SettingGroup title="Shape">
         <VStack gap={3} align="stretch">
+          {/* Border radius */}
           <Flex align="center" justify="space-between">
             <Flex direction="column" gap={0}>
               <Text fontSize="sm">Border radius</Text>
@@ -413,6 +432,7 @@ export function ThemeSection() {
             </HStack>
           </Flex>
 
+          {/* Border width */}
           <Flex align="center" justify="space-between">
             <Flex direction="column" gap={0}>
               <Text fontSize="sm">Border width</Text>
@@ -436,8 +456,10 @@ export function ThemeSection() {
 
       <Separator />
 
+      {/* Typography */}
       <SettingGroup title="Typography">
         <VStack gap={3} align="stretch">
+          {/* Body font */}
           <Flex align="center" justify="space-between" gap={4}>
             <Flex direction="column" gap={0} flex={1}>
               <Text fontSize="sm">Body font</Text>
@@ -459,6 +481,7 @@ export function ThemeSection() {
             </NativeSelectRoot>
           </Flex>
 
+          {/* Mono font */}
           <Flex align="center" justify="space-between" gap={4}>
             <Flex direction="column" gap={0} flex={1}>
               <Text fontSize="sm">Monospace font</Text>
@@ -480,6 +503,7 @@ export function ThemeSection() {
             </NativeSelectRoot>
           </Flex>
 
+          {/* Font size */}
           <Flex align="center" justify="space-between" gap={4}>
             <Flex direction="column" gap={0} flex={1}>
               <Text fontSize="sm">Base font size</Text>
@@ -505,8 +529,10 @@ export function ThemeSection() {
 
       <Separator />
 
+      {/* Density & Effects */}
       <SettingGroup title="Layout & Effects">
         <VStack gap={3} align="stretch">
+          {/* Density */}
           <Flex align="center" justify="space-between" gap={4}>
             <Flex direction="column" gap={0} flex={1}>
               <Text fontSize="sm">UI density</Text>
@@ -530,6 +556,7 @@ export function ThemeSection() {
             </HStack>
           </Flex>
 
+          {/* Shadow */}
           <Flex align="center" justify="space-between" gap={4}>
             <Flex direction="column" gap={0} flex={1}>
               <Text fontSize="sm">Shadows</Text>
@@ -555,6 +582,7 @@ export function ThemeSection() {
         </VStack>
       </SettingGroup>
 
+      {/* Custom color overrides (mode-aware) */}
       <Separator />
       <SettingGroup
         title="Custom colors"
@@ -635,6 +663,7 @@ export function ThemeSection() {
         )}
       </SettingGroup>
 
+      {/* Current theme summary */}
       <Separator />
       <Box px={3} py={2} borderRadius="md" bg="bg.subtle">
         <HStack gap={2} flexWrap="wrap" fontSize="2xs" color="fg.muted">

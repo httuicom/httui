@@ -51,7 +51,7 @@ describe("useContentSearch", () => {
     );
 
     act(() => result.current.handleSearch("  hel  "));
-    expect(calls).toBe(0);
+    expect(calls).toBe(0); // debounce open
 
     await act(async () => {
       vi.advanceTimersByTime(150);

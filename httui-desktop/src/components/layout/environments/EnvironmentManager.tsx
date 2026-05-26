@@ -1,3 +1,11 @@
+// Environment manager drawer (refactor).
+//
+// Quick-edit drawer kept as a UX shortcut alongside the dedicated
+// Environments tab. Sidebar lists envs (click to switch focus),
+// main area renders the V5 components: a `VariableValueRow` per
+// variable + an inline `NewVariableForm` for adding new ones. Same
+// store / IPC stack as the full Environments page — no logic
+// duplication, just a different surface.
 
 import { useCallback, useEffect, useState } from "react";
 import {

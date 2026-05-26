@@ -121,6 +121,10 @@ function summarizeValue(val: unknown): string {
 }
 
 /**
+ * Creates a CodeMirror autocompletion extension for `{{...}}` block references.
+ * Pass a getter that returns the current block contexts (aliases + cached results).
+ */
+/**
  * Creates just the completion source function for `{{...}}` references.
  * Use this when you need to combine with other completion sources (e.g., SQL).
  */
@@ -211,10 +215,11 @@ export function createReferenceAutocomplete(
     if (!ref) return null;
 
     const from = line.from + ref.from;
-    const inner = ref.inner;
+    const inner = ref.inner; // e.g. "" or "login" or "login.response" or "login.response.body."
 
     const blocks = getBlocks();
 
+    // No dot yet — complete alias names + env variable keys
     if (!inner.includes(".")) {
       const options: Completion[] = blocks
         .filter((b) => b.alias)
@@ -247,6 +252,7 @@ export function createReferenceAutocomplete(
       };
     }
 
+    // Has dots — complete JSON path
     const parts = inner.split(".");
     const alias = parts[0];
     const block = blocks.find((b) => b.alias === alias);
@@ -259,16 +265,19 @@ export function createReferenceAutocomplete(
       return null;
     }
 
+    // Build context object matching what resolveReference uses
     const context: Record<string, unknown> = {
       response: responseData,
       status: block.cachedResult.status,
     };
 
+    // Path parts after alias, excluding the last (being typed)
     const completedPath = parts.slice(1, -1);
     const options = getKeysAtPath(context, completedPath);
 
     if (options.length === 0) return null;
 
+    // `from` should be after the last dot
     const lastDotIdx = inner.lastIndexOf(".");
     const completionFrom = line.from + ref.from + lastDotIdx + 1;
 

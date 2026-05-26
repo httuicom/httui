@@ -1,3 +1,9 @@
+// Canvas §6 Variables — list panel.
+//
+// Header (serif H1 + subtitle + buttons + search row + env pill),
+// table headers `1.4fr 1.4fr 1.4fr 1.4fr 60px`, empty body when no
+// rows. Real row rendering + sorting + filtering ship in slice 2.
+// Pure presentational; consumer owns env list + search state.
 
 import { Box, Flex, Grid, Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";

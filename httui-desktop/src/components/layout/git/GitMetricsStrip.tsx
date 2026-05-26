@@ -1,3 +1,10 @@
+// the metrics strip that justifies the full-screen
+// pane-tab. Dense, single band above the tabs: branch + upstream,
+// explicit ahead/behind, changes-by-type, last commit author + when,
+// last sync, remote URL. Pure presentational — fed by the shared
+// store via GitPanelContainer so it stays in lockstep with the side
+// panel.
+
 import { Box, Flex, Text } from "@chakra-ui/react";
 
 import type { CommitInfo, GitStatus, Remote } from "@/lib/tauri/git";

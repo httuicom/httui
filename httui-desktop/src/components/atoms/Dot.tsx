@@ -1,3 +1,6 @@
+// Status indicator atom — 6×6 circle, `STATE_COLORS` palette plus an
+// `idle` variant (design canvas §0).
+
 import { Box, type BoxProps } from "@chakra-ui/react";
 
 import { STATE_COLORS } from "@/theme/tokens";

@@ -26,11 +26,11 @@ export function useAutoUpdate() {
           await relaunch();
         }
       } catch {
-        // Silent: don't surface update-check failures to the user.
+        // Silent fail — don't bother user if update check fails
       }
     }
 
-    // Delayed 3s to avoid blocking startup.
+    // Check after 3 seconds to not block startup
     const timer = setTimeout(checkForUpdate, 3000);
     return () => clearTimeout(timer);
   }, []);

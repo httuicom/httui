@@ -126,7 +126,8 @@ describe("WorkspaceMenu", () => {
 
     await user.click(screen.getByRole("button", { name: /Workspace —/ }));
 
-    expect(screen.getByText("Abrir outro vault…")).toBeInTheDocument();
+    expect(await screen.findByText("Abrir outro vault…")).toBeInTheDocument();
+    // No data-vault-path items
     expect(
       screen
         .queryAllByRole("menuitem")

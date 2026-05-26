@@ -1,3 +1,14 @@
+// Reads + writes the per-file `docheader_compact` flag persisted in
+// `.httui/workspace.toml` via `get_file_settings` /
+// `set_file_docheader_compact` Tauri commands. The
+// `<DocHeaderCard>` click-on-title flips compact mode and the
+// preference survives vault reopen.
+//
+// Mirrors `useFileAutoCapture` (commit 78f7a81 / earlier): idle when
+// either path is null, optimistic update on toggle, rollback to
+// on-disk truth on persist failure. The store mutates the **base**
+// workspace.toml (audit-003) so `.local.toml` overrides survive.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getFileSettings, setFileDocheaderCompact } from "@/lib/tauri/files";
@@ -26,7 +37,8 @@ export function useFileDocHeaderCompact(
     try {
       const settings = await getFileSettings(vaultPath, filePath);
       if (cancelledRef.current) return;
-      // Rust skips the field at its default; coerce undefined → false.
+      // `docheader_compact` is optional on the wire (Rust skips the
+      // field when it's at the default). Treat undefined as false.
       setLocal(Boolean(settings.docheader_compact));
       setLoaded(true);
     } catch {
@@ -52,7 +64,8 @@ export function useFileDocHeaderCompact(
       try {
         await setFileDocheaderCompact(vaultPath, filePath, next);
       } catch (e) {
-        setLocal(prev); // Roll back to on-disk truth on failure.
+        // Roll back to on-disk truth so the UI doesn't drift.
+        setLocal(prev);
         throw e;
       }
     },

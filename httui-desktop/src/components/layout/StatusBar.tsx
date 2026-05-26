@@ -1,3 +1,21 @@
+// Workbench status bar — canvas §4.
+//
+// Mounted at the bottom of `<AppShell>`. Composes inside the
+// `<StatusBarShell>` atom (22px, mono 11px, `bg.1`, top border).
+//
+// Cells (left → right):
+//   • Branch + diff counts (`main +N ~M`) — debounced 2s
+//     `gitStatus` poll via `useGitStatus`
+//   • Active env name + status `<Dot>` (warn for staging, err for
+//     prod*, ok otherwise; `idle` when none)
+//   • Connection latency (opt-in; default off — surfaces only when
+//     a connection is active)
+//   • Cursor position (`Ln 1, Col 1` placeholder until CM6 emits a
+//     selection event we can subscribe to)
+//   • File encoding (`UTF-8` static)
+//   • ⚡ chained — placeholder until block-context is reachable
+//   • Version pill (`v0.1.0`) — Vite-time inject from package.json
+
 import { Box, Text, chakra } from "@chakra-ui/react";
 import { LuLink, LuTriangleAlert } from "react-icons/lu";
 
@@ -42,7 +60,10 @@ export function StatusBar({
 
   const ahead = gitState?.ahead ?? 0;
   const behind = gitState?.behind ?? 0;
-  // Status codes follow `git status --short`. Untracked counts as "added".
+  // Categorize worktree changes into add / modify / delete buckets.
+  // Status codes follow `git status --short` (M, A, D, ??, R, C…).
+  // Untracked counts as "added" so a freshly-created file shows up
+  // under `+N` while still uncommitted.
   let added = 0;
   let modified = 0;
   let deleted = 0;
@@ -55,6 +76,7 @@ export function StatusBar({
 
   return (
     <StatusBarShell data-testid="status-bar">
+      {/* Branch + diff counts — clickable dropdown (placeholder until V10) */}
       <BranchMenu
         branch={gitState?.branch ?? null}
         ahead={ahead}
@@ -73,8 +95,11 @@ export function StatusBar({
 
       <Box w="1px" h="12px" bg="border" aria-hidden />
 
+      {/* Env — clickable dropdown to switch environments (⌘E,
+       * numeric shortcuts, Clone quick action) */}
       <EnvSwitcher />
 
+      {/* Connection latency (opt-in: surfaces only when active) */}
       {activeConnection && (
         <>
           <Box w="1px" h="12px" bg="border" aria-hidden />
@@ -92,6 +117,9 @@ export function StatusBar({
         </>
       )}
 
+      {/* Pending secrets badge. Hidden when
+       * count is 0 or modal is currently visible (would just stack the
+       * same surface on top of itself). Click reopens the modal. */}
       {pendingSecretsCount > 0 && !pendingModalOpen && (
         <>
           <Box w="1px" h="12px" bg="border" aria-hidden />
@@ -121,6 +149,7 @@ export function StatusBar({
 
       <Box flex={1} />
 
+      {/* Right cluster — cursor + encoding + chained + version */}
       {chained && (
         <Box
           color="brand.fg"

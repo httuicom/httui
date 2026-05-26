@@ -13,9 +13,11 @@ import {
   type Completion,
 } from "@codemirror/autocomplete";
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
 interface WikilinkMatch {
-  from: number;
-  to: number;
+  from: number; // start of [[
+  to: number; // end of ]]
   target: string;
   label: string;
 }
@@ -24,6 +26,8 @@ interface WikilinkOptions {
   getFiles: () => { name: string; path: string }[];
   onNavigate: (target: string) => void;
 }
+
+// ── Regex ────────────────────────────────────────────────────────────────────
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 
@@ -43,6 +47,8 @@ function findWikilinks(text: string, offset: number): WikilinkMatch[] {
   }
   return matches;
 }
+
+// ── Widget ───────────────────────────────────────────────────────────────────
 
 class WikilinkWidget extends WidgetType {
   constructor(
@@ -71,9 +77,11 @@ class WikilinkWidget extends WidgetType {
   }
 
   ignoreEvent(): boolean {
-    return false;
+    return false; // Let click events through to our handler
   }
 }
+
+// ── Decoration plugin ────────────────────────────────────────────────────────
 
 function buildWikilinkDecorations(
   view: EditorView,
@@ -82,6 +90,7 @@ function buildWikilinkDecorations(
   const { state } = view;
   const builder = new RangeSetBuilder<Decoration>();
 
+  // Get cursor line numbers
   const cursorLines = new Set<number>();
   for (const range of state.selection.ranges) {
     const startLine = state.doc.lineAt(range.from).number;
@@ -91,7 +100,9 @@ function buildWikilinkDecorations(
     }
   }
 
+  // Scan visible lines for wikilinks
   for (let i = 1; i <= state.doc.lines; i++) {
+    // If cursor is on this line, show raw [[target]]
     if (cursorLines.has(i)) continue;
 
     const line = state.doc.line(i);
@@ -127,10 +138,13 @@ function createWikilinkPlugin(onNavigate: (target: string) => void) {
   );
 }
 
+// ── Autocomplete ─────────────────────────────────────────────────────────────
+
 function createWikilinkCompletion(
   getFiles: () => { name: string; path: string }[],
 ) {
   return (context: CompletionContext): CompletionResult | null => {
+    // Match [[ followed by optional text
     const before = context.state.doc.sliceString(
       Math.max(0, context.pos - 50),
       context.pos,
@@ -156,6 +170,7 @@ function createWikilinkCompletion(
           from: number,
           to: number,
         ) => {
+          // Replace the text after [[ with target]] (keep the opening [[)
           const insert = `${f.path}|${label}]]`;
           view.dispatch({
             changes: { from, to, insert },
@@ -167,6 +182,8 @@ function createWikilinkCompletion(
     return { from, options, filter: false };
   };
 }
+
+// ── Theme ────────────────────────────────────────────────────────────────────
 
 const wikilinkTheme = EditorView.theme({
   ".cm-wikilink": {
@@ -180,6 +197,8 @@ const wikilinkTheme = EditorView.theme({
     },
   },
 });
+
+// ── Export ────────────────────────────────────────────────────────────────────
 
 /** Export the completion source factory for combining with other sources */
 export { createWikilinkCompletion };

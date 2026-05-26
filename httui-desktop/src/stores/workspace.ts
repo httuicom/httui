@@ -11,6 +11,8 @@ import {
 import type { FileEntry } from "@/lib/tauri/commands";
 import { useTagIndexStore } from "@/stores/tagIndex";
 
+// --- Types ---
+
 interface ConnectionStatus {
   connectionId: string;
   name: string;
@@ -24,13 +26,16 @@ interface ConnectionStatusEvent {
 }
 
 interface WorkspaceState {
+  // Vault
   vaultPath: string | null;
   vaults: string[];
   entries: FileEntry[];
 
+  // Connection status
   connections: Map<string, ConnectionStatus>;
   activeConnection: ConnectionStatus | null;
 
+  // Actions
   setVaultPath: (path: string | null) => void;
   setVaults: (vaults: string[]) => void;
   setEntries: (entries: FileEntry[]) => void;
@@ -38,6 +43,8 @@ interface WorkspaceState {
   switchVault: (path: string) => Promise<void>;
   openVault: () => Promise<void>;
 }
+
+// --- Store ---
 
 export const useWorkspaceStore = create<WorkspaceState>()(
   devtools(
@@ -71,7 +78,11 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           ]);
           startWatching(path).catch(() => {});
           rebuildSearchIndex(path).catch(() => {});
-          // Failure is non-fatal; per-save refreshes catch up.
+          // Bootstrap the vault-wide tag index so quick-open #tag,
+          // tag-filter dropdowns, and TagColumn autocomplete work
+          // immediately after vault switch — mount.
+          // Failure is non-fatal (tag index just stays at its
+          // previous shape); per-save refreshes will catch up.
           useTagIndexStore
             .getState()
             .loadFromVault(path)
@@ -104,12 +115,16 @@ export const useWorkspaceStore = create<WorkspaceState>()(
   ),
 );
 
+// --- Tauri event listeners ---
+
 export function setupWorkspaceListeners() {
+  // File watcher
   listen("fs-event", () => {
     const { vaultPath, refreshFileTree } = useWorkspaceStore.getState();
     if (vaultPath) refreshFileTree(vaultPath);
   });
 
+  // Connection status
   listen<ConnectionStatusEvent>("connection-status", (event) => {
     const { connection_id, name, status } = event.payload;
     const { connections } = useWorkspaceStore.getState();

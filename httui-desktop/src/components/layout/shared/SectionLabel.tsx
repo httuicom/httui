@@ -1,3 +1,10 @@
+// Master-detail section label (V5).
+//
+// Uppercase mono caption used by the master-detail sidebars
+// (Connections, Variables, Environments) and the detail panel
+// composers. Centralises type tokens so layout reads identically
+// across surfaces.
+
 import { Text } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 

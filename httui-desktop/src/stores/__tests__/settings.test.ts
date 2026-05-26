@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mockTauriCommand, clearTauriMocks } from "@/test/mocks/tauri";
 import { DEFAULT_THEME } from "@/lib/theme/config";
 
+// Mock applyTheme to avoid touching the real DOM
 vi.mock("@/lib/theme/apply", () => ({
   applyTheme: vi.fn(),
 }));
@@ -67,7 +68,9 @@ function resetStore() {
   });
 }
 
-// Flush the patchUiPrefs read-modify-write round-trip (fires-and-forgets).
+// Wait for the patchUiPrefs read-modify-write round-trip.
+// updateSetting fires-and-forgets; we need to flush both the
+// `getUserConfig` await and the `setUserConfig` await.
 async function flushPersist() {
   await Promise.resolve();
   await Promise.resolve();
@@ -265,16 +268,22 @@ describe("settingsStore", () => {
     });
 
     it("falls back to defaults for missing fields", async () => {
-      mockUserConfig({});
+      mockUserConfig({
+        // no overrides — ui defaults applied
+      });
 
       await useSettingsStore.getState().loadSettings();
 
       const state = useSettingsStore.getState();
+      // ui.auto_save_ms = 1000 in userFile() default
       expect(state.settings.autoSaveMs).toBe(1000);
       expect(state.theme).toEqual(DEFAULT_THEME);
     });
 
     it("falls back to DEFAULT_THEME when ui.theme is a bare string", async () => {
+      // Migration writes a bare mode like "dark"; current ThemeConfig
+      // has no `mode` field, so the bare string can't be merged in.
+      // The store keeps DEFAULT_THEME and overwrites on next save.
       mockUserConfig({ theme: "dark" });
 
       await useSettingsStore.getState().loadSettings();
@@ -365,6 +374,8 @@ describe("settingsStore", () => {
     });
 
     it("falls back to false when ui.mvp_migration_dismissed is omitted", async () => {
+      // Pass null instead of true/false to simulate a TOML file
+      // written by an older version that pre-dates the field.
       mockUserConfig({ mvp_migration_dismissed: undefined });
 
       await useSettingsStore.getState().loadSettings();

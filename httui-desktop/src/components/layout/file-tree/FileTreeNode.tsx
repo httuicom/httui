@@ -61,8 +61,9 @@ export function FileTreeNode({
       : null;
   const isActive = !entry.is_dir && entry.path === activeFile;
 
-  // Files with `status: archived` in frontmatter are hidden by default;
-  // the Sidebar toggle reveals them with an inline badge.
+  // files with `status: archived` in their frontmatter
+  // are hidden from the default tree; the Sidebar toggle reveals them
+  // again with an inline badge so they're identifiable at a glance.
   const isArchived = useTagIndexStore(
     (s) => !entry.is_dir && s.archivedFiles[entry.path] === true,
   );
@@ -81,7 +82,8 @@ export function FileTreeNode({
     }
   }, [entry, handleFileSelect]);
 
-  // Early return after all hooks so React's hook-ordering invariants hold.
+  // Run after every hook above is unconditionally invoked so React's
+  // hook-ordering invariants stay intact across renders.
   if (isArchived && !showArchived) return null;
 
   if (renaming) {

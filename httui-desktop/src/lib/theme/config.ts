@@ -1,3 +1,5 @@
+// ─── Theme configuration types ──────────────────────────────
+
 export interface ModeColors {
   bg: string;
   bgSubtle: string;
@@ -36,6 +38,8 @@ export const DEFAULT_THEME: ThemeConfig = {
   shadow: "subtle",
   customColors: null,
 };
+
+// ─── Accent color palettes (Tailwind-inspired, 11 shades) ──
 
 export interface ColorScale {
   50: string;
@@ -227,6 +231,8 @@ export const ACCENT_PALETTES: Record<
   },
 };
 
+// ─── Gray tone palettes ─────────────────────────────────────
+
 export const GRAY_PALETTES: Record<
   string,
   { label: string; swatch: string; scale: ColorScale }
@@ -318,6 +324,8 @@ export const GRAY_PALETTES: Record<
   },
 };
 
+// ─── Font families ──────────────────────────────────────────
+
 export const FONT_BODY_OPTIONS: Record<
   string,
   { label: string; value: string }
@@ -355,6 +363,8 @@ export const FONT_MONO_OPTIONS: Record<
   },
 };
 
+// ─── Density scales ─────────────────────────────────────────
+
 export const DENSITY_SCALES: Record<
   string,
   { label: string; description: string; multiplier: number }
@@ -371,6 +381,8 @@ export const DENSITY_SCALES: Record<
     multiplier: 1.2,
   },
 };
+
+// ─── Shadow presets ─────────────────────────────────────────
 
 export const SHADOW_OPTIONS: Record<string, { label: string; value: string }> =
   {

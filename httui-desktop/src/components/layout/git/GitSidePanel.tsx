@@ -1,3 +1,23 @@
+// V10.1 — VS-Code-style Source Control side panel.
+//
+// A right-side collapsible column (NOT a Dialog — a Dialog focus
+// trap would steal keyboard input from CM6). Mirrors the
+// OutlinePanel/SchemaPanel chrome. Reads the shared `useGitStore`
+// via the `useGitStatus` shim so it stays in lockstep with the
+// detailed pane-tab. "Details" opens the full
+// pane-tab for deep-dive ("ver tudo").
+//
+// Open/close + persistence is owned by `useSettingsStore`
+// (`gitSidePanelOpen`, user.toml `[ui].git_side_panel_open`) so the
+// panel survives an app restart ("estado persiste").
+//
+// Cenário 2 — the commit box comes pre-filled from the commit
+// template (`useSettingsStore.gitCommitTemplate`, default = built-in
+// conditional). Editing wins; clearing falls back to the template.
+//
+// The file list, Sync button and compact history land in this same
+// shell across.
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, HStack, IconButton, Text } from "@chakra-ui/react";
 import { LuGitBranch, LuX } from "react-icons/lu";
@@ -52,7 +72,8 @@ export function GitSidePanel({ width, onClose }: GitSidePanelProps) {
     [changedPaths, template],
   );
 
-  // Load history on mount/vault change; the status poll doesn't reload the log.
+  // Populate the compact history when the panel opens
+  // the status poll doesn't reload the log; commit/sync do.
   useEffect(() => {
     void reloadLog();
   }, [reloadLog, vaultPath]);
