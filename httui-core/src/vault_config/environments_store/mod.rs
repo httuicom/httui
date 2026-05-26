@@ -23,41 +23,10 @@ use super::user::UserFile;
 use super::validate::{validate_env_file, Severity};
 use super::Version;
 
-#[derive(Debug, Clone, Serialize)]
-pub struct EnvironmentPublic {
-    pub name: String,
-    pub description: Option<String>,
-    pub read_only: bool,
-    pub require_confirm: bool,
-    pub color: Option<String>,
-    pub var_count: usize,
-    pub secret_count: usize,
-    /// Canvas §6 `[meta].temporary`. Drives the
-    /// `temporary` chip in the Environments page.
-    pub temporary: bool,
-    /// Canvas §6 `[meta].connections_used` allowlist.
-    /// Empty list means "all connections".
-    pub connections_used: Vec<String>,
-}
+mod dto;
 
-#[derive(Debug, Clone, Serialize)]
-pub struct EnvVariablePublic {
-    pub key: String,
-    /// Plaintext value when from `[vars]`; empty string when from
-    /// `[secrets]` (caller resolves on demand).
-    pub value: String,
-    pub is_secret: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct SetVarInput {
-    pub env_name: String,
-    pub key: String,
-    /// Raw value. For secret vars it's stored in the keychain and the
-    /// TOML keeps only a `{{keychain:...}}` reference.
-    pub value: String,
-    pub is_secret: bool,
-}
+use dto::{env_to_public, is_valid_env_name};
+pub use dto::{EnvVariablePublic, EnvironmentPublic, SetVarInput};
 
 /// Cache entry for one env file. Tracks both base and `.local`
 /// override mtimes per ADR 0004.
