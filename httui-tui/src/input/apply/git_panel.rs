@@ -62,6 +62,9 @@ pub(crate) fn apply_git_panel(app: &mut App, action: Action) {
         }
         Action::ResolveGitConflict(version) => git_conflict_resolver::resolve(app, version),
         Action::GitPanelShare => git_share::share_https_url(app),
+        Action::GitPanelToggleAmend => {
+            app.git_panel.amend = !app.git_panel.amend;
+        }
         _ => unreachable!("apply_git_panel: variante fora do grupo"),
     }
 }
@@ -91,14 +94,17 @@ fn submit_commit(app: &mut App) {
         app.git_panel.commit_error = Some("nothing to commit".to_string());
         return;
     }
-    match crate::commands::git::commit_changes(app, &effective) {
+    let amend = app.git_panel.amend;
+    match crate::commands::git::commit_changes(app, &effective, amend) {
         Ok(()) => {
             app.git_panel.commit_message =
                 crate::vim::lineedit::LineEdit::from_str(String::new());
             app.git_panel.commit_error = None;
+            app.git_panel.amend = false;
+            let prefix = if amend { "Amended" } else { "Committed" };
             app.set_status(
                 StatusKind::Info,
-                format!("Committed: {}", short(&effective, 50)),
+                format!("{prefix}: {}", short(&effective, 50)),
             );
         }
         Err(msg) => {

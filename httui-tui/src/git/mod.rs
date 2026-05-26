@@ -6,11 +6,17 @@
 //! commit-form draft, list selection) so the renderer is a pure
 //! projection.
 
+use httui_core::git::log::CommitInfo;
 use httui_core::git::status::{DiffMetrics, GitStatus};
 
 use crate::vim::lineedit::LineEdit;
 
 pub mod template;
+
+/// Number of recent commits surfaced inline in the panel's HISTORY
+/// section. The desktop's `GitSidePanel` keeps this short (3-5);
+/// "View all" jumps to the full-screen log page (`Ctrl+L`).
+pub const HISTORY_PREVIEW_COUNT: usize = 3;
 
 /// State carried by the set-upstream confirm modal. The user is
 /// asked whether to push the current branch with `-u <remote>`.
@@ -168,6 +174,14 @@ pub struct GitPanel {
     /// `git commit` rejected by hook, etc.). Cleared on the next
     /// edit keystroke so the user sees they're making progress.
     pub commit_error: Option<String>,
+    /// Latest `HISTORY_PREVIEW_COUNT` commits, refreshed alongside
+    /// the status snapshot. Surfaced inline in the panel; the full
+    /// log lives behind `Ctrl+L` (`Modal::GitLogPage`).
+    pub recent_commits: Vec<CommitInfo>,
+    /// `git commit --amend` toggle. Reset to `false` after every
+    /// successful commit so the next one defaults to a normal
+    /// commit. Flipped by `Ctrl+A` while the panel is focused.
+    pub amend: bool,
 }
 
 impl GitPanel {

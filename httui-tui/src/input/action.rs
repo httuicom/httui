@@ -125,6 +125,9 @@ pub enum Action {
     /// `Ctrl+Y` inside the panel — copy the repo's HTTPS share URL
     /// to the clipboard (GT-12).
     GitPanelShare,
+    /// `Ctrl+A` inside the panel — flip the `--amend` flag for the
+    /// next commit. Auto-resets after a successful commit.
+    GitPanelToggleAmend,
     /// `Tab` — when the tree is visible, swap focus between sidebar
     /// and editor without changing visibility.
     FocusSwap,

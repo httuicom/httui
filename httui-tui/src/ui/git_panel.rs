@@ -7,16 +7,19 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState},
     Frame,
 };
 
-use httui_core::git::status::{DiffMetrics, FileChange, GitStatus};
+use httui_core::git::log::CommitInfo;
+use httui_core::git::status::{FileChange, GitStatus};
 
-use crate::git::{template::commit_template, GitPanel};
+use crate::git::GitPanel;
 
-const PANEL_WIDTH: u16 = 36;
-const COMMIT_FORM_HEIGHT: u16 = 5;
+const PANEL_WIDTH: u16 = 42;
+/// Tall enough for: border (2) + draft line (1) + optional error
+/// (1) + amend toggle (1) + key hints (1) = up to 6.
+const COMMIT_FORM_HEIGHT: u16 = 6;
 
 pub fn width() -> u16 {
     PANEL_WIDTH
@@ -79,84 +82,23 @@ pub fn render(
     });
     frame.render_stateful_widget(list, list_area, &mut state);
 
-    render_commit_form(frame, form_area, panel, focused, commit_tpl)
-}
-
-fn render_commit_form(
-    frame: &mut Frame,
-    area: Rect,
-    panel: &GitPanel,
-    focused: bool,
-    commit_tpl: &str,
-) -> Option<(u16, u16)> {
-    if area.height < 2 {
-        return None;
-    }
-    let border_color = if focused {
-        Color::LightYellow
-    } else {
-        Color::DarkGray
-    };
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color))
-        .title(Span::styled(
-            " message ",
-            Style::default().fg(Color::Gray),
-        ));
-    let inner = block.inner(area);
-    frame.render_widget(block, area);
-
-    let draft = panel.commit_message.as_str();
-    let placeholder = panel
-        .status
-        .as_ref()
-        .map(|s| commit_template(s, commit_tpl))
-        .unwrap_or_default();
-    let (text, style) = if draft.is_empty() {
-        if placeholder.is_empty() {
-            (
-                "type a commit message…".to_string(),
-                Style::default().fg(Color::DarkGray),
-            )
-        } else {
-            (placeholder, Style::default().fg(Color::DarkGray))
-        }
-    } else {
-        (draft.to_string(), Style::default().fg(Color::White))
-    };
-    let lines: Vec<Line<'static>> = if let Some(err) = panel.commit_error.as_ref() {
-        vec![
-            Line::from(Span::styled(text, style)),
-            Line::from(Span::styled(
-                err.lines().next().unwrap_or("").to_string(),
-                Style::default().fg(Color::Red),
-            )),
-        ]
-    } else {
-        vec![Line::from(Span::styled(text, style))]
-    };
-    let paragraph = Paragraph::new(lines);
-    frame.render_widget(paragraph, inner);
-
-    if focused && inner.width > 0 && inner.height > 0 {
-        let cursor_col = panel.commit_message.cursor_col() as u16;
-        let x = inner.x + cursor_col.min(inner.width.saturating_sub(1));
-        Some((x, inner.y))
-    } else {
-        None
-    }
+    super::git_panel_form::render_commit_form(frame, form_area, panel, focused, commit_tpl)
 }
 
 fn header_label(panel: &GitPanel) -> String {
     match (&panel.status, &panel.status_error) {
         (Some(status), _) => {
             let branch = status.branch.as_deref().unwrap_or("detached");
-            if status.ahead == 0 && status.behind == 0 {
-                branch.to_string()
-            } else {
-                format!("{branch} ↑{} ↓{}", status.ahead, status.behind)
+            let mut s = branch.to_string();
+            if status.ahead != 0 || status.behind != 0 {
+                s.push_str(&format!(" ↑{} ↓{}", status.ahead, status.behind));
             }
+            let n = status.changed.len();
+            if n > 0 {
+                let suffix = if n == 1 { "" } else { "s" };
+                s.push_str(&format!(" · {n} change{suffix}"));
+            }
+            s
         }
         (None, Some(_)) => "no repo".to_string(),
         (None, None) => "loading…".to_string(),
@@ -167,10 +109,15 @@ fn header_label(panel: &GitPanel) -> String {
 /// can walk the structure without re-parsing rendered text.
 #[derive(Debug, Clone)]
 pub(super) enum BodyRow {
-    Metrics { files: usize, plus: u32, minus: u32 },
-    Section(&'static str),
+    /// Caps section label with a count suffix: `UNSTAGED (3)`.
+    Section { label: &'static str, count: usize },
     File(FileChange),
     Separator,
+    /// `HISTORY` section header with the `View all` affordance on
+    /// the right (the chord to open it is `Ctrl+L`).
+    HistoryHeader,
+    /// One row from `recent_commits` — `<short_sha> <subject>`.
+    Commit(CommitInfo),
     Clean,
     Loading,
     Error(String),
@@ -178,7 +125,7 @@ pub(super) enum BodyRow {
 
 pub(super) fn body_rows(panel: &GitPanel) -> Vec<BodyRow> {
     match (&panel.status, &panel.status_error) {
-        (Some(status), _) => populated_rows(status, &panel.metrics),
+        (Some(status), _) => populated_rows(status, &panel.recent_commits),
         (None, Some(err)) => vec![BodyRow::Error(
             err.lines().next().unwrap_or("").to_string(),
         )],
@@ -186,57 +133,61 @@ pub(super) fn body_rows(panel: &GitPanel) -> Vec<BodyRow> {
     }
 }
 
-fn populated_rows(status: &GitStatus, metrics: &DiffMetrics) -> Vec<BodyRow> {
+fn populated_rows(status: &GitStatus, recent: &[CommitInfo]) -> Vec<BodyRow> {
     let mut out = Vec::new();
-    out.push(BodyRow::Metrics {
-        files: status.changed.len(),
-        plus: metrics.insertions,
-        minus: metrics.deletions,
-    });
     let (staged, unstaged): (Vec<_>, Vec<_>) =
         status.changed.iter().partition(|c| c.staged && !c.untracked);
-    if !staged.is_empty() {
-        out.push(BodyRow::Section("Staged"));
-        for c in &staged {
+
+    // Desktop ordering: UNSTAGED first, STAGED below.
+    if !unstaged.is_empty() {
+        out.push(BodyRow::Section {
+            label: "UNSTAGED",
+            count: unstaged.len(),
+        });
+        for c in &unstaged {
             out.push(BodyRow::File((*c).clone()));
         }
     }
-    if !unstaged.is_empty() {
-        if !staged.is_empty() {
+    if !staged.is_empty() {
+        if !unstaged.is_empty() {
             out.push(BodyRow::Separator);
         }
-        out.push(BodyRow::Section("Unstaged"));
-        for c in &unstaged {
+        out.push(BodyRow::Section {
+            label: "STAGED",
+            count: staged.len(),
+        });
+        for c in &staged {
             out.push(BodyRow::File((*c).clone()));
         }
     }
     if staged.is_empty() && unstaged.is_empty() {
         out.push(BodyRow::Clean);
     }
+
+    if !recent.is_empty() {
+        out.push(BodyRow::Separator);
+        out.push(BodyRow::HistoryHeader);
+        for c in recent {
+            out.push(BodyRow::Commit(c.clone()));
+        }
+    }
     out
 }
 
 fn row_to_item(row: &BodyRow) -> ListItem<'static> {
     match row {
-        BodyRow::Metrics { files, plus, minus } => {
-            let label = format!(
-                "{} file{}  +{}  -{}",
-                files,
-                if *files == 1 { "" } else { "s" },
-                plus,
-                minus,
-            );
-            ListItem::new(Line::from(Span::styled(
-                label,
-                Style::default().fg(Color::Cyan),
-            )))
-        }
-        BodyRow::Section(name) => ListItem::new(Line::from(Span::styled(
-            (*name).to_string(),
-            Style::default()
-                .fg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        ))),
+        BodyRow::Section { label, count } => ListItem::new(Line::from(vec![
+            Span::styled(
+                label.to_string(),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!(" ({count})"),
+                Style::default().fg(Color::DarkGray),
+            ),
+        ])),
         BodyRow::File(change) => {
             let glyph = status_glyph(change);
             let glyph_color = status_color(change);
@@ -249,6 +200,25 @@ fn row_to_item(row: &BodyRow) -> ListItem<'static> {
             ]))
         }
         BodyRow::Separator => ListItem::new(Line::from(Span::raw(""))),
+        BodyRow::HistoryHeader => ListItem::new(Line::from(vec![
+            Span::styled(
+                "HISTORY",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "  [Ctrl+L] view all",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ])),
+        BodyRow::Commit(c) => ListItem::new(Line::from(vec![
+            Span::styled(
+                format!("{} ", c.short_sha),
+                Style::default().fg(Color::DarkGray),
+            ),
+            Span::raw(c.subject.clone()),
+        ])),
         BodyRow::Clean => ListItem::new(Line::from(Span::styled(
             "Working tree clean.",
             Style::default().fg(Color::Green),
@@ -361,16 +331,11 @@ mod tests {
 
     fn row_label(row: &BodyRow) -> String {
         match row {
-            BodyRow::Metrics { files, plus, minus } => format!(
-                "{} file{}  +{}  -{}",
-                files,
-                if *files == 1 { "" } else { "s" },
-                plus,
-                minus,
-            ),
-            BodyRow::Section(s) => s.to_string(),
+            BodyRow::Section { label, count } => format!("{label} ({count})"),
             BodyRow::File(c) => format!("{} {}", status_glyph(c), c.path),
             BodyRow::Separator => String::new(),
+            BodyRow::HistoryHeader => "HISTORY".into(),
+            BodyRow::Commit(c) => format!("{} {}", c.short_sha, c.subject),
             BodyRow::Clean => "Working tree clean.".into(),
             BodyRow::Loading => "Loading git status…".into(),
             BodyRow::Error(msg) => msg.clone(),
@@ -411,12 +376,11 @@ mod tests {
     fn body_reports_clean_tree() {
         let panel = panel_with_status(status("main", 0, 0, vec![]));
         let rows = body_rows(&panel);
-        assert!(matches!(rows[0], BodyRow::Metrics { .. }));
-        assert!(matches!(rows[1], BodyRow::Clean));
+        assert!(matches!(rows[0], BodyRow::Clean));
     }
 
     #[test]
-    fn body_lists_unstaged_and_staged_groups() {
+    fn body_lists_unstaged_and_staged_groups_in_desktop_order() {
         let panel = GitPanel {
             status: Some(status(
                 "main",
@@ -428,38 +392,41 @@ mod tests {
                     change("new.md", "??", false, true),
                 ],
             )),
-            metrics: DiffMetrics {
-                files: 2,
-                insertions: 4,
-                deletions: 1,
-            },
             ..GitPanel::default()
         };
         let rows = body_rows(&panel);
         let raw = labels(&rows);
-        assert!(raw[0].contains("3 files"));
-        assert!(raw[0].contains("+4"));
-        assert!(raw[0].contains("-1"));
-        assert!(raw.iter().any(|s| s == "Staged"));
+        // UNSTAGED appears before STAGED in the desktop's SCM column;
+        // the count is in the label, not on a separate metrics line.
+        let unstaged_idx = raw.iter().position(|s| s.starts_with("UNSTAGED"));
+        let staged_idx = raw.iter().position(|s| s.starts_with("STAGED"));
+        assert_eq!(raw[unstaged_idx.expect("UNSTAGED row")], "UNSTAGED (2)");
+        assert_eq!(raw[staged_idx.expect("STAGED row")], "STAGED (1)");
+        assert!(unstaged_idx < staged_idx);
+        // Files appear under the right header.
         assert!(raw.iter().any(|s| s.contains("notes/a.md")));
-        assert!(raw.iter().any(|s| s == "Unstaged"));
         assert!(raw.iter().any(|s| s.contains("notes/b.md")));
         assert!(raw.iter().any(|s| s.contains("new.md")));
     }
 
     #[test]
-    fn metrics_row_uses_singular_for_single_file() {
+    fn body_includes_history_section_after_changes() {
         let panel = GitPanel {
-            status: Some(status("main", 0, 0, vec![change("a", ".M", false, false)])),
-            metrics: DiffMetrics {
-                files: 1,
-                insertions: 2,
-                deletions: 0,
-            },
+            status: Some(status("main", 0, 0, vec![])),
+            recent_commits: vec![CommitInfo {
+                sha: "abc".into(),
+                short_sha: "abc1234".into(),
+                author_name: "A".into(),
+                author_email: "a@b".into(),
+                timestamp: 0,
+                subject: "seed".into(),
+            }],
             ..GitPanel::default()
         };
         let rows = body_rows(&panel);
-        assert!(row_label(&rows[0]).contains("1 file "));
+        let raw = labels(&rows);
+        assert!(raw.iter().any(|s| s == "HISTORY"));
+        assert!(raw.iter().any(|s| s == "abc1234 seed"));
     }
 
     #[test]
@@ -515,7 +482,10 @@ mod tests {
     }
 
     #[test]
-    fn selected_row_skips_metrics_and_section_headers() {
+    fn selected_row_skips_section_headers() {
+        // UNSTAGED renders before STAGED → the first file row the
+        // user navigates to is the unstaged one. `selected` indexes
+        // file rows in render order, not `status.changed` order.
         let mut panel = GitPanel {
             status: Some(status(
                 "main",
@@ -531,10 +501,10 @@ mod tests {
         let rows = body_rows(&panel);
         panel.selected = 0;
         let idx = selected_row(&panel, &rows).expect("first file selectable");
-        assert!(matches!(&rows[idx], BodyRow::File(c) if c.path == "a.md"));
+        assert!(matches!(&rows[idx], BodyRow::File(c) if c.path == "b.md"));
         panel.selected = 1;
         let idx = selected_row(&panel, &rows).expect("second file selectable");
-        assert!(matches!(&rows[idx], BodyRow::File(c) if c.path == "b.md"));
+        assert!(matches!(&rows[idx], BodyRow::File(c) if c.path == "a.md"));
     }
 
     #[test]

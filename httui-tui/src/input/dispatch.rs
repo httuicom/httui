@@ -400,7 +400,8 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::CloseGitConflictResolver
         | Action::MoveGitConflictResolverFile(..)
         | Action::ResolveGitConflict(..)
-        | Action::GitPanelShare => {
+        | Action::GitPanelShare
+        | Action::GitPanelToggleAmend => {
             crate::input::apply::git_panel::apply_git_panel(app, action)
         }
         Action::CloseBlockHistory

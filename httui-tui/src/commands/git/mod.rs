@@ -28,11 +28,18 @@ pub fn refresh_git_status(app: &mut App) {
             app.git_panel.status_error = None;
             app.git_panel.metrics =
                 httui_core::git::git_diff_shortstat(&vault).unwrap_or_default();
+            app.git_panel.recent_commits = httui_core::git::log::git_log(
+                &vault,
+                crate::git::HISTORY_PREVIEW_COUNT,
+                None,
+            )
+            .unwrap_or_default();
         }
         Err(msg) => {
             app.git_panel.status = None;
             app.git_panel.status_error = Some(msg);
             app.git_panel.metrics = DiffMetrics::default();
+            app.git_panel.recent_commits.clear();
         }
     }
 }
@@ -61,24 +68,24 @@ pub enum SyncStage {
 }
 
 /// Stage every changed file from the panel's last snapshot and run
-/// `git commit -m <message>`. Returns `Ok(())` on success, `Err(msg)`
-/// when there's nothing to commit, no fresh status snapshot, or git
-/// rejects the commit (hook failure, identity unset, etc.). Refreshes
-/// the panel's status snapshot regardless of outcome so the user
-/// sees the new state.
-pub fn commit_changes(app: &mut App, message: &str) -> Result<(), String> {
+/// `git commit -m <message>` (or `--amend` when `amend` is true).
+/// Returns `Ok(())` on success, `Err(msg)` when there's nothing to
+/// commit (and not amending — `--amend` works on a clean tree too),
+/// no fresh status snapshot, or git rejects the commit. Refreshes
+/// the panel's status snapshot regardless of outcome.
+pub fn commit_changes(app: &mut App, message: &str, amend: bool) -> Result<(), String> {
     let vault = app.vault_path.clone();
     let Some(status) = app.git_panel.status.as_ref() else {
         return Err("no git status snapshot — refresh first".to_string());
     };
-    if status.changed.is_empty() {
+    if status.changed.is_empty() && !amend {
         return Err("nothing to commit".to_string());
     }
     let paths: Vec<String> = status.changed.iter().map(|c| c.path.clone()).collect();
     for path in &paths {
         stage_path(&vault, path)?;
     }
-    let result = git_commit(&vault, message, false);
+    let result = git_commit(&vault, message, amend);
     refresh_git_status(app);
     result
 }
@@ -98,7 +105,7 @@ pub fn sync_changes(app: &mut App, commit_message: Option<&str>) -> SyncOutcome 
             .map(|s| !s.changed.is_empty())
             .unwrap_or(false);
         if has_changes {
-            if let Err(message) = commit_changes(app, msg) {
+            if let Err(message) = commit_changes(app, msg, false) {
                 return SyncOutcome::Failed {
                     stage: SyncStage::Commit,
                     message,

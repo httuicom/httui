@@ -26,6 +26,8 @@ pub fn parse_git_panel(key: KeyEvent) -> Action {
         (KeyModifiers::CONTROL, KeyCode::Char('r')) => Action::OpenGitConflictResolver,
         // Ctrl+Y copies the repo's HTTPS share URL.
         (KeyModifiers::CONTROL, KeyCode::Char('y')) => Action::GitPanelShare,
+        // Ctrl+A toggles the amend-last flag.
+        (KeyModifiers::CONTROL, KeyCode::Char('a')) => Action::GitPanelToggleAmend,
         // Ctrl+Enter chains commit → pull → push (the 1-click Sync).
         // Plain Enter just commits — same as the desktop's
         // `GitCommitForm` Submit vs `GitSyncBar` Sync split.

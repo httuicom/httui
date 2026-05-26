@@ -26,6 +26,7 @@ mod git_branch_picker;
 mod git_conflict_resolver;
 mod git_log_page;
 mod git_panel;
+mod git_panel_form;
 mod git_set_upstream_confirm;
 mod help;
 pub mod http_response_detail;
