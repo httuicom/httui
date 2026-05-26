@@ -18,7 +18,7 @@ path = "src/main.rs"
 httui-core = { path = "../httui-core" }
 ropey = "1"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "tls-rustls"] }
-ratatui = "0.29"
+ratatui = "0.30"
 crossterm = { version = "0.28", features = ["event-stream"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7"
