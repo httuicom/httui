@@ -415,4 +415,91 @@ mod tests {
             "expected blank line between `{{` and closer; got {between:?}",
         );
     }
+
+    fn doc(md: &str) -> Document {
+        Document::from_markdown(md).unwrap()
+    }
+
+    #[test]
+    fn position_current_is_noop() {
+        let mut d = doc("hello\n");
+        let before = d.cursor();
+        position_for_insert(&mut d, InsertPos::Current);
+        assert_eq!(d.cursor(), before);
+    }
+
+    #[test]
+    fn position_after_moves_cursor_right() {
+        let mut d = doc("ab\n");
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        position_for_insert(&mut d, InsertPos::After);
+        if let Cursor::InProse { offset, .. } = d.cursor() {
+            assert_eq!(offset, 1);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn position_line_start_skips_indent() {
+        let mut d = doc("   hello\n");
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 5,
+        });
+        position_for_insert(&mut d, InsertPos::LineStart);
+        if let Cursor::InProse { offset, .. } = d.cursor() {
+            assert_eq!(offset, 3);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn position_line_end_lands_at_eol() {
+        let mut d = doc("hello world\n");
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        position_for_insert(&mut d, InsertPos::LineEnd);
+        if let Cursor::InProse { offset, .. } = d.cursor() {
+            assert!(offset >= "hello world".len());
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn recoil_in_prose_moves_back_one_unless_at_line_start() {
+        let mut d = doc("ab\n");
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 2,
+        });
+        recoil_after_exit(&mut d);
+        if let Cursor::InProse { offset, .. } = d.cursor() {
+            assert_eq!(offset, 1);
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn recoil_at_line_start_stays() {
+        let mut d = doc("ab\n");
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        recoil_after_exit(&mut d);
+        if let Cursor::InProse { offset, .. } = d.cursor() {
+            assert_eq!(offset, 0);
+        } else {
+            panic!()
+        }
+    }
 }

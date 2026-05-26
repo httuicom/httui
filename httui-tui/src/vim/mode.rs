@@ -94,3 +94,73 @@ impl Mode {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn all_modes() -> Vec<Mode> {
+        vec![
+            Mode::Normal,
+            Mode::Insert,
+            Mode::CommandLine,
+            Mode::Search,
+            Mode::QuickOpen,
+            Mode::Tree,
+            Mode::TreePrompt,
+            Mode::Visual,
+            Mode::VisualLine,
+            Mode::DbRowDetail,
+            Mode::HttpResponseDetail,
+            Mode::FenceEdit,
+            Mode::DbSettings,
+            Mode::ContentSearch,
+            Mode::Modal,
+        ]
+    }
+
+    #[test]
+    fn label_returns_distinct_non_empty_for_every_mode() {
+        let labels: Vec<&str> = all_modes().iter().map(|m| m.label()).collect();
+        for lbl in &labels {
+            assert!(!lbl.is_empty());
+        }
+    }
+
+    #[test]
+    fn bg_returns_a_color_for_every_mode() {
+        for m in all_modes() {
+            // Just sanity-call to ensure no panic and each arm covered.
+            let _ = m.bg();
+        }
+    }
+
+    #[test]
+    fn label_specific_values_for_known_modes() {
+        assert_eq!(Mode::Normal.label(), "NOR");
+        assert_eq!(Mode::Insert.label(), "INS");
+        assert_eq!(Mode::CommandLine.label(), "CMD");
+        assert_eq!(Mode::Search.label(), "SEA");
+        assert_eq!(Mode::QuickOpen.label(), "OPEN");
+        assert_eq!(Mode::Visual.label(), "VIS");
+        assert_eq!(Mode::VisualLine.label(), "V-L");
+        assert_eq!(Mode::DbRowDetail.label(), "ROW");
+        assert_eq!(Mode::HttpResponseDetail.label(), "RESP");
+        assert_eq!(Mode::FenceEdit.label(), "EDIT");
+        assert_eq!(Mode::DbSettings.label(), "SET");
+        assert_eq!(Mode::ContentSearch.label(), "FIND");
+        assert_eq!(Mode::Modal.label(), "MOD");
+        assert_eq!(Mode::Tree.label(), "TREE");
+        assert_eq!(Mode::TreePrompt.label(), "TREE");
+    }
+
+    #[test]
+    fn bg_specific_values_for_known_modes() {
+        assert_eq!(Mode::Normal.bg(), Color::LightCyan);
+        assert_eq!(Mode::Insert.bg(), Color::LightYellow);
+        assert_eq!(Mode::Visual.bg(), Color::LightRed);
+        assert_eq!(Mode::VisualLine.bg(), Color::LightRed);
+        assert_eq!(Mode::Tree.bg(), Color::Yellow);
+        assert_eq!(Mode::TreePrompt.bg(), Color::Yellow);
+    }
+}

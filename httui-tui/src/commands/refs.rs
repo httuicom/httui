@@ -289,4 +289,29 @@ GET /d?b={{b.body.y}}&c={{c.body.y}}
         let deps = collect_unrun_deps(d.segments(), idxs[0]).unwrap();
         assert!(deps.is_empty());
     }
+
+    #[test]
+    fn collect_returns_empty_for_non_block_segment() {
+        let md = "plain prose only\n";
+        let d = doc_from(md);
+        let deps = collect_unrun_deps(d.segments(), 0).unwrap();
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn collect_returns_empty_for_out_of_range_idx() {
+        let md = "```http alias=a\nGET /x\n```\n";
+        let d = doc_from(md);
+        let deps = collect_unrun_deps(d.segments(), 999).unwrap();
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn collect_skips_dep_with_no_matching_alias() {
+        let md = "```http alias=a\nGET /x?t={{ghost.id}}\n```\n";
+        let d = doc_from(md);
+        let idxs = block_idxs(&d);
+        let deps = collect_unrun_deps(d.segments(), idxs[0]).unwrap();
+        assert!(deps.is_empty());
+    }
 }
