@@ -16,7 +16,15 @@ pub(super) fn open(app: &mut App) {
             app.vim.mode = Mode::Modal;
         }
         Ok(_) => {
-            app.set_status(StatusKind::Info, "no branches found".to_string());
+            // `for-each-ref refs/heads` returns empty until the
+            // first commit creates `refs/heads/<branch>` — that's
+            // the only case `branch_list` can be empty on a real
+            // git repo. Surface the actionable hint, not the
+            // technical "no branches" line.
+            app.set_status(
+                StatusKind::Info,
+                "no branches yet — make a commit first".to_string(),
+            );
         }
         Err(msg) => {
             app.set_status(
