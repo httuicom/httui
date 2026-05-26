@@ -505,4 +505,261 @@ mod tests {
             .collect();
         assert!(line.contains("c clone"), "hint envs deve conter 'c clone': {line:?}");
     }
+
+    use crate::app::{EnvSummary, VarRow};
+
+    fn term(w: u16, h: u16) -> Terminal<TestBackend> {
+        Terminal::new(TestBackend::new(w, h)).unwrap()
+    }
+
+    fn dump(term: &Terminal<TestBackend>) -> String {
+        let buf = term.backend().buffer().clone();
+        let mut out = String::new();
+        for y in 0..buf.area().height {
+            for x in 0..buf.area().width {
+                if let Some(c) = buf.cell((x, y)) {
+                    out.push_str(c.symbol());
+                }
+            }
+            out.push('\n');
+        }
+        out
+    }
+
+    #[test]
+    fn render_envs_page_empty_shows_no_envs_yet() {
+        let mut t = term(100, 40);
+        let state = EnvsPageState::default();
+        t.draw(|f| {
+            render(f, Rect::new(0, 0, 100, 40), &state);
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("no envs"), "expected 'no envs' hint, got\n{frame}");
+        assert!(frame.contains("Variables"), "expected title chrome");
+    }
+
+    #[test]
+    fn render_envs_page_with_data_lists_envs_and_vars() {
+        let mut t = term(100, 40);
+        let state = EnvsPageState {
+            envs: vec![EnvSummary { name: "dev".into() }, EnvSummary { name: "prod".into() }],
+            active: Some("dev".into()),
+            selected_env: 0,
+            vars: vec![
+                VarRow { key: "API_KEY".into(), value: "abc".into(), is_secret: false },
+                VarRow { key: "SECRET".into(), value: "xyz".into(), is_secret: true },
+            ],
+            selected_var: 0,
+            focus: EnvsPaneFocus::Envs,
+            var_uses: Vec::new(),
+        };
+        t.draw(|f| {
+            render(f, Rect::new(0, 0, 100, 40), &state);
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("dev"), "expected env 'dev' in output");
+        assert!(frame.contains("API_KEY"), "expected var key in output");
+        // Secret var value should be masked.
+        assert!(!frame.contains("xyz"), "secret value leaked: {frame}");
+    }
+
+    #[test]
+    fn render_envs_page_with_no_envs_var_message() {
+        let mut t = term(100, 40);
+        let state = EnvsPageState {
+            envs: Vec::new(),
+            vars: Vec::new(),
+            ..EnvsPageState::default()
+        };
+        t.draw(|f| {
+            render(f, Rect::new(0, 0, 100, 40), &state);
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("create an env first"), "expected env-first hint");
+    }
+
+    #[test]
+    fn render_envs_page_with_envs_but_no_vars_shows_press_n_hint() {
+        let mut t = term(100, 40);
+        let state = EnvsPageState {
+            envs: vec![EnvSummary { name: "dev".into() }],
+            active: None,
+            vars: Vec::new(),
+            focus: EnvsPaneFocus::Vars,
+            ..EnvsPageState::default()
+        };
+        t.draw(|f| {
+            render(f, Rect::new(0, 0, 100, 40), &state);
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("press n to add"), "expected vars-empty hint");
+    }
+
+    #[test]
+    fn render_env_form_new_and_edit_titles() {
+        let mut t = term(100, 30);
+        let mut state = EnvFormState::default();
+        t.draw(|f| {
+            render_env_form(f, Rect::new(0, 0, 100, 30), &state);
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("New env"), "expected new-env title, got\n{frame}");
+        assert!(frame.contains("required"), "expected placeholder hint");
+
+        state.editing = Some("dev".into());
+        state.name = crate::vim::lineedit::LineEdit::from_str("dev".to_string());
+        state.error = Some("name taken".into());
+        let mut t = term(100, 30);
+        t.draw(|f| {
+            render_env_form(f, Rect::new(0, 0, 100, 30), &state);
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("Rename env"), "expected rename title");
+        assert!(frame.contains("name taken"), "expected error in frame");
+    }
+
+    #[test]
+    fn render_var_form_new_with_secret_focus_and_value() {
+        let mut t = term(100, 30);
+        let state = VarFormState {
+            env_name: "dev".into(),
+            key: crate::vim::lineedit::LineEdit::from_str("API_KEY"),
+            value: crate::vim::lineedit::LineEdit::from_str("abc"),
+            is_secret: true,
+            focus: VarFormFocus::Secret,
+            editing: None,
+            error: Some("oops".into()),
+        };
+        t.draw(|f| {
+            let cursor = render_var_form(f, Rect::new(0, 0, 100, 30), &state);
+            assert!(cursor.is_none(), "Secret focus has no cursor");
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("New var in dev"), "expected new-var title");
+        assert!(frame.contains("API_KEY"), "expected key");
+        assert!(!frame.contains("abc"), "secret value should be masked");
+        assert!(frame.contains("oops"), "expected error message");
+        assert!(frame.contains("[x] secret"), "expected toggled chip");
+    }
+
+    #[test]
+    fn render_var_form_edit_focus_key_returns_cursor() {
+        let mut t = term(100, 30);
+        let state = VarFormState {
+            env_name: "dev".into(),
+            key: crate::vim::lineedit::LineEdit::from_str("API"),
+            value: crate::vim::lineedit::LineEdit::new(),
+            is_secret: false,
+            focus: VarFormFocus::Key,
+            editing: Some("API".into()),
+            error: None,
+        };
+        t.draw(|f| {
+            let cursor = render_var_form(f, Rect::new(0, 0, 100, 30), &state);
+            assert!(cursor.is_some(), "Key focus must return cursor pos");
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("Edit var · dev"), "expected edit title");
+        assert!(frame.contains("[ ] secret"), "expected un-toggled chip");
+    }
+
+    #[test]
+    fn render_var_form_focus_value_returns_cursor() {
+        let mut t = term(100, 30);
+        let state = VarFormState {
+            env_name: "dev".into(),
+            key: crate::vim::lineedit::LineEdit::new(),
+            value: crate::vim::lineedit::LineEdit::from_str("x"),
+            focus: VarFormFocus::Value,
+            ..VarFormState::default()
+        };
+        t.draw(|f| {
+            let cursor = render_var_form(f, Rect::new(0, 0, 100, 30), &state);
+            assert!(cursor.is_some(), "Value focus returns cursor");
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn render_env_delete_confirm_displays_name() {
+        let mut t = term(100, 20);
+        let state = EnvDeleteConfirmState { name: "staging".into() };
+        t.draw(|f| {
+            render_env_delete_confirm(f, Rect::new(0, 0, 100, 20), &state);
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("Delete env"), "expected title");
+        assert!(frame.contains("staging"), "expected name in prompt");
+    }
+
+    #[test]
+    fn render_var_delete_confirm_displays_key_and_env() {
+        let mut t = term(100, 20);
+        let state = VarDeleteConfirmState {
+            env_name: "prod".into(),
+            key: "API_KEY".into(),
+        };
+        t.draw(|f| {
+            render_var_delete_confirm(f, Rect::new(0, 0, 100, 20), &state);
+        })
+        .unwrap();
+        let frame = dump(&t);
+        assert!(frame.contains("Delete var"), "expected title");
+        assert!(frame.contains("API_KEY"), "expected var key");
+        assert!(frame.contains("prod"), "expected env name");
+    }
+
+    #[test]
+    fn truncate_under_and_over_limit() {
+        assert_eq!(truncate("abc", 5), "abc");
+        assert_eq!(truncate("abcdef", 4).chars().count(), 4);
+        assert!(truncate("abcdef", 4).ends_with('…'));
+    }
+
+    #[test]
+    fn centered_clamps_to_area() {
+        let r = centered(Rect::new(0, 0, 30, 10), 100, 100);
+        assert!(r.width <= 28);
+        assert!(r.height <= 8);
+    }
+
+    #[test]
+    fn fill_row_with_zero_height_is_noop() {
+        let mut t = term(20, 5);
+        t.draw(|f| {
+            fill_row(f, Rect::new(0, 0, 20, 0), "─", Color::DarkGray);
+        })
+        .unwrap();
+    }
+
+    #[test]
+    fn render_envs_page_truncates_long_env_names_and_marks_active() {
+        let mut t = term(100, 40);
+        let state = EnvsPageState {
+            envs: vec![
+                EnvSummary { name: "very-long-env-name-that-exceeds-17-chars".into() },
+                EnvSummary { name: "short".into() },
+            ],
+            active: Some("short".into()),
+            ..EnvsPageState::default()
+        };
+        t.draw(|f| {
+            render(f, Rect::new(0, 0, 100, 40), &state);
+        })
+        .unwrap();
+        let frame = dump(&t);
+        // truncated name appears with the ellipsis
+        assert!(frame.contains("…"), "expected truncation marker, got\n{frame}");
+        // active env shows the marker
+        assert!(frame.contains("●"), "expected active marker");
+    }
 }
