@@ -428,11 +428,8 @@ mod tests {
         let doc = Document::from_markdown("hi\n").unwrap();
         let cur = cursor_at_global_offset(&doc, 9999);
         // Falls off the end → parks on the last visible segment.
-        match cur {
-            Cursor::InProse { segment_idx, .. } => {
-                assert!(segment_idx < doc.segment_count());
-            }
-            _ => {}
+        if let Cursor::InProse { segment_idx, .. } = cur {
+            assert!(segment_idx < doc.segment_count());
         }
     }
 

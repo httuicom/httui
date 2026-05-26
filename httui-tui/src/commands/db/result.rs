@@ -707,7 +707,7 @@ mod tests {
         let md = "```db-sqlite alias=q connection=c\nSELECT 1;\n```\n";
         let (mut app, idx, _d, _v) = app_with_block(md).await;
         if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
-            b.cached_result = serde_json::to_value(&select_response(1, false)).ok();
+            b.cached_result = serde_json::to_value(select_response(1, false)).ok();
         }
         let err = load_more_db_block(&mut app, idx).unwrap_err();
         assert!(err.contains("no more rows"), "got {err:?}");
@@ -718,7 +718,7 @@ mod tests {
         let md = "```db-sqlite alias=q connection=c\n\n```\n";
         let (mut app, idx, _d, _v) = app_with_block(md).await;
         if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
-            b.cached_result = serde_json::to_value(&select_response(1, true)).ok();
+            b.cached_result = serde_json::to_value(select_response(1, true)).ok();
         }
         let err = load_more_db_block(&mut app, idx).unwrap_err();
         assert!(err.contains("empty SQL"), "got {err:?}");
@@ -729,7 +729,7 @@ mod tests {
         let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
         let (mut app, idx, _d, _v) = app_with_block(md).await;
         if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
-            b.cached_result = serde_json::to_value(&select_response(1, true)).ok();
+            b.cached_result = serde_json::to_value(select_response(1, true)).ok();
         }
         let err = load_more_db_block(&mut app, idx).unwrap_err();
         assert!(err.contains("connection"), "got {err:?}");

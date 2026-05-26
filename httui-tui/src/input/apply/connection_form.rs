@@ -432,6 +432,31 @@ pub(crate) fn apply_cancel_connection_delete(app: &mut App) {
     }
 }
 
+pub(crate) fn apply_connection_form(app: &mut App, action: Action) {
+    match action {
+        Action::OpenConnectionForm => apply_open_connection_form(app),
+        Action::OpenConnectionEditForm => apply_open_connection_edit_form(app),
+        Action::CloseConnectionForm => apply_close_connection_form(app),
+        Action::ConnectionFormFocusNext => apply_form_focus_next(app),
+        Action::ConnectionFormFocusPrev => apply_form_focus_prev(app),
+        Action::ConnectionFormChar(c) => apply_form_char(app, c),
+        Action::ConnectionFormBackspace => apply_form_backspace(app),
+        Action::ConnectionFormDelete => apply_form_delete(app),
+        Action::ConnectionFormCursorLeft => apply_form_cursor_left(app),
+        Action::ConnectionFormCursorRight => apply_form_cursor_right(app),
+        Action::ConnectionFormCursorHome => apply_form_cursor_home(app),
+        Action::ConnectionFormCursorEnd => apply_form_cursor_end(app),
+        Action::ConnectionFormCycleDriver(delta) => apply_form_cycle_driver(app, delta),
+        Action::ConnectionFormToggleReadonly => apply_form_toggle_readonly(app),
+        Action::ConnectionFormSubmit => apply_form_submit(app),
+        Action::OpenConnectionDeleteConfirm => apply_open_connection_delete_confirm(app),
+        Action::ConfirmConnectionDelete => apply_confirm_connection_delete(app),
+        Action::CancelConnectionDelete => apply_cancel_connection_delete(app),
+        Action::TestSelectedConnection => apply_test_selected_connection(app),
+        _ => unreachable!("apply_connection_form: variante fora do grupo"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -888,29 +913,4 @@ mod tests {
         assert!(contents.contains("[connections.stay]"));
     }
 
-}
-
-pub(crate) fn apply_connection_form(app: &mut App, action: Action) {
-    match action {
-        Action::OpenConnectionForm => apply_open_connection_form(app),
-        Action::OpenConnectionEditForm => apply_open_connection_edit_form(app),
-        Action::CloseConnectionForm => apply_close_connection_form(app),
-        Action::ConnectionFormFocusNext => apply_form_focus_next(app),
-        Action::ConnectionFormFocusPrev => apply_form_focus_prev(app),
-        Action::ConnectionFormChar(c) => apply_form_char(app, c),
-        Action::ConnectionFormBackspace => apply_form_backspace(app),
-        Action::ConnectionFormDelete => apply_form_delete(app),
-        Action::ConnectionFormCursorLeft => apply_form_cursor_left(app),
-        Action::ConnectionFormCursorRight => apply_form_cursor_right(app),
-        Action::ConnectionFormCursorHome => apply_form_cursor_home(app),
-        Action::ConnectionFormCursorEnd => apply_form_cursor_end(app),
-        Action::ConnectionFormCycleDriver(delta) => apply_form_cycle_driver(app, delta),
-        Action::ConnectionFormToggleReadonly => apply_form_toggle_readonly(app),
-        Action::ConnectionFormSubmit => apply_form_submit(app),
-        Action::OpenConnectionDeleteConfirm => apply_open_connection_delete_confirm(app),
-        Action::ConfirmConnectionDelete => apply_confirm_connection_delete(app),
-        Action::CancelConnectionDelete => apply_cancel_connection_delete(app),
-        Action::TestSelectedConnection => apply_test_selected_connection(app),
-        _ => unreachable!("apply_connection_form: variante fora do grupo"),
-    }
 }

@@ -524,7 +524,7 @@ GET /d?b={{b.body.y}}&c={{c.body.y}}
             .iter()
             .enumerate()
             .filter_map(|(i, s)| matches!(s, Segment::Block(_)).then_some(i))
-            .last()
+            .next_back()
             .expect("at least one block");
         start_run_chain(&mut app, target_idx);
         assert!(app.run_chain.is_empty(), "error path clears chain");

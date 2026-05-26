@@ -2,7 +2,7 @@
 
 use super::handlers::*;
 use super::*;
-use crate::app::{EnvsPaneFocus, VarFormFocus, VaultCloneFormFocus, VaultCreateFormFocus};
+use crate::app::{EnvsPaneFocus, VarFormFocus};
 use crossterm::event::{KeyCode, KeyModifiers};
 
 fn k(code: KeyCode, mods: KeyModifiers) -> KeyEvent {

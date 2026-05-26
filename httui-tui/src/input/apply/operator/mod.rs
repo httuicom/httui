@@ -562,8 +562,9 @@ mod tests {
         let (mut app, _d, _v) = app_with_prose("x\n").await;
         app.vim.unnamed.text = "abc".into();
         sync_yank_to_clipboard(&mut app, Operator::Delete);
-        // No status side effect for Delete (skipped).
-        assert!(app.status_message.is_none() || true); // exercises early return
+        // Early-return: Delete doesn't touch the clipboard, so the
+        // status bar stays where we left it (no error path executed).
+        assert!(app.status_message.is_none());
     }
 
     #[tokio::test(flavor = "multi_thread")]

@@ -206,6 +206,37 @@ pub(super) fn apply_doc_end(doc: &Document) -> Cursor {
     }
 }
 
+pub(super) fn apply_goto_line(doc: &Document, n: usize) -> Cursor {
+    let layouts = layout_document(doc, 80);
+    let mut accum = 0usize;
+    for layout in &layouts {
+        let height = layout.height as usize;
+        if accum + height >= n {
+            let seg = match doc.segments().get(layout.segment_idx) {
+                Some(s) => s,
+                None => return doc.cursor(),
+            };
+            return match seg {
+                Segment::Prose(rope) => {
+                    let line_in_seg = n.saturating_sub(accum + 1);
+                    let off = if line_in_seg < rope.len_lines() {
+                        rope.line_to_char(line_in_seg)
+                    } else {
+                        0
+                    };
+                    Cursor::InProse {
+                        segment_idx: layout.segment_idx,
+                        offset: off,
+                    }
+                }
+                Segment::Block(b) => body_cursor(layout.segment_idx, b, 0, 0),
+            };
+        }
+        accum += height;
+    }
+    apply_doc_end(doc)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,35 +384,4 @@ mod tests {
             panic!()
         }
     }
-}
-
-pub(super) fn apply_goto_line(doc: &Document, n: usize) -> Cursor {
-    let layouts = layout_document(doc, 80);
-    let mut accum = 0usize;
-    for layout in &layouts {
-        let height = layout.height as usize;
-        if accum + height >= n {
-            let seg = match doc.segments().get(layout.segment_idx) {
-                Some(s) => s,
-                None => return doc.cursor(),
-            };
-            return match seg {
-                Segment::Prose(rope) => {
-                    let line_in_seg = n.saturating_sub(accum + 1);
-                    let off = if line_in_seg < rope.len_lines() {
-                        rope.line_to_char(line_in_seg)
-                    } else {
-                        0
-                    };
-                    Cursor::InProse {
-                        segment_idx: layout.segment_idx,
-                        offset: off,
-                    }
-                }
-                Segment::Block(b) => body_cursor(layout.segment_idx, b, 0, 0),
-            };
-        }
-        accum += height;
-    }
-    apply_doc_end(doc)
 }
