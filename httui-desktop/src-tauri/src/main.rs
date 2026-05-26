@@ -10,7 +10,6 @@ use tauri::{AppHandle, Emitter, Manager};
 use httui_notes::chat::commands::*;
 use httui_notes::db::connections::{PoolManager, StatusEmitter};
 
-
 #[derive(Clone, serde::Serialize)]
 struct ConnectionStatusEvent {
     connection_id: String,
@@ -34,7 +33,6 @@ impl StatusEmitter for TauriStatusEmitter {
         );
     }
 }
-
 
 /// Re-read a file from disk and emit `file-reloaded` so the editor
 /// replaces its in-memory copy. Used after MCP writes to defeat the
@@ -143,7 +141,6 @@ fn stop_watching(
 // (Connection.id == name; Environment.id == name;
 // EnvVariable.id == "<env>::<key>").
 
-
 /// Run a SELECT against the app's own SQLite (audit/settings panel).
 /// Multi-statements and writes are rejected; pagination via
 /// `(offset, fetch_size)`.
@@ -156,7 +153,6 @@ async fn query_internal_db(
 ) -> Result<httui_notes::db::InternalQueryResult, String> {
     httui_notes::db::query_internal_db(&pool, &query, offset, fetch_size).await
 }
-
 
 #[derive(serde::Serialize)]
 struct SessionTabContent {

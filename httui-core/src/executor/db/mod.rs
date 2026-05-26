@@ -647,8 +647,6 @@ mod tests {
         );
     }
 
-
-
     #[tokio::test]
     async fn test_execute_with_cancel_completes_when_not_cancelled() {
         let (manager, conn_id) = setup_test_env().await;
@@ -771,8 +769,6 @@ mod tests {
             Err(e) => assert_eq!(e.0, "Query cancelled"),
         }
     }
-
-
 
     #[tokio::test]
     async fn test_multi_statement_returns_multiple_results() {
@@ -929,8 +925,6 @@ mod tests {
         assert_eq!(resp.results.len(), 1);
     }
 
-
-
     #[tokio::test]
     async fn test_session_override_runs_against_override_keyed_pool() {
         // SQLite ignores host/port, so the query still succeeds — what
@@ -957,8 +951,6 @@ mod tests {
             other => panic!("expected Select, got {other:?}"),
         }
     }
-
-
 
     #[tokio::test]
     async fn test_explain_on_sqlite_returns_unsupported_error() {
@@ -1044,8 +1036,6 @@ mod tests {
             .unwrap();
         assert!(resp.plan.is_none());
     }
-
-
 
     #[test]
     fn extract_plan_from_postgres_shape_returns_parsed_value() {
@@ -1162,8 +1152,6 @@ mod tests {
         }];
         assert!(extract_plan_from_results(&results).is_none());
     }
-
-
 
     #[test]
     fn compute_plan_short_circuits_when_explain_false() {

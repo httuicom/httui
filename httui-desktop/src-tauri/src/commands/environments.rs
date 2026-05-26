@@ -271,7 +271,7 @@ async fn resolve_vars_for_env(
     let mut out = std::collections::HashMap::with_capacity(public.len());
     for v in public {
         let value = if v.is_secret {
-                // Skip silently if a secret can't be resolved.
+            // Skip silently if a secret can't be resolved.
             stores
                 .environments
                 .resolve_var(env_name, &v.key)

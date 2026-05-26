@@ -13,15 +13,15 @@ pub mod fs {
     pub mod watcher;
 }
 
+pub mod captures_commands;
 pub mod chat;
+pub mod commands;
 pub mod executions;
 pub mod git_commands;
-pub mod tag_commands;
 pub mod preflight_commands;
 pub mod run_body_commands;
-pub mod captures_commands;
+pub mod tag_commands;
 pub mod templates_commands;
 pub mod vault_config_commands;
-pub mod commands;
 
 pub use httui_core::vault_config;

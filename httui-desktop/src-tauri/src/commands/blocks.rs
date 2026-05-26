@@ -67,7 +67,6 @@ pub async fn execute_block(
     registry.execute(req).await.map_err(|e| e.to_string())
 }
 
-
 /// Look up a previously cached `BlockResult` by `(file_path, block_hash)`.
 /// Returns `None` if no cached row matches.
 #[tauri::command]
@@ -105,7 +104,6 @@ pub async fn save_block_result(
     .await
     .map_err(|e| e.to_string())
 }
-
 
 /// Return the trim-capped run history (metadata only — no bodies)
 /// for `(file_path, block_alias)`.
@@ -174,7 +172,6 @@ pub async fn purge_block_history(
         .map_err(|e| e.to_string())
 }
 
-
 /// Fetch persistent per-block settings (limit/timeout overrides) for
 /// `(file_path, block_alias)`. Returns defaults if no row exists.
 #[tauri::command]
@@ -213,7 +210,6 @@ pub async fn purge_block_settings(
         .await
         .map_err(|e| e.to_string())
 }
-
 
 /// Pin a named response snapshot for a block so the user can revisit
 /// it later without re-running.
