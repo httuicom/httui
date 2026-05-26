@@ -15,7 +15,7 @@ use httui_core::git::status::{FileChange, GitStatus};
 
 use crate::git::GitPanel;
 
-const PANEL_WIDTH: u16 = 42;
+const PANEL_WIDTH: u16 = 52;
 /// Message box = border (2) + draft line (1).
 const MESSAGE_BOX_HEIGHT: u16 = 3;
 

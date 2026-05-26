@@ -62,16 +62,36 @@ fn commit_line(c: &CommitInfo, width: u16, now: i64) -> Line<'static> {
     let ago = time_ago(now, c.timestamp);
     let sha = format!("{} ", c.short_sha);
     let initials_col = format!("{initials:<2} ");
+    // Reserve: sha + initials + ago + 1-cell gap before ago.
+    let fixed = sha.chars().count() + initials_col.chars().count() + ago.chars().count() + 1;
+    let max_subject = (width as usize).saturating_sub(fixed);
+    let subject = truncate_with_ellipsis(&c.subject, max_subject);
     let left = vec![
         Span::styled(sha, Style::default().fg(crate::ui::palette::MUTED)),
         Span::styled(initials_col, Style::default().fg(crate::ui::palette::MUTED)),
-        Span::styled(
-            c.subject.clone(),
-            Style::default().fg(crate::ui::palette::SECONDARY),
-        ),
+        Span::styled(subject, Style::default().fg(crate::ui::palette::SECONDARY)),
     ];
     let right = vec![Span::styled(ago, Style::default().fg(crate::ui::palette::MUTED))];
     two_col_line(left, right, width)
+}
+
+/// Cap `s` at `max` characters, ending with `…` when truncated.
+/// `max == 0` returns an empty string. UTF-8 safe (operates over
+/// `chars()` so accented letters stay intact).
+fn truncate_with_ellipsis(s: &str, max: usize) -> String {
+    if max == 0 {
+        return String::new();
+    }
+    let count = s.chars().count();
+    if count <= max {
+        return s.to_string();
+    }
+    if max == 1 {
+        return "…".to_string();
+    }
+    let mut out: String = s.chars().take(max - 1).collect();
+    out.push('…');
+    out
 }
 
 /// First letter of each whitespace-separated word in `name`, up to
@@ -174,6 +194,41 @@ mod tests {
         let raw = span_text(&line);
         assert!(raw.starts_with("HISTORY"));
         assert!(raw.ends_with("view all"));
+    }
+
+    #[test]
+    fn truncate_keeps_short_strings_intact() {
+        assert_eq!(truncate_with_ellipsis("hi", 10), "hi");
+        assert_eq!(truncate_with_ellipsis("hi", 2), "hi");
+    }
+
+    #[test]
+    fn truncate_adds_ellipsis_when_over_limit() {
+        assert_eq!(truncate_with_ellipsis("abcdef", 4), "abc…");
+        assert_eq!(truncate_with_ellipsis("", 4), "");
+        assert_eq!(truncate_with_ellipsis("abc", 0), "");
+        assert_eq!(truncate_with_ellipsis("abc", 1), "…");
+    }
+
+    #[test]
+    fn commit_line_truncates_long_subject_keeping_ago_visible() {
+        let c = CommitInfo {
+            sha: "abc".into(),
+            short_sha: "abc1234".into(),
+            author_name: "J".into(),
+            author_email: "j@e".into(),
+            timestamp: 0,
+            subject: "this is a very long commit subject that overflows".into(),
+        };
+        let line = commit_line(&c, 30, 60);
+        let raw = span_text(&line);
+        assert!(raw.ends_with("ago"), "ago is visible: {raw:?}");
+        assert!(raw.contains("…"), "subject truncated: {raw:?}");
+        assert_eq!(
+            raw.chars().count(),
+            30,
+            "fits panel width exactly: {raw:?}"
+        );
     }
 
     #[test]
