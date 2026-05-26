@@ -122,6 +122,9 @@ pub enum Action {
     MoveGitConflictResolverFile(i32),
     /// `1`/`2`/`3` in the resolver — apply the chosen version.
     ResolveGitConflict(crate::git::ConflictVersion),
+    /// `Ctrl+Y` inside the panel — copy the repo's HTTPS share URL
+    /// to the clipboard (GT-12).
+    GitPanelShare,
     /// `Tab` — when the tree is visible, swap focus between sidebar
     /// and editor without changing visibility.
     FocusSwap,

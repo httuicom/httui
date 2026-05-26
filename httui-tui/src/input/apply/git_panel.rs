@@ -10,7 +10,7 @@ use crate::input::action::Action;
 use crate::modal::Modal;
 use crate::vim::mode::Mode;
 
-use super::{git_branch_picker, git_conflict_resolver, git_log_page};
+use super::{git_branch_picker, git_conflict_resolver, git_log_page, git_share};
 
 pub(crate) fn apply_git_panel(app: &mut App, action: Action) {
     match action {
@@ -61,6 +61,7 @@ pub(crate) fn apply_git_panel(app: &mut App, action: Action) {
             git_conflict_resolver::move_file(app, delta)
         }
         Action::ResolveGitConflict(version) => git_conflict_resolver::resolve(app, version),
+        Action::GitPanelShare => git_share::share_https_url(app),
         _ => unreachable!("apply_git_panel: variante fora do grupo"),
     }
 }

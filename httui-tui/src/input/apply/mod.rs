@@ -17,6 +17,7 @@ pub mod git_branch_picker;
 pub mod git_conflict_resolver;
 pub mod git_log_page;
 pub mod git_panel;
+pub mod git_share;
 /// V4 P5 (2026-05-23): handlers do clone-env form. Extraído de
 /// `envs_page` pra respeitar size limit do DoD.
 pub mod envs_clone;
