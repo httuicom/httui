@@ -13,7 +13,7 @@ documentation.workspace = true
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.8", features = ["sqlite", "postgres", "mysql", "runtime-tokio", "tls-rustls", "json", "chrono", "bigdecimal", "uuid"] }
+sqlx = { version = "0.9", features = ["sqlite", "postgres", "mysql", "runtime-tokio", "tls-rustls", "json", "chrono", "bigdecimal", "uuid"] }
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["rustls-tls", "json", "multipart", "stream"] }
 futures-util = "0.3"
