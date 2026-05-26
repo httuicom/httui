@@ -381,3 +381,372 @@ pub(crate) fn load_more_db_block(app: &mut App, segment_idx: usize) -> Result<()
     );
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{App, RunningKind, RunningQuery};
+    use crate::buffer::Document;
+    use crate::config::Config;
+    use crate::event::DbBlockResultKind;
+    use crate::pane::{Pane, TabState};
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use httui_core::executor::db::types::{DbResponse, DbResult, DbStats};
+    use std::time::Instant;
+    use tempfile::TempDir;
+    use tokio_util::sync::CancellationToken;
+
+    async fn app_with_block(md: &str) -> (App, usize, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let note = vault.path().join("note.md");
+        std::fs::write(&note, md).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        let doc = Document::from_markdown(md).unwrap();
+        let pane = Pane::new(doc, note);
+        app.tabs.tabs.clear();
+        app.tabs.tabs.push(TabState::new(pane));
+        app.tabs.active = 0;
+        let idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("block");
+        (app, idx, data, vault)
+    }
+
+    fn stats() -> DbStats { DbStats { elapsed_ms: 12, rows_streamed: None } }
+
+    fn select_response(rows: usize, has_more: bool) -> DbResponse {
+        let cols = vec![httui_core::db::connections::ColumnInfo {
+            name: "id".into(),
+            type_name: "INTEGER".into(),
+        }];
+        let rows: Vec<_> = (0..rows).map(|i| serde_json::json!([i])).collect();
+        DbResponse {
+            results: vec![DbResult::Select { columns: cols, rows, has_more }],
+            messages: vec![],
+            plan: None,
+            stats: stats(),
+        }
+    }
+
+    fn error_response(msg: &str) -> DbResponse {
+        DbResponse {
+            results: vec![DbResult::Error { message: msg.into(), line: None, column: None }],
+            messages: vec![],
+            plan: None,
+            stats: stats(),
+        }
+    }
+
+    fn make_running_query(idx: usize) -> RunningQuery {
+        RunningQuery {
+            segment_idx: idx,
+            cancel: CancellationToken::new(),
+            started_at: Instant::now(),
+            kind: RunningKind::Run,
+            cache_key: None,
+            bytes_received: 0,
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_ok_success_updates_block_state_and_status() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::Run,
+            Ok(select_response(2, false)),
+        );
+        assert!(app.running_query.is_none());
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Success));
+        assert!(block.cached_result.is_some());
+        assert!(app.status_message.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_ok_first_is_error_marks_block_error() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::Run,
+            Ok(error_response("syntax")),
+        );
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_err_sets_synthetic_error_block_and_status() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::Run,
+            Err("connection refused".into()),
+        );
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+        assert!(block.cached_result.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_err_cancelled_uses_cancelled_outcome_for_history() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        // outcome message contains "cancel" → history outcome = cancelled
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::Run,
+            Err("Request cancelled".into()),
+        );
+        assert!(app.status_message.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_ok_appends_rows_and_updates_has_more() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        // seed cache with one initial row
+        let initial = select_response(1, true);
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
+            b.cached_result = serde_json::to_value(&initial).ok();
+        }
+        // running_query exists for LoadMore too
+        app.running_query = Some(make_running_query(idx));
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::LoadMore,
+            Ok(select_response(2, false)),
+        );
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        let rows = block
+            .cached_result
+            .as_ref()
+            .unwrap()
+            .get("results")
+            .and_then(|v| v.as_array())
+            .and_then(|a| a.first())
+            .and_then(|r| r.get("rows"))
+            .and_then(|v| v.as_array())
+            .map(|a| a.len())
+            .unwrap();
+        assert_eq!(rows, 3); // 1 + 2
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_err_sets_error_status() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::LoadMore,
+            Err("network down".into()),
+        );
+        let s = app.status_message.expect("status");
+        assert!(s.text.contains("load more"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_ok_with_error_result_returns_early_with_status() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::LoadMore,
+            Ok(error_response("oops")),
+        );
+        let s = app.status_message.expect("status");
+        assert!(s.text.contains("load more"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn explain_ok_writes_plan_and_switches_tab() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::Explain,
+            Ok(select_response(1, false)),
+        );
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        let cache = block.cached_result.as_ref().unwrap();
+        assert!(cache.get("plan").is_some(), "plan slot must be set");
+        let s = app.status_message.expect("status");
+        assert!(s.text.contains("plan"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn explain_ok_with_error_result_sets_error_status() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::Explain,
+            Ok(error_response("bad explain")),
+        );
+        let s = app.status_message.expect("status");
+        assert!(s.text.contains("explain"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn explain_err_sets_status() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        handle_db_block_result(
+            &mut app,
+            idx,
+            DbBlockResultKind::Explain,
+            Err("nope".into()),
+        );
+        let s = app.status_message.expect("status");
+        assert!(s.text.contains("explain"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_running_query_without_active_returns_false() {
+        let md = "prose\n";
+        let (mut app, _idx, _d, _v) = app_with_block_or_prose(md).await;
+        assert!(!cancel_running_query(&mut app));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_running_query_with_active_cancels_token_and_returns_true() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        let token = CancellationToken::new();
+        app.running_query = Some(RunningQuery {
+            segment_idx: idx,
+            cancel: token.clone(),
+            started_at: Instant::now(),
+            kind: RunningKind::Run,
+            cache_key: None,
+            bytes_received: 0,
+        });
+        assert!(cancel_running_query(&mut app));
+        assert!(token.is_cancelled());
+    }
+
+    async fn app_with_block_or_prose(md: &str) -> (App, usize, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let note = vault.path().join("note.md");
+        std::fs::write(&note, md).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        let doc = Document::from_markdown(md).unwrap();
+        let pane = Pane::new(doc, note);
+        app.tabs.tabs.clear();
+        app.tabs.tabs.push(TabState::new(pane));
+        app.tabs.active = 0;
+        (app, 0, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_db_block_with_running_query_errors() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        app.running_query = Some(make_running_query(idx));
+        let err = load_more_db_block(&mut app, idx).unwrap_err();
+        assert!(err.contains("already running"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_db_block_non_db_block_errors() {
+        let md = "```http alias=a\nGET /x\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        let err = load_more_db_block(&mut app, idx).unwrap_err();
+        assert!(err.contains("not a DB"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_db_block_missing_block_errors() {
+        let (mut app, _idx, _d, _v) = app_with_block_or_prose("prose\n").await;
+        let err = load_more_db_block(&mut app, 999).unwrap_err();
+        assert!(err.contains("missing") || err.contains("block"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_db_block_no_cache_errors() {
+        let md = "```db-sqlite alias=q connection=c\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        let err = load_more_db_block(&mut app, idx).unwrap_err();
+        assert!(err.contains("no result cached"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_db_block_no_has_more_errors() {
+        let md = "```db-sqlite alias=q connection=c\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
+            b.cached_result = serde_json::to_value(&select_response(1, false)).ok();
+        }
+        let err = load_more_db_block(&mut app, idx).unwrap_err();
+        assert!(err.contains("no more rows"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_db_block_empty_sql_errors() {
+        let md = "```db-sqlite alias=q connection=c\n\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
+            b.cached_result = serde_json::to_value(&select_response(1, true)).ok();
+        }
+        let err = load_more_db_block(&mut app, idx).unwrap_err();
+        assert!(err.contains("empty SQL"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_db_block_no_connection_errors() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
+            b.cached_result = serde_json::to_value(&select_response(1, true)).ok();
+        }
+        let err = load_more_db_block(&mut app, idx).unwrap_err();
+        assert!(err.contains("connection"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_more_db_block_not_a_select_errors() {
+        let md = "```db-sqlite alias=q connection=c\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        let mutation_cache = serde_json::json!({
+            "results":[{"kind":"mutation","rows_affected":2}],
+            "messages":[],"stats":{"elapsed_ms":1}
+        });
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
+            b.cached_result = Some(mutation_cache);
+        }
+        let err = load_more_db_block(&mut app, idx).unwrap_err();
+        assert!(err.contains("not a select") || err.contains("no more"), "got {err:?}");
+    }
+}

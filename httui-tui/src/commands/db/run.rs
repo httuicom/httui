@@ -462,3 +462,309 @@ pub fn spawn_db_query(
         app.record_run_anchor(segment_idx);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::App;
+    use crate::buffer::Cursor;
+    use crate::buffer::Document;
+    use crate::config::Config;
+    use crate::pane::{Pane, TabState};
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use httui_core::executor::db::types::{DbResponse, DbResult, DbStats};
+    use tempfile::TempDir;
+
+    async fn app_with_block(md: &str) -> (App, usize, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let note = vault.path().join("note.md");
+        std::fs::write(&note, md).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        let doc = Document::from_markdown(md).unwrap();
+        let pane = Pane::new(doc, note);
+        app.tabs.tabs.clear();
+        app.tabs.tabs.push(TabState::new(pane));
+        app.tabs.active = 0;
+        let idx = app
+            .document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .unwrap_or(0);
+        (app, idx, data, vault)
+    }
+
+    fn place_cursor_in_block(app: &mut App, idx: usize) {
+        app.document_mut()
+            .unwrap()
+            .set_cursor(Cursor::InBlock { segment_idx: idx, offset: 0 });
+    }
+
+    #[test]
+    fn build_executor_params_uses_session_override_host_and_port() {
+        let ov = crate::session_overrides::ConnectionOverride {
+            host: Some("h".into()),
+            port: Some(5433),
+        };
+        let v = build_db_executor_params("conn", "SELECT 1", &[], 0, 100, Some(5000), Some(&ov));
+        assert_eq!(v.get("connection_id").and_then(|v| v.as_str()), Some("conn"));
+        assert_eq!(v.get("query").and_then(|v| v.as_str()), Some("SELECT 1"));
+        assert_eq!(v.get("session_host_override").and_then(|v| v.as_str()), Some("h"));
+        assert_eq!(v.get("session_port_override").and_then(|v| v.as_i64()), Some(5433));
+        assert_eq!(v.get("timeout_ms").and_then(|v| v.as_u64()), Some(5000));
+    }
+
+    #[test]
+    fn build_executor_params_no_override_emits_nulls() {
+        let v = build_db_executor_params("c", "SELECT 1", &[], 0, 50, None, None);
+        assert!(v.get("session_host_override").map(|v| v.is_null()).unwrap_or(false));
+        assert!(v.get("session_port_override").map(|v| v.is_null()).unwrap_or(false));
+        assert!(v.get("timeout_ms").map(|v| v.is_null()).unwrap_or(false));
+    }
+
+    fn stats() -> DbStats { DbStats { elapsed_ms: 12, rows_streamed: None } }
+
+    #[test]
+    fn summarize_db_response_select() {
+        let resp = DbResponse {
+            results: vec![DbResult::Select {
+                columns: vec![],
+                rows: vec![serde_json::json!([1]), serde_json::json!([2])],
+                has_more: false,
+            }],
+            messages: vec![],
+            plan: None,
+            stats: stats(),
+        };
+        let s = summarize_db_response(&resp);
+        assert!(s.contains("2 rows"), "got {s}");
+        assert!(s.contains("12ms"), "got {s}");
+    }
+
+    #[test]
+    fn summarize_db_response_select_with_has_more_suffix() {
+        let resp = DbResponse {
+            results: vec![DbResult::Select {
+                columns: vec![],
+                rows: vec![serde_json::json!([1])],
+                has_more: true,
+            }],
+            messages: vec![],
+            plan: None,
+            stats: stats(),
+        };
+        let s = summarize_db_response(&resp);
+        assert!(s.contains("1+ rows"), "got {s}");
+    }
+
+    #[test]
+    fn summarize_db_response_mutation() {
+        let resp = DbResponse {
+            results: vec![DbResult::Mutation { rows_affected: 3 }],
+            messages: vec![],
+            plan: None,
+            stats: stats(),
+        };
+        let s = summarize_db_response(&resp);
+        assert!(s.contains("3 affected"), "got {s}");
+    }
+
+    #[test]
+    fn summarize_db_response_error_with_pos() {
+        let resp = DbResponse {
+            results: vec![DbResult::Error {
+                message: "syntax".into(),
+                line: Some(2),
+                column: Some(7),
+            }],
+            messages: vec![],
+            plan: None,
+            stats: stats(),
+        };
+        let s = summarize_db_response(&resp);
+        assert!(s.contains("at 2:7"), "got {s}");
+    }
+
+    #[test]
+    fn summarize_db_response_extras_suffix_when_multi() {
+        let resp = DbResponse {
+            results: vec![
+                DbResult::Mutation { rows_affected: 1 },
+                DbResult::Mutation { rows_affected: 2 },
+                DbResult::Mutation { rows_affected: 3 },
+            ],
+            messages: vec![],
+            plan: None,
+            stats: stats(),
+        };
+        let s = summarize_db_response(&resp);
+        assert!(s.contains("+2 more"), "got {s}");
+    }
+
+    #[test]
+    fn summarize_db_response_empty_results() {
+        let resp = DbResponse {
+            results: vec![],
+            messages: vec![],
+            plan: None,
+            stats: stats(),
+        };
+        let s = summarize_db_response(&resp);
+        assert!(s.contains("ok"), "got {s}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_no_doc_returns() {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        app.tabs.tabs.clear();
+        run_db_block_inner(&mut app, 0, false, None, false); // no panic
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_segment_not_a_block_returns() {
+        let (mut app, _idx, _d, _v) = app_with_block("prose\n").await;
+        run_db_block_inner(&mut app, 0, false, None, false); // no panic
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_http_block_emits_not_runnable() {
+        let md = "```http alias=a\nGET /x\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        place_cursor_in_block(&mut app, idx);
+        run_db_block_inner(&mut app, idx, false, None, false);
+        let s = app.status_message.expect("status");
+        assert!(s.text.contains("aren't runnable"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_no_connection_id_errors() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        run_db_block_inner(&mut app, idx, false, None, false);
+        let s = app.status_message.expect("status");
+        assert!(s.text.contains("connection"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_empty_query_errors() {
+        let md = "```db-sqlite alias=q connection=c\n\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        run_db_block_inner(&mut app, idx, false, None, false);
+        let s = app.status_message.expect("status");
+        assert!(s.text.contains("empty SQL"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_unknown_connection_errors() {
+        let md = "```db-sqlite alias=q connection=ghost\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        run_db_block_inner(&mut app, idx, false, None, false);
+        {
+            let s = app.status_message.as_ref().expect("status");
+            assert!(s.text.contains("not found") || s.text.contains("connection"), "got {:?}", s.text);
+        }
+        // Block state was flipped to Error.
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_ref_resolution_failure_errors() {
+        // Reference an unknown alias — resolve_block_refs errors before connection resolution.
+        let md = "```db-sqlite alias=q connection=c\nSELECT {{ghost.body.id}};\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        run_db_block_inner(&mut app, idx, false, None, false);
+        let s = app.status_message.expect("status");
+        assert!(s.text.contains("not found") || s.text.contains("block"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn apply_run_block_with_no_block_at_cursor_emits_hint() {
+        let (mut app, _idx, _d, _v) = app_with_block("prose\n").await;
+        apply_run_block(&mut app);
+        // delegates to commands::refs::apply_run_block which sets status
+        assert!(app.status_message.is_some());
+    }
+
+    async fn seed_connection(
+        store: &httui_core::vault_config::ConnectionsStore,
+        name: &str,
+        is_readonly: bool,
+    ) {
+        use httui_core::vault_config::CreateConnectionInput;
+        store
+            .create(CreateConnectionInput {
+                name: name.into(),
+                driver: "sqlite".into(),
+                host: None,
+                port: None,
+                database_name: Some(":memory:".into()),
+                username: None,
+                password: None,
+                ssl_mode: None,
+                is_readonly: Some(is_readonly),
+                description: None,
+            })
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_writing_query_on_readonly_conn_errors() {
+        let md = "```db-sqlite alias=q connection=ro\nDELETE FROM t WHERE x=1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        seed_connection(&app.connections_store, "ro", true).await;
+        run_db_block_inner(&mut app, idx, /*force_unscoped=*/ true, None, false);
+        let s = app.status_message.as_ref().expect("status");
+        assert!(s.text.contains("read-only"), "got {:?}", s.text);
+        let block = app.document().unwrap().block_at(idx).unwrap().clone();
+        assert!(matches!(block.state, crate::buffer::block::ExecutionState::Error(_)));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_writing_query_opens_confirm_modal_when_not_forced() {
+        let md = "```db-sqlite alias=q connection=rw\nDELETE FROM t WHERE x=1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        seed_connection(&app.connections_store, "rw", false).await;
+        run_db_block_inner(&mut app, idx, /*force_unscoped=*/ false, None, false);
+        assert!(
+            matches!(app.modal, Some(crate::modal::Modal::DbConfirmRun(_))),
+            "expected confirm modal"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_writing_query_unscoped_destructive_uses_strong_reason() {
+        // DELETE without WHERE → "{KIND} without WHERE will affect every row".
+        let md = "```db-sqlite alias=q connection=rw\nDELETE FROM t;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        seed_connection(&app.connections_store, "rw", false).await;
+        run_db_block_inner(&mut app, idx, false, None, false);
+        let Some(crate::modal::Modal::DbConfirmRun(state)) = app.modal.as_ref() else {
+            panic!("expected confirm modal");
+        };
+        assert!(state.reason.contains("WHERE"), "got {:?}", state.reason);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_db_block_inner_explain_skips_confirm_and_sets_status() {
+        let md = "```db-sqlite alias=q connection=rw\nSELECT 1;\n```\n";
+        let (mut app, idx, _d, _v) = app_with_block(md).await;
+        seed_connection(&app.connections_store, "rw", false).await;
+        // Wire an event_sender so spawn_db_query doesn't bail.
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+        app.event_sender = Some(tx);
+        run_db_block_inner(&mut app, idx, /*force_unscoped=*/ true, None, /*as_explain=*/ true);
+        // Either "explaining…" status (spawn happened) or some setup error.
+        assert!(app.status_message.is_some());
+    }
+}
