@@ -130,3 +130,242 @@ pub fn record_db_history_async(
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::App;
+    use crate::buffer::{Cursor, Document};
+    use crate::config::Config;
+    use crate::pane::{Pane, TabState};
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use httui_core::executor::db::types::{DbResponse, DbResult};
+    use tempfile::TempDir;
+
+    async fn app_with_doc(
+        md: &str,
+        with_path: bool,
+    ) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        let doc = Document::from_markdown(md).unwrap();
+        let pane = if with_path {
+            let p = vault.path().join("note.md");
+            std::fs::write(&p, md).unwrap();
+            Pane::new(doc, p)
+        } else {
+            Pane {
+                document: Some(doc),
+                document_path: None,
+                viewport_top: 0,
+                viewport_height: 0,
+            }
+        };
+        app.tabs.tabs.clear();
+        app.tabs.tabs.push(TabState::new(pane));
+        app.tabs.active = 0;
+        (app, data, vault)
+    }
+
+    fn first_block(app: &App) -> usize {
+        app.document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("block")
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_returns_some_for_db_block_with_alias_and_path() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (app, _d, _v) = app_with_doc(md, true).await;
+        let idx = first_block(&app);
+        let meta = snapshot_db_history_meta(&app, idx).expect("some");
+        assert_eq!(meta.block_alias, "q");
+        assert_eq!(meta.method, "db:sqlite");
+        assert!(meta.url_canonical.contains("SELECT 1"));
+        assert!(meta.request_size > 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_returns_none_without_file_path() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (app, _d, _v) = app_with_doc(md, false).await;
+        let idx = first_block(&app);
+        assert!(snapshot_db_history_meta(&app, idx).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_returns_none_for_http_block() {
+        let md = "```http alias=a\nGET /x\n```\n";
+        let (app, _d, _v) = app_with_doc(md, true).await;
+        let idx = first_block(&app);
+        assert!(snapshot_db_history_meta(&app, idx).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_returns_none_for_anonymous_db_block() {
+        let md = "```db-sqlite\nSELECT 1;\n```\n";
+        let (app, _d, _v) = app_with_doc(md, true).await;
+        let idx = first_block(&app);
+        assert!(snapshot_db_history_meta(&app, idx).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_returns_none_for_segment_that_is_not_a_block() {
+        let md = "just prose\n";
+        let (app, _d, _v) = app_with_doc(md, true).await;
+        assert!(snapshot_db_history_meta(&app, 0).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_returns_none_for_out_of_range_idx() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (app, _d, _v) = app_with_doc(md, true).await;
+        assert!(snapshot_db_history_meta(&app, 999).is_none());
+    }
+
+    #[test]
+    fn preview_sql_collapses_whitespace_and_truncates() {
+        let short = preview_sql("SELECT\n  *\nFROM t");
+        assert_eq!(short, "SELECT * FROM t");
+        let long: String = "a ".repeat(200);
+        let trimmed = preview_sql(&long);
+        assert!(trimmed.ends_with('…'));
+        assert!(trimmed.chars().count() <= 201);
+    }
+
+    fn stats() -> httui_core::executor::db::types::DbStats {
+        httui_core::executor::db::types::DbStats { elapsed_ms: 5, rows_streamed: None }
+    }
+
+    fn col(name: &str) -> httui_core::db::connections::ColumnInfo {
+        httui_core::db::connections::ColumnInfo {
+            name: name.into(),
+            type_name: "TEXT".into(),
+        }
+    }
+
+    #[test]
+    fn derive_stats_select_returns_row_count() {
+        let response = DbResponse {
+            results: vec![DbResult::Select {
+                columns: vec![col("a")],
+                rows: vec![serde_json::json!([1]), serde_json::json!([2])],
+                has_more: false,
+            }],
+            messages: Vec::new(),
+            plan: None,
+            stats: stats(),
+        };
+        let (status, size) = derive_db_history_stats(&response);
+        assert_eq!(status, Some(2));
+        assert!(size.is_some());
+    }
+
+    #[test]
+    fn derive_stats_mutation_returns_rows_affected() {
+        let response = DbResponse {
+            results: vec![DbResult::Mutation { rows_affected: 7 }],
+            messages: Vec::new(),
+            plan: None,
+            stats: stats(),
+        };
+        let (status, _) = derive_db_history_stats(&response);
+        assert_eq!(status, Some(7));
+    }
+
+    #[test]
+    fn derive_stats_empty_returns_none_status() {
+        let response = DbResponse {
+            results: vec![],
+            messages: Vec::new(),
+            plan: None,
+            stats: stats(),
+        };
+        let (status, _) = derive_db_history_stats(&response);
+        assert!(status.is_none());
+    }
+
+    #[test]
+    fn derive_stats_error_result_returns_none_status() {
+        let response = DbResponse {
+            results: vec![DbResult::Error {
+                message: "boom".into(),
+                line: None,
+                column: None,
+            }],
+            messages: Vec::new(),
+            plan: None,
+            stats: stats(),
+        };
+        let (status, _) = derive_db_history_stats(&response);
+        assert!(status.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn record_db_history_async_writes_row() {
+        let data = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let meta = DbHistoryMeta {
+            file_path: "/x/note.md".into(),
+            block_alias: "q".into(),
+            method: "db:sqlite".into(),
+            url_canonical: "SELECT 1".into(),
+            request_size: 10,
+        };
+        record_db_history_async(pool.clone(), meta, Some(5), Some(1), Some(40), "ok");
+        // Give the spawned task a moment.
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let entries = httui_core::block_history::list_history(&pool, "/x/note.md", "q")
+            .await
+            .unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].outcome, "ok");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_keeps_query_size_in_bytes() {
+        let sql = "SELECT 1, 2, 3";
+        let md = format!("```db-sqlite alias=q\n{sql}\n```\n");
+        let (app, _d, _v) = app_with_doc(&md, true).await;
+        let idx = first_block(&app);
+        let meta = snapshot_db_history_meta(&app, idx).expect("some");
+        assert_eq!(meta.request_size, sql.len() as i64);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_returns_none_when_doc_absent() {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        // Empty pane (no document).
+        app.tabs.tabs.clear();
+        app.tabs.tabs.push(TabState::new(Pane::empty()));
+        app.tabs.active = 0;
+        // active pane has no document_path either, so snapshot returns None early.
+        assert!(snapshot_db_history_meta(&app, 0).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_returns_none_when_no_active_tab() {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        app.tabs.tabs.clear(); // no active tab
+        assert!(snapshot_db_history_meta(&app, 0).is_none());
+    }
+
+    // Silence unused import in this module-test scope.
+    #[allow(dead_code)]
+    fn _touch_cursor(_: Cursor) {}
+}

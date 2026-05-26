@@ -833,3 +833,223 @@ fn db_settings_focus_cycle_http_is_noop() {
     s.focus_prev();
     assert_eq!(s.focus, 0);
 }
+
+// ───────────── App-mutating cmds (cycle_display_mode / alias /
+// run_explain / resolve_connection_id / load_active_env_vars) ─────────────
+
+use crate::app::App;
+use crate::buffer::Cursor;
+use crate::config::Config;
+use crate::pane::{Pane, TabState};
+use crate::vault::ResolvedVault;
+use httui_core::db::init_db;
+use tempfile::TempDir;
+
+async fn app_with_doc(md: &str) -> (App, TempDir, TempDir) {
+    let data = TempDir::new().unwrap();
+    let vault = TempDir::new().unwrap();
+    let note = vault.path().join("note.md");
+    std::fs::write(&note, md).unwrap();
+    let pool = init_db(data.path()).await.unwrap();
+    let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+    let mut app = App::new(Config::default(), resolved, pool);
+    let doc = Document::from_markdown(md).unwrap();
+    let pane = Pane::new(doc, note);
+    app.tabs.tabs.clear();
+    app.tabs.tabs.push(TabState::new(pane));
+    app.tabs.active = 0;
+    (app, data, vault)
+}
+
+fn place_cursor_in_first_block(app: &mut App) -> usize {
+    let idx = app
+        .document()
+        .unwrap()
+        .segments()
+        .iter()
+        .position(|s| matches!(s, Segment::Block(_)))
+        .expect("block");
+    app.document_mut()
+        .unwrap()
+        .set_cursor(Cursor::InBlock { segment_idx: idx, offset: 0 });
+    idx
+}
+
+#[test]
+fn resolve_connection_id_sync_matches_by_id_then_by_name() {
+    use std::collections::HashMap;
+    let mut names = HashMap::new();
+    names.insert("uuid-1".into(), "prod-db".into());
+    names.insert("uuid-2".into(), "dev-db".into());
+    // raw is a known id key
+    assert_eq!(resolve_connection_id_sync("uuid-1", &names), "uuid-1");
+    // raw is a known name (case-insensitive)
+    assert_eq!(resolve_connection_id_sync("PROD-DB", &names), "uuid-1");
+    // raw is unknown — pass through verbatim
+    assert_eq!(resolve_connection_id_sync("ghost", &names), "ghost");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cycle_display_mode_with_no_block_at_cursor_emits_status() {
+    let (mut app, _d, _v) = app_with_doc("prose\n").await;
+    cycle_display_mode(&mut app);
+    assert!(app.status_message.is_some());
+    let s = app.status_message.unwrap();
+    assert!(s.text.contains("cursor"), "got {:?}", s.text);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cycle_display_mode_updates_block_display_and_status() {
+    let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+    let (mut app, _d, _v) = app_with_doc(md).await;
+    let idx = place_cursor_in_first_block(&mut app);
+    cycle_display_mode(&mut app);
+    let block = app
+        .document()
+        .unwrap()
+        .segments()
+        .get(idx)
+        .and_then(|s| match s {
+            Segment::Block(b) => Some(b.clone()),
+            _ => None,
+        })
+        .unwrap();
+    assert!(block.display_mode.is_some(), "display_mode set");
+    assert!(app.status_message.is_some());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_fence_edit_alias_no_block_emits_status() {
+    let (mut app, _d, _v) = app_with_doc("prose\n").await;
+    open_fence_edit_alias(&mut app);
+    let s = app.status_message.unwrap();
+    assert!(s.text.contains("cursor"), "got {:?}", s.text);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_fence_edit_alias_opens_prompt_with_prefill() {
+    let md = "```http alias=req\nGET /x\n```\n";
+    let (mut app, _d, _v) = app_with_doc(md).await;
+    place_cursor_in_first_block(&mut app);
+    open_fence_edit_alias(&mut app);
+    let Some(crate::modal::Modal::Prompt(kind, le)) = app.modal.as_ref() else {
+        panic!("expected Prompt modal");
+    };
+    assert!(matches!(
+        kind,
+        crate::modal::PromptKind::FenceEditAlias { .. }
+    ));
+    assert_eq!(le.as_str(), "req");
+    assert!(matches!(app.vim.mode, crate::vim::mode::Mode::FenceEdit));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn confirm_fence_edit_with_no_prompt_resets_to_normal() {
+    let (mut app, _d, _v) = app_with_doc("prose\n").await;
+    confirm_fence_edit(&mut app);
+    assert!(matches!(app.vim.mode, crate::vim::mode::Mode::Normal));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn confirm_fence_edit_empty_alias_clears() {
+    let md = "```http alias=req\nGET /x\n```\n";
+    let (mut app, _d, _v) = app_with_doc(md).await;
+    let idx = place_cursor_in_first_block(&mut app);
+    open_fence_edit_alias(&mut app);
+    if let Some(crate::modal::Modal::Prompt(_, le)) = app.modal.as_mut() {
+        *le = crate::vim::lineedit::LineEdit::new();
+    }
+    confirm_fence_edit(&mut app);
+    let block = match app.document().unwrap().segments().get(idx) {
+        Some(Segment::Block(b)) => b.clone(),
+        _ => panic!(),
+    };
+    assert!(block.alias.is_none(), "alias cleared");
+    assert!(app.modal.is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn confirm_fence_edit_new_alias_writes_back() {
+    let md = "```http alias=req\nGET /x\n```\n";
+    let (mut app, _d, _v) = app_with_doc(md).await;
+    let idx = place_cursor_in_first_block(&mut app);
+    open_fence_edit_alias(&mut app);
+    if let Some(crate::modal::Modal::Prompt(_, le)) = app.modal.as_mut() {
+        *le = crate::vim::lineedit::LineEdit::from_str("renamed");
+    }
+    confirm_fence_edit(&mut app);
+    let block = match app.document().unwrap().segments().get(idx) {
+        Some(Segment::Block(b)) => b.clone(),
+        _ => panic!(),
+    };
+    assert_eq!(block.alias.as_deref(), Some("renamed"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn confirm_fence_edit_duplicate_alias_errors_and_keeps_prompt() {
+    let md = "```http alias=a\nGET /x\n```\n\n```http alias=b\nGET /y\n```\n";
+    let (mut app, _d, _v) = app_with_doc(md).await;
+    // Place cursor on second block.
+    let idxs: Vec<usize> = app
+        .document()
+        .unwrap()
+        .segments()
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| matches!(s, Segment::Block(_)).then_some(i))
+        .collect();
+    let second = idxs[1];
+    app.document_mut()
+        .unwrap()
+        .set_cursor(Cursor::InBlock { segment_idx: second, offset: 0 });
+    open_fence_edit_alias(&mut app);
+    if let Some(crate::modal::Modal::Prompt(_, le)) = app.modal.as_mut() {
+        *le = crate::vim::lineedit::LineEdit::from_str("a"); // collision
+    }
+    confirm_fence_edit(&mut app);
+    let s = app.status_message.expect("status set");
+    assert!(s.text.contains("already used"), "got {:?}", s.text);
+    assert!(app.modal.is_some(), "prompt must stay");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn run_explain_with_no_block_at_cursor_emits_status() {
+    let (mut app, _d, _v) = app_with_doc("prose\n").await;
+    run_explain(&mut app);
+    let s = app.status_message.expect("status set");
+    assert!(s.text.contains("DB block"), "got {:?}", s.text);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn run_explain_with_http_block_emits_not_a_db_block() {
+    let md = "```http alias=a\nGET /x\n```\n";
+    let (mut app, _d, _v) = app_with_doc(md).await;
+    place_cursor_in_first_block(&mut app);
+    run_explain(&mut app);
+    let s = app.status_message.expect("status set");
+    assert!(s.text.contains("not a DB"), "got {:?}", s.text);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn load_active_env_vars_returns_none_when_no_active_env() {
+    let data = TempDir::new().unwrap();
+    let vault = TempDir::new().unwrap();
+    let pool = init_db(data.path()).await.unwrap();
+    let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+    let app = App::new(Config::default(), resolved, pool);
+    let result = load_active_env_vars(&app.environments_store).await;
+    assert!(result.is_none(), "no active env -> None");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn resolve_connection_id_with_unknown_key_errors() {
+    let data = TempDir::new().unwrap();
+    let vault = TempDir::new().unwrap();
+    let pool = init_db(data.path()).await.unwrap();
+    let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+    let app = App::new(Config::default(), resolved, pool);
+    let err = resolve_connection_id(&app.connections_store, "ghost")
+        .await
+        .unwrap_err();
+    assert!(err.contains("not found"), "got {err:?}");
+}

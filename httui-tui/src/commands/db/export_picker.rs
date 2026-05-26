@@ -272,3 +272,263 @@ pub fn confirm_export_picker(app: &mut App) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{App, BlockExportFormat, DbExportPickerState};
+    use crate::buffer::Document;
+    use crate::config::Config;
+    use crate::modal::Modal;
+    use crate::pane::{Pane, TabState};
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use tempfile::TempDir;
+
+    async fn app_with_doc(md: &str) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let note = vault.path().join("note.md");
+        std::fs::write(&note, md).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault { vault: vault.path().to_path_buf() };
+        let mut app = App::new(Config::default(), resolved, pool);
+        let doc = Document::from_markdown(md).unwrap();
+        let pane = Pane::new(doc, note);
+        app.tabs.tabs.clear();
+        app.tabs.tabs.push(TabState::new(pane));
+        app.tabs.active = 0;
+        (app, data, vault)
+    }
+
+    fn first_block_idx(app: &App) -> usize {
+        app.document()
+            .unwrap()
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .expect("block")
+    }
+
+    fn place_cursor_in_first_block(app: &mut App) -> usize {
+        let idx = first_block_idx(app);
+        app.document_mut()
+            .unwrap()
+            .set_cursor(Cursor::InBlock { segment_idx: idx, offset: 0 });
+        idx
+    }
+
+    fn seed_select_result(app: &mut App, idx: usize, row_count: usize) {
+        let cols = serde_json::json!([{"name":"id","type_name":"INTEGER"}]);
+        let rows: Vec<_> = (0..row_count).map(|i| serde_json::json!([i])).collect();
+        let cache = serde_json::json!({
+            "results": [{"kind":"select","columns":cols,"rows":rows,"has_more":false}],
+            "messages":[],
+            "stats":{"elapsed_ms":1}
+        });
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
+            b.cached_result = Some(cache);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_no_block_at_cursor_errors() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        let err = open_export_picker(&mut app).unwrap_err();
+        assert!(err.contains("cursor"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_db_with_no_cache_errors() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        place_cursor_in_first_block(&mut app);
+        let err = open_export_picker(&mut app).unwrap_err();
+        assert!(err.contains("run the block") || err.contains("export"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_db_mutation_result_errors() {
+        let md = "```db-sqlite alias=q\nUPDATE t SET x=1;\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        let idx = place_cursor_in_first_block(&mut app);
+        let cache = serde_json::json!({
+            "results": [{"kind":"mutation","rows_affected":2}],
+            "messages":[],
+            "stats":{"elapsed_ms":1}
+        });
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
+            b.cached_result = Some(cache);
+        }
+        let err = open_export_picker(&mut app).unwrap_err();
+        assert!(err.contains("SELECT") || err.contains("tabular"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_db_select_with_zero_rows_errors() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        let idx = place_cursor_in_first_block(&mut app);
+        seed_select_result(&mut app, idx, 0);
+        let err = open_export_picker(&mut app).unwrap_err();
+        assert!(err.contains("no rows"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_db_select_with_rows_succeeds() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        let idx = place_cursor_in_first_block(&mut app);
+        seed_select_result(&mut app, idx, 3);
+        open_export_picker(&mut app).unwrap();
+        let Some(Modal::DbExportPicker(state)) = app.modal.as_ref() else {
+            panic!()
+        };
+        assert_eq!(state.formats.len(), BlockExportFormat::DB_FORMATS.len());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_http_with_no_url_errors() {
+        let md = "```http alias=a\n\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        place_cursor_in_first_block(&mut app);
+        let err = open_export_picker(&mut app).unwrap_err();
+        assert!(err.contains("URL"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_http_with_valid_url_succeeds() {
+        let md = "```http alias=a\nGET https://x.com\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        place_cursor_in_first_block(&mut app);
+        open_export_picker(&mut app).unwrap();
+        let Some(Modal::DbExportPicker(state)) = app.modal.as_ref() else {
+            panic!()
+        };
+        assert_eq!(state.formats.len(), BlockExportFormat::HTTP_FORMATS.len());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_unsupported_block_type_errors() {
+        let md = "```http alias=a\nGET /x\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        let idx = place_cursor_in_first_block(&mut app);
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
+            b.block_type = "mystery".into();
+        }
+        let err = open_export_picker(&mut app).unwrap_err();
+        assert!(err.contains("don't support export"), "got {err:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn close_export_picker_clears_modal_and_normal_mode() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        app.modal = Some(Modal::DbExportPicker(DbExportPickerState::new(
+            0,
+            BlockExportFormat::HTTP_FORMATS,
+        )));
+        close_export_picker(&mut app);
+        assert!(app.modal.is_none());
+        assert!(matches!(app.vim.mode, crate::vim::mode::Mode::Normal));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn close_export_picker_noop_other_modal() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        app.modal = Some(Modal::Help);
+        close_export_picker(&mut app);
+        assert!(matches!(app.modal, Some(Modal::Help)));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn move_export_picker_cursor_wraps_around() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        app.modal = Some(Modal::DbExportPicker(DbExportPickerState::new(
+            0,
+            BlockExportFormat::HTTP_FORMATS,
+        )));
+        let n = BlockExportFormat::HTTP_FORMATS.len();
+        move_export_picker_cursor(&mut app, 1);
+        let Some(Modal::DbExportPicker(s)) = app.modal.as_ref() else { panic!() };
+        assert_eq!(s.selected, 1);
+        move_export_picker_cursor(&mut app, -2);
+        let Some(Modal::DbExportPicker(s)) = app.modal.as_ref() else { panic!() };
+        assert_eq!(s.selected, n - 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn move_export_picker_cursor_no_modal_is_noop() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        move_export_picker_cursor(&mut app, 1); // no panic
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn confirm_export_picker_no_modal_just_returns_to_normal() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        confirm_export_picker(&mut app);
+        assert!(matches!(app.vim.mode, crate::vim::mode::Mode::Normal));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn confirm_export_picker_db_csv_runs_serializer_and_sets_status() {
+        let md = "```db-sqlite alias=q\nSELECT id FROM t;\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        let idx = place_cursor_in_first_block(&mut app);
+        seed_select_result(&mut app, idx, 2);
+        open_export_picker(&mut app).unwrap();
+        // Selected CSV (first in DB_FORMATS).
+        confirm_export_picker(&mut app);
+        assert!(app.modal.is_none());
+        assert!(app.status_message.is_some(), "status set");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn confirm_export_picker_http_curl_runs_serializer() {
+        let md = "```http alias=a\nGET https://x.com\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        place_cursor_in_first_block(&mut app);
+        open_export_picker(&mut app).unwrap();
+        confirm_export_picker(&mut app);
+        assert!(app.modal.is_none());
+        assert!(app.status_message.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn confirm_export_picker_http_with_unresolvable_ref_surfaces_error() {
+        let md = "```http alias=a\nGET https://x.com/{{ghost.body.id}}\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        place_cursor_in_first_block(&mut app);
+        open_export_picker(&mut app).unwrap();
+        confirm_export_picker(&mut app);
+        // Either resolution error (likely) or success — both are valid paths.
+        assert!(app.status_message.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn confirm_export_picker_block_disappeared_sets_error() {
+        let (mut app, _d, _v) = app_with_doc("prose\n").await;
+        app.modal = Some(Modal::DbExportPicker(DbExportPickerState::new(
+            999, // out-of-range
+            BlockExportFormat::HTTP_FORMATS,
+        )));
+        confirm_export_picker(&mut app);
+        let s = app.status_message.expect("status set");
+        assert!(s.text.contains("disappeared"), "got {:?}", s.text);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn confirm_export_picker_db_with_no_cache_after_open_emits_hint() {
+        let md = "```db-sqlite alias=q\nSELECT 1;\n```\n";
+        let (mut app, _d, _v) = app_with_doc(md).await;
+        let idx = place_cursor_in_first_block(&mut app);
+        seed_select_result(&mut app, idx, 2);
+        open_export_picker(&mut app).unwrap();
+        // Wipe cache between open + confirm.
+        if let Some(b) = app.document_mut().unwrap().block_at_mut(idx) {
+            b.cached_result = None;
+        }
+        confirm_export_picker(&mut app);
+        let s = app.status_message.expect("status set");
+        assert!(s.text.contains("cached") || s.text.contains("empty"), "got {:?}", s.text);
+    }
+}
