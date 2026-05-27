@@ -21,7 +21,9 @@ pub fn render(
     state: &VaultCloneFormState,
 ) -> Option<(u16, u16)> {
     let popup = centered_rect(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     {
         let buf = frame.buffer_mut();
@@ -42,8 +44,8 @@ pub fn render(
         .style(bg_style)
         .border_style(
             Style::default()
-                .fg(crate::ui::palette::BORDER)
-                .bg(Color::Black),
+                .fg(crate::ui::palette::border())
+                .bg(crate::ui::palette::popup_bg()),
         );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
@@ -68,10 +70,10 @@ pub fn render(
             text.to_string(),
             if focused {
                 Style::default()
-                    .fg(Color::LightYellow)
+                    .fg(crate::ui::palette::popup_border_accent())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::DarkGray)
+                Style::default().fg(crate::ui::palette::muted())
             },
         )))
         .style(bg_style)
@@ -82,14 +84,14 @@ pub fn render(
             Paragraph::new(Line::from(Span::styled(
                 hint.to_string(),
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(crate::ui::palette::muted())
                     .add_modifier(Modifier::ITALIC),
             )))
             .style(bg_style)
         } else {
             Paragraph::new(Line::from(Span::styled(
                 s.to_string(),
-                Style::default().fg(Color::White),
+                Style::default().fg(crate::ui::palette::foreground()),
             )))
             .style(bg_style)
         }
@@ -121,7 +123,7 @@ pub fn render(
 
     let chip_key = Style::default()
         .bg(Color::LightMagenta)
-        .fg(Color::Black)
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![

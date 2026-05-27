@@ -24,6 +24,11 @@ pub struct Config {
     pub chat: ChatConfig,
     pub editor: EditorConfig,
     pub keymap: KeymapConfig,
+    /// Per-slot palette overrides layered on top of `theme`. Each
+    /// entry is `slot_name → "#rrggbb" | "#rgb" | ansi_name`. Unknown
+    /// slot names and unparseable values are ignored at boot — see
+    /// `crate::ui::theme::Theme::apply_overrides`.
+    pub palette: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,11 +127,18 @@ impl KeymapConfig {
         self.0.get(action_name).map(String::as_str)
     }
 
-    /// Overwrite (or insert) the chord for `action_name`. Used by the
-    /// legacy-default migration in `load_or_init` — production code
-    /// should otherwise treat the map as read-only after parsing.
+    /// Overwrite (or insert) the chord for `action_name`. Used by
+    /// the legacy-default migration in `load_or_init` and by the
+    /// Settings page's rebind flow.
     pub fn set(&mut self, action_name: &str, chord: String) {
         self.0.insert(action_name.to_string(), chord);
+    }
+
+    /// Drop the entry for `action_name` so the resolver falls back
+    /// to the built-in default. Used by rename migrations and by
+    /// the Settings page's "Reset to default" action.
+    pub fn remove(&mut self, action_name: &str) {
+        self.0.remove(action_name);
     }
 }
 
@@ -146,7 +158,7 @@ impl Default for KeymapConfig {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            theme: "auto".into(),
+            theme: "default-dark".into(),
             sidebar_default_visible: true,
             sidebar_width: 28,
             mouse_enabled: false,
@@ -155,6 +167,7 @@ impl Default for Config {
             chat: ChatConfig::default(),
             editor: EditorConfig::default(),
             keymap: KeymapConfig::default(),
+            palette: std::collections::BTreeMap::new(),
         }
     }
 }
@@ -217,16 +230,35 @@ const LEGACY_KEYMAP_DEFAULTS: &[(&str, &str, &str)] = &[
     ("open_environment_picker", "f4", "alt+e"),
     ("open_block_history", "f7", "alt+h"),
     ("open_export_picker", "f8", "alt+g"),
-    ("open_block_settings", "f9", "alt+,"),
+    // `open_settings` (was `open_block_settings`): the F9 legacy
+    // default migrates to `alt+,`, and the rename itself runs below
+    // in `migrate_legacy_keymap` so custom chords also move over.
+    ("open_settings", "f9", "alt+,"),
     ("open_block_template_picker", "f10", "alt+n"),
 ];
 
 const LEGACY_TOGGLE_MODE_KEY: &str = "f2";
 
+/// Keymap-entry renames. Each pair carries the user's customised
+/// chord across the rename: someone who set the old name to the old
+/// F-key default ends up with the new name + new chord via
+/// [`LEGACY_KEYMAP_DEFAULTS`]; someone with a custom chord keeps
+/// that value under the new key name.
+const LEGACY_KEYMAP_RENAMES: &[(&str, &str)] = &[("open_block_settings", "open_settings")];
+
 /// Migrate legacy F-key defaults to the new `Alt+letter` chords.
 /// Idempotent: only rewrites entries whose value matches the OLD
 /// default verbatim, so a user-customised chord is preserved.
 pub(crate) fn migrate_legacy_keymap(cfg: &mut Config) {
+    // Rename pass first — afterwards everything below operates under
+    // the new names, so a renamed action's legacy F-key default still
+    // migrates to its new Alt+letter chord.
+    for (from, to) in LEGACY_KEYMAP_RENAMES {
+        if let Some(chord) = cfg.keymap.chord_for(from).map(str::to_string) {
+            cfg.keymap.remove(from);
+            cfg.keymap.set(to, chord);
+        }
+    }
     for (name, old, new) in LEGACY_KEYMAP_DEFAULTS {
         if cfg.keymap.chord_for(name) == Some(*old) {
             cfg.keymap.set(name, (*new).to_string());
@@ -311,7 +343,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("nested").join("config.toml");
         let cfg = load_or_init(&path).unwrap();
-        assert_eq!(cfg.theme, "auto");
+        assert_eq!(cfg.theme, "default-dark");
         assert!(path.exists());
 
         // Second call reads what was written.
@@ -457,6 +489,38 @@ mod tests {
             cfg.editor.toggle_mode_key,
             after_first.editor.toggle_mode_key
         );
+    }
+
+    #[test]
+    fn migrate_renames_open_block_settings_to_open_settings() {
+        // A user-customised chord under the old name moves to the
+        // new name verbatim.
+        let mut cfg = Config::default();
+        cfg.keymap.remove("open_settings");
+        cfg.keymap.set("open_block_settings", "ctrl+,".to_string());
+        migrate_legacy_keymap(&mut cfg);
+        assert_eq!(cfg.keymap.chord_for("open_settings"), Some("ctrl+,"));
+        assert_eq!(cfg.keymap.chord_for("open_block_settings"), None);
+    }
+
+    #[test]
+    fn migrate_renames_then_promotes_legacy_fkey() {
+        // A user with the old name + the old F-key default ends up
+        // with the new name + the new chord after migration.
+        let mut cfg = Config::default();
+        cfg.keymap.remove("open_settings");
+        cfg.keymap.set("open_block_settings", "f9".to_string());
+        migrate_legacy_keymap(&mut cfg);
+        assert_eq!(cfg.keymap.chord_for("open_settings"), Some("alt+,"));
+        assert_eq!(cfg.keymap.chord_for("open_block_settings"), None);
+    }
+
+    #[test]
+    fn keymap_remove_drops_entry() {
+        let mut km = KeymapConfig::default();
+        assert!(km.chord_for("copy").is_some());
+        km.remove("copy");
+        assert!(km.chord_for("copy").is_none());
     }
 
     #[test]

@@ -323,6 +323,17 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::EnvCloneFormToggleVar
         | Action::EnvCloneFormToggleAll
         | Action::EnvCloneFormSubmit => crate::input::apply::envs_page::apply_envs(app, action),
+        Action::OpenSettings
+        | Action::CloseSettingsPage
+        | Action::SettingsNextSection
+        | Action::SettingsPrevSection
+        | Action::SettingsMoveCursor(_)
+        | Action::SettingsActivateRow
+        | Action::SettingsCancelCapture
+        | Action::SettingsCommitCapture(_)
+        | Action::SettingsResetBinding => {
+            crate::input::apply::settings_page::apply_settings_page(app, action)
+        }
         Action::JumpNextBlock
         | Action::JumpPrevBlock
         | Action::RerunLastBlock

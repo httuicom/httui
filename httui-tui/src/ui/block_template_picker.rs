@@ -20,7 +20,9 @@ const MAX_VISIBLE_ROWS: usize = 12;
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &BlockTemplatePickerState) {
     let templates = BlockTemplate::ALL;
     let popup = compute_popup_rect(editor_area, templates);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     {
         let buf = frame.buffer_mut();
@@ -39,7 +41,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &BlockTemplatePickerS
         .borders(Borders::ALL)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightGreen).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(crate::ui::palette::success())
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -55,14 +61,16 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &BlockTemplatePickerS
         .map(|t| {
             ListItem::new(Line::from(vec![Span::styled(
                 t.label,
-                Style::default().bg(Color::Black).fg(Color::White),
+                Style::default()
+                    .bg(crate::ui::palette::popup_bg())
+                    .fg(crate::ui::palette::foreground()),
             )]))
         })
         .collect();
     let list = List::new(items).style(bg_style).highlight_style(
         Style::default()
-            .bg(super::palette::SELECTION_BG)
-            .fg(Color::White)
+            .bg(super::palette::selection_bg())
+            .fg(crate::ui::palette::foreground())
             .add_modifier(Modifier::BOLD),
     );
     let mut list_state = ListState::default();
@@ -70,8 +78,8 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &BlockTemplatePickerS
     frame.render_stateful_widget(list, body_area, &mut list_state);
 
     let chip_key = Style::default()
-        .bg(Color::LightGreen)
-        .fg(Color::Black)
+        .bg(crate::ui::palette::success())
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![

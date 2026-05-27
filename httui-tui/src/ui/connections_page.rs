@@ -31,7 +31,9 @@ pub fn render(
     session_overrides: &crate::session_overrides::ConnectionOverrideStore,
 ) {
     let area = centered_rect(editor_area);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard-fill so editor content underneath doesn't bleed through.
     {
@@ -51,7 +53,11 @@ pub fn render(
         .borders(Borders::ALL)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightBlue).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightBlue)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
@@ -96,13 +102,13 @@ fn render_sidebar(
             Line::from(""),
             Line::from(Span::styled(
                 " no conns yet",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(crate::ui::palette::muted()),
             )),
             Line::from(""),
             Line::from(Span::styled(
                 " press n to add",
                 Style::default()
-                    .fg(Color::LightYellow)
+                    .fg(crate::ui::palette::popup_border_accent())
                     .add_modifier(Modifier::ITALIC),
             )),
         ])
@@ -123,19 +129,22 @@ fn render_sidebar(
                     format!(" {chip_label} "),
                     Style::default()
                         .bg(chip_color)
-                        .fg(Color::Black)
+                        .fg(crate::ui::palette::popup_bg())
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" "),
-                Span::styled(c.name.clone(), Style::default().fg(Color::White)),
+                Span::styled(
+                    c.name.clone(),
+                    Style::default().fg(crate::ui::palette::foreground()),
+                ),
             ];
             if overrides.is_active(&c.name) {
                 spans.push(Span::raw("  "));
                 spans.push(Span::styled(
                     " TEMP ",
                     Style::default()
-                        .bg(crate::ui::palette::AMBER)
-                        .fg(crate::ui::palette::AMBER_FG_ON_AMBER_BG)
+                        .bg(crate::ui::palette::amber())
+                        .fg(crate::ui::palette::amber_fg_on_amber_bg())
                         .add_modifier(Modifier::BOLD),
                 ));
             }
@@ -147,8 +156,8 @@ fn render_sidebar(
         .style(bg)
         .highlight_style(
             Style::default()
-                .bg(crate::ui::palette::SELECTION_BG)
-                .fg(Color::White)
+                .bg(crate::ui::palette::selection_bg())
+                .fg(crate::ui::palette::foreground())
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("▌");
@@ -163,7 +172,11 @@ fn render_divider(frame: &mut Frame, area: Rect, _bg: Style) {
     for y in area.y..area.y.saturating_add(area.height) {
         if let Some(cell) = buf.cell_mut((area.x, y)) {
             cell.set_symbol("│");
-            cell.set_style(Style::default().fg(Color::DarkGray).bg(Color::Black));
+            cell.set_style(
+                Style::default()
+                    .fg(crate::ui::palette::muted())
+                    .bg(crate::ui::palette::popup_bg()),
+            );
         }
     }
 }
@@ -177,7 +190,8 @@ fn render_detail(
     bg: Style,
 ) {
     let Some(detail) = state.connections.get(state.selected) else {
-        let empty = Paragraph::new("  (no connection selected)").style(bg.fg(Color::DarkGray));
+        let empty =
+            Paragraph::new("  (no connection selected)").style(bg.fg(crate::ui::palette::muted()));
         frame.render_widget(empty, area);
         return;
     };
@@ -210,7 +224,7 @@ fn schema_lines(connection_name: &str, schema_cache: &SchemaCache) -> Vec<Line<'
             lines.push(Line::from(Span::styled(
                 "loading…",
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(crate::ui::palette::muted())
                     .add_modifier(Modifier::ITALIC),
             )));
         }
@@ -219,7 +233,7 @@ fn schema_lines(connection_name: &str, schema_cache: &SchemaCache) -> Vec<Line<'
             lines.push(Line::from(Span::styled(
                 "(empty)",
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(crate::ui::palette::muted())
                     .add_modifier(Modifier::ITALIC),
             )));
         }
@@ -237,10 +251,13 @@ fn schema_lines(connection_name: &str, schema_cache: &SchemaCache) -> Vec<Line<'
                     None => t.name.clone(),
                 };
                 lines.push(Line::from(vec![
-                    Span::styled(qualified, Style::default().fg(Color::White)),
+                    Span::styled(
+                        qualified,
+                        Style::default().fg(crate::ui::palette::foreground()),
+                    ),
                     Span::styled(
                         format!(" ({} cols)", t.columns.len()),
-                        Style::default().fg(Color::DarkGray),
+                        Style::default().fg(crate::ui::palette::muted()),
                     ),
                 ]));
             }
@@ -248,7 +265,7 @@ fn schema_lines(connection_name: &str, schema_cache: &SchemaCache) -> Vec<Line<'
                 lines.push(Line::from(Span::styled(
                     format!("+{} more", entry.tables.len() - MAX_ROWS),
                     Style::default()
-                        .fg(Color::DarkGray)
+                        .fg(crate::ui::palette::muted())
                         .add_modifier(Modifier::ITALIC),
                 )));
             }
@@ -266,7 +283,7 @@ fn used_in_lines(uses: &[crate::app::ConnectionUse]) -> Vec<Line<'static>> {
         lines.push(Line::from(Span::styled(
             "(no references in this vault)",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )));
     } else {
@@ -275,15 +292,21 @@ fn used_in_lines(uses: &[crate::app::ConnectionUse]) -> Vec<Line<'static>> {
         const MAX_ROWS: usize = 6;
         for u in uses.iter().take(MAX_ROWS) {
             lines.push(Line::from(vec![
-                Span::styled(u.file.clone(), Style::default().fg(Color::White)),
-                Span::styled(format!(":{}", u.line), Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    u.file.clone(),
+                    Style::default().fg(crate::ui::palette::foreground()),
+                ),
+                Span::styled(
+                    format!(":{}", u.line),
+                    Style::default().fg(crate::ui::palette::muted()),
+                ),
             ]));
         }
         if uses.len() > MAX_ROWS {
             lines.push(Line::from(Span::styled(
                 format!("+{} more", uses.len() - MAX_ROWS),
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(crate::ui::palette::muted())
                     .add_modifier(Modifier::ITALIC),
             )));
         }
@@ -293,18 +316,23 @@ fn used_in_lines(uses: &[crate::app::ConnectionUse]) -> Vec<Line<'static>> {
 
 fn driver_chip(driver: &str) -> (&'static str, Color) {
     match driver {
-        "postgres" => ("PG", Color::Cyan),
-        "mysql" => ("MY", Color::LightYellow),
-        "sqlite" => ("SL", Color::LightGreen),
-        _ => ("??", Color::DarkGray),
+        "postgres" => ("PG", crate::ui::palette::popup_key_label()),
+        "mysql" => ("MY", crate::ui::palette::popup_border_accent()),
+        "sqlite" => ("SL", crate::ui::palette::success()),
+        _ => ("??", crate::ui::palette::muted()),
     }
 }
 
 fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
-    let label =
-        |text: &str| Span::styled(format!("{text:<10}"), Style::default().fg(Color::DarkGray));
-    let value = |text: String| Span::styled(text, Style::default().fg(Color::White));
-    let none = || Span::styled("—", Style::default().fg(Color::DarkGray));
+    let label = |text: &str| {
+        Span::styled(
+            format!("{text:<10}"),
+            Style::default().fg(crate::ui::palette::muted()),
+        )
+    };
+    let value =
+        |text: String| Span::styled(text, Style::default().fg(crate::ui::palette::foreground()));
+    let none = || Span::styled("—", Style::default().fg(crate::ui::palette::muted()));
     let opt = |s: &Option<String>| -> Span<'static> {
         s.as_ref().map(|v| value(v.clone())).unwrap_or_else(none)
     };
@@ -326,12 +354,12 @@ fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
                 format!(" {chip_label} "),
                 Style::default()
                     .bg(chip_color)
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 format!(" {}", c.driver),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(crate::ui::palette::muted()),
             ),
         ]),
         Line::from(""),
@@ -347,7 +375,10 @@ fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
         Line::from(vec![
             label("password"),
             if c.has_password {
-                Span::styled("•••• (keychain)", Style::default().fg(Color::White))
+                Span::styled(
+                    "•••• (keychain)",
+                    Style::default().fg(crate::ui::palette::foreground()),
+                )
             } else {
                 none()
             },
@@ -362,11 +393,11 @@ fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
                 Span::styled(
                     "yes",
                     Style::default()
-                        .fg(Color::LightYellow)
+                        .fg(crate::ui::palette::popup_border_accent())
                         .add_modifier(Modifier::BOLD),
                 )
             } else {
-                Span::styled("no", Style::default().fg(Color::White))
+                Span::styled("no", Style::default().fg(crate::ui::palette::foreground()))
             },
         ]),
     ];
@@ -375,7 +406,7 @@ fn detail_lines(c: &ConnectionDetail) -> Vec<Line<'static>> {
         lines.push(section_header("Description"));
         lines.push(Line::from(Span::styled(
             desc.to_string(),
-            Style::default().fg(Color::White),
+            Style::default().fg(crate::ui::palette::foreground()),
         )));
     }
     lines
@@ -408,8 +439,8 @@ fn render_hint(frame: &mut Frame, area: Rect, _bg: Style) {
     let para = Paragraph::new(Span::styled(
         hint,
         Style::default()
-            .fg(Color::DarkGray)
-            .bg(Color::Black)
+            .fg(crate::ui::palette::muted())
+            .bg(crate::ui::palette::popup_bg())
             .add_modifier(Modifier::ITALIC),
     ));
     frame.render_widget(para, area);
@@ -422,7 +453,7 @@ fn session_override_lines(
     connection_name: &str,
     overrides: &crate::session_overrides::ConnectionOverrideStore,
 ) -> Vec<Line<'static>> {
-    let amber = crate::ui::palette::AMBER;
+    let amber = crate::ui::palette::amber();
     let header = Line::from(Span::styled(
         "── Session override (TEMP) ",
         Style::default().fg(amber).add_modifier(Modifier::BOLD),
@@ -435,7 +466,7 @@ fn session_override_lines(
             out.push(Line::from(vec![
                 Span::styled(
                     format!("{:<10}", "host"),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(crate::ui::palette::muted()),
                 ),
                 Span::styled(
                     host.to_string(),
@@ -445,7 +476,7 @@ fn session_override_lines(
             out.push(Line::from(vec![
                 Span::styled(
                     format!("{:<10}", "port"),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(crate::ui::palette::muted()),
                 ),
                 Span::styled(
                     port,
@@ -457,7 +488,7 @@ fn session_override_lines(
             out.push(Line::from(Span::styled(
                 "(none) — press `o` to set, `O` to clear",
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(crate::ui::palette::muted())
                     .add_modifier(Modifier::ITALIC),
             )));
         }

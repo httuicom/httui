@@ -43,10 +43,10 @@ pub fn render(frame: &mut Frame, area: Rect, tabs: &TabBar) {
 
     let widget = Tabs::new(titles)
         .select(tabs.active())
-        .style(Style::default().fg(Color::DarkGray))
+        .style(Style::default().fg(crate::ui::palette::muted()))
         .highlight_style(
             Style::default()
-                .fg(Color::Black)
+                .fg(crate::ui::palette::popup_bg())
                 .bg(Color::LightCyan)
                 .add_modifier(Modifier::BOLD),
         )

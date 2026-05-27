@@ -35,7 +35,9 @@ fn collapse_home(path: &str) -> String {
 
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
     let popup = compute_popup_rect(editor_area, state);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     {
         let buf = frame.buffer_mut();
@@ -61,8 +63,8 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
         .style(bg_style)
         .border_style(
             Style::default()
-                .fg(crate::ui::palette::BORDER)
-                .bg(Color::Black),
+                .fg(crate::ui::palette::border())
+                .bg(crate::ui::palette::popup_bg()),
         );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
@@ -88,19 +90,23 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
             ListItem::new(Line::from(vec![
                 Span::styled(
                     marker,
-                    Style::default().bg(Color::Black).fg(Color::LightMagenta),
+                    Style::default()
+                        .bg(crate::ui::palette::popup_bg())
+                        .fg(Color::LightMagenta),
                 ),
                 Span::styled(
                     collapse_home(path),
-                    Style::default().bg(Color::Black).fg(Color::White),
+                    Style::default()
+                        .bg(crate::ui::palette::popup_bg())
+                        .fg(crate::ui::palette::foreground()),
                 ),
             ]))
         })
         .collect();
     let list = List::new(items).style(bg_style).highlight_style(
         Style::default()
-            .bg(super::palette::SELECTION_BG)
-            .fg(Color::White)
+            .bg(super::palette::selection_bg())
+            .fg(crate::ui::palette::foreground())
             .add_modifier(Modifier::BOLD),
     );
     let mut list_state = ListState::default();
@@ -113,10 +119,10 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &VaultPickerState) {
     // No coloured background blocks — they read as noise once you
     // have 4+ chips on screen.
     let key_style = Style::default()
-        .fg(crate::ui::palette::ACCENT)
+        .fg(crate::ui::palette::accent())
         .add_modifier(Modifier::BOLD);
-    let label_style = Style::default().fg(Color::DarkGray);
-    let sep_style = Style::default().fg(Color::DarkGray);
+    let label_style = Style::default().fg(crate::ui::palette::muted());
+    let sep_style = Style::default().fg(crate::ui::palette::muted());
     let hint = |pairs: &[(&str, &str)]| {
         let mut spans: Vec<Span<'static>> = Vec::with_capacity(pairs.len() * 4);
         for (i, (key, label)) in pairs.iter().enumerate() {

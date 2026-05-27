@@ -4,7 +4,7 @@
 
 use ratatui::{
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
@@ -207,7 +207,7 @@ fn draw_separator(frame: &mut Frame, area: Rect, dir: SplitDir) {
     if area.width == 0 || area.height == 0 {
         return;
     }
-    let style = Style::default().fg(Color::DarkGray);
+    let style = Style::default().fg(crate::ui::palette::muted());
     let glyph = match dir {
         SplitDir::Vertical => "│",
         SplitDir::Horizontal => "─",

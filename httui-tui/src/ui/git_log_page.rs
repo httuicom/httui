@@ -24,11 +24,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &GitLogPageState) {
 fn render_list(frame: &mut Frame, area: Rect, state: &GitLogPageState) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::LightYellow))
+        .border_style(Style::default().fg(crate::ui::palette::popup_border_accent()))
         .title(Span::styled(
             format!(" Commits ({}) ", state.commits.len()),
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(area);
@@ -41,7 +41,7 @@ fn render_list(frame: &mut Frame, area: Rect, state: &GitLogPageState) {
             ListItem::new(Line::from(vec![
                 Span::styled(
                     format!("{} ", c.short_sha),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(crate::ui::palette::muted()),
                 ),
                 Span::raw(c.subject.clone()),
             ]))
@@ -50,7 +50,7 @@ fn render_list(frame: &mut Frame, area: Rect, state: &GitLogPageState) {
     let list = List::new(items).highlight_style(
         Style::default()
             .bg(Color::Yellow)
-            .fg(Color::Black)
+            .fg(crate::ui::palette::popup_bg())
             .add_modifier(Modifier::BOLD),
     );
     let mut s = ListState::default();
@@ -68,7 +68,7 @@ fn render_diff(frame: &mut Frame, area: Rect, state: &GitLogPageState) {
         .unwrap_or_else(|| " diff ".to_string());
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray))
+        .border_style(Style::default().fg(crate::ui::palette::muted()))
         .title(Span::styled(title, Style::default().fg(Color::Gray)));
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -88,13 +88,13 @@ fn render_diff(frame: &mut Frame, area: Rect, state: &GitLogPageState) {
             } else if raw.starts_with('-') && !raw.starts_with("---") {
                 Style::default().fg(Color::Red)
             } else if raw.starts_with("@@") {
-                Style::default().fg(Color::Cyan)
+                Style::default().fg(crate::ui::palette::popup_key_label())
             } else if raw.starts_with("diff --git")
                 || raw.starts_with("commit ")
                 || raw.starts_with("Author:")
                 || raw.starts_with("Date:")
             {
-                Style::default().fg(Color::LightYellow)
+                Style::default().fg(crate::ui::palette::popup_border_accent())
             } else {
                 Style::default()
             };

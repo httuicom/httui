@@ -31,7 +31,9 @@ pub fn render(
     anchor: Option<BlockAnchor>,
 ) {
     let popup = compute_popup_rect(editor_area, state, anchor);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard-fill so editor content under the popup doesn't bleed.
     {
@@ -56,7 +58,11 @@ pub fn render(
         .borders(Borders::ALL)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightBlue).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightBlue)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -75,8 +81,8 @@ pub fn render(
         .collect();
     let list = List::new(items).style(bg_style).highlight_style(
         Style::default()
-            .bg(super::palette::SELECTION_BG)
-            .fg(Color::White)
+            .bg(super::palette::selection_bg())
+            .fg(crate::ui::palette::foreground())
             .add_modifier(Modifier::BOLD),
     );
     let mut list_state = ListState::default();
@@ -87,7 +93,7 @@ pub fn render(
 
     let chip_key = Style::default()
         .bg(Color::LightBlue)
-        .fg(Color::Black)
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![
@@ -120,13 +126,15 @@ fn format_entry_line(
     let (status_chip, status_style): (String, Style) = match outcome {
         "cancelled" => (
             " — ".into(),
-            Style::default().fg(Color::Gray).bg(Color::Black),
+            Style::default()
+                .fg(Color::Gray)
+                .bg(crate::ui::palette::popup_bg()),
         ),
         "error" => (
             " err ".into(),
             Style::default()
                 .bg(Color::Red)
-                .fg(Color::Black)
+                .fg(crate::ui::palette::popup_bg())
                 .add_modifier(Modifier::BOLD),
         ),
         _ if is_db => {
@@ -141,7 +149,7 @@ fn format_entry_line(
                 },
                 Style::default()
                     .bg(Color::Green)
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD),
             )
         }
@@ -150,35 +158,35 @@ fn format_entry_line(
                 format!(" {code} "),
                 Style::default()
                     .bg(Color::Green)
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD),
             ),
             Some(code) if (300..400).contains(&code) => (
                 format!(" {code} "),
                 Style::default()
                     .bg(Color::Yellow)
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD),
             ),
             Some(code) if (400..500).contains(&code) => (
                 format!(" {code} "),
                 Style::default()
                     .bg(Color::Magenta)
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD),
             ),
             Some(code) => (
                 format!(" {code} "),
                 Style::default()
                     .bg(Color::Red)
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD),
             ),
             None => (
                 " err ".into(),
                 Style::default()
                     .bg(Color::Red)
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD),
             ),
         },
@@ -207,18 +215,21 @@ fn format_entry_line(
     let ran_ago = ran_ago_string(&entry.ran_at, now);
 
     let row_fg = if outcome == "cancelled" {
-        Color::DarkGray
+        crate::ui::palette::muted()
     } else {
-        Color::White
+        crate::ui::palette::foreground()
     };
     Line::from(vec![
         Span::styled(status_chip, status_style),
         Span::styled("  ", bg_style),
         Span::styled(format!("{elapsed:>7}"), bg_style.fg(row_fg)),
         Span::styled("  ", bg_style),
-        Span::styled(format!("{sizes:>13}"), bg_style.fg(Color::DarkGray)),
+        Span::styled(
+            format!("{sizes:>13}"),
+            bg_style.fg(crate::ui::palette::muted()),
+        ),
         Span::styled("  ", bg_style),
-        Span::styled(ran_ago, bg_style.fg(Color::DarkGray)),
+        Span::styled(ran_ago, bg_style.fg(crate::ui::palette::muted())),
     ])
 }
 

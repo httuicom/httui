@@ -64,7 +64,7 @@ pub(crate) fn overlay_visual_selection(
     };
 
     let layouts = layout_document(doc, area.width);
-    let style = Style::default().bg(super::palette::SELECTION_BG);
+    let style = Style::default().bg(super::palette::selection_bg());
 
     for seg_idx in lo_seg..=hi_seg {
         let Some(seg) = doc.segments().get(seg_idx) else {
@@ -243,7 +243,9 @@ pub(crate) fn overlay_search_highlights(
         return;
     }
     let case_sensitive = search::is_case_sensitive(pattern);
-    let highlight = Style::default().bg(Color::Yellow).fg(Color::Black);
+    let highlight = Style::default()
+        .bg(Color::Yellow)
+        .fg(crate::ui::palette::popup_bg());
     let total = rope.len_lines();
     let buf = frame.buffer_mut();
 
@@ -288,7 +290,9 @@ mod tests {
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 
-    const SEL_BG: Color = crate::ui::palette::SELECTION_BG;
+    fn sel_bg() -> Color {
+        crate::ui::palette::selection_bg()
+    }
 
     fn doc(md: &str) -> Document {
         Document::from_markdown(md).unwrap()
@@ -341,7 +345,7 @@ mod tests {
         };
         let buf = paint_sel(&d, 0, ov, 30, 4);
         // Early return → nothing highlighted.
-        assert_eq!(count_bg(&buf, 30, 4, SEL_BG), 0);
+        assert_eq!(count_bg(&buf, 30, 4, sel_bg()), 0);
     }
 
     #[test]
@@ -362,7 +366,7 @@ mod tests {
             linewise: false,
         };
         let buf = paint_sel(&d, 0, ov, 40, 8);
-        assert_eq!(count_bg(&buf, 40, 8, SEL_BG), 0);
+        assert_eq!(count_bg(&buf, 40, 8, sel_bg()), 0);
     }
 
     #[test]
@@ -381,7 +385,7 @@ mod tests {
             linewise: false,
         };
         let buf = paint_sel(&d, 0, ov, 30, 3);
-        let n = count_bg(&buf, 30, 3, SEL_BG);
+        let n = count_bg(&buf, 30, 3, sel_bg());
         assert!(n >= 5, "expected ≥5 highlighted cells, got {n}");
     }
 
@@ -401,7 +405,7 @@ mod tests {
             linewise: false,
         };
         let buf = paint_sel(&d, 0, ov, 20, 3);
-        assert!(count_bg(&buf, 20, 3, SEL_BG) >= 4);
+        assert!(count_bg(&buf, 20, 3, sel_bg()) >= 4);
     }
 
     #[test]
@@ -426,7 +430,7 @@ mod tests {
         let buf = paint_sel(&d, 0, ov, 24, 5);
         // Linewise → every cell of selected rows highlighted; at
         // least the full first row width.
-        assert!(count_bg(&buf, 24, 5, SEL_BG) >= 24);
+        assert!(count_bg(&buf, 24, 5, sel_bg()) >= 24);
     }
 
     #[test]
@@ -451,7 +455,7 @@ mod tests {
             linewise: false,
         };
         let buf = paint_sel(&d, 0, ov, 50, 12);
-        assert!(count_bg(&buf, 50, 12, SEL_BG) >= 1);
+        assert!(count_bg(&buf, 50, 12, sel_bg()) >= 1);
     }
 
     #[test]
@@ -473,7 +477,7 @@ mod tests {
             linewise: true,
         };
         let buf = paint_sel(&d, 0, ov, 50, 14);
-        assert!(count_bg(&buf, 50, 14, SEL_BG) >= 1);
+        assert!(count_bg(&buf, 50, 14, sel_bg()) >= 1);
     }
 
     // ---- paint_segment_highlight clip paths ------------------------
@@ -496,7 +500,7 @@ mod tests {
         // viewport scrolled far past the selected rows → absolute_y <
         // viewport_top, every cell skipped.
         let buf = paint_sel(&d, 25, ov, 20, 4);
-        assert_eq!(count_bg(&buf, 20, 4, SEL_BG), 0);
+        assert_eq!(count_bg(&buf, 20, 4, sel_bg()), 0);
     }
 
     #[test]
@@ -522,7 +526,7 @@ mod tests {
         };
         let buf = paint_sel(&d, 0, ov, 10, 2);
         // Only the first 2 rows can be painted; no panic, ≤ 2*10 cells.
-        assert!(count_bg(&buf, 10, 2, SEL_BG) <= 20);
+        assert!(count_bg(&buf, 10, 2, sel_bg()) <= 20);
     }
 
     #[test]
@@ -544,7 +548,7 @@ mod tests {
         let buf = paint_sel(&d, 0, ov, 10, 4);
         // Selection of a single empty position — does not panic; the
         // highlight (if any) is minimal.
-        assert!(count_bg(&buf, 10, 4, SEL_BG) <= 1);
+        assert!(count_bg(&buf, 10, 4, sel_bg()) <= 1);
     }
 
     // ---- overlay_search_highlights ---------------------------------

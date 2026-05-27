@@ -33,7 +33,9 @@ pub fn render(
     visual: Option<VisualOverlay>,
 ) {
     let modal = centered_rect(editor_area, 75, 75);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     {
         let buf = frame.buffer_mut();
@@ -52,7 +54,11 @@ pub fn render(
         .border_type(BorderType::Rounded)
         .title(state.title.clone())
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightBlue).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightBlue)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(modal);
     frame.render_widget(outer, modal);
 
@@ -187,7 +193,7 @@ fn paint_visual_selection(
         (lo_line, lo_col, hi_line, hi_col)
     };
 
-    let style = Style::default().bg(super::palette::SELECTION_BG);
+    let style = Style::default().bg(super::palette::selection_bg());
     let buf = frame.buffer_mut();
     let total_lines = rope.len_lines();
     for line in start_line..=end_line {
@@ -248,8 +254,8 @@ fn style_body_line(text: String, bg: Style, is_status_line: bool) -> Line<'stati
         return Line::from(Span::styled(
             text,
             Style::default()
-                .fg(Color::Cyan)
-                .bg(Color::Black)
+                .fg(crate::ui::palette::popup_key_label())
+                .bg(crate::ui::palette::popup_bg())
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -263,12 +269,12 @@ fn style_body_line(text: String, bg: Style, is_status_line: bool) -> Line<'stati
             // header pair.
             if !key.starts_with('(') {
                 let key_style = Style::default()
-                    .fg(Color::Cyan)
-                    .bg(Color::Black)
+                    .fg(crate::ui::palette::popup_key_label())
+                    .bg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD);
                 let value_style = Style::default()
                     .fg(Color::Rgb(0xc6, 0xd0, 0xf5))
-                    .bg(Color::Black);
+                    .bg(crate::ui::palette::popup_bg());
                 return Line::from(vec![
                     Span::styled("  ", bg),
                     Span::styled(key.to_string(), key_style),
@@ -279,12 +285,14 @@ fn style_body_line(text: String, bg: Style, is_status_line: bool) -> Line<'stati
         // Indented body line — light fg, kept as a single span.
         let style = Style::default()
             .fg(Color::Rgb(0xc6, 0xd0, 0xf5))
-            .bg(Color::Black);
+            .bg(crate::ui::palette::popup_bg());
         return Line::from(Span::styled(text, style));
     }
     Line::from(Span::styled(
         text,
-        Style::default().fg(Color::White).bg(Color::Black),
+        Style::default()
+            .fg(crate::ui::palette::foreground())
+            .bg(crate::ui::palette::popup_bg()),
     ))
 }
 
@@ -299,17 +307,19 @@ fn style_status_line(text: &str, bg: Style) -> Line<'static> {
         .chars()
         .next()
         .map(|c| match c {
-            '2' => Color::LightGreen,
-            '3' => Color::LightYellow,
+            '2' => crate::ui::palette::success(),
+            '3' => crate::ui::palette::popup_border_accent(),
             '4' | '5' => Color::LightRed,
-            _ => Color::White,
+            _ => crate::ui::palette::foreground(),
         })
-        .unwrap_or(Color::White);
+        .unwrap_or(crate::ui::palette::foreground());
     let status_style = Style::default()
         .fg(status_color)
-        .bg(Color::Black)
+        .bg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
-    let rest_style = Style::default().fg(Color::Gray).bg(Color::Black);
+    let rest_style = Style::default()
+        .fg(Color::Gray)
+        .bg(crate::ui::palette::popup_bg());
     let mut spans = vec![Span::styled(status_part.to_string(), status_style)];
     if !rest.is_empty() {
         spans.push(Span::styled(" ", bg));
@@ -321,7 +331,7 @@ fn style_status_line(text: &str, bg: Style) -> Line<'static> {
 fn paint_footer(frame: &mut Frame, footer_area: Rect, bg: Style) {
     let chip_key = Style::default()
         .bg(Color::LightBlue)
-        .fg(Color::Black)
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![
@@ -395,7 +405,7 @@ mod tests {
 
     #[test]
     fn style_status_line_picks_color_by_status_class() {
-        let bg = Style::default().bg(Color::Black);
+        let bg = Style::default().bg(crate::ui::palette::popup_bg());
         let line = style_status_line("200 OK · 142 ms", bg);
         // Smoke test: the renderer produces at least the status span
         // plus separator + rest spans.

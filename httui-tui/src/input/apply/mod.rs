@@ -29,6 +29,11 @@ pub mod navigation;
 pub mod operator;
 pub mod pickers;
 pub mod replay;
+/// Settings page handlers (open/close/section/cursor/rebind/theme).
+pub mod settings_page;
+/// Settings page applier tests — async fixture mirrors `envs_page_tests`.
+#[cfg(test)]
+mod settings_page_tests;
 /// Standard-mode `/` slash-trigger applier.
 pub mod slash;
 /// Standard-mode Backspace with cross-segment boundary semantics.

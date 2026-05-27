@@ -1,23 +1,114 @@
+//! Thin accessor over [`crate::ui::theme`]. Renderers go through
+//! these functions so a theme switch (from the Settings page or
+//! `config.toml`) takes effect on the next paint without touching
+//! every call site.
+
 use ratatui::style::Color;
 
-pub const SELECTION_BG: Color = Color::Rgb(60, 70, 110);
+use crate::ui::theme;
 
-/// Default border for modals/pages. Subtle blue-gray, safer across
-/// warm-light terminal themes than `LightMagenta`.
-pub const BORDER: Color = Color::Rgb(110, 140, 175);
+/// Frame-wide canvas color. `Color::Reset` (most presets) means
+/// "inherit the terminal background"; explicit RGB paints a fixed
+/// background so the TUI canvas matches the preset regardless of
+/// the host terminal.
+#[inline]
+pub fn background() -> Color {
+    theme::current().background
+}
+
+/// Frame-wide default text color. Paired with [`background`].
+#[inline]
+pub fn foreground() -> Color {
+    theme::current().foreground
+}
+
+#[inline]
+pub fn selection_bg() -> Color {
+    theme::current().selection_bg
+}
+
+/// Default border for modals/pages.
+#[inline]
+pub fn border() -> Color {
+    theme::current().border
+}
 
 /// Cool accent for titles, section headers, numeric shortcuts.
-pub const ACCENT: Color = Color::Rgb(130, 170, 220);
+#[inline]
+pub fn accent() -> Color {
+    theme::current().accent
+}
 
 /// Warm amber for ephemeral state (TEMP badge, session override
 /// values). Distinct from `Color::Red` (reserved for errors).
-pub const AMBER: Color = Color::Rgb(255, 176, 0);
-pub const AMBER_FG_ON_AMBER_BG: Color = Color::Rgb(20, 14, 0);
+#[inline]
+pub fn amber() -> Color {
+    theme::current().amber
+}
+
+#[inline]
+pub fn amber_fg_on_amber_bg() -> Color {
+    theme::current().amber_fg_on_amber_bg
+}
 
 /// Muted gray for secondary text (labels, inactive shortcuts,
-/// timestamps). Fixed RGB so it reads as dim cross-platform —
-/// ratatui's `DarkGray` can render almost white on warm themes.
-pub const MUTED: Color = Color::Rgb(120, 120, 120);
+/// timestamps).
+#[inline]
+pub fn muted() -> Color {
+    theme::current().muted
+}
+
 /// Mid-emphasis gray for still-readable secondary content (unfocused
-/// commit subjects). Lighter than `MUTED`.
-pub const SECONDARY: Color = Color::Rgb(170, 170, 170);
+/// commit subjects). Lighter than [`muted`].
+#[inline]
+pub fn secondary() -> Color {
+    theme::current().secondary
+}
+
+/// Header / footer bar bg of executable blocks.
+#[inline]
+pub fn block_chrome_bg() -> Color {
+    theme::current().block_chrome_bg
+}
+
+/// Tinted body bg of executable blocks.
+#[inline]
+pub fn block_body_bg() -> Color {
+    theme::current().block_body_bg
+}
+
+/// Active sub-tab highlight bg inside a block's result panel.
+#[inline]
+pub fn block_active_bg() -> Color {
+    theme::current().block_active_bg
+}
+
+/// Alternating row bg for result tables.
+#[inline]
+pub fn table_zebra_bg() -> Color {
+    theme::current().table_zebra_bg
+}
+
+/// Bg of popup / modal panels.
+#[inline]
+pub fn popup_bg() -> Color {
+    theme::current().popup_bg
+}
+
+/// Border + title accent inside popups.
+#[inline]
+pub fn popup_border_accent() -> Color {
+    theme::current().popup_border_accent
+}
+
+/// Inline chord / key glyph color inside popups.
+#[inline]
+pub fn popup_key_label() -> Color {
+    theme::current().popup_key_label
+}
+
+/// "Positive / connected / ON" indicator color.
+#[inline]
+pub fn success() -> Color {
+    theme::current().success
+}

@@ -143,7 +143,10 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         ),
         spec("open_block_history", "alt+h", Action::OpenBlockHistory),
         spec("open_export_picker", "alt+g", Action::OpenDbExportPicker),
-        spec("open_block_settings", "alt+,", Action::OpenDbSettingsModal),
+        // `Alt+,` routes contextually: block-settings when the
+        // cursor is on a DB/HTTP block, app-Settings everywhere
+        // else. See `apply::settings_page::dispatch_open_settings`.
+        spec("open_settings", "alt+,", Action::OpenSettings),
         spec(
             "open_block_template_picker",
             "alt+n",
@@ -270,6 +273,7 @@ pub fn is_editor_global_shortcut(action: Action) -> bool {
             | Action::OpenBlockHistory
             | Action::OpenDbExportPicker
             | Action::OpenDbSettingsModal
+            | Action::OpenSettings
             | Action::OpenBlockTemplatePicker
             | Action::OpenConnectionsPage
             | Action::OpenEnvsPage

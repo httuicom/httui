@@ -23,11 +23,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &GitBranchPickerState
     frame.render_widget(Clear, area);
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::LightYellow))
+        .border_style(Style::default().fg(crate::ui::palette::popup_border_accent()))
         .title(Span::styled(
             " branches ",
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(area);
@@ -43,7 +43,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &GitBranchPickerState
         .map(|b| {
             let marker = if b.current { "* " } else { "  " };
             let glyph_color = if b.current {
-                Color::LightGreen
+                crate::ui::palette::success()
             } else {
                 Color::Gray
             };
@@ -61,7 +61,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &GitBranchPickerState
     let list = List::new(items).highlight_style(
         Style::default()
             .bg(Color::Yellow)
-            .fg(Color::Black)
+            .fg(crate::ui::palette::popup_bg())
             .add_modifier(Modifier::BOLD),
     );
     let mut list_state = ListState::default();

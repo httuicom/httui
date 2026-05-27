@@ -110,6 +110,72 @@ pub fn parse_key_chord(s: &str) -> Option<KeyChord> {
     })
 }
 
+/// Canonical chord string for a [`KeyEvent`] — the inverse of
+/// [`parse_key_chord`] for the subset of events the rebind UI emits.
+///
+/// Used by the Settings → Keymaps capture flow: when the user
+/// presses a chord, we serialise it back into the same grammar
+/// `[keymap]` expects in `config.toml`, so a freshly-captured chord
+/// round-trips cleanly through save → reload.
+///
+/// Returns `None` for events that cannot be a binding on their own
+/// (Esc, modifier-only "press", `KeyCode::Null`, mouse events the
+/// terminal reports as `Press` of an unsupported code). Token order
+/// is `ctrl+alt+shift+<key>`. Letters lowercase. `Shift` is omitted
+/// for `Char` and `BackTab` codes because [`KeyChord::matches`]
+/// ignores it there — emitting it would be a no-op that confuses
+/// the user.
+pub fn chord_string_from_key(key: KeyEvent) -> Option<String> {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    // Esc is reserved as "cancel capture" everywhere in the modal
+    // stack — refuse to make it a binding from the UI.
+    if matches!(code, KeyCode::Esc | KeyCode::Null) {
+        return None;
+    }
+    let key_token = key_code_token(code)?;
+    let mut parts: Vec<&str> = Vec::with_capacity(3);
+    if modifiers.contains(KeyModifiers::CONTROL) {
+        parts.push("ctrl");
+    }
+    if modifiers.contains(KeyModifiers::ALT) {
+        parts.push("alt");
+    }
+    // Only meaningful on non-`Char` / non-`BackTab` codes — match the
+    // asymmetry in `KeyChord::matches`. `BackTab` is implicitly
+    // `Shift+Tab`, so we don't append an explicit `shift` for it.
+    let shift_meaningful = !matches!(code, KeyCode::Char(_) | KeyCode::BackTab);
+    if shift_meaningful && modifiers.contains(KeyModifiers::SHIFT) {
+        parts.push("shift");
+    }
+    parts.push(&key_token);
+    Some(parts.join("+"))
+}
+
+fn key_code_token(code: KeyCode) -> Option<String> {
+    Some(match code {
+        KeyCode::Enter => "enter".into(),
+        KeyCode::Tab => "tab".into(),
+        KeyCode::BackTab => "shift+tab".into(),
+        KeyCode::Backspace => "backspace".into(),
+        KeyCode::Delete => "delete".into(),
+        KeyCode::Insert => "insert".into(),
+        KeyCode::Up => "up".into(),
+        KeyCode::Down => "down".into(),
+        KeyCode::Left => "left".into(),
+        KeyCode::Right => "right".into(),
+        KeyCode::Home => "home".into(),
+        KeyCode::End => "end".into(),
+        KeyCode::PageUp => "pageup".into(),
+        KeyCode::PageDown => "pagedown".into(),
+        KeyCode::F(n) if (1..=12).contains(&n) => format!("f{n}"),
+        KeyCode::Char(' ') => "space".into(),
+        KeyCode::Char(c) => c.to_ascii_lowercase().to_string(),
+        _ => return None,
+    })
+}
+
 /// Parse a single key token (already lowercased, non-empty).
 fn parse_key_code(token: &str) -> Option<KeyCode> {
     match token {
@@ -277,6 +343,101 @@ mod tests {
         let bare = parse_key_chord("up").unwrap();
         assert!(bare.matches(ev(KeyCode::Up, KeyModifiers::NONE)));
         assert!(!bare.matches(ev(KeyCode::Up, KeyModifiers::SHIFT)));
+    }
+
+    fn assert_roundtrip(s: &str, ev: KeyEvent) {
+        let got = chord_string_from_key(ev).unwrap_or_else(|| panic!("None for {ev:?}"));
+        assert_eq!(got, s, "stringified shape");
+        let parsed = parse_key_chord(&got).unwrap_or_else(|| panic!("re-parse of {got}"));
+        assert!(parsed.matches(ev), "parsed chord must match origin event");
+    }
+
+    #[test]
+    fn from_key_ctrl_letter() {
+        assert_roundtrip("ctrl+c", ev(KeyCode::Char('c'), KeyModifiers::CONTROL));
+    }
+
+    #[test]
+    fn from_key_alt_letter_lowercases_uppercase_input() {
+        // Some terminals report uppercase letters even without Shift —
+        // canonical form is always lowercase, matching `parse_key_chord`.
+        let stringified = chord_string_from_key(ev(KeyCode::Char('R'), KeyModifiers::ALT)).unwrap();
+        assert_eq!(stringified, "alt+r");
+    }
+
+    #[test]
+    fn from_key_shift_arrow_keeps_shift_token() {
+        // Shift IS meaningful on non-Char codes.
+        assert_roundtrip("shift+up", ev(KeyCode::Up, KeyModifiers::SHIFT));
+        assert_roundtrip("shift+left", ev(KeyCode::Left, KeyModifiers::SHIFT));
+    }
+
+    #[test]
+    fn from_key_drops_shift_token_for_char_code() {
+        // `KeyChord::matches` ignores Shift on Char — emitting it
+        // would round-trip to the same matcher.
+        let s = chord_string_from_key(ev(
+            KeyCode::Char('a'),
+            KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+        ))
+        .unwrap();
+        assert_eq!(s, "ctrl+a");
+    }
+
+    #[test]
+    fn from_key_named_keys_serialize_to_their_tokens() {
+        for (token, code) in [
+            ("enter", KeyCode::Enter),
+            ("tab", KeyCode::Tab),
+            ("space", KeyCode::Char(' ')),
+            ("backspace", KeyCode::Backspace),
+            ("delete", KeyCode::Delete),
+            ("home", KeyCode::Home),
+            ("end", KeyCode::End),
+            ("pageup", KeyCode::PageUp),
+            ("pagedown", KeyCode::PageDown),
+        ] {
+            assert_roundtrip(token, ev(code, KeyModifiers::NONE));
+        }
+    }
+
+    #[test]
+    fn from_key_f_keys_emit_canonical_form() {
+        for n in 1..=12 {
+            assert_roundtrip(&format!("f{n}"), ev(KeyCode::F(n), KeyModifiers::NONE));
+        }
+    }
+
+    #[test]
+    fn from_key_back_tab_unfolds_to_shift_tab() {
+        // Terminals usually report Shift+Tab as `KeyCode::BackTab` —
+        // our canonical form is `shift+tab` (the `parse_key_chord`
+        // grammar normalizes shift+tab back to BackTab anyway).
+        let s = chord_string_from_key(ev(KeyCode::BackTab, KeyModifiers::NONE)).unwrap();
+        assert_eq!(s, "shift+tab");
+        assert!(parse_key_chord(&s)
+            .unwrap()
+            .matches(ev(KeyCode::BackTab, KeyModifiers::NONE)));
+    }
+
+    #[test]
+    fn from_key_canonical_modifier_order_is_ctrl_alt_shift_key() {
+        let s = chord_string_from_key(ev(
+            KeyCode::Up,
+            KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SHIFT,
+        ))
+        .unwrap();
+        assert_eq!(s, "ctrl+alt+shift+up");
+    }
+
+    #[test]
+    fn from_key_rejects_esc_so_it_stays_as_cancel() {
+        assert!(chord_string_from_key(ev(KeyCode::Esc, KeyModifiers::NONE)).is_none());
+    }
+
+    #[test]
+    fn from_key_rejects_null_code() {
+        assert!(chord_string_from_key(ev(KeyCode::Null, KeyModifiers::NONE)).is_none());
     }
 
     #[test]

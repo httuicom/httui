@@ -18,7 +18,9 @@ const POPUP_HEIGHT: u16 = 8;
 
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionDeleteConfirmState) {
     let popup = centered_rect(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     {
         let buf = frame.buffer_mut();
@@ -36,7 +38,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionDeleteConf
         .borders(Borders::ALL)
         .title(" Delete connection ")
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightRed).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightRed)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -47,7 +53,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionDeleteConf
             Span::styled(
                 format!("\"{}\"", state.name),
                 Style::default()
-                    .fg(Color::LightYellow)
+                    .fg(crate::ui::palette::popup_border_accent())
                     .add_modifier(Modifier::BOLD),
             ),
             Span::raw("?"),
@@ -55,7 +61,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionDeleteConf
         Line::from(Span::styled(
             "  This rewrites connections.toml. Cannot be undone.",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )),
         Line::from(""),
@@ -64,7 +70,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionDeleteConf
             Span::styled(
                 " y / Enter ",
                 Style::default()
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .bg(Color::LightRed)
                     .add_modifier(Modifier::BOLD),
             ),
@@ -72,8 +78,8 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ConnectionDeleteConf
             Span::styled(
                 " n / Esc ",
                 Style::default()
-                    .fg(Color::White)
-                    .bg(Color::DarkGray)
+                    .fg(crate::ui::palette::foreground())
+                    .bg(crate::ui::palette::muted())
                     .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" cancel"),

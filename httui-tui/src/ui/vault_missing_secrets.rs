@@ -23,7 +23,9 @@ pub fn render(
     state: &VaultMissingSecretsState,
 ) -> Option<(u16, u16)> {
     let popup = compute_popup_rect(editor_area, state);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     {
         let buf = frame.buffer_mut();
@@ -46,8 +48,8 @@ pub fn render(
         .style(bg_style)
         .border_style(
             Style::default()
-                .fg(crate::ui::palette::BORDER)
-                .bg(Color::Black),
+                .fg(crate::ui::palette::border())
+                .bg(crate::ui::palette::popup_bg()),
         );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
@@ -73,23 +75,29 @@ pub fn render(
         .map(|row| {
             let marker = if row.saved { "✓ " } else { "○ " };
             let marker_style = if row.saved {
-                Style::default().bg(Color::Black).fg(Color::Green)
+                Style::default()
+                    .bg(crate::ui::palette::popup_bg())
+                    .fg(Color::Green)
             } else {
-                Style::default().bg(Color::Black).fg(Color::LightYellow)
+                Style::default()
+                    .bg(crate::ui::palette::popup_bg())
+                    .fg(crate::ui::palette::popup_border_accent())
             };
             ListItem::new(Line::from(vec![
                 Span::styled(marker, marker_style),
                 Span::styled(
                     row.label.clone(),
-                    Style::default().bg(Color::Black).fg(Color::White),
+                    Style::default()
+                        .bg(crate::ui::palette::popup_bg())
+                        .fg(crate::ui::palette::foreground()),
                 ),
             ]))
         })
         .collect();
     let list = List::new(items).style(bg_style).highlight_style(
         Style::default()
-            .bg(super::palette::SELECTION_BG)
-            .fg(Color::White)
+            .bg(super::palette::selection_bg())
+            .fg(crate::ui::palette::foreground())
             .add_modifier(Modifier::BOLD),
     );
     let mut list_state = ListState::default();
@@ -102,13 +110,13 @@ pub fn render(
         (
             "Value (Enter saves, Esc cancels)",
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         )
     } else {
         (
             "Value (Enter / e to edit, s to skip)",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(crate::ui::palette::muted()),
         )
     };
     frame.render_widget(
@@ -129,7 +137,7 @@ pub fn render(
         Paragraph::new(Line::from(Span::styled(
             "(empty — press Enter to type)".to_string(),
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )))
         .style(bg_style)
@@ -139,13 +147,13 @@ pub fn render(
         let masked = "•".repeat(focused_value.chars().count());
         Paragraph::new(Line::from(Span::styled(
             masked,
-            Style::default().fg(Color::White),
+            Style::default().fg(crate::ui::palette::foreground()),
         )))
         .style(bg_style)
     } else {
         Paragraph::new(Line::from(Span::styled(
             "•".repeat(focused_value.chars().count()),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(crate::ui::palette::muted()),
         )))
         .style(bg_style)
     };
@@ -153,7 +161,7 @@ pub fn render(
 
     let chip_key = Style::default()
         .bg(Color::LightMagenta)
-        .fg(Color::Black)
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = if state.editing {

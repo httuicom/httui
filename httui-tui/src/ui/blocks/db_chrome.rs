@@ -16,9 +16,10 @@ use super::db_table::db_summary;
 use super::http_panel;
 use super::ConnectionNames;
 
-/// Subtle bg used by the header / footer chrome bars.
+/// Subtle bg used by the header / footer chrome bars. Pulls from
+/// the active theme so light presets pick a light chrome strip.
 pub(super) fn chrome_bg() -> Color {
-    Color::Rgb(20, 22, 28)
+    crate::ui::palette::block_chrome_bg()
 }
 
 /// Header bar dispatcher — paints kind-specific content on a chrome
@@ -73,7 +74,10 @@ pub(super) fn render_db_header_bar(
         let pad_len = space_for_hint.saturating_sub(hint_len);
         let mut all_spans = left;
         all_spans.push(Span::styled(" ".repeat(pad_len as usize), bg));
-        all_spans.push(Span::styled(hint.to_string(), bg.fg(Color::DarkGray)));
+        all_spans.push(Span::styled(
+            hint.to_string(),
+            bg.fg(crate::ui::palette::muted()),
+        ));
         frame.render_widget(Paragraph::new(Line::from(all_spans)), area);
     } else {
         frame.render_widget(Paragraph::new(Line::from(left)), area);
@@ -126,9 +130,13 @@ fn db_header_left_spans(b: &BlockNode, names: &ConnectionNames, bg: Style) -> Ve
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled("  ", bg),
-        Span::styled(alias, bg.fg(Color::White).add_modifier(Modifier::BOLD)),
-        Span::styled("  ·  ", bg.fg(Color::DarkGray)),
-        Span::styled(vault, bg.fg(Color::Gray)),
+        Span::styled(
+            alias,
+            bg.fg(crate::ui::palette::foreground())
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("  ·  ", bg.fg(crate::ui::palette::muted())),
+        Span::styled(vault, bg.fg(crate::ui::palette::secondary())),
         Span::styled("  ", bg),
         Span::styled(
             " RW ",
@@ -138,7 +146,7 @@ fn db_header_left_spans(b: &BlockNode, names: &ConnectionNames, bg: Style) -> Ve
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled("  ", bg),
-        Span::styled(subtype, bg.fg(Color::DarkGray)),
+        Span::styled(subtype, bg.fg(crate::ui::palette::muted())),
     ]
 }
 
@@ -159,7 +167,11 @@ fn generic_header_left_spans(
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled("  ", bg),
-        Span::styled(alias, bg.fg(Color::White).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            alias,
+            bg.fg(crate::ui::palette::foreground())
+                .add_modifier(Modifier::BOLD),
+        ),
     ]
 }
 
@@ -185,7 +197,7 @@ pub(super) fn render_db_footer_bar(
         ExecutionState::Error(_) => (Color::Red, "error"),
     };
 
-    let dim = bg.fg(Color::DarkGray);
+    let dim = bg.fg(crate::ui::palette::muted());
     let (left, right) = if b.is_http() {
         http_panel::http_footer_spans(b, bg, dot_color, dot_label)
     } else if b.is_db() {
@@ -195,7 +207,7 @@ pub(super) fn render_db_footer_bar(
             Span::raw(" "),
             Span::styled("●", bg.fg(dot_color)),
             Span::styled("  ", bg),
-            Span::styled(dot_label, bg.fg(Color::Gray)),
+            Span::styled(dot_label, bg.fg(crate::ui::palette::secondary())),
         ];
         let r = vec![Span::styled("press `r` to run ", dim)];
         (l, r)
@@ -217,7 +229,7 @@ fn db_footer_spans(
     dot_color: Color,
     dot_label: &'static str,
 ) -> (Vec<Span<'static>>, Vec<Span<'static>>) {
-    let dim = bg.fg(Color::DarkGray);
+    let dim = bg.fg(crate::ui::palette::muted());
     let conn_raw = b
         .params
         .get("connection")
@@ -236,16 +248,16 @@ fn db_footer_spans(
         Span::raw(" "),
         Span::styled("●", bg.fg(dot_color)),
         Span::styled("  ", bg),
-        Span::styled(dot_label, bg.fg(Color::Gray)),
+        Span::styled(dot_label, bg.fg(crate::ui::palette::secondary())),
         Span::styled("  ·  ", dim),
-        Span::styled(vault, bg.fg(Color::Gray)),
+        Span::styled(vault, bg.fg(crate::ui::palette::secondary())),
         Span::styled(" (rw)", dim),
         Span::styled("  │  ", dim),
     ];
 
     let mut right: Vec<Span<'static>> = Vec::new();
     if let Some(s) = db_summary(b) {
-        right.push(Span::styled(s, bg.fg(Color::Gray)));
+        right.push(Span::styled(s, bg.fg(crate::ui::palette::secondary())));
         right.push(Span::styled("  ·  ", dim));
     }
     if matches!(b.state, ExecutionState::Cached) {
@@ -281,8 +293,18 @@ mod tests {
     }
 
     #[test]
-    fn chrome_bg_returns_rgb_color() {
-        assert_eq!(chrome_bg(), Color::Rgb(20, 22, 28));
+    fn chrome_bg_pulls_from_active_theme() {
+        crate::ui::theme::init("default-dark", &std::collections::BTreeMap::new());
+        assert_eq!(
+            chrome_bg(),
+            crate::ui::theme::Theme::DEFAULT_DARK.block_chrome_bg
+        );
+        crate::ui::theme::init("default-light", &std::collections::BTreeMap::new());
+        assert_eq!(
+            chrome_bg(),
+            crate::ui::theme::Theme::DEFAULT_LIGHT.block_chrome_bg
+        );
+        crate::ui::theme::init("default-dark", &std::collections::BTreeMap::new());
     }
 
     #[test]

@@ -4,7 +4,7 @@
 
 use ratatui::{
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Paragraph, Wrap},
     Frame,
@@ -25,7 +25,7 @@ pub(super) fn render_var_uses_panel(frame: &mut Frame, area: Rect, state: &EnvsP
     let header = Line::from(Span::styled(
         header_label,
         Style::default()
-            .fg(crate::ui::palette::ACCENT)
+            .fg(crate::ui::palette::accent())
             .add_modifier(Modifier::BOLD),
     ));
     let mut lines: Vec<Line<'static>> = vec![header];
@@ -34,14 +34,14 @@ pub(super) fn render_var_uses_panel(frame: &mut Frame, area: Rect, state: &EnvsP
         lines.push(Line::from(Span::styled(
             "  (no variable selected)",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )));
     } else if state.var_uses.is_empty() {
         lines.push(Line::from(Span::styled(
             "  (no references in this vault)",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )));
     } else {
@@ -49,11 +49,11 @@ pub(super) fn render_var_uses_panel(frame: &mut Frame, area: Rect, state: &EnvsP
             lines.push(Line::from(vec![
                 Span::styled(
                     format!(" {}:{}  ", truncate(&u.file_path, 22), u.line),
-                    Style::default().fg(Color::White),
+                    Style::default().fg(crate::ui::palette::foreground()),
                 ),
                 Span::styled(
                     truncate(&u.snippet, 36),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(crate::ui::palette::muted()),
                 ),
             ]));
         }
@@ -61,14 +61,14 @@ pub(super) fn render_var_uses_panel(frame: &mut Frame, area: Rect, state: &EnvsP
             lines.push(Line::from(Span::styled(
                 format!(" +{} more", state.var_uses.len() - MAX_ROWS),
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(crate::ui::palette::muted())
                     .add_modifier(Modifier::ITALIC),
             )));
         }
     }
 
     let p = Paragraph::new(lines)
-        .style(Style::default().bg(Color::Black))
+        .style(Style::default().bg(crate::ui::palette::popup_bg()))
         .wrap(Wrap { trim: false });
     frame.render_widget(p, area);
 }

@@ -25,7 +25,9 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &TabPickerState, acti
     }
 
     let popup = compute_popup_rect(editor_area, state);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     {
         let buf = frame.buffer_mut();
@@ -48,7 +50,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &TabPickerState, acti
         .borders(Borders::ALL)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightBlue).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightBlue)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -70,23 +76,29 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &TabPickerState, acti
             ListItem::new(Line::from(vec![
                 Span::styled(
                     active_marker,
-                    Style::default().bg(Color::Black).fg(Color::LightBlue),
+                    Style::default()
+                        .bg(crate::ui::palette::popup_bg())
+                        .fg(Color::LightBlue),
                 ),
                 Span::styled(
                     e.label.clone(),
-                    Style::default().bg(Color::Black).fg(Color::White),
+                    Style::default()
+                        .bg(crate::ui::palette::popup_bg())
+                        .fg(crate::ui::palette::foreground()),
                 ),
                 Span::styled(
                     dirty_marker,
-                    Style::default().bg(Color::Black).fg(Color::LightYellow),
+                    Style::default()
+                        .bg(crate::ui::palette::popup_bg())
+                        .fg(crate::ui::palette::popup_border_accent()),
                 ),
             ]))
         })
         .collect();
     let list = List::new(items).style(bg_style).highlight_style(
         Style::default()
-            .bg(super::palette::SELECTION_BG)
-            .fg(Color::White)
+            .bg(super::palette::selection_bg())
+            .fg(crate::ui::palette::foreground())
             .add_modifier(Modifier::BOLD),
     );
     let mut list_state = ListState::default();
@@ -97,7 +109,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &TabPickerState, acti
 
     let chip_key = Style::default()
         .bg(Color::LightBlue)
-        .fg(Color::Black)
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![

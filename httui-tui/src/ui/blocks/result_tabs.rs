@@ -32,8 +32,8 @@ pub(super) fn render_result_subtabs(frame: &mut Frame, area: Rect, b: &BlockNode
         return;
     };
     let active = Style::default()
-        .bg(Color::Rgb(50, 60, 90))
-        .fg(Color::White)
+        .bg(crate::ui::palette::block_active_bg())
+        .fg(crate::ui::palette::accent())
         .add_modifier(Modifier::BOLD);
     let inactive = Style::default().fg(Color::DarkGray);
     let mut spans: Vec<Span<'static>> = Vec::with_capacity(results.len() * 3 + 1);

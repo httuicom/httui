@@ -23,7 +23,9 @@ pub fn render_env_clone_form(
     state: &EnvCloneFormState,
 ) -> Option<(u16, u16)> {
     let area = centered(editor_area, 64, 22);
-    let bg = Style::default().bg(Color::Black).fg(Color::White);
+    let bg = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
     fill(frame, area, bg);
     let title = format!(" Clone env · from {} ", state.source);
     let outer = Block::default()
@@ -31,7 +33,11 @@ pub fn render_env_clone_form(
         .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg)
-        .border_style(Style::default().fg(Color::LightYellow).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(crate::ui::palette::popup_border_accent())
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
@@ -49,23 +55,23 @@ pub fn render_env_clone_form(
         "New env name",
         if name_focused {
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::DarkGray)
+            Style::default().fg(crate::ui::palette::muted())
         },
     ));
     let name_value = if state.name.as_str().is_empty() {
         Line::from(Span::styled(
             "(required)",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         ))
     } else {
         Line::from(Span::styled(
             state.name.as_str().to_string(),
-            Style::default().fg(Color::White),
+            Style::default().fg(crate::ui::palette::foreground()),
         ))
     };
 
@@ -76,15 +82,15 @@ pub fn render_env_clone_form(
             "Copy variables",
             if vars_focused {
                 Style::default()
-                    .fg(Color::LightYellow)
+                    .fg(crate::ui::palette::popup_border_accent())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::DarkGray)
+                Style::default().fg(crate::ui::palette::muted())
             },
         ),
         Span::styled(
             format!("  {checked}/{total} selected"),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(crate::ui::palette::muted()),
         ),
     ]);
 
@@ -123,7 +129,7 @@ pub fn render_env_clone_form(
     footer_lines.push(Line::from(Span::styled(
         " Tab next · space toggle · a all/none · Enter clone · Esc cancel",
         Style::default()
-            .fg(Color::DarkGray)
+            .fg(crate::ui::palette::muted())
             .add_modifier(Modifier::ITALIC),
     )));
     let footer_area = Rect {
@@ -152,10 +158,10 @@ fn render_clone_var_list(frame: &mut Frame, area: Rect, state: &EnvCloneFormStat
         let p = Paragraph::new(Line::from(Span::styled(
             "  (source env has no vars)",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )))
-        .style(Style::default().bg(Color::Black));
+        .style(Style::default().bg(crate::ui::palette::popup_bg()));
         frame.render_widget(p, area);
         return;
     }
@@ -175,31 +181,37 @@ fn render_clone_var_list(frame: &mut Frame, area: Rect, state: &EnvCloneFormStat
                     mark.to_string(),
                     Style::default()
                         .fg(if v.checked {
-                            Color::LightGreen
+                            crate::ui::palette::success()
                         } else {
-                            Color::DarkGray
+                            crate::ui::palette::muted()
                         })
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     format!("{:<20}", truncate(&v.key, 20)),
-                    Style::default().fg(Color::White),
+                    Style::default().fg(crate::ui::palette::foreground()),
                 ),
-                Span::styled(secret, Style::default().fg(Color::LightYellow)),
-                Span::styled(value_display, Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    secret,
+                    Style::default().fg(crate::ui::palette::popup_border_accent()),
+                ),
+                Span::styled(
+                    value_display,
+                    Style::default().fg(crate::ui::palette::muted()),
+                ),
             ]))
         })
         .collect();
     let highlight = if focused {
         Style::default()
-            .bg(crate::ui::palette::SELECTION_BG)
-            .fg(Color::White)
+            .bg(crate::ui::palette::selection_bg())
+            .fg(crate::ui::palette::foreground())
             .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
     let list = List::new(items)
-        .style(Style::default().bg(Color::Black))
+        .style(Style::default().bg(crate::ui::palette::popup_bg()))
         .highlight_style(highlight)
         .highlight_symbol(if focused { "▌" } else { " " });
     let mut ls = ListState::default();

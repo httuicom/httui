@@ -32,7 +32,9 @@ pub fn render(
     state: &ConnectionFormState,
 ) -> Option<(u16, u16)> {
     let popup = centered_rect(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard-fill so editor / Connections page underneath don't bleed.
     {
@@ -57,7 +59,11 @@ pub fn render(
         .borders(Borders::ALL)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightYellow).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(crate::ui::palette::popup_border_accent())
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -146,7 +152,7 @@ pub fn render(
     lines.push(Line::from(Span::styled(
         format!("  {}", connection_string_preview(state)),
         Style::default()
-            .fg(Color::DarkGray)
+            .fg(crate::ui::palette::muted())
             .add_modifier(Modifier::ITALIC),
     )));
     if let Some(err) = state.error.as_deref() {
@@ -164,23 +170,29 @@ pub fn render(
         Span::styled(
             " Esc ",
             Style::default()
-                .fg(Color::White)
-                .bg(Color::DarkGray)
+                .fg(crate::ui::palette::foreground())
+                .bg(crate::ui::palette::muted())
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" cancel    ", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            " cancel    ",
+            Style::default().fg(crate::ui::palette::muted()),
+        ),
         Span::styled(
             " Enter ",
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::LightGreen)
+                .fg(crate::ui::palette::popup_bg())
+                .bg(crate::ui::palette::success())
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" create", Style::default().fg(Color::White)),
+        Span::styled(
+            " create",
+            Style::default().fg(crate::ui::palette::foreground()),
+        ),
         Span::styled(
             "      Tab/Shift-Tab next/prev",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         ),
     ]));
@@ -228,10 +240,10 @@ pub fn render(
 fn label_widget(label: &str, focused: bool) -> Paragraph<'static> {
     let style = if focused {
         Style::default()
-            .fg(Color::LightYellow)
+            .fg(crate::ui::palette::popup_border_accent())
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(Color::DarkGray)
+        Style::default().fg(crate::ui::palette::muted())
     };
     Paragraph::new(Line::from(Span::styled(label.to_string(), style)))
 }
@@ -246,11 +258,14 @@ fn input_widget(value: &str, mask: bool, placeholder: &str) -> Paragraph<'static
         (
             placeholder.to_string(),
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )
     } else {
-        (display, Style::default().fg(Color::White))
+        (
+            display,
+            Style::default().fg(crate::ui::palette::foreground()),
+        )
     };
     // Focus is signaled by the cursor glyph + label highlight only —
     // no background tint on the input itself (kept the row visually
@@ -275,31 +290,40 @@ fn driver_tabs(state: &ConnectionFormState) -> Paragraph<'static> {
             Span::styled(
                 format!(" {pretty} "),
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::LightYellow)
+                    .fg(crate::ui::palette::popup_bg())
+                    .bg(crate::ui::palette::popup_border_accent())
                     .add_modifier(Modifier::BOLD),
             )
         } else {
-            Span::styled(format!(" {pretty} "), Style::default().fg(Color::DarkGray))
+            Span::styled(
+                format!(" {pretty} "),
+                Style::default().fg(crate::ui::palette::muted()),
+            )
         }
     };
     let mut spans: Vec<Span<'static>> = Vec::new();
     if focused {
-        spans.push(Span::styled("▍ ", Style::default().fg(Color::LightYellow)));
+        spans.push(Span::styled(
+            "▍ ",
+            Style::default().fg(crate::ui::palette::popup_border_accent()),
+        ));
     } else {
         spans.push(Span::raw("  "));
     }
     for (i, name) in DRIVER_OPTIONS.iter().enumerate() {
         spans.push(driver_label(i, name));
         if i + 1 < DRIVER_OPTIONS.len() {
-            spans.push(Span::styled("│", Style::default().fg(Color::DarkGray)));
+            spans.push(Span::styled(
+                "│",
+                Style::default().fg(crate::ui::palette::muted()),
+            ));
         }
     }
     if focused {
         spans.push(Span::styled(
             "   ←/→ or space",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         ));
     }
@@ -310,28 +334,28 @@ fn readonly_widget(state: &ConnectionFormState) -> Paragraph<'static> {
     let focused = matches!(state.focus, ConnectionFormFocus::Readonly);
     let label_style = if focused {
         Style::default()
-            .fg(Color::LightYellow)
+            .fg(crate::ui::palette::popup_border_accent())
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(Color::DarkGray)
+        Style::default().fg(crate::ui::palette::muted())
     };
     let chip_style = if focused {
         Style::default()
-            .fg(Color::Black)
-            .bg(Color::LightYellow)
+            .fg(crate::ui::palette::popup_bg())
+            .bg(crate::ui::palette::popup_border_accent())
             .add_modifier(Modifier::BOLD)
     } else if state.is_readonly {
         Style::default()
-            .fg(Color::LightYellow)
+            .fg(crate::ui::palette::popup_border_accent())
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(Color::White)
+        Style::default().fg(crate::ui::palette::foreground())
     };
     let marker = if focused { "▍ " } else { "  " };
     let marker_style = if focused {
-        Style::default().fg(Color::LightYellow)
+        Style::default().fg(crate::ui::palette::popup_border_accent())
     } else {
-        Style::default().fg(Color::DarkGray)
+        Style::default().fg(crate::ui::palette::muted())
     };
     let chip_text = if state.is_readonly {
         " [x] read-only "

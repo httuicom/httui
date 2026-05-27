@@ -39,11 +39,14 @@ fn history_header_line(width: u16) -> Line<'static> {
         vec![Span::styled(
             "HISTORY",
             Style::default()
-                .fg(crate::ui::palette::MUTED)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::BOLD),
         )],
         vec![
-            Span::styled("[Ctrl+L] ", Style::default().fg(crate::ui::palette::MUTED)),
+            Span::styled(
+                "[Ctrl+L] ",
+                Style::default().fg(crate::ui::palette::muted()),
+            ),
             Span::styled("view all", Style::default().fg(Color::Gray)),
         ],
         width,
@@ -60,13 +63,19 @@ fn commit_line(c: &CommitInfo, width: u16, now: i64) -> Line<'static> {
     let max_subject = (width as usize).saturating_sub(fixed);
     let subject = truncate_with_ellipsis(&c.subject, max_subject);
     let left = vec![
-        Span::styled(sha, Style::default().fg(crate::ui::palette::MUTED)),
-        Span::styled(initials_col, Style::default().fg(crate::ui::palette::MUTED)),
-        Span::styled(subject, Style::default().fg(crate::ui::palette::SECONDARY)),
+        Span::styled(sha, Style::default().fg(crate::ui::palette::muted())),
+        Span::styled(
+            initials_col,
+            Style::default().fg(crate::ui::palette::muted()),
+        ),
+        Span::styled(
+            subject,
+            Style::default().fg(crate::ui::palette::secondary()),
+        ),
     ];
     let right = vec![Span::styled(
         ago,
-        Style::default().fg(crate::ui::palette::MUTED),
+        Style::default().fg(crate::ui::palette::muted()),
     )];
     two_col_line(left, right, width)
 }

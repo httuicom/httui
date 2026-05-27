@@ -577,7 +577,9 @@ fn render_buf(app: &mut App, w: u16, h: u16) -> ratatui::buffer::Buffer {
     terminal.backend().buffer().clone()
 }
 
-const SEL_BG: ratatui::style::Color = crate::ui::palette::SELECTION_BG;
+fn sel_bg() -> ratatui::style::Color {
+    crate::ui::palette::selection_bg()
+}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn standard_mode_selection_paints_highlight_bg() {
@@ -602,12 +604,12 @@ async fn standard_mode_selection_paints_highlight_bg() {
     let buf = render_buf(&mut app, 60, 10);
     let painted = (0..10)
         .flat_map(|y| (0..60).map(move |x| (x, y)))
-        .filter(|&(x, y)| buf.cell((x, y)).unwrap().bg == SEL_BG)
+        .filter(|&(x, y)| buf.cell((x, y)).unwrap().bg == sel_bg())
         .count();
     assert!(
         painted >= 6,
         "Standard selection must paint the highlight bg over the \
-             selected run; painted {painted} cells with SEL_BG"
+             selected run; painted {painted} cells with sel_bg()"
     );
 }
 
@@ -635,7 +637,7 @@ async fn vim_profile_ignores_standard_anchor_no_highlight() {
     let buf = render_buf(&mut app, 60, 10);
     let painted = (0..10)
         .flat_map(|y| (0..60).map(move |x| (x, y)))
-        .filter(|&(x, y)| buf.cell((x, y)).unwrap().bg == SEL_BG)
+        .filter(|&(x, y)| buf.cell((x, y)).unwrap().bg == sel_bg())
         .count();
     assert_eq!(
         painted, 0,
@@ -701,6 +703,18 @@ async fn render_paints_env_var_delete_confirm_modals() {
         },
     ));
     let _ = render(&mut app, 80, 20);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn render_paints_settings_page_modal() {
+    let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
+    open_doc(&mut app, "x\n");
+    app.modal = Some(crate::modal::Modal::Settings(
+        crate::app::SettingsPageState::new(std::path::PathBuf::from("/tmp/cfg.toml")),
+    ));
+    let (text, _) = render(&mut app, 120, 24);
+    assert!(text.contains("Settings"));
+    assert!(text.contains("Keymaps"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -4,7 +4,8 @@
 
 use ratatui::{
     layout::{Constraint, Direction, Layout},
-    widgets::Clear,
+    style::Style,
+    widgets::{Block, Clear},
     Frame,
 };
 
@@ -31,6 +32,16 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // along the right edge when prose lines shrink between frames, and
     // as bleed-through under modal popovers.
     frame.render_widget(Clear, area);
+
+    // Paint the theme's frame-wide background + foreground onto every
+    // cell. Sub-widgets that don't set their own bg/fg inherit these
+    // via ratatui's Style patching, so a light preset paints a light
+    // canvas even on a dark terminal. Dark / terminal-native presets
+    // leave both at `Color::Reset` so the terminal's own chrome shows.
+    let base = Style::default()
+        .bg(super::palette::background())
+        .fg(super::palette::foreground());
+    frame.render_widget(Block::default().style(base), area);
 
     // Vertical layout: optional tab bar (1 row) → body → status (1 row).
     let show_tabs = app.tabs.len() > 1;
@@ -523,6 +534,15 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         {
             frame.set_cursor_position((cx, cy));
         }
+    }
+
+    // Settings page is painted last so it floats above every other
+    // surface; `Esc` then restores the editor underneath.
+    if let Some(crate::modal::Modal::Settings(state)) = app.modal.as_ref() {
+        let keymaps = crate::input::apply::settings_page::keymap_view(app);
+        let themes = crate::input::apply::settings_page::theme_view(app);
+        let editor = crate::input::apply::settings_page::editor_view(app);
+        crate::ui::settings_page::render(frame, editor_area, state, &keymaps, &themes, &editor);
     }
 }
 
