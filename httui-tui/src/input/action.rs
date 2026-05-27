@@ -363,5 +363,9 @@ pub enum Action {
     /// Restore the row under the cursor to its built-in default.
     SettingsResetBinding,
     ToggleAppView,
+    BlocksPaneNextRegion,
+    BlocksPanePrevRegion,
+    /// 1-based; clamps to the block kind's region count.
+    BlocksPaneJumpRegion(usize),
     Noop,
 }

@@ -59,11 +59,12 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
             };
             if let Some(meta) = node.block.as_ref() {
                 if let Some(ws) = app.blocks_workspace.as_mut() {
-                    ws.selected = Some(crate::app::BlockRef {
+                    ws.select(crate::app::BlockRef {
                         file_idx: meta.file_idx,
                         block_idx: meta.block_idx,
                     });
                 }
+                app.vim.enter_normal();
                 return;
             }
             if node.is_dir || app.tree.block_index.is_some() {

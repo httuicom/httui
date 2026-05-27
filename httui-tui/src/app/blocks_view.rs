@@ -111,6 +111,7 @@ pub struct BlocksWorkspace {
     pub expanded: HashSet<usize>,
     pub cursor: usize,
     pub selected: Option<BlockRef>,
+    pub region: usize,
 }
 
 impl BlocksWorkspace {
@@ -127,7 +128,43 @@ impl BlocksWorkspace {
             expanded,
             cursor: 0,
             selected: None,
+            region: 0,
         }
+    }
+
+    pub fn region_count(&self) -> usize {
+        self.selected_block()
+            .map(|(_, b)| region_count_for(&b.block_type))
+            .unwrap_or(0)
+    }
+
+    pub fn next_region(&mut self) {
+        let count = self.region_count();
+        if count == 0 {
+            return;
+        }
+        self.region = (self.region + 1) % count;
+    }
+
+    pub fn prev_region(&mut self) {
+        let count = self.region_count();
+        if count == 0 {
+            return;
+        }
+        self.region = (self.region + count - 1) % count;
+    }
+
+    pub fn set_region(&mut self, index: usize) {
+        let count = self.region_count();
+        if count == 0 {
+            return;
+        }
+        self.region = index.min(count - 1);
+    }
+
+    pub fn select(&mut self, target: BlockRef) {
+        self.selected = Some(target);
+        self.region = 0;
     }
 
     pub fn rows(&self) -> Vec<SidebarRow> {
@@ -184,7 +221,7 @@ impl BlocksWorkspace {
             }
             SidebarRowKind::Block => {
                 if let Some(bi) = row.block_idx {
-                    self.selected = Some(BlockRef {
+                    self.select(BlockRef {
                         file_idx: row.file_idx,
                         block_idx: bi,
                     });
@@ -198,6 +235,37 @@ impl BlocksWorkspace {
         let file = self.index.files.get(r.file_idx)?;
         let block = file.blocks.get(r.block_idx)?;
         Some((file, block))
+    }
+}
+
+pub fn region_count_for(block_type: &str) -> usize {
+    if block_type == "http" {
+        4
+    } else if block_type.starts_with("db") {
+        3
+    } else {
+        0
+    }
+}
+
+pub fn region_label(block_type: &str, index: usize) -> &'static str {
+    if block_type == "http" {
+        match index {
+            0 => "Request",
+            1 => "Headers",
+            2 => "Body",
+            3 => "Response",
+            _ => "?",
+        }
+    } else if block_type.starts_with("db") {
+        match index {
+            0 => "Connection",
+            1 => "Query",
+            2 => "Result",
+            _ => "?",
+        }
+    } else {
+        "?"
     }
 }
 
@@ -364,5 +432,88 @@ mod tests {
     fn current_row_returns_none_for_empty_index() {
         let ws = BlocksWorkspace::new(BlockIndex::default());
         assert!(ws.current_row().is_none());
+    }
+
+    #[test]
+    fn region_count_per_kind() {
+        assert_eq!(region_count_for("http"), 4);
+        assert_eq!(region_count_for("db-postgres"), 3);
+        assert_eq!(region_count_for("db"), 3);
+        assert_eq!(region_count_for("unknown"), 0);
+    }
+
+    #[test]
+    fn region_label_classifies_per_kind() {
+        assert_eq!(region_label("http", 0), "Request");
+        assert_eq!(region_label("http", 3), "Response");
+        assert_eq!(region_label("db-postgres", 0), "Connection");
+        assert_eq!(region_label("db", 2), "Result");
+        assert_eq!(region_label("http", 99), "?");
+        assert_eq!(region_label("custom", 0), "?");
+    }
+
+    #[test]
+    fn next_region_cycles_within_block_kind() {
+        let v = seed();
+        let mut ws = BlocksWorkspace::new(BlockIndex::build(v.path()));
+        ws.expanded.insert(0);
+        ws.cursor = 1;
+        ws.activate();
+        assert_eq!(ws.region, 0);
+        ws.next_region();
+        assert_eq!(ws.region, 1);
+        ws.next_region();
+        ws.next_region();
+        assert_eq!(ws.region, 3);
+        ws.next_region();
+        assert_eq!(ws.region, 0);
+    }
+
+    #[test]
+    fn prev_region_wraps_to_last() {
+        let v = seed();
+        let mut ws = BlocksWorkspace::new(BlockIndex::build(v.path()));
+        ws.expanded.insert(0);
+        ws.cursor = 1;
+        ws.activate();
+        ws.prev_region();
+        assert_eq!(ws.region, 3);
+    }
+
+    #[test]
+    fn set_region_clamps_to_last() {
+        let v = seed();
+        let mut ws = BlocksWorkspace::new(BlockIndex::build(v.path()));
+        ws.expanded.insert(0);
+        ws.cursor = 1;
+        ws.activate();
+        ws.set_region(99);
+        assert_eq!(ws.region, 3);
+    }
+
+    #[test]
+    fn select_resets_region_to_zero() {
+        let v = seed();
+        let mut ws = BlocksWorkspace::new(BlockIndex::build(v.path()));
+        ws.expanded.insert(0);
+        ws.cursor = 1;
+        ws.activate();
+        ws.set_region(2);
+        ws.select(BlockRef {
+            file_idx: 0,
+            block_idx: 0,
+        });
+        assert_eq!(ws.region, 0);
+    }
+
+    #[test]
+    fn region_methods_noop_when_no_selection() {
+        let v = seed();
+        let mut ws = BlocksWorkspace::new(BlockIndex::build(v.path()));
+        assert_eq!(ws.region_count(), 0);
+        ws.next_region();
+        assert_eq!(ws.region, 0);
+        ws.set_region(5);
+        assert_eq!(ws.region, 0);
     }
 }

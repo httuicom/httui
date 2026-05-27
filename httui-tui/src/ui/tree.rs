@@ -10,7 +10,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
     Frame,
 };
 
@@ -43,6 +43,7 @@ pub fn render(frame: &mut Frame, area: Rect, tree: &FileTree, focused: bool) {
     };
     let block = Block::default()
         .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color))
         .title(Span::styled(title, title_style));
     let inner = block.inner(area);

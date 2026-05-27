@@ -1,10 +1,40 @@
 use crate::app::{App, AppView, BlockIndex, BlocksWorkspace};
 use crate::input::action::Action;
 use crate::vim::mode::Mode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+pub(crate) fn resolve_pane_key(key: KeyEvent) -> Option<Action> {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (KeyModifiers::NONE, KeyCode::Tab) => Some(Action::BlocksPaneNextRegion),
+        (KeyModifiers::SHIFT, KeyCode::BackTab) | (_, KeyCode::BackTab) => {
+            Some(Action::BlocksPanePrevRegion)
+        }
+        (KeyModifiers::NONE, KeyCode::Char(c)) if c.is_ascii_digit() && c != '0' => {
+            let n = (c as u8 - b'0') as usize;
+            Some(Action::BlocksPaneJumpRegion(n))
+        }
+        _ => None,
+    }
+}
 
 pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
-    if let Action::ToggleAppView = action {
-        toggle_view(app);
+    match action {
+        Action::ToggleAppView => toggle_view(app),
+        Action::BlocksPaneNextRegion => with_workspace(app, |w| w.next_region()),
+        Action::BlocksPanePrevRegion => with_workspace(app, |w| w.prev_region()),
+        Action::BlocksPaneJumpRegion(n) => with_workspace(app, move |w| {
+            w.set_region(n.saturating_sub(1));
+        }),
+        _ => {}
+    }
+}
+
+fn with_workspace(app: &mut App, f: impl FnOnce(&mut BlocksWorkspace)) {
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        f(ws);
     }
 }
 

@@ -125,6 +125,11 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
         crate::input::dispatch::dispatch(app, key);
         return KeyOutcome::Consumed;
     }
+    if matches!(app.view, crate::app::AppView::Blocks) {
+        if let Some(action) = crate::input::apply::blocks_view::resolve_pane_key(key) {
+            return KeyOutcome::Effect(action);
+        }
+    }
     match app.config.editor.mode {
         crate::config::EditorMode::Vim => {
             if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {
