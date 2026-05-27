@@ -200,7 +200,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let result_viewport_top = &mut app.result_viewport_top;
     if matches!(app.view, crate::app::AppView::Blocks) {
         let workspace = app.blocks_workspace.clone();
-        let running = app.running_query.is_some();
+        let running = crate::ui::running_chip_label(app);
         if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {
             let focused = tab.focused.clone();
             crate::ui::blocks_view::render(

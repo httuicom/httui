@@ -18,7 +18,7 @@ pub fn render(
     workspace: Option<&BlocksWorkspace>,
     vault: &Path,
     visual_overlay: Option<VisualOverlay>,
-    running: bool,
+    running: Option<String>,
 ) {
     pane_tree::render(
         frame,
@@ -28,6 +28,6 @@ pub fn render(
         workspace,
         vault,
         visual_overlay,
-        running,
+        running.as_deref(),
     );
 }

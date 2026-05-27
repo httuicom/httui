@@ -171,13 +171,20 @@ pub fn handle_http_block_result(
         Ok(response) => {
             b.cached_result = Some(http_response_to_json(response));
             b.state = ExecutionState::Success;
-            app.set_status(
-                StatusKind::Info,
-                format!(
-                    "{} {} · {}ms",
-                    response.status_code, response.status_text, response.elapsed_ms
-                ),
-            );
+            // In BLOCKS view the response summary lives inside the
+            // `[4] Response` region (200 OK · 937ms · 2.1kb on its
+            // first line), so suppress the global toast there — the
+            // global status bar is for app-wide signals, not block
+            // output.
+            if !matches!(app.view, crate::app::AppView::Blocks) {
+                app.set_status(
+                    StatusKind::Info,
+                    format!(
+                        "{} {} · {}ms",
+                        response.status_code, response.status_text, response.elapsed_ms
+                    ),
+                );
+            }
         }
         Err(msg) => {
             b.state = ExecutionState::Error(msg.clone());

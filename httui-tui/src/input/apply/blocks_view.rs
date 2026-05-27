@@ -43,7 +43,29 @@ pub(crate) fn resolve_pane_key(app: &App, key: KeyEvent) -> Option<Action> {
             return Some(action);
         }
     }
-    resolve_nav_key(key, vim)
+    let in_headers = focused_region_is_http_headers(app);
+    resolve_nav_key(key, vim, in_headers)
+}
+
+fn focused_region_is_http_headers(app: &App) -> bool {
+    let Some(pane) = app.active_pane() else {
+        return false;
+    };
+    if pane.block_region != 1 {
+        return false;
+    }
+    let Some(ws) = app.blocks_workspace.as_ref() else {
+        return false;
+    };
+    let Some(sel) = pane.block_selected else {
+        return false;
+    };
+    ws.index
+        .files
+        .get(sel.file_idx)
+        .and_then(|f| f.blocks.get(sel.block_idx))
+        .map(|b| b.block_type == "http")
+        .unwrap_or(false)
 }
 
 /// Source of truth for "is the EDIT buffer currently in Normal or
@@ -90,7 +112,7 @@ fn resolve_edit_key(key: KeyEvent, sub_mode: EditSubMode, vim: bool) -> Option<A
     }
 }
 
-fn resolve_nav_key(key: KeyEvent, vim: bool) -> Option<Action> {
+fn resolve_nav_key(key: KeyEvent, vim: bool, in_headers: bool) -> Option<Action> {
     let KeyEvent {
         code, modifiers, ..
     } = key;
@@ -135,6 +157,22 @@ fn resolve_nav_key(key: KeyEvent, vim: bool) -> Option<Action> {
         }
         (KeyModifiers::NONE, KeyCode::PageDown) => Some(Action::BlocksNextBlockMotion),
         (KeyModifiers::NONE, KeyCode::PageUp) => Some(Action::BlocksPrevBlockMotion),
+        // Table CRUD in `[2] Headers`. `o` mirrors vim's "open below",
+        // `d` deletes the focused row. Scoped to the Headers region —
+        // outside it, `o` keeps its vim NAV semantics (EnterEditInsert),
+        // and `d` falls through to None.
+        (KeyModifiers::NONE, KeyCode::Char('o')) if in_headers => {
+            Some(Action::BlocksHeaderInsertRow)
+        }
+        (KeyModifiers::NONE, KeyCode::Insert) if in_headers => {
+            Some(Action::BlocksHeaderInsertRow)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('d')) if in_headers => {
+            Some(Action::BlocksHeaderDeleteRow)
+        }
+        (KeyModifiers::NONE, KeyCode::Delete) if in_headers => {
+            Some(Action::BlocksHeaderDeleteRow)
+        }
         (m, KeyCode::Char('s')) if m == KeyModifiers::CONTROL => Some(Action::BlocksSaveDraft),
         _ => None,
     }
@@ -163,6 +201,8 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         Action::BlocksCancelRun => {
             crate::commands::db::cancel_running_query(app);
         }
+        Action::BlocksHeaderInsertRow => insert_header_row(app),
+        Action::BlocksHeaderDeleteRow => delete_header_row(app),
         Action::BlocksUnsavedPromptSave => {
             close_unsaved_prompt(app);
             save_draft(app);
@@ -626,6 +666,99 @@ fn shift_block(app: &mut App, delta: isize) {
         pane.block_region = 0;
         pane.block_row = 0;
         pane.block_col = 1;
+    }
+}
+
+/// `o`/`Insert` in HTTP `[2] Headers`: append an empty row right
+/// after the focused one, advance the cursor to the new row's key
+/// cell. Hydrates the draft on first use so subsequent edits land in
+/// the same in-memory copy.
+fn insert_header_row(app: &mut App) {
+    if !focused_region_is_http_headers(app) {
+        return;
+    }
+    if app
+        .active_pane()
+        .map(|p| p.block_draft.is_none())
+        .unwrap_or(true)
+        && !hydrate_draft(app)
+    {
+        app.set_status(StatusKind::Error, "block missing on disk");
+        return;
+    }
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    let Some(draft) = pane.block_draft.as_mut() else {
+        return;
+    };
+    let insert_at = pane.block_row.saturating_add(1).min(draft.header_count());
+    let arr = draft
+        .block
+        .params
+        .as_object_mut()
+        .and_then(|o| o.get_mut("headers"))
+        .and_then(|v| v.as_array_mut());
+    let arr = match arr {
+        Some(a) => a,
+        None => {
+            // No `headers` key yet — synth one.
+            let params = draft
+                .block
+                .params
+                .as_object_mut()
+                .expect("ParsedBlock.params is always an object");
+            params.insert(
+                "headers".to_string(),
+                serde_json::Value::Array(Vec::new()),
+            );
+            params
+                .get_mut("headers")
+                .and_then(|v| v.as_array_mut())
+                .expect("just inserted")
+        }
+    };
+    arr.insert(insert_at, serde_json::json!({"key": "", "value": ""}));
+    pane.block_row = insert_at;
+    pane.block_col = 0;
+}
+
+/// `d`/`Delete` in HTTP `[2] Headers`: remove the focused row. Cursor
+/// clamps to the row above (or 0 when the list went empty). No-op when
+/// the headers array is empty.
+fn delete_header_row(app: &mut App) {
+    if !focused_region_is_http_headers(app) {
+        return;
+    }
+    if app
+        .active_pane()
+        .map(|p| p.block_draft.is_none())
+        .unwrap_or(true)
+        && !hydrate_draft(app)
+    {
+        return;
+    }
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    let Some(draft) = pane.block_draft.as_mut() else {
+        return;
+    };
+    let arr = draft
+        .block
+        .params
+        .as_object_mut()
+        .and_then(|o| o.get_mut("headers"))
+        .and_then(|v| v.as_array_mut());
+    let Some(arr) = arr else {
+        return;
+    };
+    if arr.is_empty() || pane.block_row >= arr.len() {
+        return;
+    }
+    arr.remove(pane.block_row);
+    if pane.block_row > 0 && pane.block_row >= arr.len() {
+        pane.block_row -= 1;
     }
 }
 
@@ -1231,6 +1364,42 @@ mod tests {
         // Standard profile always reports Insert; vim.mode is the
         // same so the engine inserts directly.
         assert_eq!(effective_sub_mode(&app), EditSubMode::Insert);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn insert_header_row_grows_array_and_moves_cursor() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        let before = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .map(|d| d.header_count())
+            .unwrap_or(0);
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        let pane = app.active_pane().unwrap();
+        let after = pane.block_draft.as_ref().unwrap().header_count();
+        assert_eq!(after, before + 1);
+        assert_eq!(pane.block_col, 0, "cursor moved to new key cell");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn delete_header_row_shrinks_array() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        let after_insert = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .unwrap()
+            .header_count();
+        apply_blocks_view(&mut app, Action::BlocksHeaderDeleteRow);
+        let after_delete = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .unwrap()
+            .header_count();
+        assert_eq!(after_delete, after_insert - 1);
     }
 
     #[tokio::test(flavor = "multi_thread")]

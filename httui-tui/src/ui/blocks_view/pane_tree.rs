@@ -17,7 +17,7 @@ pub(super) fn render(
     workspace: Option<&BlocksWorkspace>,
     vault: &Path,
     visual_overlay: Option<VisualOverlay>,
-    running: bool,
+    running: Option<&str>,
 ) {
     if area.width == 0 || area.height == 0 {
         return;
@@ -48,7 +48,7 @@ fn render_inner(
     vault: &Path,
     picker_active: bool,
     visual_overlay: Option<VisualOverlay>,
-    running: bool,
+    running: Option<&str>,
     counter: &mut usize,
 ) {
     if area.width == 0 || area.height == 0 {
@@ -62,7 +62,7 @@ fn render_inner(
             // visual selection's moving end is the active cursor, and
             // there's only ever one running_query.
             let leaf_overlay = if is_focused { visual_overlay } else { None };
-            let leaf_running = is_focused && running;
+            let leaf_running = if is_focused { running } else { None };
             pane::render_leaf(
                 frame,
                 area,

@@ -20,7 +20,7 @@ pub(super) fn render_leaf(
     workspace: Option<&BlocksWorkspace>,
     vault: &std::path::Path,
     visual_overlay: Option<crate::ui::VisualOverlay>,
-    running: bool,
+    running: Option<&str>,
 ) {
     let border_color = if focused {
         crate::ui::palette::accent()
@@ -110,7 +110,7 @@ fn render_block(
     pane_focused: bool,
     vault_path: &Path,
     visual_overlay: Option<crate::ui::VisualOverlay>,
-    running: bool,
+    running: Option<&str>,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -131,6 +131,7 @@ fn render_block(
             pane,
             pane_focused,
             visual_overlay,
+            running,
         );
     } else if block.block_type.starts_with("db") {
         render_db_regions(
@@ -154,7 +155,7 @@ fn render_header(
     file: &FileBlocks,
     block: &BlockMeta,
     dirty: bool,
-    running: bool,
+    running: Option<&str>,
 ) {
     if area.width == 0 {
         return;
@@ -191,19 +192,16 @@ fn render_header(
                 .add_modifier(Modifier::BOLD),
         ));
     }
-    if running {
-        spans.push(Span::styled(
-            " ● running",
-            Style::default()
-                .fg(crate::ui::palette::success())
-                .add_modifier(Modifier::BOLD),
-        ));
-    }
+    // `running` no longer surfaces on the block header — it lives on
+    // the `[4] Response` / `[3] Result` region title now so the
+    // progress sits next to where the bytes will land.
+    let _ = running;
     spans.push(Span::styled("  ·  ", muted));
     spans.push(Span::styled(file.display.clone(), muted));
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
 fn render_http_regions(
     frame: &mut Frame,
@@ -214,6 +212,7 @@ fn render_http_regions(
     pane: &Pane,
     pane_focused: bool,
     visual_overlay: Option<crate::ui::VisualOverlay>,
+    running: Option<&str>,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -273,8 +272,12 @@ fn render_http_regions(
         |f| matches!(f, EditField::HttpBody),
         visual_overlay,
     );
-    let response_lines: Vec<String> = if parsed.cached.is_empty() {
-        vec!["(no response — run with Alt+R)".to_string()]
+    let response_lines: Vec<String> = if let Some(label) = running {
+        // Live progress while the request is in flight — sits where
+        // the response will land so the user reads it in context.
+        vec![label.to_string()]
+    } else if parsed.cached.is_empty() {
+        vec!["(no response — press r to run)".to_string()]
     } else {
         parsed.cached.lines().map(str::to_string).collect()
     };
@@ -793,14 +796,33 @@ fn load_view(
 }
 
 /// Best-effort serialization of a cached HTTP/DB result for the
-/// `[4] Response` / `[3] Result` panel. Picks a few well-known
-/// fields so the user sees status + body / rows even when the
-/// blob carries a deeply nested shape. Falls back to pretty JSON.
+/// `[4] Response` / `[3] Result` panel. The first line carries the
+/// summary chip (`200 OK · 937ms · 2.1kb`) — the user reads that as
+/// the in-panel "status line" without the global footer needing to
+/// surface block-specific data. The body / rows follow underneath.
 fn serialize_cached_result(v: &serde_json::Value) -> String {
-    // HTTP shape: { status, body, headers, … }
     if let Some(obj) = v.as_object() {
         if let Some(status) = obj.get("status").and_then(|s| s.as_i64()) {
-            let mut out = format!("{status}");
+            let mut summary = format!("{status}");
+            if let Some(text) = obj.get("status_text").and_then(|s| s.as_str()) {
+                if !text.is_empty() {
+                    summary.push(' ');
+                    summary.push_str(text);
+                }
+            }
+            if let Some(elapsed) = obj
+                .get("elapsed_ms")
+                .or_else(|| obj.get("total_ms"))
+                .and_then(|v| v.as_u64())
+            {
+                summary.push_str(" · ");
+                summary.push_str(&format!("{elapsed}ms"));
+            }
+            if let Some(size) = obj.get("size_bytes").and_then(|v| v.as_u64()) {
+                summary.push_str(" · ");
+                summary.push_str(&format_bytes(size));
+            }
+            let mut out = summary;
             if let Some(body) = obj.get("body") {
                 let body_str = match body {
                     serde_json::Value::String(s) => s.clone(),
@@ -812,7 +834,6 @@ fn serialize_cached_result(v: &serde_json::Value) -> String {
             }
             return out;
         }
-        // DB shape: { results: [{ kind: "rows" | "error", … }] }
         if let Some(results) = obj.get("results").and_then(|r| r.as_array()) {
             if let Some(first) = results.first() {
                 return serde_json::to_string_pretty(first)
@@ -821,6 +842,16 @@ fn serialize_cached_result(v: &serde_json::Value) -> String {
         }
     }
     serde_json::to_string_pretty(v).unwrap_or_else(|_| v.to_string())
+}
+
+fn format_bytes(n: u64) -> String {
+    if n < 1024 {
+        format!("{n}b")
+    } else if n < 1024 * 1024 {
+        format!("{:.1}kb", n as f64 / 1024.0)
+    } else {
+        format!("{:.1}mb", n as f64 / (1024.0 * 1024.0))
+    }
 }
 
 fn parsed_to_view(p: &httui_core::blocks::parser::ParsedBlock, raw: String) -> ParsedView {

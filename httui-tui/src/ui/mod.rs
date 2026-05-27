@@ -61,4 +61,5 @@ pub use render_root::render;
 pub(crate) use anchor::BlockAnchor;
 pub(crate) use document::{render_document, render_document_no_cursor};
 pub(crate) use overlay::{overlay_visual_selection, VisualOverlay};
+pub(crate) use status::running_chip_label;
 pub(crate) use pane_tree::{render_empty_state_inline, render_pane_tree};

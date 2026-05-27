@@ -409,6 +409,13 @@ pub enum Action {
     /// BLOCKS NAV cancel: stop the in-flight run started from this
     /// pane. Default chord `.`. Wraps `cancel_running_query`.
     BlocksCancelRun,
+    /// NAV in HTTP `[2] Headers`: insert an empty row after the
+    /// current `block_row`, advance cursor to the new row's key cell.
+    /// Hydrates the draft on first use.
+    BlocksHeaderInsertRow,
+    /// NAV in HTTP `[2] Headers`: delete the current `block_row`.
+    /// No-op when there are no rows. Cursor clamps to the row above.
+    BlocksHeaderDeleteRow,
     /// `Save` button on the unsaved-prompt modal: write every dirty
     /// pane, close the modal, replay the deferred `ToggleAppView`.
     BlocksUnsavedPromptSave,

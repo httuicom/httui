@@ -187,7 +187,13 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         Vec::new()
     };
     spans.extend(blocks_view_chips(app));
-    spans.extend(running_chip);
+    // In BLOCKS view the running indicator lives inside the pane (on
+    // the focused block's `[4] Response` / `[3] Result` title) so the
+    // bytes/elapsed sit next to where the response will land. Skip it
+    // in the global footer to avoid duplication.
+    if !matches!(app.view, crate::app::AppView::Blocks) {
+        spans.extend(running_chip);
+    }
     spans.extend(git_chip);
     spans.extend(env_chip);
     spans.extend(conn_chip);
@@ -331,7 +337,7 @@ fn field_label(field: &crate::app::EditField) -> &'static str {
 /// the in-flight task and the segment isn't a block anymore, we
 /// fall back to a generic `▶ running · Xs` so the user still sees
 /// "something is happening".
-fn running_chip_label(app: &App) -> Option<String> {
+pub(crate) fn running_chip_label(app: &App) -> Option<String> {
     let rq = app.running_query.as_ref()?;
     let elapsed = rq.started_at.elapsed().as_secs_f32();
     let kind = app
