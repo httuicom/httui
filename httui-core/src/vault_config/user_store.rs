@@ -17,6 +17,7 @@ use std::time::SystemTime;
 use tokio::sync::RwLock;
 
 use super::atomic::{read_toml, write_toml};
+use super::tui_view::TuiViewState;
 use super::user::{McpConfig, SecretsBackend, UiPrefs, UserFile};
 use super::Version;
 
@@ -147,6 +148,42 @@ impl UserStore {
     /// should mutate one section via the typed setters above so the
     /// other sections aren't accidentally clobbered.
     pub async fn replace(&self, file: UserFile) -> Result<(), String> {
+        self.persist(file).await
+    }
+
+    /// Read the TUI view snapshot recorded for `vault_path`. Returns
+    /// `None` when this vault has no entry yet (first run on this
+    /// machine, or the user has never opened BLOCKS view here).
+    /// `vault_path` is matched verbatim — callers must canonicalise
+    /// before calling (same key the setter writes with).
+    pub async fn tui_view_state(&self, vault_path: &str) -> Result<Option<TuiViewState>, String> {
+        Ok(self.load().await?.tui_view_state.get(vault_path).cloned())
+    }
+
+    /// Write the TUI view snapshot for `vault_path`, replacing any
+    /// previous entry. Read-modify-write through `persist` so unrelated
+    /// sections (ui prefs, secrets, active_envs) stay intact.
+    pub async fn set_tui_view_state(
+        &self,
+        vault_path: &str,
+        snapshot: TuiViewState,
+    ) -> Result<(), String> {
+        if vault_path.trim().is_empty() {
+            return Err("vault_path must not be empty".to_string());
+        }
+        let mut file = self.load().await?;
+        file.tui_view_state
+            .insert(vault_path.to_string(), snapshot);
+        self.persist(file).await
+    }
+
+    /// Drop the TUI view entry for `vault_path`. No-op when the
+    /// entry is already missing.
+    pub async fn clear_tui_view_state(&self, vault_path: &str) -> Result<(), String> {
+        let mut file = self.load().await?;
+        if file.tui_view_state.remove(vault_path).is_none() {
+            return Ok(());
+        }
         self.persist(file).await
     }
 
@@ -376,5 +413,98 @@ mod tests {
             let p = default_user_config_path().unwrap();
             assert!(p.ends_with("httui/user.toml"), "got {}", p.display());
         });
+    }
+
+    #[tokio::test]
+    async fn tui_view_state_missing_returns_none() {
+        let dir = TempDir::new().unwrap();
+        let s = store_in(&dir);
+        assert!(s.tui_view_state("/some/vault").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn set_tui_view_state_round_trips_per_vault() {
+        use super::super::tui_view::{
+            BlocksWorkspaceSnapshot, PaneLeafSnapshot, PaneSnapshot, TuiViewState,
+        };
+        let dir = TempDir::new().unwrap();
+        let s = store_in(&dir);
+        let snap = TuiViewState {
+            last_view: "blocks".into(),
+            sidebar_open: true,
+            blocks: Some(BlocksWorkspaceSnapshot {
+                expanded_files: vec!["api.md".into()],
+                cursor: None,
+                root: PaneSnapshot::Leaf(PaneLeafSnapshot {
+                    file: Some("api.md".into()),
+                    ..PaneLeafSnapshot::default()
+                }),
+                focused: vec![],
+            }),
+        };
+        s.set_tui_view_state("/vault/a", snap.clone()).await.unwrap();
+        let back = s.tui_view_state("/vault/a").await.unwrap().unwrap();
+        assert_eq!(back, snap);
+        // Another vault returns None — entries are keyed.
+        assert!(s.tui_view_state("/vault/b").await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn set_tui_view_state_keeps_other_sections() {
+        use super::super::tui_view::TuiViewState;
+        let dir = TempDir::new().unwrap();
+        let s = store_in(&dir);
+        s.set_ui(UiPrefs {
+            theme: "dark".into(),
+            ..UiPrefs::default()
+        })
+        .await
+        .unwrap();
+        s.set_tui_view_state(
+            "/vault/a",
+            TuiViewState {
+                last_view: "doc".into(),
+                sidebar_open: false,
+                blocks: None,
+            },
+        )
+        .await
+        .unwrap();
+        let f = s.load().await.unwrap();
+        assert_eq!(f.ui.theme, "dark");
+        assert_eq!(f.tui_view_state.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn set_tui_view_state_rejects_empty_vault_path() {
+        use super::super::tui_view::TuiViewState;
+        let dir = TempDir::new().unwrap();
+        let s = store_in(&dir);
+        let err = s
+            .set_tui_view_state("   ", TuiViewState::default())
+            .await
+            .unwrap_err();
+        assert!(err.contains("must not be empty"), "got: {err}");
+    }
+
+    #[tokio::test]
+    async fn clear_tui_view_state_removes_entry() {
+        use super::super::tui_view::TuiViewState;
+        let dir = TempDir::new().unwrap();
+        let s = store_in(&dir);
+        s.set_tui_view_state(
+            "/vault/a",
+            TuiViewState {
+                last_view: "doc".into(),
+                sidebar_open: false,
+                blocks: None,
+            },
+        )
+        .await
+        .unwrap();
+        s.clear_tui_view_state("/vault/a").await.unwrap();
+        assert!(s.tui_view_state("/vault/a").await.unwrap().is_none());
+        // Clearing a missing entry is a silent no-op.
+        s.clear_tui_view_state("/vault/never-set").await.unwrap();
     }
 }

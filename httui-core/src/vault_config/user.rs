@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use super::tui_view::TuiViewStateMap;
 use super::Version;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -31,6 +32,36 @@ pub struct UserFile {
     /// `EnvironmentsStore::active_env(vault_path)`.
     #[serde(default)]
     pub active_envs: BTreeMap<String, String>,
+
+    /// Per-vault TUI view + pane snapshot, keyed by canonical vault
+    /// path. Written by the TUI on exit / vault switch; read on
+    /// startup to restore the last layout. Desktop ignores this map.
+    ///
+    /// Lossy deserialise: a stale-schema entry from a previous TUI
+    /// version drops out silently so it doesn't take down the rest
+    /// of `user.toml` (env defaults, ui prefs, etc.).
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "deserialize_tui_view_state_lossy"
+    )]
+    pub tui_view_state: TuiViewStateMap,
+}
+
+fn deserialize_tui_view_state_lossy<'de, D>(
+    deserializer: D,
+) -> Result<TuiViewStateMap, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw: BTreeMap<String, toml::Value> = BTreeMap::deserialize(deserializer)?;
+    let mut out = TuiViewStateMap::new();
+    for (vault, value) in raw {
+        if let Ok(snap) = value.try_into::<super::tui_view::TuiViewState>() {
+            out.insert(vault, snap);
+        }
+    }
+    Ok(out)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -224,6 +255,39 @@ prompt_timeout_s = 30
         assert_eq!(f.ui.font_size, 13);
         assert_eq!(f.shortcuts.get("toggle.sidebar").unwrap(), "Cmd+B");
         assert_eq!(f.secrets.backend, "1password");
+    }
+
+    #[test]
+    fn malformed_tui_view_entry_drops_silently() {
+        // A v0 snapshot (block without `file` field, pre-BlockSelection)
+        // must not poison the whole UserFile parse — other entries +
+        // sections still resolve.
+        let raw = r#"
+version = "1"
+
+[active_envs]
+"/vault" = "staging"
+
+[tui_view_state."/vault/good"]
+last_view = "doc"
+sidebar_open = true
+
+[tui_view_state."/vault/bad".blocks]
+expanded_files = ["a.md"]
+focused = []
+
+[tui_view_state."/vault/bad".blocks.root]
+kind = "leaf"
+file = "a.md"
+
+[tui_view_state."/vault/bad".blocks.root.block]
+alias = "old"
+line_start = 0
+"#;
+        let f: UserFile = toml::from_str(raw).unwrap();
+        assert_eq!(f.active_envs.get("/vault").map(String::as_str), Some("staging"));
+        assert!(f.tui_view_state.contains_key("/vault/good"));
+        assert!(!f.tui_view_state.contains_key("/vault/bad"));
     }
 
     #[test]
