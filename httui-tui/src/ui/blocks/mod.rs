@@ -66,6 +66,17 @@ pub fn render_block_with_selection(
         return;
     }
 
+    // Paint the card body bg before any sub-region renders. The
+    // header / footer bars then overpaint their chrome bg on top;
+    // editable body lines and the result panel inherit this tint,
+    // so the whole card reads as a single surface against the
+    // canvas instead of letting body lines fall back to the
+    // terminal default.
+    frame.render_widget(
+        Block::default().style(Style::default().bg(crate::ui::palette::block_body_bg())),
+        inner,
+    );
+
     // Top: header bar.
     let header_rect = Rect {
         x: inner.x,
@@ -334,7 +345,7 @@ fn collapse_per_byte_styles(line: &str, style_per_byte: &[Style]) -> Vec<Span<'s
 /// like DB tables) and the motion looks like a no-op.
 fn paint_panel_focus_bg(frame: &mut Frame, area: Rect) {
     let buf = frame.buffer_mut();
-    let tint = Style::default().bg(Color::Rgb(30, 35, 50));
+    let tint = Style::default().bg(crate::ui::palette::block_body_bg());
     for y in area.y..area.y.saturating_add(area.height) {
         for x in area.x..area.x.saturating_add(area.width) {
             if let Some(cell) = buf.cell_mut((x, y)) {
@@ -356,7 +367,9 @@ fn paint_panel_focus_hint(frame: &mut Frame, area: Rect) {
         .bg(Color::LightBlue)
         .fg(Color::Black)
         .add_modifier(Modifier::BOLD);
-    let chip_label = Style::default().fg(Color::Gray).bg(Color::Rgb(30, 35, 50));
+    let chip_label = Style::default()
+        .fg(Color::Gray)
+        .bg(crate::ui::palette::block_body_bg());
     let hint = Line::from(vec![
         Span::styled(" <CR> ", chip_key),
         Span::styled(" detail ", chip_label),

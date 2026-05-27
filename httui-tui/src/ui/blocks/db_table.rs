@@ -169,7 +169,7 @@ pub(super) fn render_db_inner(
                     state.select(viewport_selected);
                     let table = table.row_highlight_style(
                         Style::default()
-                            .bg(super::super::palette::SELECTION_BG)
+                            .bg(super::super::palette::selection_bg())
                             .add_modifier(Modifier::BOLD),
                     );
                     frame.render_stateful_widget(table, content_rect, &mut state);
@@ -383,7 +383,7 @@ pub(super) fn build_result_table(
         .map(|(_, ty)| is_numeric_type(ty))
         .collect();
 
-    let zebra_bg = Color::Rgb(18, 20, 26);
+    let zebra_bg = super::super::palette::table_zebra_bg();
 
     let table_rows: Vec<Row> = visible_rows
         .iter()

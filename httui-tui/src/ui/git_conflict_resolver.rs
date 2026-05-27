@@ -23,11 +23,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &GitConflictResolverState) {
 fn render_file_list(frame: &mut Frame, area: Rect, state: &GitConflictResolverState) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::LightYellow))
+        .border_style(Style::default().fg(crate::ui::palette::popup_border_accent()))
         .title(Span::styled(
             format!(" Conflicts ({}) ", state.files.len()),
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(area);
@@ -49,7 +49,7 @@ fn render_file_list(frame: &mut Frame, area: Rect, state: &GitConflictResolverSt
     let list = List::new(items).highlight_style(
         Style::default()
             .bg(Color::Yellow)
-            .fg(Color::Black)
+            .fg(crate::ui::palette::popup_bg())
             .add_modifier(Modifier::BOLD),
     );
     let mut s = ListState::default();
@@ -62,7 +62,7 @@ fn render_file_list(frame: &mut Frame, area: Rect, state: &GitConflictResolverSt
 fn render_versions(frame: &mut Frame, area: Rect, state: &GitConflictResolverState) {
     let outer_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray));
+        .border_style(Style::default().fg(crate::ui::palette::muted()));
     let inner = outer_block.inner(area);
     frame.render_widget(outer_block, area);
 
@@ -81,12 +81,21 @@ fn render_versions(frame: &mut Frame, area: Rect, state: &GitConflictResolverSta
         .split(body_area);
 
     let (base_body, ours_body, theirs_body) = body_strings(state);
-    render_column(frame, cols[0], "1 — base", &base_body, Color::Cyan);
+    render_column(
+        frame,
+        cols[0],
+        "1 — base",
+        &base_body,
+        crate::ui::palette::popup_key_label(),
+    );
     render_column(frame, cols[1], "2 — ours", &ours_body, Color::Yellow);
     render_column(frame, cols[2], "3 — theirs", &theirs_body, Color::Green);
 
     let hint = Line::from(vec![
-        Span::styled(" [1] ", Style::default().fg(Color::Cyan)),
+        Span::styled(
+            " [1] ",
+            Style::default().fg(crate::ui::palette::popup_key_label()),
+        ),
         Span::raw("base   "),
         Span::styled("[2] ", Style::default().fg(Color::Yellow)),
         Span::raw("ours   "),

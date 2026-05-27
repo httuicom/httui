@@ -36,7 +36,9 @@ pub fn render(
     visual: Option<VisualOverlay>,
 ) {
     let modal = centered_rect(editor_area, 70, 70);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard fill: paint every cell so anything painted earlier (the
     // editor underneath) doesn't bleed through. Same trick as
@@ -58,7 +60,11 @@ pub fn render(
         .border_type(BorderType::Rounded)
         .title(state.title.clone())
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightBlue).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightBlue)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(modal);
     frame.render_widget(outer, modal);
 
@@ -225,7 +231,7 @@ fn paint_visual_selection(
         (lo_line, lo_col, hi_line, hi_col)
     };
 
-    let style = Style::default().bg(super::palette::SELECTION_BG);
+    let style = Style::default().bg(super::palette::selection_bg());
     let buf = frame.buffer_mut();
     let total_lines = rope.len_lines();
     for line in start_line..=end_line {
@@ -292,16 +298,18 @@ fn style_body_line(text: String, bg: Style) -> Line<'static> {
             text,
             Style::default()
                 .fg(Color::Rgb(0xc6, 0xd0, 0xf5))
-                .bg(Color::Black),
+                .bg(crate::ui::palette::popup_bg()),
         ));
     }
     // Header line. Look for the `  (` separator — when present,
     // split into name + type so the type can fade into the bg.
     let name_style = Style::default()
-        .fg(Color::Cyan)
-        .bg(Color::Black)
+        .fg(crate::ui::palette::popup_key_label())
+        .bg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
-    let type_style = Style::default().fg(Color::DarkGray).bg(Color::Black);
+    let type_style = Style::default()
+        .fg(crate::ui::palette::muted())
+        .bg(crate::ui::palette::popup_bg());
     if let Some(idx) = text.find("  (") {
         let (name, ty) = text.split_at(idx);
         return Line::from(vec![
@@ -320,7 +328,7 @@ fn paint_footer(frame: &mut Frame, footer_area: Rect, bg: Style) {
     // background shows but the label inside disappears.
     let chip_key = Style::default()
         .bg(Color::LightBlue)
-        .fg(Color::Black)
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![

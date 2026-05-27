@@ -231,7 +231,9 @@ const SECTIONS: &[Section] = &[
 
 pub fn render(frame: &mut Frame, editor_area: Rect) {
     let popup = compute_popup_rect(editor_area);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard-fill the popup area before painting so editor content
     // underneath doesn't bleed through.
@@ -251,7 +253,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect) {
         .borders(Borders::ALL)
         .title(" Keymap help · g? ")
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightCyan).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightCyan)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -289,10 +295,13 @@ pub fn render(frame: &mut Frame, editor_area: Rect) {
                 Span::styled(
                     chord_cell,
                     Style::default()
-                        .fg(Color::LightYellow)
+                        .fg(crate::ui::palette::popup_border_accent())
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::styled(entry.label, Style::default().fg(Color::White)),
+                Span::styled(
+                    entry.label,
+                    Style::default().fg(crate::ui::palette::foreground()),
+                ),
             ]));
         }
     }
@@ -300,7 +309,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect) {
 
     let chip_key = Style::default()
         .bg(Color::LightCyan)
-        .fg(Color::Black)
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![

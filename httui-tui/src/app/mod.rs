@@ -33,6 +33,8 @@ mod modal_state;
 mod picker_state;
 mod result_tab;
 mod running;
+/// Settings page state (Keymaps / Theme / Editor sections).
+mod settings_page;
 mod standard_state;
 mod status;
 mod tabbar;
@@ -43,6 +45,7 @@ pub use modal_state::*;
 pub use picker_state::*;
 pub use result_tab::*;
 pub use running::*;
+pub use settings_page::*;
 pub use standard_state::*;
 pub use status::*;
 pub use tabbar::*;

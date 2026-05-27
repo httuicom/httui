@@ -31,7 +31,9 @@ pub fn render(
     anchor: Option<BlockAnchor>,
 ) {
     let popup = compute_popup_rect(editor_area, state, anchor);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard-fill the popup area before painting so editor content
     // underneath doesn't bleed through (same trick as `quickopen`).
@@ -56,7 +58,11 @@ pub fn render(
         .borders(Borders::ALL)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightBlue).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightBlue)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -75,19 +81,23 @@ pub fn render(
             ListItem::new(Line::from(vec![
                 Span::styled(
                     c.name.clone(),
-                    Style::default().bg(Color::Black).fg(Color::White),
+                    Style::default()
+                        .bg(crate::ui::palette::popup_bg())
+                        .fg(crate::ui::palette::foreground()),
                 ),
                 Span::styled(
                     format!("  ({})", c.kind),
-                    Style::default().bg(Color::Black).fg(Color::DarkGray),
+                    Style::default()
+                        .bg(crate::ui::palette::popup_bg())
+                        .fg(crate::ui::palette::muted()),
                 ),
             ]))
         })
         .collect();
     let list = List::new(items).style(bg_style).highlight_style(
         Style::default()
-            .bg(super::palette::SELECTION_BG)
-            .fg(Color::White)
+            .bg(super::palette::selection_bg())
+            .fg(crate::ui::palette::foreground())
             .add_modifier(Modifier::BOLD),
     );
     let mut list_state = ListState::default();
@@ -100,7 +110,7 @@ pub fn render(
 
     let chip_key = Style::default()
         .bg(Color::LightBlue)
-        .fg(Color::Black)
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![

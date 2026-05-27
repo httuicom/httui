@@ -52,6 +52,7 @@ async fn run(cli: Cli) -> TuiResult<()> {
         None => config::default_config_path()?,
     };
     let cfg = config::load_or_init(&config_path)?;
+    ui::theme::init(&cfg.theme, &cfg.palette);
 
     let data_dir = match cli.data_dir.clone() {
         Some(p) => p,

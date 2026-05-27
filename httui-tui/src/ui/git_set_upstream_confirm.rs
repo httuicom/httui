@@ -22,11 +22,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &GitSetUpstreamConfir
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::LightYellow))
+        .border_style(Style::default().fg(crate::ui::palette::popup_border_accent()))
         .title(Span::styled(
             " Set upstream? ",
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(area);
@@ -38,14 +38,17 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &GitSetUpstreamConfir
                 "Push branch '{}' with upstream '{}'?",
                 state.branch, state.remote
             ),
-            Style::default().fg(Color::White),
+            Style::default().fg(crate::ui::palette::foreground()),
         )),
         Line::from(Span::raw("")),
         Line::from(vec![
-            Span::styled("git push -u ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "git push -u ",
+                Style::default().fg(crate::ui::palette::muted()),
+            ),
             Span::styled(
                 format!("{} {}", state.remote, state.branch),
-                Style::default().fg(Color::Cyan),
+                Style::default().fg(crate::ui::palette::popup_key_label()),
             ),
         ]),
         Line::from(Span::raw("")),

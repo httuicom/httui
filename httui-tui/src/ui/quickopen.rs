@@ -29,7 +29,9 @@ const MAX_VISIBLE_ROWS: usize = 12;
 /// black instead of inheriting whatever Clear left behind.
 pub fn render(frame: &mut Frame, editor_area: Rect, qo: &QuickOpen) -> (u16, u16) {
     let modal = centered_rect(editor_area, 80, 60);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard fill: write a styled space into every cell of the modal
     // area, bypassing widget-level abstractions that only `set_style`
@@ -64,7 +66,12 @@ pub fn render(frame: &mut Frame, editor_area: Rect, qo: &QuickOpen) -> (u16, u16
     // Prompt line — styled bg so trailing cells past the typed query
     // stay black instead of bleeding.
     let prompt_line = Line::from(vec![
-        Span::styled("> ", Style::default().bg(Color::Black).fg(Color::LightCyan)),
+        Span::styled(
+            "> ",
+            Style::default()
+                .bg(crate::ui::palette::popup_bg())
+                .fg(Color::LightCyan),
+        ),
         Span::styled(qo.query.as_str().to_string(), bg_style),
     ]);
     frame.render_widget(Paragraph::new(prompt_line).style(bg_style), prompt_area);
@@ -75,8 +82,8 @@ pub fn render(frame: &mut Frame, editor_area: Rect, qo: &QuickOpen) -> (u16, u16
         vec![ListItem::new(Line::from(Span::styled(
             "  no matches",
             Style::default()
-                .bg(Color::Black)
-                .fg(Color::DarkGray)
+                .bg(crate::ui::palette::popup_bg())
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )))]
     } else {
@@ -91,8 +98,8 @@ pub fn render(frame: &mut Frame, editor_area: Rect, qo: &QuickOpen) -> (u16, u16
         .style(bg_style)
         .highlight_style(
             Style::default()
-                .bg(super::palette::SELECTION_BG)
-                .fg(Color::White)
+                .bg(super::palette::selection_bg())
+                .fg(crate::ui::palette::foreground())
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("▸ ");

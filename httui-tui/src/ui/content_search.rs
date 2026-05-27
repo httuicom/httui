@@ -27,7 +27,9 @@ const MAX_VISIBLE_ROWS: usize = 14;
 /// inside the query input.
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &ContentSearchState) -> (u16, u16) {
     let modal = centered_rect(editor_area, 90, 70);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard-fill so editor content underneath doesn't bleed.
     {
@@ -55,7 +57,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ContentSearchState) 
         .borders(Borders::ALL)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().bg(Color::Black).fg(Color::LightGreen));
+        .border_style(
+            Style::default()
+                .bg(crate::ui::palette::popup_bg())
+                .fg(crate::ui::palette::success()),
+        );
     let inner = outer.inner(modal);
     frame.render_widget(outer, modal);
 
@@ -78,7 +84,9 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ContentSearchState) 
     let prompt_line = Line::from(vec![
         Span::styled(
             "? ",
-            Style::default().bg(Color::Black).fg(Color::LightGreen),
+            Style::default()
+                .bg(crate::ui::palette::popup_bg())
+                .fg(crate::ui::palette::success()),
         ),
         Span::styled(state.query.as_str().to_string(), bg_style),
     ]);
@@ -92,24 +100,24 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ContentSearchState) 
         vec![ListItem::new(Line::from(Span::styled(
             "  indexing vault…",
             Style::default()
-                .bg(Color::Black)
-                .fg(Color::LightYellow)
+                .bg(crate::ui::palette::popup_bg())
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::ITALIC | Modifier::BOLD),
         )))]
     } else if state.query.as_str().is_empty() {
         vec![ListItem::new(Line::from(Span::styled(
             "  type to search vault contents",
             Style::default()
-                .bg(Color::Black)
-                .fg(Color::DarkGray)
+                .bg(crate::ui::palette::popup_bg())
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )))]
     } else if state.results.is_empty() {
         vec![ListItem::new(Line::from(Span::styled(
             "  no matches",
             Style::default()
-                .bg(Color::Black)
-                .fg(Color::DarkGray)
+                .bg(crate::ui::palette::popup_bg())
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         )))]
     } else {
@@ -132,7 +140,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ContentSearchState) 
         .highlight_style(
             Style::default()
                 .bg(Color::Rgb(40, 60, 40))
-                .fg(Color::White)
+                .fg(crate::ui::palette::foreground())
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("▸ ");
@@ -143,8 +151,8 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &ContentSearchState) 
     frame.render_stateful_widget(list, list_area, &mut list_state);
 
     let chip_key = Style::default()
-        .bg(Color::LightGreen)
-        .fg(Color::Black)
+        .bg(crate::ui::palette::success())
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![
@@ -182,7 +190,7 @@ fn highlight_snippet(snippet: &str, bg_style: Style) -> Vec<Span<'static>> {
                 if i > 0 {
                     spans.push(Span::styled(
                         rest[..i].to_string(),
-                        bg_style.fg(Color::DarkGray),
+                        bg_style.fg(crate::ui::palette::muted()),
                     ));
                 }
                 let after_open = &rest[i + mark_open.len()..];
@@ -191,8 +199,8 @@ fn highlight_snippet(snippet: &str, bg_style: Style) -> Vec<Span<'static>> {
                         spans.push(Span::styled(
                             after_open[..j].to_string(),
                             bg_style
-                                .fg(Color::Black)
-                                .bg(Color::LightGreen)
+                                .fg(crate::ui::palette::popup_bg())
+                                .bg(crate::ui::palette::success())
                                 .add_modifier(Modifier::BOLD),
                         ));
                         rest = &after_open[j + mark_close.len()..];
@@ -202,14 +210,17 @@ fn highlight_snippet(snippet: &str, bg_style: Style) -> Vec<Span<'static>> {
                         // plain so the user still sees the text.
                         spans.push(Span::styled(
                             after_open.to_string(),
-                            bg_style.fg(Color::DarkGray),
+                            bg_style.fg(crate::ui::palette::muted()),
                         ));
                         break;
                     }
                 }
             }
             None => {
-                spans.push(Span::styled(rest.to_string(), bg_style.fg(Color::DarkGray)));
+                spans.push(Span::styled(
+                    rest.to_string(),
+                    bg_style.fg(crate::ui::palette::muted()),
+                ));
                 break;
             }
         }
@@ -239,7 +250,9 @@ mod tests {
 
     #[test]
     fn highlight_snippet_marks_strip_html_and_styles() {
-        let bg = Style::default().bg(Color::Black).fg(Color::White);
+        let bg = Style::default()
+            .bg(crate::ui::palette::popup_bg())
+            .fg(crate::ui::palette::foreground());
         let spans = highlight_snippet("foo <mark>bar</mark> baz", bg);
         // Leading 2-space indent + before + marked + after = 4 spans.
         assert_eq!(spans.len(), 4);
@@ -249,7 +262,7 @@ mod tests {
 
     #[test]
     fn highlight_snippet_handles_unmatched_open() {
-        let bg = Style::default().bg(Color::Black);
+        let bg = Style::default().bg(crate::ui::palette::popup_bg());
         let spans = highlight_snippet("a <mark>b", bg);
         // Just the indent + "a " + "b" — unmatched mark falls
         // through as plain text, no panic.
@@ -258,7 +271,7 @@ mod tests {
 
     #[test]
     fn highlight_snippet_collapses_newlines() {
-        let bg = Style::default().bg(Color::Black);
+        let bg = Style::default().bg(crate::ui::palette::popup_bg());
         let spans = highlight_snippet("a\nb\r\nc", bg);
         // No span content carries a `\n`.
         for s in &spans {

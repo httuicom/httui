@@ -21,7 +21,9 @@ const POPUP_WIDTH: u16 = 56;
 
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &DbConfirmRunState) {
     let popup = compute_popup_rect(editor_area);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard-fill so editor content doesn't bleed through. Same trick
     // as `connection_picker`/`completion_popup`.
@@ -41,7 +43,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &DbConfirmRunState) {
         .borders(Borders::ALL)
         .title(" Confirm write ")
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightRed).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightRed)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -56,10 +62,12 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &DbConfirmRunState) {
         .split(inner);
 
     let warn_style = Style::default()
-        .bg(Color::Black)
+        .bg(crate::ui::palette::popup_bg())
         .fg(Color::LightRed)
         .add_modifier(Modifier::BOLD);
-    let reason_style = Style::default().bg(Color::Black).fg(Color::White);
+    let reason_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
     frame.render_widget(
         Paragraph::new(Line::from(Span::styled(" ⚠  Run anyway? ", warn_style))),
         chunks[0],
@@ -74,11 +82,11 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &DbConfirmRunState) {
 
     let chip_yes = Style::default()
         .bg(Color::LightRed)
-        .fg(Color::Black)
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_no = Style::default()
-        .bg(Color::DarkGray)
-        .fg(Color::White)
+        .bg(crate::ui::palette::muted())
+        .fg(crate::ui::palette::foreground())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![

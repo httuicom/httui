@@ -37,10 +37,14 @@ mod pane_tree;
 mod prose;
 mod quickopen;
 mod render_root;
+/// Settings page (Keymaps / Theme / Editor).
+mod settings_page;
 mod sql_highlight;
 mod status;
 mod tab_picker;
 mod tabs;
+/// Runtime palette + named presets consumed by `palette.rs`.
+pub mod theme;
 mod tree;
 /// "Used in N" panel for the var selected in EnvsPage.
 mod var_uses_panel;

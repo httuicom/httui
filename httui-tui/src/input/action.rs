@@ -341,5 +341,26 @@ pub enum Action {
     VaultMissingSecretsBackspace,
     VaultMissingSecretsSave,
     VaultMissingSecretsSkip,
+    /// `Alt+,` contextual entry: routes to [`Action::OpenDbSettingsModal`]
+    /// when the cursor sits on a DB/HTTP block (block-scoped
+    /// limit/timeout), otherwise opens the app-wide Settings page.
+    /// Same chord, two surfaces — mirrors `Tab`'s context-sensitive
+    /// behaviour.
+    OpenSettings,
+    CloseSettingsPage,
+    SettingsNextSection,
+    SettingsPrevSection,
+    SettingsMoveCursor(i32),
+    /// Activate the row under the cursor. Section-dispatched by the
+    /// applier: Keymaps → enter rebind capture; Theme → apply the
+    /// highlighted preset.
+    SettingsActivateRow,
+    /// Abort an in-progress rebind without committing.
+    SettingsCancelCapture,
+    /// Key the user pressed while in capture mode. Applier converts
+    /// to a chord string, writes config, persists.
+    SettingsCommitCapture(crossterm::event::KeyEvent),
+    /// Restore the row under the cursor to its built-in default.
+    SettingsResetBinding,
     Noop,
 }

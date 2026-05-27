@@ -41,7 +41,10 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
                 }
             };
             let line = Line::from(vec![
-                Span::styled(label, Style::default().fg(Color::LightYellow)),
+                Span::styled(
+                    label,
+                    Style::default().fg(crate::ui::palette::popup_border_accent()),
+                ),
                 Span::raw(prompt.buffer().to_string()),
             ]);
             frame.render_widget(Paragraph::new(line), area);
@@ -71,7 +74,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         let style = match msg.kind {
             StatusKind::Info => Style::default(),
             StatusKind::Error => Style::default()
-                .fg(Color::White)
+                .fg(crate::ui::palette::foreground())
                 .bg(Color::Red)
                 .add_modifier(Modifier::BOLD),
         };
@@ -111,8 +114,8 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
             Span::styled(
                 format!(" {label} "),
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::LightGreen)
+                    .fg(crate::ui::palette::popup_bg())
+                    .bg(crate::ui::palette::success())
                     .add_modifier(Modifier::BOLD),
             ),
         ],
@@ -127,7 +130,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
             Span::styled(
                 format!(" env: {name} "),
                 Style::default()
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .bg(Color::LightMagenta)
                     .add_modifier(Modifier::BOLD),
             ),
@@ -141,7 +144,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
             Span::styled(
                 format!(" {label} "),
                 Style::default()
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .bg(Color::LightBlue)
                     .add_modifier(Modifier::BOLD),
             ),
@@ -160,7 +163,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
             Span::styled(
                 format!(" conn: {name} "),
                 Style::default()
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .bg(Color::LightCyan)
                     .add_modifier(Modifier::BOLD),
             ),
@@ -176,7 +179,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         vec![Span::styled(
             format!(" {} ", mode.label()),
             Style::default()
-                .fg(Color::Black)
+                .fg(crate::ui::palette::popup_bg())
                 .bg(mode.bg())
                 .add_modifier(Modifier::BOLD),
         )]
@@ -196,8 +199,8 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
         spans.push(Span::styled(
             format!(" ! {} secrets ", app.pending_secrets.len()),
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_bg())
+                .bg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         ));
     }

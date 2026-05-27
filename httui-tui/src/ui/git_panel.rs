@@ -35,15 +35,15 @@ pub fn render(
 ) -> Option<(u16, u16)> {
     let (border_color, title_style) = if focused {
         (
-            Color::LightYellow,
+            crate::ui::palette::popup_border_accent(),
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         )
     } else {
         (
-            crate::ui::palette::MUTED,
-            Style::default().fg(crate::ui::palette::SECONDARY),
+            crate::ui::palette::muted(),
+            Style::default().fg(crate::ui::palette::secondary()),
         )
     };
 
@@ -129,12 +129,12 @@ fn render_header_strip(frame: &mut Frame, area: Rect, panel: &GitPanel) {
         vec![Span::styled(
             left_text,
             Style::default()
-                .fg(Color::White)
+                .fg(crate::ui::palette::foreground())
                 .add_modifier(Modifier::BOLD),
         )],
         vec![Span::styled(
             right_text,
-            Style::default().fg(crate::ui::palette::MUTED),
+            Style::default().fg(crate::ui::palette::muted()),
         )],
         area.width,
     );
@@ -159,10 +159,12 @@ fn render_row_list(
     let highlight = if focused {
         Style::default()
             .bg(Color::Yellow)
-            .fg(Color::Black)
+            .fg(crate::ui::palette::popup_bg())
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().bg(Color::DarkGray).fg(Color::White)
+        Style::default()
+            .bg(crate::ui::palette::muted())
+            .fg(crate::ui::palette::foreground())
     };
     frame.render_stateful_widget(
         List::new(items).highlight_style(highlight),
@@ -240,12 +242,12 @@ fn row_to_item(row: &BodyRow) -> ListItem<'static> {
             Span::styled(
                 label.to_string(),
                 Style::default()
-                    .fg(crate::ui::palette::MUTED)
+                    .fg(crate::ui::palette::muted())
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 format!(" ({count})"),
-                Style::default().fg(crate::ui::palette::MUTED),
+                Style::default().fg(crate::ui::palette::muted()),
             ),
         ])),
         BodyRow::File(change) => {
@@ -264,11 +266,11 @@ fn row_to_item(row: &BodyRow) -> ListItem<'static> {
         BodyRow::Separator => ListItem::new(Line::from(Span::raw(""))),
         BodyRow::Clean => ListItem::new(Line::from(Span::styled(
             "Working tree clean.",
-            Style::default().fg(crate::ui::palette::MUTED),
+            Style::default().fg(crate::ui::palette::muted()),
         ))),
         BodyRow::Loading => ListItem::new(Line::from(Span::styled(
             "Loading git status…",
-            Style::default().fg(crate::ui::palette::MUTED),
+            Style::default().fg(crate::ui::palette::muted()),
         ))),
         BodyRow::Error(msg) => ListItem::new(Line::from(Span::styled(
             msg.clone(),

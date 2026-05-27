@@ -60,7 +60,7 @@ fn conflict_marker(line: &str) -> Option<Vec<Span<'static>>> {
         Some(vec![Span::styled(
             line.to_string(),
             Style::default()
-                .fg(Color::White)
+                .fg(crate::ui::palette::foreground())
                 .bg(Color::Red)
                 .add_modifier(Modifier::BOLD),
         )])
@@ -68,14 +68,14 @@ fn conflict_marker(line: &str) -> Option<Vec<Span<'static>>> {
         Some(vec![Span::styled(
             line.to_string(),
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::DIM),
         )])
     } else if line.starts_with(">>>>>>>") {
         Some(vec![Span::styled(
             line.to_string(),
             Style::default()
-                .fg(Color::White)
+                .fg(crate::ui::palette::foreground())
                 .bg(Color::Green)
                 .add_modifier(Modifier::BOLD),
         )])
@@ -102,14 +102,14 @@ fn heading(line: &str) -> Option<Vec<Span<'static>>> {
         1 => Color::LightCyan,
         2 => Color::LightBlue,
         3 => Color::LightMagenta,
-        4 => Color::LightYellow,
+        4 => crate::ui::palette::popup_border_accent(),
         _ => Color::Gray,
     };
     let style = Style::default().fg(color).add_modifier(Modifier::BOLD);
     Some(vec![
         Span::styled(
             format!("{} ", "#".repeat(level)),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(crate::ui::palette::muted()),
         ),
         Span::styled(text.to_string(), style),
     ])
@@ -124,7 +124,7 @@ fn divider(line: &str) -> Option<Vec<Span<'static>>> {
         Some(vec![Span::styled(
             line.to_string(),
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::DIM),
         )])
     } else {
@@ -141,7 +141,7 @@ fn blockquote(line: &str) -> Option<Vec<Span<'static>>> {
         // confusing on the marker.)
         let mut spans = vec![Span::styled(
             "> ".to_string(),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(crate::ui::palette::muted()),
         )];
         spans.extend(inline_spans(rest).into_iter().map(|s| {
             Span::styled(
@@ -179,7 +179,7 @@ fn list_item(line: &str) -> Option<Vec<Span<'static>>> {
     let mut spans = vec![Span::raw(leading_ws)];
     spans.push(Span::styled(
         bullet.to_string(),
-        Style::default().fg(Color::DarkGray),
+        Style::default().fg(crate::ui::palette::muted()),
     ));
     spans.extend(inline_spans(rest));
     Some(spans)
@@ -199,7 +199,7 @@ pub fn inline_spans(line: &str) -> Vec<Span<'static>> {
     let bytes = line.as_bytes();
     let mut i = 0;
     let mut buffer = String::new();
-    let marker = Style::default().fg(Color::DarkGray);
+    let marker = Style::default().fg(crate::ui::palette::muted());
 
     while i < bytes.len() {
         // **bold**
@@ -241,7 +241,7 @@ pub fn inline_spans(line: &str) -> Vec<Span<'static>> {
                 out.push(Span::styled(
                     inner.to_string(),
                     Style::default()
-                        .fg(Color::LightYellow)
+                        .fg(crate::ui::palette::popup_border_accent())
                         .add_modifier(Modifier::DIM),
                 ));
                 out.push(Span::styled("`".to_string(), marker));
@@ -260,7 +260,7 @@ pub fn inline_spans(line: &str) -> Vec<Span<'static>> {
                         out.push(Span::styled(
                             text.to_string(),
                             Style::default()
-                                .fg(Color::Cyan)
+                                .fg(crate::ui::palette::popup_key_label())
                                 .add_modifier(Modifier::UNDERLINED),
                         ));
                         out.push(Span::styled("](".to_string(), marker));
@@ -268,7 +268,7 @@ pub fn inline_spans(line: &str) -> Vec<Span<'static>> {
                         out.push(Span::styled(
                             url.to_string(),
                             Style::default()
-                                .fg(Color::DarkGray)
+                                .fg(crate::ui::palette::muted())
                                 .add_modifier(Modifier::DIM),
                         ));
                         out.push(Span::styled(")".to_string(), marker));
@@ -333,7 +333,10 @@ mod tests {
     fn code_inline() {
         let spans = inline_spans("call `fn()`!");
         let code = spans.iter().find(|s| s.content == "fn()").unwrap();
-        assert_eq!(code.style.fg, Some(Color::LightYellow));
+        assert_eq!(
+            code.style.fg,
+            Some(crate::ui::palette::popup_border_accent())
+        );
     }
 
     #[test]

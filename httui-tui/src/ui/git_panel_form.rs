@@ -56,9 +56,9 @@ pub(super) fn render_message_box(
         return None;
     }
     let border_color = if focused {
-        Color::LightYellow
+        crate::ui::palette::popup_border_accent()
     } else {
-        crate::ui::palette::MUTED
+        crate::ui::palette::muted()
     };
     let block = Block::default()
         .borders(Borders::ALL)
@@ -77,13 +77,19 @@ pub(super) fn render_message_box(
         if placeholder.is_empty() {
             (
                 "type a commit message…".to_string(),
-                Style::default().fg(crate::ui::palette::MUTED),
+                Style::default().fg(crate::ui::palette::muted()),
             )
         } else {
-            (placeholder, Style::default().fg(crate::ui::palette::MUTED))
+            (
+                placeholder,
+                Style::default().fg(crate::ui::palette::muted()),
+            )
         }
     } else {
-        (draft.to_string(), Style::default().fg(Color::White))
+        (
+            draft.to_string(),
+            Style::default().fg(crate::ui::palette::foreground()),
+        )
     };
     let paragraph = Paragraph::new(Line::from(Span::styled(text, style)));
     frame.render_widget(paragraph, inner);
@@ -121,7 +127,7 @@ fn amend_toggle_line(amend: bool, width: u16) -> Line<'static> {
         (
             "[x] amend last",
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         )
     } else {
@@ -131,7 +137,7 @@ fn amend_toggle_line(amend: bool, width: u16) -> Line<'static> {
         vec![Span::styled(marker.to_string(), style)],
         vec![Span::styled(
             "[Ctrl+A]",
-            Style::default().fg(crate::ui::palette::MUTED),
+            Style::default().fg(crate::ui::palette::muted()),
         )],
         width,
     )
@@ -143,7 +149,7 @@ fn commit_hint_line(panel: &GitPanel, width: u16) -> Line<'static> {
     two_col_line(
         vec![Span::styled(
             format!("{n} file{suffix} staged"),
-            Style::default().fg(crate::ui::palette::MUTED),
+            Style::default().fg(crate::ui::palette::muted()),
         )],
         vec![
             Span::styled(
@@ -168,7 +174,7 @@ fn sync_button_line(width: u16) -> Line<'static> {
     let mut spans = vec![Span::styled(
         label.to_string(),
         Style::default()
-            .fg(Color::Black)
+            .fg(crate::ui::palette::popup_bg())
             .bg(Color::Gray)
             .add_modifier(Modifier::BOLD),
     )];
@@ -177,7 +183,7 @@ fn sync_button_line(width: u16) -> Line<'static> {
     }
     spans.push(Span::styled(
         chord.to_string(),
-        Style::default().fg(crate::ui::palette::MUTED),
+        Style::default().fg(crate::ui::palette::muted()),
     ));
     Line::from(spans)
 }

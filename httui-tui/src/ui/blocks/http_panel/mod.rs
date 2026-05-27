@@ -39,8 +39,12 @@ pub(super) fn http_header_left_spans(b: &BlockNode, bg: Style) -> Vec<Span<'stat
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled("  ", bg),
-        Span::styled(alias, bg.fg(Color::White).add_modifier(Modifier::BOLD)),
-        Span::styled("  ·  ", bg.fg(Color::DarkGray)),
+        Span::styled(
+            alias,
+            bg.fg(crate::ui::palette::foreground())
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("  ·  ", bg.fg(crate::ui::palette::muted())),
         Span::styled(
             format!(" {method} "),
             Style::default()
@@ -49,7 +53,7 @@ pub(super) fn http_header_left_spans(b: &BlockNode, bg: Style) -> Vec<Span<'stat
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled("  ", bg),
-        Span::styled(host, bg.fg(Color::Gray)),
+        Span::styled(host, bg.fg(crate::ui::palette::secondary())),
     ]
 }
 
@@ -75,7 +79,7 @@ pub(super) fn http_footer_spans(
     dot_color: Color,
     dot_label: &'static str,
 ) -> (Vec<Span<'static>>, Vec<Span<'static>>) {
-    let dim = bg.fg(Color::DarkGray);
+    let dim = bg.fg(crate::ui::palette::muted());
     let method = b
         .params
         .get("method")
@@ -95,7 +99,10 @@ pub(super) fn http_footer_spans(
     left.push(Span::raw(" "));
     left.push(Span::styled("●", bg.fg(dot_color)));
     left.push(Span::styled("  ", bg));
-    left.push(Span::styled(dot_label, bg.fg(Color::Gray)));
+    left.push(Span::styled(
+        dot_label,
+        bg.fg(crate::ui::palette::secondary()),
+    ));
     left.push(Span::styled("  ·  ", dim));
     left.push(Span::styled(
         format!(" {method} "),
@@ -105,12 +112,12 @@ pub(super) fn http_footer_spans(
             .add_modifier(Modifier::BOLD),
     ));
     left.push(Span::styled("  ", bg));
-    left.push(Span::styled(path, bg.fg(Color::Gray)));
+    left.push(Span::styled(path, bg.fg(crate::ui::palette::secondary())));
     left.push(Span::styled("  │  ", dim));
 
     let mut right: Vec<Span<'static>> = Vec::new();
     if let Some(s) = http_summary(b) {
-        right.push(Span::styled(s, bg.fg(Color::Gray)));
+        right.push(Span::styled(s, bg.fg(crate::ui::palette::secondary())));
         right.push(Span::styled("  ·  ", dim));
     }
     if matches!(b.state, ExecutionState::Cached) {
@@ -277,6 +284,15 @@ pub(super) fn render_http_inner(
         .split(inner);
 
     let mut idx = 0;
+    // Pre-fill with the card body bg so the trailing cells past the
+    // last styled span still match the card (Paragraph leaves them
+    // untouched, and the outer fill in `render_block_with_selection`
+    // can be cleared by intermediate widget paints).
+    frame.render_widget(
+        ratatui::widgets::Block::default()
+            .style(ratatui::style::Style::default().bg(crate::ui::palette::block_body_bg())),
+        chunks[idx],
+    );
     frame.render_widget(Paragraph::new(request_lines), chunks[idx]);
     idx += 1;
     if closer_height > 0 {

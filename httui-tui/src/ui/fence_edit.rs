@@ -33,7 +33,9 @@ pub fn render(
     anchor: Option<BlockAnchor>,
 ) {
     let popup = compute_popup_rect(editor_area, anchor);
-    let bg_style = Style::default().bg(Color::Black).fg(Color::White);
+    let bg_style = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
 
     // Hard-fill the popup before painting so editor content under it
     // doesn't bleed through (matches connection_picker / quickopen).
@@ -54,7 +56,11 @@ pub fn render(
         .borders(Borders::ALL)
         .title(title)
         .style(bg_style)
-        .border_style(Style::default().fg(Color::LightYellow).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(crate::ui::palette::popup_border_accent())
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(popup);
     frame.render_widget(outer, popup);
 
@@ -76,15 +82,17 @@ pub fn render(
         Span::styled(before.to_string(), bg_style),
         Span::styled(
             "▏",
-            Style::default().bg(Color::Black).fg(Color::LightYellow),
+            Style::default()
+                .bg(crate::ui::palette::popup_bg())
+                .fg(crate::ui::palette::popup_border_accent()),
         ),
         Span::styled(after.to_string(), bg_style),
     ]);
     frame.render_widget(Paragraph::new(line), input_area);
 
     let chip_key = Style::default()
-        .bg(Color::LightYellow)
-        .fg(Color::Black)
+        .bg(crate::ui::palette::popup_border_accent())
+        .fg(crate::ui::palette::popup_bg())
         .add_modifier(Modifier::BOLD);
     let chip_label = Style::default().fg(Color::Gray);
     let footer = Line::from(vec![

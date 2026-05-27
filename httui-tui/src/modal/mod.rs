@@ -3,9 +3,9 @@ use crate::app::{
     ConnectionDeleteConfirmState, ConnectionFormState, ConnectionPickerState, ConnectionsPageState,
     ContentSearchState, DbConfirmRunState, DbExportPickerState, DbRowDetailState, DbSettingsState,
     EnvCloneFormState, EnvDeleteConfirmState, EnvFormState, EnvironmentPickerState, EnvsPageState,
-    HttpResponseDetailState, TabPickerState, VarDeleteConfirmState, VarFormState,
-    VaultCloneFormState, VaultCreateFormState, VaultMissingSecretsState, VaultOpenPickerState,
-    VaultPickerState,
+    HttpResponseDetailState, SettingsPageState, TabPickerState, VarDeleteConfirmState,
+    VarFormState, VaultCloneFormState, VaultCreateFormState, VaultMissingSecretsState,
+    VaultOpenPickerState, VaultPickerState,
 };
 use crate::config::EditorMode;
 use crate::vim::state::VimState;
@@ -19,11 +19,15 @@ mod detail;
 /// that file under the size gate.
 mod git;
 mod handlers;
+/// Settings page handler — kept here (instead of inline in
+/// `handlers.rs`) so each surface owns its own key vocabulary.
+mod settings_handler;
 mod util;
 
 use crate::input::action::Action;
 use crossterm::event::KeyEvent;
 use handlers::*;
+use settings_handler::settings_page_handle_key;
 
 /// Cross-cutting context handed to [`Modal::handle_key_with_ctx`]. Only
 /// the detail variants (`DbRowDetail`, `HttpResponseDetail`) consult it
@@ -143,6 +147,12 @@ pub enum Modal {
     /// pick the corresponding version, write it to disk, stage it,
     /// and drop the entry from the list.
     GitConflictResolver(crate::git::GitConflictResolverState),
+    /// Fullscreen Settings page (Keymaps / Theme / Editor). Backed
+    /// by `Config`; every mutation persists through
+    /// `crate::config::save_config`. Opened by `Alt+,` when the
+    /// cursor isn't on a DB/HTTP block (DB-block case routes to
+    /// `DbSettings` instead — see [`Action::OpenSettings`]).
+    Settings(SettingsPageState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -227,6 +237,7 @@ impl Modal {
             Modal::GitBranchPicker(_) => git::branch_picker_handle_key(key),
             Modal::GitLogPage(_) => git::log_page_handle_key(key),
             Modal::GitConflictResolver(_) => git::conflict_resolver_handle_key(key),
+            Modal::Settings(s) => settings_page_handle_key(s.capture.is_some(), key),
         }
     }
 

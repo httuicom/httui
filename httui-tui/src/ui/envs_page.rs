@@ -19,7 +19,9 @@ const POPUP_HEIGHT: u16 = 30;
 
 pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Option<(u16, u16)> {
     let area = centered(editor_area, POPUP_WIDTH, POPUP_HEIGHT);
-    let bg = Style::default().bg(Color::Black).fg(Color::White);
+    let bg = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
     fill(frame, area, bg);
     let title = if state.envs.is_empty() {
         " Variables · no envs ".to_string()
@@ -37,8 +39,8 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Op
         .style(bg)
         .border_style(
             Style::default()
-                .fg(crate::ui::palette::BORDER)
-                .bg(Color::Black),
+                .fg(crate::ui::palette::border())
+                .bg(crate::ui::palette::popup_bg()),
         );
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
@@ -56,7 +58,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Op
         ])
         .split(rows[0]);
     render_env_list(frame, body[0], state);
-    fill_col(frame, body[1], "│", Color::DarkGray);
+    fill_col(frame, body[1], "│", crate::ui::palette::muted());
     // V4 P7: vars area = vars list (altura proporcional ao count) +
     // divisor + used-in panel. Sem gap morto quando há poucas vars.
     let vars_h = (state.vars.len() as u16 + 1).clamp(3, body[2].height.saturating_sub(8));
@@ -69,7 +71,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &EnvsPageState) -> Op
         ])
         .split(body[2]);
     render_var_table(frame, vars_split[0], state);
-    fill_row(frame, vars_split[1], "─", Color::DarkGray);
+    fill_row(frame, vars_split[1], "─", crate::ui::palette::muted());
     super::var_uses_panel::render_var_uses_panel(frame, vars_split[2], state);
     render_hint(frame, rows[1], state.focus);
     None
@@ -85,7 +87,7 @@ pub(super) fn fill_row(frame: &mut Frame, area: Rect, sym: &str, fg: Color) {
     for x in area.x..area.x.saturating_add(area.width) {
         if let Some(c) = buf.cell_mut((x, y)) {
             c.set_symbol(sym);
-            c.set_style(Style::default().fg(fg).bg(Color::Black));
+            c.set_style(Style::default().fg(fg).bg(crate::ui::palette::popup_bg()));
         }
     }
 }
@@ -97,17 +99,17 @@ fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
             Line::from(""),
             Line::from(Span::styled(
                 " no envs yet",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(crate::ui::palette::muted()),
             )),
             Line::from(""),
             Line::from(Span::styled(
                 " press n to add",
                 Style::default()
-                    .fg(Color::LightYellow)
+                    .fg(crate::ui::palette::popup_border_accent())
                     .add_modifier(Modifier::ITALIC),
             )),
         ])
-        .style(Style::default().bg(Color::Black))
+        .style(Style::default().bg(crate::ui::palette::popup_bg()))
         .wrap(Wrap { trim: false });
         frame.render_widget(p, area);
         return;
@@ -121,10 +123,10 @@ fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
             let marker = if active { "●" } else { " " };
             let style_name = if active {
                 Style::default()
-                    .fg(Color::LightGreen)
+                    .fg(crate::ui::palette::success())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(crate::ui::palette::foreground())
             };
             // Atalho numérico no fim da linha (só pros 9 primeiros);
             // largura = 24 cols - 1 highlight symbol - 4 chrome
@@ -138,14 +140,14 @@ fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
             let padding = 17usize.saturating_sub(name_truncated.chars().count());
             ListItem::new(Line::from(vec![
                 Span::raw(" "),
-                Span::styled(marker, Style::default().fg(Color::LightGreen)),
+                Span::styled(marker, Style::default().fg(crate::ui::palette::success())),
                 Span::raw(" "),
                 Span::styled(name_truncated, style_name),
                 Span::raw(" ".repeat(padding)),
                 Span::styled(
                     shortcut,
                     Style::default()
-                        .fg(crate::ui::palette::ACCENT)
+                        .fg(crate::ui::palette::accent())
                         .add_modifier(Modifier::DIM),
                 ),
             ]))
@@ -153,14 +155,14 @@ fn render_env_list(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
         .collect();
     let highlight = if focused {
         Style::default()
-            .bg(crate::ui::palette::SELECTION_BG)
-            .fg(Color::White)
+            .bg(crate::ui::palette::selection_bg())
+            .fg(crate::ui::palette::foreground())
             .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
     let list = List::new(items)
-        .style(Style::default().bg(Color::Black))
+        .style(Style::default().bg(crate::ui::palette::popup_bg()))
         .highlight_style(highlight)
         .highlight_symbol(if focused { "▌" } else { " " });
     let mut ls = ListState::default();
@@ -180,10 +182,10 @@ fn render_var_table(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
             Line::from(""),
             Line::from(Span::styled(
                 format!("  {hint}"),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(crate::ui::palette::muted()),
             )),
         ])
-        .style(Style::default().bg(Color::Black));
+        .style(Style::default().bg(crate::ui::palette::popup_bg()));
         frame.render_widget(p, area);
         return;
     }
@@ -204,26 +206,29 @@ fn render_var_table(frame: &mut Frame, area: Rect, state: &EnvsPageState) {
                 Span::raw(" "),
                 Span::styled(
                     format!("{:<20}", truncate(&v.key, 20)),
-                    Style::default().fg(Color::White),
+                    Style::default().fg(crate::ui::palette::foreground()),
                 ),
                 Span::styled(
                     if v.is_secret { "🔒 " } else { "  " },
-                    Style::default().fg(Color::LightYellow),
+                    Style::default().fg(crate::ui::palette::popup_border_accent()),
                 ),
-                Span::styled(value_display, Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    value_display,
+                    Style::default().fg(crate::ui::palette::muted()),
+                ),
             ]))
         })
         .collect();
     let highlight = if focused {
         Style::default()
-            .bg(crate::ui::palette::SELECTION_BG)
-            .fg(Color::White)
+            .bg(crate::ui::palette::selection_bg())
+            .fg(crate::ui::palette::foreground())
             .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
     let list = List::new(items)
-        .style(Style::default().bg(Color::Black))
+        .style(Style::default().bg(crate::ui::palette::popup_bg()))
         .highlight_style(highlight)
         .highlight_symbol(if focused { "▌" } else { " " });
     let mut ls = ListState::default();
@@ -239,8 +244,8 @@ fn render_hint(frame: &mut Frame, area: Rect, focus: EnvsPaneFocus) {
     let p = Paragraph::new(Span::styled(
         body,
         Style::default()
-            .fg(Color::DarkGray)
-            .bg(Color::Black)
+            .fg(crate::ui::palette::muted())
+            .bg(crate::ui::palette::popup_bg())
             .add_modifier(Modifier::ITALIC),
     ));
     frame.render_widget(p, area);
@@ -271,7 +276,7 @@ fn fill_col(frame: &mut Frame, area: Rect, sym: &str, fg: Color) {
     for y in area.y..area.y.saturating_add(area.height) {
         if let Some(c) = buf.cell_mut((area.x, y)) {
             c.set_symbol(sym);
-            c.set_style(Style::default().fg(fg).bg(Color::Black));
+            c.set_style(Style::default().fg(fg).bg(crate::ui::palette::popup_bg()));
         }
     }
 }
@@ -297,7 +302,9 @@ pub fn render_env_form(
     state: &EnvFormState,
 ) -> Option<(u16, u16)> {
     let area = centered(editor_area, 50, 9);
-    let bg = Style::default().bg(Color::Black).fg(Color::White);
+    let bg = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
     fill(frame, area, bg);
     let title = if state.editing.is_some() {
         " Rename env "
@@ -309,14 +316,18 @@ pub fn render_env_form(
         .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg)
-        .border_style(Style::default().fg(Color::LightYellow).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(crate::ui::palette::popup_border_accent())
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
     let mut lines = vec![
         Line::from(Span::styled(
             "Name",
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(
@@ -327,10 +338,10 @@ pub fn render_env_form(
             },
             if state.name.as_str().is_empty() {
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(crate::ui::palette::muted())
                     .add_modifier(Modifier::ITALIC)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(crate::ui::palette::foreground())
             },
         )),
         Line::from(""),
@@ -347,7 +358,7 @@ pub fn render_env_form(
     lines.push(Line::from(Span::styled(
         " Enter save · Esc cancel",
         Style::default()
-            .fg(Color::DarkGray)
+            .fg(crate::ui::palette::muted())
             .add_modifier(Modifier::ITALIC),
     )));
     let p = Paragraph::new(lines).style(bg).wrap(Wrap { trim: false });
@@ -368,7 +379,9 @@ pub fn render_var_form(
     state: &VarFormState,
 ) -> Option<(u16, u16)> {
     let area = centered(editor_area, 60, 16);
-    let bg = Style::default().bg(Color::Black).fg(Color::White);
+    let bg = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
     fill(frame, area, bg);
     let title = if state.editing.is_some() {
         format!(" Edit var · {} ", state.env_name)
@@ -380,7 +393,11 @@ pub fn render_var_form(
         .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title)
         .style(bg)
-        .border_style(Style::default().fg(Color::LightYellow).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(crate::ui::palette::popup_border_accent())
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
 
@@ -389,10 +406,10 @@ pub fn render_var_form(
             t.to_string(),
             if focused {
                 Style::default()
-                    .fg(Color::LightYellow)
+                    .fg(crate::ui::palette::popup_border_accent())
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::DarkGray)
+                Style::default().fg(crate::ui::palette::muted())
             },
         ))
     };
@@ -401,13 +418,13 @@ pub fn render_var_form(
             Line::from(Span::styled(
                 hint.to_string(),
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(crate::ui::palette::muted())
                     .add_modifier(Modifier::ITALIC),
             ))
         } else {
             Line::from(Span::styled(
                 s.to_string(),
-                Style::default().fg(Color::White),
+                Style::default().fg(crate::ui::palette::foreground()),
             ))
         }
     };
@@ -437,22 +454,22 @@ pub fn render_var_form(
     };
     let chip_style = if sec_focused {
         Style::default()
-            .fg(Color::Black)
-            .bg(Color::LightYellow)
+            .fg(crate::ui::palette::popup_bg())
+            .bg(crate::ui::palette::popup_border_accent())
             .add_modifier(Modifier::BOLD)
     } else if state.is_secret {
         Style::default()
-            .fg(Color::LightYellow)
+            .fg(crate::ui::palette::popup_border_accent())
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(Color::White)
+        Style::default().fg(crate::ui::palette::foreground())
     };
     lines.push(Line::from(vec![
         Span::styled(chip, chip_style),
         Span::styled(
             "  (space toggles)",
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(crate::ui::palette::muted())
                 .add_modifier(Modifier::ITALIC),
         ),
     ]));
@@ -469,7 +486,7 @@ pub fn render_var_form(
     lines.push(Line::from(Span::styled(
         " Tab next · Enter save · Esc cancel",
         Style::default()
-            .fg(Color::DarkGray)
+            .fg(crate::ui::palette::muted())
             .add_modifier(Modifier::ITALIC),
     )));
     let p = Paragraph::new(lines).style(bg).wrap(Wrap { trim: false });
@@ -514,14 +531,20 @@ pub fn render_var_delete_confirm(frame: &mut Frame, area: Rect, state: &VarDelet
 
 fn confirm_popup(frame: &mut Frame, editor_area: Rect, title: &str, prompt: &str) {
     let area = centered(editor_area, 56, 7);
-    let bg = Style::default().bg(Color::Black).fg(Color::White);
+    let bg = Style::default()
+        .bg(crate::ui::palette::popup_bg())
+        .fg(crate::ui::palette::foreground());
     fill(frame, area, bg);
     let outer = Block::default()
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded)
         .title(title.to_string())
         .style(bg)
-        .border_style(Style::default().fg(Color::LightRed).bg(Color::Black));
+        .border_style(
+            Style::default()
+                .fg(Color::LightRed)
+                .bg(crate::ui::palette::popup_bg()),
+        );
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
     let lines = vec![
@@ -529,7 +552,7 @@ fn confirm_popup(frame: &mut Frame, editor_area: Rect, title: &str, prompt: &str
         Line::from(Span::styled(
             format!("  {prompt}"),
             Style::default()
-                .fg(Color::LightYellow)
+                .fg(crate::ui::palette::popup_border_accent())
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
@@ -538,19 +561,25 @@ fn confirm_popup(frame: &mut Frame, editor_area: Rect, title: &str, prompt: &str
             Span::styled(
                 " y / Enter ",
                 Style::default()
-                    .fg(Color::Black)
+                    .fg(crate::ui::palette::popup_bg())
                     .bg(Color::LightRed)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(" delete    ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                " delete    ",
+                Style::default().fg(crate::ui::palette::muted()),
+            ),
             Span::styled(
                 " n / Esc ",
                 Style::default()
-                    .fg(Color::White)
-                    .bg(Color::DarkGray)
+                    .fg(crate::ui::palette::foreground())
+                    .bg(crate::ui::palette::muted())
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(" cancel", Style::default().fg(Color::White)),
+            Span::styled(
+                " cancel",
+                Style::default().fg(crate::ui::palette::foreground()),
+            ),
         ]),
     ];
     let p = Paragraph::new(lines).style(bg).wrap(Wrap { trim: false });
@@ -852,7 +881,7 @@ mod tests {
     fn fill_row_with_zero_height_is_noop() {
         let mut t = term(20, 5);
         t.draw(|f| {
-            fill_row(f, Rect::new(0, 0, 20, 0), "─", Color::DarkGray);
+            fill_row(f, Rect::new(0, 0, 20, 0), "─", crate::ui::palette::muted());
         })
         .unwrap();
     }
