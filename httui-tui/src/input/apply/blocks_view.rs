@@ -19,6 +19,12 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 ///   operates directly on the sub-doc (via the `App::document_mut`
 ///   redirect — same pattern as `DbRowDetail`).
 pub(crate) fn resolve_pane_key(app: &App, key: KeyEvent) -> Option<Action> {
+    // Ctrl+W <hjkl> window chord: both engines own the suffix
+    // dispatch via their `pending_window*` flag. Letting NAV claim
+    // `h/j/k/l` here would shadow it.
+    if app.standard.pending_window_chord || app.vim.pending_window {
+        return None;
+    }
     let in_edit = app
         .active_pane()
         .map(|p| p.block_edit.is_some())
