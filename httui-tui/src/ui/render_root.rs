@@ -544,6 +544,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         let editor = crate::input::apply::settings_page::editor_view(app);
         crate::ui::settings_page::render(frame, editor_area, state, &keymaps, &themes, &editor);
     }
+
+    if let Some(crate::modal::Modal::BlocksView(state)) = app.modal.as_ref() {
+        crate::ui::blocks_view::render(frame, editor_area, state, app.document());
+    }
 }
 
 #[cfg(test)]

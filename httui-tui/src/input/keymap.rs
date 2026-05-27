@@ -159,6 +159,7 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         ),
         spec("open_envs_page", "alt+i", Action::OpenEnvsPage),
         spec("open_vault_picker", "alt+;", Action::OpenVaultPicker),
+        spec("open_blocks_view", "alt+m", Action::OpenBlocksView),
         spec("quick_open", "ctrl+p", Action::EnterQuickOpen),
         spec("content_search", "ctrl+f", Action::OpenContentSearch),
         // Workspace.
@@ -278,6 +279,7 @@ pub fn is_editor_global_shortcut(action: Action) -> bool {
             | Action::OpenConnectionsPage
             | Action::OpenEnvsPage
             | Action::OpenVaultPicker
+            | Action::OpenBlocksView
             | Action::EnterQuickOpen
             | Action::OpenContentSearch
             | Action::TreeToggle

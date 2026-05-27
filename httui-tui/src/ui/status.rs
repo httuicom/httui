@@ -70,6 +70,11 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     // file/vault status line so the user keeps a visible reference
     // to which file the popup is editing.
 
+    if let Some(state) = app.modal.as_ref().and_then(|m| m.as_blocks_view()) {
+        render_blocks_view_status(frame, area, app, state);
+        return;
+    }
+
     if let Some(msg) = app.status_message.as_ref() {
         let style = match msg.kind {
             StatusKind::Info => Style::default(),
@@ -383,6 +388,44 @@ fn describe_cursor(doc: &Document) -> String {
             format!("Block #{block_idx} · Result row {}", row + 1)
         }
     }
+}
+
+fn render_blocks_view_status(
+    frame: &mut Frame,
+    area: Rect,
+    app: &App,
+    state: &crate::app::BlocksViewState,
+) {
+    let alias = app
+        .document()
+        .and_then(|d| d.segments().get(state.segment_idx))
+        .and_then(|s| match s {
+            Segment::Block(b) => b.alias.clone(),
+            _ => None,
+        })
+        .unwrap_or_else(|| "—".into());
+    let region = state.current_region_label();
+    let region_idx = state.region + 1;
+    let bg = Style::default().bg(crate::ui::palette::popup_border_accent());
+    let spans = vec![
+        Span::styled(
+            " BLOCKS ",
+            bg.fg(crate::ui::palette::popup_bg())
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("  "),
+        Span::styled(alias, Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled("  ·  ", Style::default().fg(crate::ui::palette::muted())),
+        Span::styled(
+            format!("[{region_idx}] {region}"),
+            Style::default().fg(crate::ui::palette::accent()),
+        ),
+        Span::styled(
+            "    Tab cycle · Alt+1..4 jump · Esc close",
+            Style::default().fg(crate::ui::palette::muted()),
+        ),
+    ];
+    frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
 #[cfg(test)]

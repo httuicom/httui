@@ -362,5 +362,13 @@ pub enum Action {
     SettingsCommitCapture(crossterm::event::KeyEvent),
     /// Restore the row under the cursor to its built-in default.
     SettingsResetBinding,
+    OpenBlocksView,
+    CloseBlocksView,
+    BlocksViewNextRegion,
+    BlocksViewPrevRegion,
+    /// Region index is 1-based to match the `Alt+1..N` chord; the
+    /// applier converts to 0-based and clamps to the block kind's
+    /// region count.
+    BlocksViewJumpRegion(usize),
     Noop,
 }
