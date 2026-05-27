@@ -203,6 +203,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     } else {
         None
     };
+    let mut popup_cursor_cell: Option<(u16, u16)> = None;
     let result_viewport_top = &mut app.result_viewport_top;
     if matches!(app.view, crate::app::AppView::Blocks) {
         if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {
@@ -215,6 +216,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
                 result_viewport_top,
                 visual_overlay,
                 running: running_snap,
+                popup_cursor_cell: &mut popup_cursor_cell,
             };
             crate::ui::blocks_view::render(
                 frame,
@@ -388,7 +390,22 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // above or centered if no room. Painted last so it floats above
     // the editor cursor and any earlier overlays.
     if let Some(state) = app.completion_popup() {
-        let anchor = anchor::compute_block_anchor(app, editor_area, state.segment_idx);
+        // BLOCKS EDIT publishes its own cursor cell since
+        // `compute_block_anchor` doesn't fit the BLOCKS-view layout.
+        // Wrap the cell in a synthetic `BlockAnchor` whose math
+        // resolves the cursor row to `cursor_y` inside
+        // `compute_popup_rect` (it computes `cursor_y =
+        // screen_top + 3 + anchor_line`, so we pre-subtract).
+        let anchor = if let Some((cx, cy)) = popup_cursor_cell {
+            let synth = crate::ui::BlockAnchor {
+                screen_top: cy.saturating_sub(3),
+                height: 1,
+            };
+            let _ = cx; // popup x derives from anchor_offset within editor_area
+            Some(synth)
+        } else {
+            anchor::compute_block_anchor(app, editor_area, state.segment_idx)
+        };
         completion_popup::render(frame, editor_area, state, anchor);
     }
 

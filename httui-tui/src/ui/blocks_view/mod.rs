@@ -22,6 +22,12 @@ pub struct BlocksRenderCtx<'a> {
     pub result_viewport_top: &'a mut HashMap<usize, u16>,
     pub visual_overlay: Option<VisualOverlay>,
     pub running: Option<String>,
+    /// Filled by the pane renderer with the cursor's screen cell
+    /// (`(col, row)`) while a query EDIT buffer is open on the
+    /// focused pane. Used by the completion popup to anchor below
+    /// the typing position (the DOC view's `compute_block_anchor`
+    /// doesn't fit BLOCKS-view geometry).
+    pub popup_cursor_cell: &'a mut Option<(u16, u16)>,
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -826,7 +826,7 @@ fn render_db_regions(
         })
         .unwrap_or_else(|| "(no connection)".to_string());
     render_region(frame, chunks[0], 0, block_type, region == 0, &[conn_label]);
-    render_multiline_region(
+    let query_caret = render_multiline_region(
         frame,
         chunks[1],
         block_type,
@@ -839,6 +839,9 @@ fn render_db_regions(
         |f| matches!(f, EditField::DbQuery),
         visual_overlay,
     );
+    if let Some(cell) = query_caret {
+        *ctx.popup_cursor_cell = Some(cell);
+    }
     render_db_result_region(
         frame,
         chunks[2],
@@ -1060,7 +1063,7 @@ fn render_multiline_region(
     pane_focused: bool,
     field_matches: impl Fn(&EditField) -> bool,
     visual_overlay: Option<crate::ui::VisualOverlay>,
-) {
+) -> Option<(u16, u16)> {
     let editing = pane_focused
         && focused
         && pane
@@ -1072,32 +1075,37 @@ fn render_multiline_region(
     let inner = block_widget.inner(area);
     frame.render_widget(block_widget, area);
     if inner.width == 0 || inner.height == 0 {
-        return;
+        return None;
     }
     let active_edit = pane
         .block_edit
         .as_ref()
         .filter(|e| field_matches(&e.field));
-    let (lines, caret): (Vec<String>, Option<(u16, u16)>) = if let Some(edit) = active_edit {
+    let (text, caret): (String, Option<(u16, u16)>) = if let Some(edit) = active_edit {
         let text = edit.current_text();
-        let mut ls: Vec<String> = text.split('\n').map(str::to_string).collect();
-        if ls.is_empty() {
-            ls.push(String::new());
-        }
         let (row, col) = edit_cursor_row_col(edit);
         let cy = inner.y.saturating_add(row as u16);
         let cx = inner.x.saturating_add(col as u16);
-        (ls, Some((cx, cy)))
+        (text, Some((cx, cy)))
     } else if fallback.is_empty() {
-        (vec![placeholder.to_string()], None)
+        (placeholder.to_string(), None)
     } else {
-        (fallback.lines().map(str::to_string).collect(), None)
+        (fallback.to_string(), None)
     };
-    let rendered: Vec<Line<'static>> = lines
-        .iter()
-        .map(|l| Line::from(Span::raw(l.clone())))
-        .collect();
-    frame.render_widget(Paragraph::new(rendered).wrap(Wrap { trim: false }), inner);
+    // SQL blocks pick up the same syntax highlighter the DOC view
+    // uses (`ui::sql_highlight::highlight`). Anything else paints
+    // plain so URL/headers/HTTP body still render verbatim.
+    let rendered: Vec<Line<'static>> = if block_type.starts_with("db") {
+        crate::ui::sql_highlight::highlight(&text)
+            .into_iter()
+            .map(Line::from)
+            .collect()
+    } else {
+        text.split('\n')
+            .map(|l| Line::from(Span::raw(l.to_string())))
+            .collect()
+    };
+    frame.render_widget(Paragraph::new(rendered), inner);
     if let Some((cx, cy)) = caret {
         if cx < inner.x + inner.width && cy < inner.y + inner.height {
             frame.set_cursor_position((cx, cy));
@@ -1109,6 +1117,7 @@ fn render_multiline_region(
     if let (Some(edit), Some(overlay)) = (active_edit, visual_overlay) {
         crate::ui::overlay_visual_selection(frame, inner, &edit.doc, 0, overlay);
     }
+    caret
 }
 
 fn render_region(
