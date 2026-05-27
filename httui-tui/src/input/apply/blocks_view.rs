@@ -25,6 +25,14 @@ pub(crate) fn resolve_pane_key(app: &App, key: KeyEvent) -> Option<Action> {
     if app.standard.pending_window_chord || app.vim.pending_window {
         return None;
     }
+    // Any open modal owns the keyboard. Keys it Forwards must reach
+    // the modal's own pipeline (doc redirect / dispatch via
+    // vim.mode), NOT this NAV resolver. Otherwise `h/j/k/l/Tab` etc.
+    // shadow the modal's cursor and the BLOCKS pane silently
+    // re-uses the keystroke.
+    if app.modal.is_some() {
+        return None;
+    }
     let in_edit = app
         .active_pane()
         .map(|p| p.block_edit.is_some())
@@ -502,6 +510,9 @@ fn active_region_row_count(app: &App) -> usize {
     let Some(block) = file.blocks.get(target.block_idx) else {
         return 0;
     };
+    if block.block_type.starts_with("db") && pane.block_region == 2 {
+        return db_result_row_count(pane).max(1);
+    }
     if block.block_type != "http" {
         return 1;
     }
@@ -518,6 +529,73 @@ fn active_region_row_count(app: &App) -> usize {
         }
         _ => 1,
     }
+}
+
+/// `Some((segment_idx, row))` when the focused pane is on `[3]
+/// Result` of a DB block whose run is cached. Used to park the
+/// cursor before delegating to the DOC view's row-detail handler.
+fn focused_db_result_row(app: &App) -> Option<(usize, usize)> {
+    let pane = app.active_pane()?;
+    if pane.block_region != 2 {
+        return None;
+    }
+    let ws = app.blocks_workspace.as_ref()?;
+    let sel = pane.block_selected?;
+    let file = ws.index.files.get(sel.file_idx)?;
+    let block = file.blocks.get(sel.block_idx)?;
+    if !block.block_type.starts_with("db") {
+        return None;
+    }
+    let doc = pane.document.as_ref()?;
+    for (idx, seg) in doc.segments().iter().enumerate() {
+        if let crate::buffer::Segment::Block(b) = seg {
+            if b.block_type == block.block_type && b.alias == block.alias {
+                let total = b
+                    .cached_result
+                    .as_ref()
+                    .and_then(|v| v.get("results"))
+                    .and_then(|v| v.as_array())
+                    .and_then(|a| a.first())
+                    .and_then(|r| r.get("rows"))
+                    .and_then(|r| r.as_array())
+                    .map(|a| a.len())
+                    .unwrap_or(0);
+                if total == 0 {
+                    return None;
+                }
+                let row = pane.block_row.min(total.saturating_sub(1));
+                return Some((idx, row));
+            }
+        }
+    }
+    None
+}
+
+/// Number of result rows accessible from the focused pane's loaded
+/// document. `0` when the block hasn't been run yet so up/down stays
+/// pinned.
+fn db_result_row_count(pane: &crate::pane::Pane) -> usize {
+    let doc = match pane.document.as_ref() {
+        Some(d) => d,
+        None => return 0,
+    };
+    for seg in doc.segments() {
+        if let crate::buffer::Segment::Block(b) = seg {
+            if b.block_type.starts_with("db") {
+                return b
+                    .cached_result
+                    .as_ref()
+                    .and_then(|v| v.get("results"))
+                    .and_then(|v| v.as_array())
+                    .and_then(|a| a.first())
+                    .and_then(|r| r.get("rows"))
+                    .and_then(|r| r.as_array())
+                    .map(|a| a.len())
+                    .unwrap_or(0);
+            }
+        }
+    }
+    0
 }
 
 /// Column count of the focused region. Headers have `2` (key + value).
@@ -572,6 +650,16 @@ fn read_header_count(
 /// standard → INSERT, vim → NORMAL. `EnterMode::Insert` forces INSERT
 /// (vim `i`/`a`/`o`).
 fn enter_edit(app: &mut App, mode: EnterMode) {
+    // Result region of a DB block: Enter opens the row-detail modal
+    // (reuses the DOC view's `apply_open_db_row_detail` after parking
+    // the cursor on the focused row).
+    if let Some((segment_idx, row)) = focused_db_result_row(app) {
+        if let Some(doc) = app.document_mut() {
+            doc.set_cursor(crate::buffer::Cursor::InBlockResult { segment_idx, row });
+        }
+        crate::input::apply::modal_detail::apply_open_db_row_detail(app);
+        return;
+    }
     let Some(field) = field_for_focus(app) else {
         return;
     };

@@ -60,7 +60,7 @@ pub(super) fn render_result_tab_bar_inner(
     render_result_tab_bar_for(frame, area, selected, result_count, "")
 }
 
-pub(super) fn render_result_tab_bar_for(
+pub(crate) fn render_result_tab_bar_for(
     frame: &mut Frame,
     area: Rect,
     selected: crate::app::ResultPanelTab,
@@ -95,7 +95,7 @@ pub(super) fn render_result_tab_bar_for(
 /// Pull a `DbResult::Error` (kind == "error") off `results[0]` and
 /// format it as a red banner block. Returns `None` when the first
 /// result isn't an error (Result tab keeps its normal rendering path).
-pub(super) fn build_error_lines(b: &BlockNode) -> Option<Vec<Line<'static>>> {
+pub(crate) fn build_error_lines(b: &BlockNode) -> Option<Vec<Line<'static>>> {
     let first = b
         .cached_result
         .as_ref()?
@@ -143,7 +143,7 @@ pub(super) fn build_error_lines(b: &BlockNode) -> Option<Vec<Line<'static>>> {
 
 /// Messages tab — pulls `messages[]` off the cached response and
 /// lists them as `[severity] text`. Empty list shows a dim placeholder.
-pub(super) fn build_messages_lines(b: &BlockNode) -> Vec<Line<'static>> {
+pub(crate) fn build_messages_lines(b: &BlockNode) -> Vec<Line<'static>> {
     let placeholder = Line::from(Span::styled(
         " (no messages)",
         Style::default().fg(Color::DarkGray),
@@ -181,7 +181,7 @@ pub(super) fn build_messages_lines(b: &BlockNode) -> Vec<Line<'static>> {
 }
 
 /// Plan tab — renders `cached_result["plan"]`.
-pub(super) fn build_plan_lines(b: &BlockNode) -> Vec<Line<'static>> {
+pub(crate) fn build_plan_lines(b: &BlockNode) -> Vec<Line<'static>> {
     let placeholder = Line::from(Span::styled(
         " (no plan — run <C-x> on this block to populate)",
         Style::default().fg(Color::DarkGray),
@@ -228,7 +228,7 @@ pub(super) fn build_plan_lines(b: &BlockNode) -> Vec<Line<'static>> {
 }
 
 /// Stats tab — formats the connection meta + per-execution stats.
-pub(super) fn build_stats_lines(b: &BlockNode) -> Vec<Line<'static>> {
+pub(crate) fn build_stats_lines(b: &BlockNode) -> Vec<Line<'static>> {
     let label_style = Style::default().fg(Color::DarkGray);
     let value_style = Style::default().fg(Color::White);
     let row = |label: &str, value: String| {

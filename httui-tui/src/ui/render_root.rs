@@ -197,21 +197,31 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // for the render path (panes update their viewport_height; the
     // result table writes back its scroll offset).
     let active_idx = app.tabs.active;
+    let workspace_snap = app.blocks_workspace.clone();
+    let running_snap = if matches!(app.view, crate::app::AppView::Blocks) {
+        crate::ui::running_chip_label(app)
+    } else {
+        None
+    };
     let result_viewport_top = &mut app.result_viewport_top;
     if matches!(app.view, crate::app::AppView::Blocks) {
-        let workspace = app.blocks_workspace.clone();
-        let running = crate::ui::running_chip_label(app);
         if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {
             let focused = tab.focused.clone();
+            let mut ctx = crate::ui::blocks_view::BlocksRenderCtx {
+                vault: &vault,
+                workspace: workspace_snap.as_ref(),
+                connection_names: &connection_names,
+                result_tabs: &result_tabs_snapshot,
+                result_viewport_top,
+                visual_overlay,
+                running: running_snap,
+            };
             crate::ui::blocks_view::render(
                 frame,
                 editor_area,
                 &mut tab.root,
                 &focused,
-                workspace.as_ref(),
-                &vault,
-                visual_overlay,
-                running,
+                &mut ctx,
             );
         }
     } else if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {

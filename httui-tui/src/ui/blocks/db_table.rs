@@ -279,7 +279,7 @@ pub(super) fn clamp_result_viewport(
 }
 
 /// Build a `ratatui::Table` widget for a DB block's `select` result.
-pub(super) fn build_result_table(
+pub(crate) fn build_result_table(
     b: &BlockNode,
     selected_row: Option<usize>,
     viewport_top: Option<&mut u16>,
