@@ -187,6 +187,9 @@ mod tests {
         };
         let mut cfg = Config::default();
         cfg.editor.mode = mode;
+        // Factory default is unbound; these tests drive the hot-toggle
+        // path, so opt in explicitly.
+        cfg.editor.toggle_mode_key = "alt+m".to_string();
         let app = App::new(cfg, resolved, pool);
         (app, data, vault)
     }

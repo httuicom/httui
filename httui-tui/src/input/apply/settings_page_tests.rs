@@ -266,7 +266,7 @@ async fn reset_toggle_mode_row_writes_default() {
     let toggle_idx = rows.iter().position(|r| r.is_toggle_mode).unwrap();
     apply_settings_page(&mut app, Action::SettingsMoveCursor(toggle_idx as i32));
     apply_settings_page(&mut app, Action::SettingsResetBinding);
-    assert_eq!(app.config.editor.toggle_mode_key, "alt+m");
+    assert_eq!(app.config.editor.toggle_mode_key, "");
 }
 
 #[tokio::test(flavor = "multi_thread")]
