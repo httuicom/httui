@@ -232,6 +232,10 @@ fn resolve_nav_key(key: KeyEvent, vim: bool, in_headers: bool) -> Option<Action>
             Some(Action::BlocksHeaderDeleteRow)
         }
         (m, KeyCode::Char('s')) if m == KeyModifiers::CONTROL => Some(Action::BlocksSaveDraft),
+        (m, KeyCode::Char('t')) if m == KeyModifiers::ALT => Some(Action::BlocksResponseNextTab),
+        (m, KeyCode::Char('T')) if m == (KeyModifiers::ALT | KeyModifiers::SHIFT) => {
+            Some(Action::BlocksResponsePrevTab)
+        }
         _ => None,
     }
 }
@@ -261,6 +265,8 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         }
         Action::BlocksHeaderInsertRow => insert_header_row(app),
         Action::BlocksHeaderDeleteRow => delete_header_row(app),
+        Action::BlocksResponseNextTab => shift_response_subtab(app, 1),
+        Action::BlocksResponsePrevTab => shift_response_subtab(app, -1),
         Action::BlocksTreeNewBlock => tree_new_block(app),
         Action::BlocksTreeReorderUp => tree_reorder_block(app, -1),
         Action::BlocksTreeReorderDown => tree_reorder_block(app, 1),
@@ -367,6 +373,62 @@ fn apply_to_nth_leaf(
             }
             apply_to_nth_leaf(second, target, counter, f)
         }
+    }
+}
+
+/// Cycle the response sub-tab on the focused pane. Only applies
+/// when the focused block is HTTP and the focused region is the
+/// Response region (region == 3). 5 tabs: Body / Headers / Cookies
+/// / Timing / History.
+fn shift_response_subtab(app: &mut App, delta: isize) {
+    let target = app
+        .blocks_workspace
+        .as_ref()
+        .zip(app.active_pane())
+        .and_then(|(ws, pane)| {
+            let sel = pane.block_selected?;
+            let file = ws.index.files.get(sel.file_idx)?;
+            let block = file.blocks.get(sel.block_idx)?;
+            if block.block_type != "http" || pane.block_region != 3 {
+                return None;
+            }
+            Some((file.display.clone(), block.alias.clone()))
+        });
+    let Some((file, alias)) = target else {
+        return;
+    };
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    let count: isize = 5;
+    pane.response_subtab =
+        (pane.response_subtab as isize + delta).rem_euclid(count) as usize;
+    if pane.response_subtab == 4 {
+        if let Some(alias) = alias {
+            refresh_pane_history(app, file, alias);
+        }
+    }
+}
+
+/// Pull recent `block_run_history` rows for (file, alias) and stash
+/// them on the focused pane. Block-on-pool is OK here because the
+/// list is capped by `history_retention` (default 10).
+fn refresh_pane_history(app: &mut App, file: String, alias: String) {
+    let pool = app.pool_manager.app_pool().clone();
+    let entries = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(async {
+            httui_core::block_history::list_history(&pool, &file, &alias)
+                .await
+                .unwrap_or_default()
+        })
+    });
+    if let Some(pane) = app.active_pane_mut() {
+        pane.response_history = Some(Box::new(crate::pane::ResponseHistory {
+            file,
+            alias,
+            cursor: 0,
+            entries,
+        }));
     }
 }
 

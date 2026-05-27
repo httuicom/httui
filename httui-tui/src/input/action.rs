@@ -409,6 +409,13 @@ pub enum Action {
     /// BLOCKS NAV cancel: stop the in-flight run started from this
     /// pane. Default chord `.`. Wraps `cancel_running_query`.
     BlocksCancelRun,
+    /// Cycle response sub-tabs (Body / Headers / Cookies / Timing /
+    /// History) inside the focused HTTP block's `[N] Response`
+    /// region. Default chord `Alt+T`. No-op for DB / non-HTTP blocks.
+    BlocksResponseNextTab,
+    /// Reverse of [`Action::BlocksResponseNextTab`]. Default chord
+    /// `Alt+Shift+T`.
+    BlocksResponsePrevTab,
     /// NAV in HTTP `[2] Headers`: insert an empty row after the
     /// current `block_row`, advance cursor to the new row's key cell.
     /// Hydrates the draft on first use.

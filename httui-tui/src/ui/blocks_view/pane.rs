@@ -272,23 +272,250 @@ fn render_http_regions(
         |f| matches!(f, EditField::HttpBody),
         visual_overlay,
     );
-    let response_lines: Vec<String> = if let Some(label) = running {
-        // Live progress while the request is in flight — sits where
-        // the response will land so the user reads it in context.
-        vec![label.to_string()]
-    } else if parsed.cached.is_empty() {
-        vec!["(no response — press r to run)".to_string()]
-    } else {
-        parsed.cached.lines().map(str::to_string).collect()
-    };
-    render_region(
+    render_http_response_region(
         frame,
         chunks[3],
-        3,
         block_type,
         region == 3,
-        &response_lines,
+        parsed,
+        pane,
+        running,
     );
+}
+
+/// `[4] Response` with sub-tabs `Body / Headers / Cookies / Timing /
+/// History`. Tab header sits inside the region's inner area; body
+/// fills the remainder. Sub-tab driven by `pane.response_subtab`.
+fn render_http_response_region(
+    frame: &mut Frame,
+    area: Rect,
+    block_type: &str,
+    focused: bool,
+    parsed: &ParsedView,
+    pane: &Pane,
+    running: Option<&str>,
+) {
+    let block_widget = region_block(block_type, 3, focused, false);
+    let inner = block_widget.inner(area);
+    frame.render_widget(block_widget, area);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(inner);
+    let active = pane.response_subtab.min(4);
+    paint_response_tabs(frame, chunks[0], active, focused);
+    if chunks[1].height == 0 {
+        return;
+    }
+    let lines = if let Some(label) = running {
+        vec![label.to_string()]
+    } else if active == 4 {
+        history_lines(pane)
+    } else if parsed.cached_json.is_none() {
+        vec!["(no response — press r to run)".to_string()]
+    } else {
+        response_subtab_lines(parsed, active)
+    };
+    let lines: Vec<Line> = lines
+        .into_iter()
+        .map(|s| Line::from(Span::raw(s)))
+        .collect();
+    frame.render_widget(
+        Paragraph::new(lines).wrap(Wrap { trim: false }),
+        chunks[1],
+    );
+}
+
+fn paint_response_tabs(frame: &mut Frame, area: Rect, active: usize, focused: bool) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    const LABELS: [&str; 5] = ["Body", "Headers", "Cookies", "Timing", "History"];
+    let muted = Style::default().fg(crate::ui::palette::muted());
+    let on = Style::default()
+        .fg(if focused {
+            crate::ui::palette::accent()
+        } else {
+            crate::ui::palette::foreground()
+        })
+        .add_modifier(Modifier::BOLD);
+    let mut spans: Vec<Span> = Vec::with_capacity(LABELS.len() * 2);
+    for (i, label) in LABELS.iter().enumerate() {
+        if i == active {
+            spans.push(Span::styled(format!("▸ {label}"), on));
+        } else {
+            spans.push(Span::styled(format!("  {label}"), muted));
+        }
+        if i + 1 < LABELS.len() {
+            spans.push(Span::styled("  ", muted));
+        }
+    }
+    frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+fn history_lines(pane: &Pane) -> Vec<String> {
+    let Some(history) = pane.response_history.as_deref() else {
+        return vec!["(no history — switch to History tab to load)".to_string()];
+    };
+    if history.entries.is_empty() {
+        return vec!["(no runs recorded for this block)".to_string()];
+    }
+    history
+        .entries
+        .iter()
+        .enumerate()
+        .map(|(i, e)| {
+            let cursor = if i == history.cursor { "▸" } else { " " };
+            let status = e
+                .status
+                .map(|s| format!("{s}"))
+                .unwrap_or_else(|| "—".to_string());
+            let elapsed = e
+                .elapsed_ms
+                .map(|m| format!("{m}ms"))
+                .unwrap_or_else(|| "—".to_string());
+            let size = e
+                .response_size
+                .map(|s| format_bytes(s as u64))
+                .unwrap_or_else(|| "—".to_string());
+            format!(
+                "{cursor} {ran_at}  {method:<6} {status:<4} {elapsed:>7}  {size}",
+                ran_at = e.ran_at,
+                method = e.method
+            )
+        })
+        .collect()
+}
+
+fn response_subtab_lines(parsed: &ParsedView, subtab: usize) -> Vec<String> {
+    let Some(json) = parsed.cached_json.as_ref() else {
+        return vec!["(no cached response)".to_string()];
+    };
+    match subtab {
+        0 => cached_body_lines(json),
+        1 => cached_headers_lines(json),
+        2 => cached_cookies_lines(json),
+        3 => cached_timing_lines(json),
+        _ => vec!["(history: press Enter on an entry to replay)".to_string()],
+    }
+}
+
+fn cached_body_lines(json: &serde_json::Value) -> Vec<String> {
+    let summary_first_line = parsed_cached_summary_line(json);
+    let body = json
+        .get("body")
+        .or_else(|| json.get("results"))
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let body_text = match &body {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Null => String::new(),
+        _ => serde_json::to_string_pretty(&body).unwrap_or_else(|_| body.to_string()),
+    };
+    let mut out = Vec::new();
+    if let Some(summary) = summary_first_line {
+        out.push(summary);
+        out.push(String::new());
+    }
+    out.extend(body_text.lines().map(str::to_string));
+    if out.is_empty() {
+        out.push("(empty body)".to_string());
+    }
+    out
+}
+
+fn parsed_cached_summary_line(json: &serde_json::Value) -> Option<String> {
+    let obj = json.as_object()?;
+    let status = obj.get("status").and_then(|s| s.as_i64())?;
+    let mut summary = format!("{status}");
+    if let Some(text) = obj.get("status_text").and_then(|s| s.as_str()) {
+        if !text.is_empty() {
+            summary.push(' ');
+            summary.push_str(text);
+        }
+    }
+    if let Some(elapsed) = obj
+        .get("elapsed_ms")
+        .or_else(|| obj.get("total_ms"))
+        .and_then(|v| v.as_u64())
+    {
+        summary.push_str(" · ");
+        summary.push_str(&format!("{elapsed}ms"));
+    }
+    if let Some(size) = obj.get("size_bytes").and_then(|v| v.as_u64()) {
+        summary.push_str(" · ");
+        summary.push_str(&format_bytes(size));
+    }
+    Some(summary)
+}
+
+fn cached_headers_lines(json: &serde_json::Value) -> Vec<String> {
+    let arr = json
+        .get("headers")
+        .and_then(|h| h.as_array())
+        .cloned()
+        .unwrap_or_default();
+    if arr.is_empty() {
+        return vec!["(no headers)".to_string()];
+    }
+    arr.iter()
+        .map(|h| {
+            let name = h.get("name").or_else(|| h.get("key")).and_then(|v| v.as_str()).unwrap_or("");
+            let value = h.get("value").and_then(|v| v.as_str()).unwrap_or("");
+            format!("{name}: {value}")
+        })
+        .collect()
+}
+
+fn cached_cookies_lines(json: &serde_json::Value) -> Vec<String> {
+    let arr = json
+        .get("cookies")
+        .and_then(|c| c.as_array())
+        .cloned()
+        .unwrap_or_default();
+    if arr.is_empty() {
+        return vec!["(no cookies)".to_string()];
+    }
+    arr.iter()
+        .map(|c| {
+            let name = c.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let value = c.get("value").and_then(|v| v.as_str()).unwrap_or("");
+            let domain = c.get("domain").and_then(|v| v.as_str()).unwrap_or("");
+            if domain.is_empty() {
+                format!("{name} = {value}")
+            } else {
+                format!("{name} = {value}    domain={domain}")
+            }
+        })
+        .collect()
+}
+
+fn cached_timing_lines(json: &serde_json::Value) -> Vec<String> {
+    let obj = match json.as_object() {
+        Some(o) => o,
+        None => return vec!["(no timing)".to_string()],
+    };
+    let mut out: Vec<String> = Vec::new();
+    let push = |out: &mut Vec<String>, label: &str, key: &str| {
+        if let Some(ms) = obj.get(key).and_then(|v| v.as_u64()) {
+            out.push(format!("{label:<20} {ms}ms"));
+        }
+    };
+    push(&mut out, "Total", "total_ms");
+    push(&mut out, "TTFB", "ttfb_ms");
+    push(&mut out, "DNS", "dns_ms");
+    push(&mut out, "Connect", "connect_ms");
+    push(&mut out, "TLS", "tls_ms");
+    if let Some(reused) = obj.get("connection_reused").and_then(|v| v.as_bool()) {
+        out.push(format!("{:<20} {reused}", "Conn reused"));
+    }
+    if out.is_empty() {
+        out.push("(no timing data)".to_string());
+    }
+    out
 }
 
 /// Convert a `RegionEdit` sub-Document cursor into a visual `(row,
@@ -732,6 +959,9 @@ struct ParsedView {
     body: String,
     connection: Option<String>,
     cached: String,
+    /// Raw JSON output of the last run (HTTP / DB executor). Sub-tab
+    /// renderers slice off body / headers / cookies / timing from this.
+    cached_json: Option<serde_json::Value>,
     raw: String,
 }
 
@@ -751,7 +981,10 @@ fn load_view(
         for seg in doc.segments() {
             if let crate::buffer::Segment::Block(b) = seg {
                 if b.block_type == block.block_type && b.alias == block.alias {
-                    return b.cached_result.as_ref().map(serialize_cached_result);
+                    return b
+                        .cached_result
+                        .as_ref()
+                        .map(|v| (serialize_cached_result(v), v.clone()));
                 }
             }
         }
@@ -766,8 +999,9 @@ fn load_view(
         {
             let raw = httui_core::blocks::serialize_block(&draft.block);
             let mut view = parsed_to_view(&draft.block, raw);
-            if let Some(c) = cached_from_pane {
+            if let Some((c, json)) = cached_from_pane {
                 view.cached = c;
+                view.cached_json = Some(json);
             }
             return view;
         }
@@ -789,8 +1023,9 @@ fn load_view(
     let start = p.line_start.min(end);
     let raw_block = lines[start..=end].join("\n");
     let mut view = parsed_to_view(p, raw_block);
-    if let Some(c) = cached_from_pane {
+    if let Some((c, json)) = cached_from_pane {
         view.cached = c;
+        view.cached_json = Some(json);
     }
     view
 }
@@ -908,6 +1143,7 @@ fn parsed_to_view(p: &httui_core::blocks::parser::ParsedBlock, raw: String) -> P
         body,
         connection,
         cached: String::new(),
+        cached_json: None,
         raw,
     }
 }
@@ -921,6 +1157,7 @@ impl ParsedView {
             body: String::new(),
             connection: None,
             cached: String::new(),
+            cached_json: None,
             raw: String::new(),
         }
     }

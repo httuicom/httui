@@ -44,6 +44,35 @@ pub struct Pane {
     /// Boxed for the same reason as `block_edit` — `ParsedBlock` carries
     /// a `serde_json::Value` whose worst case is non-trivial.
     pub block_draft: Option<Box<BlockDraft>>,
+    /// Sub-tab inside the Response region of an HTTP block.
+    /// `0 = Body`, `1 = Headers`, `2 = Cookies`, `3 = Timing`,
+    /// `4 = History`. Ignored when the focused block isn't HTTP.
+    pub response_subtab: usize,
+    /// Cached history entries for the focused block — populated on
+    /// demand when the user switches to the History sub-tab so the
+    /// renderer doesn't hit SQLite every frame. Cleared when the
+    /// pane's block selection changes or a fresh run lands.
+    pub response_history: Option<Box<ResponseHistory>>,
+}
+
+/// Cached SQLite history rows for one (file, alias) pair. Keyed so
+/// stale data from a previous selection is detected and re-fetched.
+pub struct ResponseHistory {
+    pub file: String,
+    pub alias: String,
+    pub cursor: usize,
+    pub entries: Vec<httui_core::block_history::types::HistoryEntry>,
+}
+
+impl std::fmt::Debug for ResponseHistory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResponseHistory")
+            .field("file", &self.file)
+            .field("alias", &self.alias)
+            .field("cursor", &self.cursor)
+            .field("entries_len", &self.entries.len())
+            .finish()
+    }
 }
 
 impl Pane {
@@ -59,6 +88,8 @@ impl Pane {
             block_col: 1,
             block_edit: None,
             block_draft: None,
+            response_subtab: 0,
+            response_history: None,
         }
     }
 
@@ -74,6 +105,8 @@ impl Pane {
             block_col: 1,
             block_edit: None,
             block_draft: None,
+            response_subtab: 0,
+            response_history: None,
         }
     }
 
@@ -100,6 +133,8 @@ impl Pane {
             block_col: self.block_col,
             block_edit: None,
             block_draft: None,
+            response_subtab: self.response_subtab,
+            response_history: None,
         }
     }
 }
@@ -407,6 +442,8 @@ mod tests {
             block_col: 1,
             block_edit: None,
             block_draft: None,
+            response_subtab: 0,
+            response_history: None,
         }
     }
 

@@ -355,6 +355,8 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::BlocksCancelRun
         | Action::BlocksHeaderInsertRow
         | Action::BlocksHeaderDeleteRow
+        | Action::BlocksResponseNextTab
+        | Action::BlocksResponsePrevTab
         | Action::BlocksTreeNewBlock
         | Action::BlocksTreeReorderUp
         | Action::BlocksTreeReorderDown
