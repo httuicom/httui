@@ -61,6 +61,21 @@ pub(crate) fn run_tree_prompt(app: &mut App, prompt: TreePrompt) {
                 Err("delete: cancelled".to_string())
             }
         }
+        TreePromptKind::DeleteBlock {
+            rel_path,
+            block_idx,
+            label,
+        } => {
+            let answer = buffer.trim().to_lowercase();
+            if answer == "y" || answer == "yes" {
+                crate::input::apply::blocks_view::tree_delete_block_confirmed(
+                    app, &rel_path, block_idx,
+                );
+                Ok(format!("block {label} removed"))
+            } else {
+                Err("delete: cancelled".to_string())
+            }
+        }
     };
     match outcome {
         Ok(msg) => {

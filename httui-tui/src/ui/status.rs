@@ -39,6 +39,9 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
                 TreePromptKind::Delete { target } => {
                     format!("delete {target}? (y/N) ")
                 }
+                TreePromptKind::DeleteBlock { label, .. } => {
+                    format!("delete block {label}? (y/N) ")
+                }
             };
             let line = Line::from(vec![
                 Span::styled(

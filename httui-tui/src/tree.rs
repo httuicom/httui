@@ -79,6 +79,14 @@ pub enum TreePromptKind {
     /// "delete <target>? (y/N)" — `buffer` accumulates the answer; we
     /// commit on Enter when buffer is `y` or `Y`.
     Delete { target: String },
+    /// BLOCKS-view destructive confirm for a block (NOT a file).
+    /// Carries the vault-relative `.md` path + block index inside that
+    /// file + a human label (alias or line number) shown to the user.
+    DeleteBlock {
+        rel_path: String,
+        block_idx: usize,
+        label: String,
+    },
 }
 
 #[derive(Debug, Clone)]

@@ -47,6 +47,58 @@ pub(crate) fn resolve_pane_key(app: &App, key: KeyEvent) -> Option<Action> {
     resolve_nav_key(key, vim, in_headers)
 }
 
+/// Tree-mode chords specific to BLOCKS view. `n`/`N` on a `.md` file
+/// appends a new HTTP block; `Ctrl+Shift+↑/↓` (or `Shift+↑/↓` as
+/// fallback for terminals that don't deliver the Ctrl bit) on a
+/// block reorders it. Returns `None` for everything else so the
+/// generic tree handler still processes navigation chords.
+pub(crate) fn resolve_tree_key(app: &App, key: KeyEvent) -> Option<Action> {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    let current = app.tree.current()?;
+    if current.block.is_some() {
+        // Block row focused: reorder chords. Accept Ctrl+Shift+arrow
+        // (the documented chord) AND bare Shift+arrow as a fallback —
+        // most terminals collapse Ctrl+Shift+arrow into Shift+arrow,
+        // and Shift+arrow has no other meaning on a block row.
+        let is_reorder = modifiers.contains(KeyModifiers::SHIFT);
+        if is_reorder {
+            return match code {
+                KeyCode::Up => Some(Action::BlocksTreeReorderUp),
+                KeyCode::Down => Some(Action::BlocksTreeReorderDown),
+                _ => None,
+            };
+        }
+        // `n`/`N` on a block creates a sibling block in the same
+        // file. Append-only for now — picker for type + alias lands
+        // in a follow-up.
+        if matches!(code, KeyCode::Char('n') | KeyCode::Char('N'))
+            && !modifiers.contains(KeyModifiers::CONTROL)
+        {
+            return Some(Action::BlocksTreeNewBlock);
+        }
+        // `d`/`D`/`Delete` on a block removes the block (NOT the
+        // parent file). Intercepts before the generic tree-delete
+        // so we can't accidentally lose the whole `.md`.
+        if matches!(
+            code,
+            KeyCode::Char('d') | KeyCode::Char('D') | KeyCode::Delete
+        ) && !modifiers.contains(KeyModifiers::CONTROL)
+        {
+            return Some(Action::BlocksTreeDeleteBlock);
+        }
+        return None;
+    }
+    // File row focused: `n`/`N` create a new block in the file.
+    if matches!(code, KeyCode::Char('n') | KeyCode::Char('N'))
+        && !modifiers.contains(KeyModifiers::CONTROL)
+    {
+        return Some(Action::BlocksTreeNewBlock);
+    }
+    None
+}
+
 fn focused_region_is_http_headers(app: &App) -> bool {
     let Some(pane) = app.active_pane() else {
         return false;
@@ -203,6 +255,10 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         }
         Action::BlocksHeaderInsertRow => insert_header_row(app),
         Action::BlocksHeaderDeleteRow => delete_header_row(app),
+        Action::BlocksTreeNewBlock => tree_new_block(app),
+        Action::BlocksTreeReorderUp => tree_reorder_block(app, -1),
+        Action::BlocksTreeReorderDown => tree_reorder_block(app, 1),
+        Action::BlocksTreeDeleteBlock => tree_delete_block(app),
         Action::BlocksUnsavedPromptSave => {
             close_unsaved_prompt(app);
             save_draft(app);
@@ -667,6 +723,254 @@ fn shift_block(app: &mut App, delta: isize) {
         pane.block_row = 0;
         pane.block_col = 1;
     }
+}
+
+/// Append a new HTTP block to the file the sidebar cursor is on.
+/// Reads the file, parses, builds a canonical empty HTTP block,
+/// writes back, refreshes the index. Auto-aliases as `untitled1`,
+/// `untitled2`, … to avoid colliding with existing aliases.
+fn tree_new_block(app: &mut App) {
+    let Some(node) = app.tree.current().cloned() else {
+        return;
+    };
+    // Cursor on a block row → resolve the parent `.md` via the
+    // workspace index. Cursor on a `.md` row → use it directly.
+    let rel_path = if let Some(meta) = node.block.as_ref() {
+        let ws = app.blocks_workspace.as_ref();
+        let file = ws.and_then(|w| w.index.files.get(meta.file_idx));
+        match file {
+            Some(f) => f.path.to_string_lossy().to_string(),
+            None => return,
+        }
+    } else if node.is_dir || !node.path.ends_with(".md") {
+        return;
+    } else {
+        node.path.clone()
+    };
+    let vault = app.vault_path.to_string_lossy().to_string();
+    let Ok(text) = httui_core::fs::read_note(&vault, &rel_path) else {
+        app.set_status(StatusKind::Error, "could not read file");
+        return;
+    };
+    let parsed = httui_core::blocks::parse_blocks(&text);
+    let used_aliases: std::collections::HashSet<String> = parsed
+        .iter()
+        .filter_map(|p| p.alias.clone())
+        .collect();
+    let mut idx = parsed.len() + 1;
+    let alias = loop {
+        let candidate = format!("untitled{idx}");
+        if !used_aliases.contains(&candidate) {
+            break candidate;
+        }
+        idx += 1;
+    };
+    let appended = if text.ends_with('\n') {
+        format!(
+            "{text}\n```http alias={alias}\nGET https://example.com\n```\n"
+        )
+    } else {
+        format!(
+            "{text}\n\n```http alias={alias}\nGET https://example.com\n```\n"
+        )
+    };
+    if let Err(e) = httui_core::fs::write_note(&vault, &rel_path, &appended) {
+        app.set_status(StatusKind::Error, format!("write failed: {e}"));
+        return;
+    }
+    refresh_blocks_index_and_tree(app);
+    app.set_status(StatusKind::Info, format!("new block: {alias}"));
+}
+
+/// Open the destructive-confirm prompt for the focused block. Same
+/// shape as the file-delete prompt — Enter on `y`/`Y` runs the
+/// actual removal via [`tree_delete_block_confirmed`].
+fn tree_delete_block(app: &mut App) {
+    let Some(node) = app.tree.current().cloned() else {
+        return;
+    };
+    let Some(meta) = node.block.as_ref() else {
+        return;
+    };
+    let Some(ws) = app.blocks_workspace.as_ref() else {
+        return;
+    };
+    let Some(file) = ws.index.files.get(meta.file_idx) else {
+        return;
+    };
+    let Some(block) = file.blocks.get(meta.block_idx) else {
+        return;
+    };
+    let label = block.label();
+    let rel_path = file.path.to_string_lossy().to_string();
+    app.tree.prompt = Some(crate::tree::TreePrompt::new(
+        crate::tree::TreePromptKind::DeleteBlock {
+            rel_path,
+            block_idx: meta.block_idx,
+            label,
+        },
+        String::new(),
+    ));
+    app.vim.mode = crate::vim::mode::Mode::TreePrompt;
+}
+
+/// Execute the block delete after the user typed `y` / `Y` in the
+/// confirm prompt. Reads the file, drops the block fence (and its
+/// trailing blank line), writes back, refreshes the index.
+pub(crate) fn tree_delete_block_confirmed(
+    app: &mut App,
+    rel_path: &str,
+    block_idx: usize,
+) {
+    let vault = app.vault_path.to_string_lossy().to_string();
+    let Ok(text) = httui_core::fs::read_note(&vault, &rel_path) else {
+        return;
+    };
+    let parsed = httui_core::blocks::parse_blocks(&text);
+    let Some(target) = parsed.get(block_idx) else {
+        return;
+    };
+    let lines: Vec<&str> = text.lines().collect();
+    let start = target.line_start;
+    let end = target.line_end.min(lines.len().saturating_sub(1));
+    // Drop the block AND one trailing blank line (if any) so the
+    // resulting markdown doesn't grow a double-blank gap.
+    let drop_until = if end + 1 < lines.len() && lines[end + 1].trim().is_empty() {
+        end + 1
+    } else {
+        end
+    };
+    let mut out = String::new();
+    for l in &lines[..start] {
+        out.push_str(l);
+        out.push('\n');
+    }
+    if drop_until + 1 < lines.len() {
+        for l in &lines[drop_until + 1..] {
+            out.push_str(l);
+            out.push('\n');
+        }
+    }
+    if !text.ends_with('\n') && out.ends_with('\n') {
+        out.pop();
+    }
+    if let Err(e) = httui_core::fs::write_note(&vault, &rel_path, &out) {
+        app.set_status(StatusKind::Error, format!("write failed: {e}"));
+        return;
+    }
+    refresh_blocks_index_and_tree(app);
+    // Clamp cursor so it doesn't dangle on a now-missing row.
+    if app.tree.selected > 0 {
+        let count = app.tree.entries.len();
+        if app.tree.selected >= count {
+            app.tree.selected = count.saturating_sub(1);
+        }
+    }
+    app.set_status(StatusKind::Info, "block removed");
+}
+
+/// Rebuild both the workspace `BlockIndex` and the file tree's
+/// `block_index` copy, then refresh the visible tree entries. Tree
+/// shows stale data otherwise — the two indices live separately so
+/// updating only one leaves the sidebar out of sync.
+fn refresh_blocks_index_and_tree(app: &mut App) {
+    let vault_path = app.vault_path.clone();
+    let fresh = crate::app::BlockIndex::build(&vault_path);
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.index = fresh.clone();
+    }
+    app.tree.block_index = Some(fresh);
+    app.tree.refresh(&vault_path);
+}
+
+/// Swap the currently-focused block in the sidebar with its
+/// neighbour by `delta` (+1 down, -1 up) in the same file. Updates
+/// the `.md` on disk and refreshes the index. No-op when the block
+/// is at the edge.
+fn tree_reorder_block(app: &mut App, delta: isize) {
+    let Some(node) = app.tree.current().cloned() else {
+        return;
+    };
+    let Some(meta) = node.block.as_ref() else {
+        return;
+    };
+    let block_idx = meta.block_idx;
+    let Some(ws) = app.blocks_workspace.as_ref() else {
+        return;
+    };
+    let Some(file) = ws.index.files.get(meta.file_idx) else {
+        return;
+    };
+    let target_idx = block_idx as isize + delta;
+    if target_idx < 0 || target_idx as usize >= file.blocks.len() {
+        return;
+    }
+    let rel_path = file.path.to_string_lossy().to_string();
+    let vault = app.vault_path.to_string_lossy().to_string();
+    let Ok(text) = httui_core::fs::read_note(&vault, &rel_path) else {
+        return;
+    };
+    let mut parsed = httui_core::blocks::parse_blocks(&text);
+    if block_idx >= parsed.len() || target_idx as usize >= parsed.len() {
+        return;
+    }
+    // Build the rewritten markdown by extracting the two block ranges
+    // and swapping them. Prose between blocks stays put.
+    let a = block_idx.min(target_idx as usize);
+    let b = block_idx.max(target_idx as usize);
+    let lines: Vec<&str> = text.lines().collect();
+    let block_a = &parsed[a];
+    let block_b = &parsed[b];
+    let a_start = block_a.line_start;
+    let a_end = block_a.line_end.min(lines.len().saturating_sub(1));
+    let b_start = block_b.line_start;
+    let b_end = block_b.line_end.min(lines.len().saturating_sub(1));
+    let mut out = String::new();
+    // Lines before a
+    for l in &lines[..a_start] {
+        out.push_str(l);
+        out.push('\n');
+    }
+    // Block b in a's place
+    out.push_str(&lines[b_start..=b_end].join("\n"));
+    out.push('\n');
+    // Lines between a and b (a_end+1 .. b_start)
+    if a_end + 1 < b_start {
+        for l in &lines[a_end + 1..b_start] {
+            out.push_str(l);
+            out.push('\n');
+        }
+    }
+    // Block a in b's place
+    out.push_str(&lines[a_start..=a_end].join("\n"));
+    out.push('\n');
+    // Lines after b
+    if b_end + 1 < lines.len() {
+        for l in &lines[b_end + 1..] {
+            out.push_str(l);
+            out.push('\n');
+        }
+    }
+    if !text.ends_with('\n') && out.ends_with('\n') {
+        out.pop();
+    }
+    if let Err(e) = httui_core::fs::write_note(&vault, &rel_path, &out) {
+        app.set_status(StatusKind::Error, format!("write failed: {e}"));
+        return;
+    }
+    app.set_status(
+        StatusKind::Info,
+        format!("reordered block {block_idx} ↔ {}", target_idx),
+    );
+    let _ = parsed; // dropped before mut borrow below
+    refresh_blocks_index_and_tree(app);
+    // Move the sidebar cursor along with the block so the user can
+    // keep stepping in the same direction. Tree entries are flat
+    // (file row + expanded block rows), and reorder only swaps two
+    // adjacent block rows under the same file — so a `delta`-step
+    // in entry index lands on the moved block's new row.
+    let new_selected = (app.tree.selected as isize + delta).max(0) as usize;
+    app.tree.selected = new_selected;
 }
 
 /// `o`/`Insert` in HTTP `[2] Headers`: append an empty row right

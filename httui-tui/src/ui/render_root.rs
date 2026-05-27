@@ -302,6 +302,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
                     crate::tree::TreePromptKind::Delete { target } => {
                         format!("delete {target}? (y/N) ").chars().count()
                     }
+                    crate::tree::TreePromptKind::DeleteBlock { label, .. } => {
+                        format!("delete block {label}? (y/N) ").chars().count()
+                    }
                 };
                 let col = (label_len + prompt.cursor_col()) as u16;
                 let x = status_area

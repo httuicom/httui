@@ -142,6 +142,19 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
         app.vim.mode,
         crate::vim::mode::Mode::Tree | crate::vim::mode::Mode::TreePrompt
     ) {
+        // BLOCKS-view sidebar chords (`n` create, `d`/`Delete`,
+        // `Shift+arrow` reorder) take precedence over the generic
+        // tree input. Restricted to `Mode::Tree` so they only fire
+        // when the sidebar actually has focus — the vim engine in
+        // the pane (NAV / EDIT) keeps `d`, `dw`, `dd` etc. for its
+        // own operators.
+        if matches!(app.view, crate::app::AppView::Blocks) {
+            if let Some(action) =
+                crate::input::apply::blocks_view::resolve_tree_key(app, key)
+            {
+                return KeyOutcome::Effect(action);
+            }
+        }
         if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {
             if crate::input::keymap::is_editor_global_shortcut(action) {
                 return KeyOutcome::Effect(action);

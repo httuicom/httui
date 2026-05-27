@@ -416,6 +416,19 @@ pub enum Action {
     /// NAV in HTTP `[2] Headers`: delete the current `block_row`.
     /// No-op when there are no rows. Cursor clamps to the row above.
     BlocksHeaderDeleteRow,
+    /// Sidebar `n` while a `.md` file is focused (BLOCKS view) —
+    /// append a new HTTP block to that file. Reuses existing tree.
+    BlocksTreeNewBlock,
+    /// `Ctrl+Shift+↑` on a block in the sidebar — swap with the
+    /// block immediately above in the same file.
+    BlocksTreeReorderUp,
+    /// `Ctrl+Shift+↓` on a block in the sidebar — swap with the
+    /// block immediately below in the same file.
+    BlocksTreeReorderDown,
+    /// `d`/`Delete` on a block in the sidebar — remove the block
+    /// from its file. Intercepts before the generic tree-delete so
+    /// a block-row chord can't accidentally delete the parent file.
+    BlocksTreeDeleteBlock,
     /// `Save` button on the unsaved-prompt modal: write every dirty
     /// pane, close the modal, replay the deferred `ToggleAppView`.
     BlocksUnsavedPromptSave,
