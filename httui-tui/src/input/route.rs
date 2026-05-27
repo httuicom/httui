@@ -83,6 +83,27 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
         return;
     };
 
+    // BLOCKS-NAV chords (`r` / `.`) bind to dedicated actions
+    // (`BlocksRunFocused`, `BlocksCancelRun`) so they appear in
+    // Settings → Keymaps without shadowing standard typing in DOC.
+    // Outside BLOCKS view we drop them here so the keystroke falls
+    // back to the printable-char fallback (`r` types `r`, `.` types `.`).
+    if matches!(
+        action,
+        Action::BlocksRunFocused | Action::BlocksCancelRun
+    ) && !matches!(app.view, crate::app::AppView::Blocks)
+    {
+        if let crossterm::event::KeyCode::Char(c) = key.code {
+            if !key
+                .modifiers
+                .contains(crossterm::event::KeyModifiers::CONTROL)
+            {
+                crate::input::dispatch::apply_action(app, Action::InsertChar(c), true);
+            }
+        }
+        return;
+    }
+
     // Ctrl+C is contextual in Standard mode: with an active selection
     // it copies; with no selection it quits the TUI (Windows-Terminal
     // style). `resolve` always decodes Ctrl+C to `Copy` — the pure

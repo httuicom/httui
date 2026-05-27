@@ -11,6 +11,7 @@ use ratatui::{
 use crate::app::{region_label, BlockMeta, BlocksWorkspace, EditField, FileBlocks, RegionEdit};
 use crate::pane::Pane;
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_leaf(
     frame: &mut Frame,
     area: Rect,
@@ -19,6 +20,7 @@ pub(super) fn render_leaf(
     workspace: Option<&BlocksWorkspace>,
     vault: &std::path::Path,
     visual_overlay: Option<crate::ui::VisualOverlay>,
+    running: bool,
 ) {
     let border_color = if focused {
         crate::ui::palette::accent()
@@ -52,7 +54,7 @@ pub(super) fn render_leaf(
         return;
     };
 
-    render_block(frame, inner, file, block, leaf, focused, vault, visual_overlay);
+    render_block(frame, inner, file, block, leaf, focused, vault, visual_overlay, running);
 }
 
 fn paint_empty_state(frame: &mut Frame, area: Rect) {
@@ -108,13 +110,14 @@ fn render_block(
     pane_focused: bool,
     vault_path: &Path,
     visual_overlay: Option<crate::ui::VisualOverlay>,
+    running: bool,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Min(1)])
         .split(area);
     let dirty = pane.block_draft.is_some();
-    render_header(frame, chunks[0], file, block, dirty);
+    render_header(frame, chunks[0], file, block, dirty, running);
 
     let parsed = load_view(vault_path, file, block, pane);
     let region = pane.block_region;
@@ -151,6 +154,7 @@ fn render_header(
     file: &FileBlocks,
     block: &BlockMeta,
     dirty: bool,
+    running: bool,
 ) {
     if area.width == 0 {
         return;
@@ -184,6 +188,14 @@ fn render_header(
             " *",
             Style::default()
                 .fg(crate::ui::palette::amber())
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
+    if running {
+        spans.push(Span::styled(
+            " ● running",
+            Style::default()
+                .fg(crate::ui::palette::success())
                 .add_modifier(Modifier::BOLD),
         ));
     }
@@ -726,6 +738,22 @@ fn load_view(
     block: &BlockMeta,
     pane: &Pane,
 ) -> ParsedView {
+    // Pull cached run output from the pane's loaded Document if it
+    // matches the block. Populated by `run_focused_block` after a
+    // successful execution; renderer turns it into the "[4] Response"
+    // body string. Run output never sits on disk (it lives in SQLite
+    // cache + in-memory `BlockNode.cached_result`), so this is the
+    // only path the renderer can surface it from.
+    let cached_from_pane = pane.document.as_ref().and_then(|doc| {
+        for seg in doc.segments() {
+            if let crate::buffer::Segment::Block(b) = seg {
+                if b.block_type == block.block_type && b.alias == block.alias {
+                    return b.cached_result.as_ref().map(serialize_cached_result);
+                }
+            }
+        }
+        None
+    });
     // Per-pane draft wins over disk so committed edits are reflected
     // before save (otherwise the renderer would still show stale
     // values after Esc). Draft and disk parse share the same
@@ -734,7 +762,11 @@ fn load_view(
         if draft.block_line_start == block.line_start && draft.block.block_type == block.block_type
         {
             let raw = httui_core::blocks::serialize_block(&draft.block);
-            return parsed_to_view(&draft.block, raw);
+            let mut view = parsed_to_view(&draft.block, raw);
+            if let Some(c) = cached_from_pane {
+                view.cached = c;
+            }
+            return view;
         }
     }
     let Ok(raw) = httui_core::fs::read_note(
@@ -753,7 +785,42 @@ fn load_view(
     let end = p.line_end.min(lines.len().saturating_sub(1));
     let start = p.line_start.min(end);
     let raw_block = lines[start..=end].join("\n");
-    parsed_to_view(p, raw_block)
+    let mut view = parsed_to_view(p, raw_block);
+    if let Some(c) = cached_from_pane {
+        view.cached = c;
+    }
+    view
+}
+
+/// Best-effort serialization of a cached HTTP/DB result for the
+/// `[4] Response` / `[3] Result` panel. Picks a few well-known
+/// fields so the user sees status + body / rows even when the
+/// blob carries a deeply nested shape. Falls back to pretty JSON.
+fn serialize_cached_result(v: &serde_json::Value) -> String {
+    // HTTP shape: { status, body, headers, … }
+    if let Some(obj) = v.as_object() {
+        if let Some(status) = obj.get("status").and_then(|s| s.as_i64()) {
+            let mut out = format!("{status}");
+            if let Some(body) = obj.get("body") {
+                let body_str = match body {
+                    serde_json::Value::String(s) => s.clone(),
+                    _ => serde_json::to_string_pretty(body)
+                        .unwrap_or_else(|_| body.to_string()),
+                };
+                out.push('\n');
+                out.push_str(&body_str);
+            }
+            return out;
+        }
+        // DB shape: { results: [{ kind: "rows" | "error", … }] }
+        if let Some(results) = obj.get("results").and_then(|r| r.as_array()) {
+            if let Some(first) = results.first() {
+                return serde_json::to_string_pretty(first)
+                    .unwrap_or_else(|_| first.to_string());
+            }
+        }
+    }
+    serde_json::to_string_pretty(v).unwrap_or_else(|_| v.to_string())
 }
 
 fn parsed_to_view(p: &httui_core::blocks::parser::ParsedBlock, raw: String) -> ParsedView {

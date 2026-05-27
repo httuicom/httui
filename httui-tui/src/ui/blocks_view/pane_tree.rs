@@ -17,6 +17,7 @@ pub(super) fn render(
     workspace: Option<&BlocksWorkspace>,
     vault: &Path,
     visual_overlay: Option<VisualOverlay>,
+    running: bool,
 ) {
     if area.width == 0 || area.height == 0 {
         return;
@@ -32,6 +33,7 @@ pub(super) fn render(
         vault,
         picker_active,
         visual_overlay,
+        running,
         &mut counter,
     );
 }
@@ -46,6 +48,7 @@ fn render_inner(
     vault: &Path,
     picker_active: bool,
     visual_overlay: Option<VisualOverlay>,
+    running: bool,
     counter: &mut usize,
 ) {
     if area.width == 0 || area.height == 0 {
@@ -55,10 +58,21 @@ fn render_inner(
         PaneNode::Leaf(leaf) => {
             leaf.viewport_height = area.height;
             let is_focused = matches!(focused_path, Some(p) if p.is_empty());
-            // Visual overlay only paints on the focused leaf — the
-            // moving end of the selection is the active pane's cursor.
+            // Visual overlay + spinner only on the focused leaf —
+            // visual selection's moving end is the active cursor, and
+            // there's only ever one running_query.
             let leaf_overlay = if is_focused { visual_overlay } else { None };
-            pane::render_leaf(frame, area, leaf, is_focused, workspace, vault, leaf_overlay);
+            let leaf_running = is_focused && running;
+            pane::render_leaf(
+                frame,
+                area,
+                leaf,
+                is_focused,
+                workspace,
+                vault,
+                leaf_overlay,
+                leaf_running,
+            );
             if picker_active {
                 let n = *counter + 1;
                 pane::paint_picker_overlay(frame, area, n);
@@ -95,6 +109,7 @@ fn render_inner(
                 vault,
                 picker_active,
                 visual_overlay,
+                running,
                 counter,
             );
             render_inner(
@@ -106,6 +121,7 @@ fn render_inner(
                 vault,
                 picker_active,
                 visual_overlay,
+                running,
                 counter,
             );
         }

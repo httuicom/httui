@@ -133,6 +133,13 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         spec("rerun_last_block", "alt+.", Action::RerunLastBlock),
         spec("jump_next_block", "alt+down", Action::JumpNextBlock),
         spec("jump_prev_block", "alt+up", Action::JumpPrevBlock),
+        // BLOCKS-view-only chords. Distinct actions from `run_block` /
+        // cancel so the bare-letter defaults can't shadow typing in
+        // DOC view: `BlocksRunFocused` / `BlocksCancelRun` are no-ops
+        // outside BLOCKS, and `resolve_pane_key` is the only path
+        // that consumes them.
+        spec("blocks_run", "r", Action::BlocksRunFocused),
+        spec("blocks_cancel", ".", Action::BlocksCancelRun),
         // Panels & pickers.
         spec("open_help", "alt+?", Action::OpenHelp),
         spec("open_tab_picker", "alt+t", Action::OpenTabPicker),

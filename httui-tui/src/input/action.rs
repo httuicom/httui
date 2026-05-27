@@ -399,6 +399,16 @@ pub enum Action {
     BlocksNextBlockMotion,
     /// `[` (vim) / `PageUp` (any profile) — previous block, wrap.
     BlocksPrevBlockMotion,
+    /// BLOCKS NAV run: execute the block currently selected in the
+    /// focused pane. Default chord `r`. Maps internally to
+    /// [`Action::RunBlock`] after re-anchoring the executor on the
+    /// pane's selected block. Routed only from BLOCKS view — in DOC
+    /// the action is no-op so the chord can stay bound globally
+    /// without shadowing standard typing.
+    BlocksRunFocused,
+    /// BLOCKS NAV cancel: stop the in-flight run started from this
+    /// pane. Default chord `.`. Wraps `cancel_running_query`.
+    BlocksCancelRun,
     /// `Save` button on the unsaved-prompt modal: write every dirty
     /// pane, close the modal, replay the deferred `ToggleAppView`.
     BlocksUnsavedPromptSave,

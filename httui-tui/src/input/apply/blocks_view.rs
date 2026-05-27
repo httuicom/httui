@@ -32,6 +32,17 @@ pub(crate) fn resolve_pane_key(app: &App, key: KeyEvent) -> Option<Action> {
         let sub_mode = effective_sub_mode(app);
         return resolve_edit_key(key, sub_mode, vim);
     }
+    // BLOCKS NAV — try the user's configured chords first (so a
+    // remapped `blocks_run` reaches Run before the hardcoded letters
+    // below capture it).
+    if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {
+        if matches!(
+            action,
+            Action::BlocksRunFocused | Action::BlocksCancelRun
+        ) {
+            return Some(action);
+        }
+    }
     resolve_nav_key(key, vim)
 }
 
@@ -148,6 +159,10 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         Action::BlocksSaveDraft => save_draft(app),
         Action::BlocksNextBlockMotion => shift_block(app, 1),
         Action::BlocksPrevBlockMotion => shift_block(app, -1),
+        Action::BlocksRunFocused => run_focused_block(app),
+        Action::BlocksCancelRun => {
+            crate::commands::db::cancel_running_query(app);
+        }
         Action::BlocksUnsavedPromptSave => {
             close_unsaved_prompt(app);
             save_draft(app);
@@ -458,6 +473,101 @@ fn commit_edit(app: &mut App) {
     // Restore vim NORMAL on the (now hidden) field so the next Enter
     // doesn't land in stale Insert state.
     app.vim.enter_normal();
+}
+
+/// `r` in BLOCKS NAV: ensure the focused pane has the block's file
+/// loaded into `pane.document`, park the cursor on that block's
+/// segment, then delegate to the existing run pipeline. The pipeline
+/// reads `app.document()` → our redirect returns `pane.document` (NAV
+/// has no `block_edit`), so the executor / cache / refs machinery
+/// works without forking.
+fn run_focused_block(app: &mut App) {
+    if !matches!(app.view, AppView::Blocks) {
+        return;
+    }
+    let Some(pane) = app.active_pane() else { return };
+    let Some(sel) = pane.block_selected else {
+        app.set_status(StatusKind::Error, "no block selected");
+        return;
+    };
+    let Some(ws) = app.blocks_workspace.as_ref() else {
+        return;
+    };
+    let Some(file) = ws.index.files.get(sel.file_idx) else {
+        return;
+    };
+    let Some(block) = file.blocks.get(sel.block_idx) else {
+        return;
+    };
+    let file_path_rel = file.path.clone();
+    let target_alias = block.alias.clone();
+    let target_type = block.block_type.clone();
+    let abs_path = app.vault_path.join(&file_path_rel);
+
+    // Load (or reload) the file into the pane's document if it
+    // doesn't already point at the bloc's file. Stale results from a
+    // previous file would carry over otherwise.
+    let needs_load = app
+        .active_pane()
+        .map(|p| p.document_path.as_deref() != Some(abs_path.as_path()))
+        .unwrap_or(true);
+    if needs_load {
+        let text = match httui_core::fs::read_note(
+            &app.vault_path.to_string_lossy(),
+            &file_path_rel.to_string_lossy(),
+        ) {
+            Ok(t) => t,
+            Err(e) => {
+                app.set_status(StatusKind::Error, format!("read failed: {e}"));
+                return;
+            }
+        };
+        let doc = match crate::buffer::Document::from_markdown(&text) {
+            Ok(d) => d,
+            Err(e) => {
+                app.set_status(StatusKind::Error, format!("parse failed: {e}"));
+                return;
+            }
+        };
+        if let Some(p) = app.active_pane_mut() {
+            p.document = Some(doc);
+            p.document_path = Some(abs_path);
+        }
+    }
+
+    // Map the selected block to a segment_idx in the doc. Match by
+    // `(block_type, alias)` — the sidebar guarantees these identify
+    // a unique block within the file at this point in the workspace
+    // index.
+    let segment_idx = {
+        let Some(doc) = app.document() else { return };
+        let mut found = None;
+        for (idx, seg) in doc.segments().iter().enumerate() {
+            if let crate::buffer::Segment::Block(b) = seg {
+                if b.block_type == target_type && b.alias == target_alias {
+                    found = Some(idx);
+                    break;
+                }
+            }
+        }
+        match found {
+            Some(s) => s,
+            None => {
+                app.set_status(StatusKind::Error, "block not found in file");
+                return;
+            }
+        }
+    };
+
+    // Park the cursor on the block so `apply_run_block` picks it up.
+    if let Some(doc) = app.document_mut() {
+        doc.set_cursor(crate::buffer::Cursor::InBlock {
+            segment_idx,
+            offset: 0,
+        });
+    }
+
+    crate::commands::refs::apply_run_block(app);
 }
 
 fn cancel_edit(app: &mut App) {

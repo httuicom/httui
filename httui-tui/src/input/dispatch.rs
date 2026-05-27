@@ -351,6 +351,8 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::BlocksSaveDraft
         | Action::BlocksNextBlockMotion
         | Action::BlocksPrevBlockMotion
+        | Action::BlocksRunFocused
+        | Action::BlocksCancelRun
         | Action::BlocksUnsavedPromptSave
         | Action::BlocksUnsavedPromptDiscard
         | Action::BlocksUnsavedPromptCancel => {
