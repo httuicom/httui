@@ -209,6 +209,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
                 &focused,
                 workspace.as_ref(),
                 &vault,
+                visual_overlay,
             );
         }
     } else if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {

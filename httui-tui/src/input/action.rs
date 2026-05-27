@@ -377,32 +377,28 @@ pub enum Action {
     BlocksPaneRowDown,
     BlocksPaneColLeft,
     BlocksPaneColRight,
-    /// Enter (standard) on the focused region: open the field at
+    /// Enter on the focused region: open the field at
     /// `(block_region, block_row, block_col)` for inline editing.
-    /// Allocates the per-pane `BlockDraft` on first edit so the
-    /// in-memory mutation has somewhere to land.
+    /// Allocates the per-pane `BlockDraft` on first edit. Sub-mode
+    /// resolves via the active profile (standard → INSERT, vim →
+    /// NORMAL).
     BlocksRegionEnterEdit,
-    /// Esc on an open buffer: commit to `BlockDraft`, return to NAV.
+    /// Vim `i`/`a`/`o` from NAV: open the field already in INSERT,
+    /// skipping the NORMAL transit. No-op in standard profile.
+    BlocksRegionEnterEditInsert,
+    /// Esc (standard, or vim NORMAL): commit the sub-Document into
+    /// `BlockDraft` and return to NAV.
     BlocksRegionCommitEdit,
-    /// Ctrl+C on an open buffer: discard the buffer without touching
-    /// the draft.
+    /// Ctrl+C: discard the sub-Document without writing.
     BlocksRegionCancelEdit,
-    BlocksRegionEditChar(char),
-    BlocksRegionEditBackspace,
-    BlocksRegionEditDelete,
-    BlocksRegionEditCursorLeft,
-    BlocksRegionEditCursorRight,
-    BlocksRegionEditCursorUp,
-    BlocksRegionEditCursorDown,
-    BlocksRegionEditCursorHome,
-    BlocksRegionEditCursorEnd,
-    /// Multi-line buffers only — inserts a `\n` at the caret.
-    /// Single-line buffers (URL, header value) ignore this and commit
-    /// the buffer instead, mirroring the conventional Enter behaviour.
-    BlocksRegionEditNewline,
-    /// Ctrl+S on the focused pane (BLOCKS view): serialize the draft
-    /// into the `.md` via `write_note`. No-op when there's no draft.
+    /// Ctrl+S on the focused pane (BLOCKS view): serialize every dirty
+    /// draft into its `.md` via `write_note`. No-op when nothing dirty.
     BlocksSaveDraft,
+    /// `]` (vim) / `PageDown` (any profile) — select the next block
+    /// in the workspace's flattened block list (cross-file, wrap).
+    BlocksNextBlockMotion,
+    /// `[` (vim) / `PageUp` (any profile) — previous block, wrap.
+    BlocksPrevBlockMotion,
     /// `Save` button on the unsaved-prompt modal: write every dirty
     /// pane, close the modal, replay the deferred `ToggleAppView`.
     BlocksUnsavedPromptSave,

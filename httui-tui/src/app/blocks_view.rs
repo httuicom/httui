@@ -4,8 +4,6 @@ use std::path::{Path, PathBuf};
 use httui_core::blocks::parser::ParsedBlock;
 use httui_core::fs::FileEntry;
 
-use crate::vim::lineedit::LineEdit;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AppView {
     #[default]
@@ -276,8 +274,9 @@ pub fn region_label(block_type: &str, index: usize) -> &'static str {
 }
 
 /// Identifies which field inside a region's NAV grid is being edited.
-/// Single-line fields use a [`LineEdit`]; multi-line fields (Body HTTP,
-/// Query DB) use a [`MultilineBuffer`].
+/// Every variant points at a `String` slot in `ParsedBlock.params`
+/// (or the alias / url). Commit reads the active sub-`Document` via
+/// `to_markdown()` and writes the result into that slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EditField {
     /// `[1] Request` line — the URL after the method token. The method
@@ -297,235 +296,103 @@ pub enum EditField {
     DbQuery,
 }
 
-impl EditField {
-    pub fn is_multiline(&self) -> bool {
-        matches!(self, EditField::HttpBody | EditField::DbQuery)
-    }
+/// Vim sub-mode within an active EDIT buffer. Standard profile is
+/// always `Insert`; vim Enter lands in `Normal`, `i`/`a`/`o` skip
+/// straight to `Insert`. `Esc` in INSERT (vim) flips back to NORMAL
+/// without committing; `Esc` in NORMAL (vim) or `Esc` (standard)
+/// commits the buffer + returns to NAV.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditSubMode {
+    Normal,
+    Insert,
 }
 
-/// Minimal multi-line buffer: a `Vec<String>` of lines plus a `(row,
-/// col)` caret. Onda B uses this for HTTP body / DB query without
-/// pulling in the full vim engine — Story 6 layers vim motions on top
-/// once vim opt-in lands, and Story 12 swaps in a rope-backed read-
-/// only viewer for the response side.
+/// Edit state for the focused pane: which field is open + a sub-
+/// [`Document`] carrying the in-progress text. The full vim engine
+/// operates on `doc` via the [`App::document`]/`document_mut` redirect
+/// — same trick `DbRowDetail` uses — so every motion / operator /
+/// count / search / visual / undo lands here for free, no re-impl.
 ///
-/// Cursor invariants:
-/// - `row < lines.len()` (always at least 1 line, possibly empty)
-/// - `col <= lines[row].chars().count()` (caret can sit past the last
-///   char — that's "end of line")
-#[derive(Debug, Clone)]
-pub struct MultilineBuffer {
-    lines: Vec<String>,
-    /// Char-column, not byte offset, so movement is monospace-correct.
-    pub row: usize,
-    pub col: usize,
-}
-
-impl MultilineBuffer {
-    pub fn from_str(text: &str) -> Self {
-        let mut lines: Vec<String> = text.split('\n').map(str::to_string).collect();
-        if lines.is_empty() {
-            lines.push(String::new());
-        }
-        let row = lines.len().saturating_sub(1);
-        let col = lines[row].chars().count();
-        Self { lines, row, col }
-    }
-
-    pub fn as_string(&self) -> String {
-        self.lines.join("\n")
-    }
-
-    pub fn lines(&self) -> &[String] {
-        &self.lines
-    }
-
-    pub fn insert_char(&mut self, c: char) {
-        let line = &mut self.lines[self.row];
-        let byte = char_col_to_byte(line, self.col);
-        line.insert(byte, c);
-        self.col += 1;
-    }
-
-    pub fn insert_newline(&mut self) {
-        let line = &mut self.lines[self.row];
-        let byte = char_col_to_byte(line, self.col);
-        let rest = line.split_off(byte);
-        self.row += 1;
-        self.lines.insert(self.row, rest);
-        self.col = 0;
-    }
-
-    pub fn delete_before(&mut self) -> bool {
-        if self.col > 0 {
-            let line = &mut self.lines[self.row];
-            let byte = char_col_to_byte(line, self.col);
-            let prev_byte = prev_char_boundary(line, byte);
-            line.replace_range(prev_byte..byte, "");
-            self.col -= 1;
-            return true;
-        }
-        if self.row == 0 {
-            return false;
-        }
-        let current = self.lines.remove(self.row);
-        self.row -= 1;
-        let new_col = self.lines[self.row].chars().count();
-        self.lines[self.row].push_str(&current);
-        self.col = new_col;
-        true
-    }
-
-    pub fn delete_after(&mut self) -> bool {
-        let line_len_chars = self.lines[self.row].chars().count();
-        if self.col < line_len_chars {
-            let line = &mut self.lines[self.row];
-            let byte = char_col_to_byte(line, self.col);
-            let next_byte = next_char_boundary(line, byte);
-            line.replace_range(byte..next_byte, "");
-            return true;
-        }
-        if self.row + 1 >= self.lines.len() {
-            return false;
-        }
-        let next = self.lines.remove(self.row + 1);
-        self.lines[self.row].push_str(&next);
-        true
-    }
-
-    pub fn move_left(&mut self) {
-        if self.col > 0 {
-            self.col -= 1;
-        } else if self.row > 0 {
-            self.row -= 1;
-            self.col = self.lines[self.row].chars().count();
-        }
-    }
-
-    pub fn move_right(&mut self) {
-        let line_len = self.lines[self.row].chars().count();
-        if self.col < line_len {
-            self.col += 1;
-        } else if self.row + 1 < self.lines.len() {
-            self.row += 1;
-            self.col = 0;
-        }
-    }
-
-    pub fn move_up(&mut self) {
-        if self.row == 0 {
-            return;
-        }
-        self.row -= 1;
-        let max = self.lines[self.row].chars().count();
-        if self.col > max {
-            self.col = max;
-        }
-    }
-
-    pub fn move_down(&mut self) {
-        if self.row + 1 >= self.lines.len() {
-            return;
-        }
-        self.row += 1;
-        let max = self.lines[self.row].chars().count();
-        if self.col > max {
-            self.col = max;
-        }
-    }
-
-    pub fn move_home(&mut self) {
-        self.col = 0;
-    }
-
-    pub fn move_end(&mut self) {
-        self.col = self.lines[self.row].chars().count();
-    }
-}
-
-fn char_col_to_byte(s: &str, col: usize) -> usize {
-    s.char_indices()
-        .nth(col)
-        .map(|(i, _)| i)
-        .unwrap_or_else(|| s.len())
-}
-
-fn prev_char_boundary(s: &str, byte: usize) -> usize {
-    let mut i = byte;
-    if i == 0 {
-        return 0;
-    }
-    i -= 1;
-    while i > 0 && !s.is_char_boundary(i) {
-        i -= 1;
-    }
-    i
-}
-
-fn next_char_boundary(s: &str, byte: usize) -> usize {
-    let len = s.len();
-    let mut i = byte;
-    if i >= len {
-        return len;
-    }
-    i += 1;
-    while i < len && !s.is_char_boundary(i) {
-        i += 1;
-    }
-    i
-}
-
-/// Buffer that backs an active `RegionEdit`. Single-line fields use
-/// the existing `LineEdit`; multi-line fields use `MultilineBuffer`.
-#[derive(Debug, Clone)]
-pub enum EditBuffer {
-    Line(LineEdit),
-    Multi(MultilineBuffer),
-}
-
-impl EditBuffer {
-    pub fn as_line(&self) -> Option<&LineEdit> {
-        if let EditBuffer::Line(le) = self {
-            Some(le)
-        } else {
-            None
-        }
-    }
-    pub fn as_multi(&self) -> Option<&MultilineBuffer> {
-        if let EditBuffer::Multi(mb) = self {
-            Some(mb)
-        } else {
-            None
-        }
-    }
-    pub fn into_string(self) -> String {
-        match self {
-            EditBuffer::Line(le) => le.as_str().to_string(),
-            EditBuffer::Multi(mb) => mb.as_string(),
-        }
-    }
-}
-
-
-/// Edit state for the focused pane: which field is open, plus a
-/// buffer carrying the in-progress text (single- or multi-line). The
-/// buffer is detached from the draft — only the commit path writes
-/// back to `BlockDraft`, so cancelling (Ctrl+C) is a true revert.
-#[derive(Debug, Clone)]
+/// Lifecycle:
+/// - `Enter` (NAV) → spawn with field's current value as initial doc
+///   text. Standard sub-mode = `Insert`; vim sub-mode = `Normal`.
+/// - `i`/`a`/`o` (NAV vim) → spawn directly in `Insert`.
+/// - `Esc` (vim INSERT) → flip to `Normal` (no commit).
+/// - `Esc` (vim NORMAL or standard INSERT) → commit
+///   `doc.to_markdown()` into the draft, clear edit, return to NAV.
+/// - `Ctrl+C` → drop the doc without writing.
 pub struct RegionEdit {
     pub field: EditField,
-    pub buffer: EditBuffer,
+    pub doc: crate::buffer::Document,
+    pub sub_mode: EditSubMode,
+}
+
+impl std::fmt::Debug for RegionEdit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RegionEdit")
+            .field("field", &self.field)
+            .field("sub_mode", &self.sub_mode)
+            .field("doc_len", &self.doc.to_markdown().len())
+            .finish()
+    }
 }
 
 impl RegionEdit {
-    pub fn new(field: EditField, initial: impl Into<String>) -> Self {
-        let s: String = initial.into();
-        let buffer = if field.is_multiline() {
-            EditBuffer::Multi(MultilineBuffer::from_str(&s))
-        } else {
-            EditBuffer::Line(LineEdit::from_str(s))
-        };
-        Self { field, buffer }
+    /// Standard-mode entry (`Enter` from NAV, standard) and vim
+    /// `i`/`a`/`o`: spawn in `Insert`.
+    pub fn insert(field: EditField, initial: impl Into<String>) -> Self {
+        Self::with_sub_mode(field, initial, EditSubMode::Insert)
+    }
+
+    /// Vim `Enter` from NAV: spawn in `Normal` so the buffer is
+    /// browseable without typing.
+    pub fn normal(field: EditField, initial: impl Into<String>) -> Self {
+        Self::with_sub_mode(field, initial, EditSubMode::Normal)
+    }
+
+    fn with_sub_mode(
+        field: EditField,
+        initial: impl Into<String>,
+        sub_mode: EditSubMode,
+    ) -> Self {
+        let initial: String = initial.into();
+        let mut doc = crate::buffer::Document::from_markdown(&initial)
+            .unwrap_or_else(|_| crate::buffer::Document::from_markdown("").unwrap());
+        // `Document::from_markdown` parks the cursor at offset 0 of
+        // the first segment. INSERT lands at the end (continuation),
+        // NORMAL keeps the head position (vim opens files at line 1
+        // column 1) — same UX convention as `vim file.txt` vs.
+        // typing into a form field.
+        if matches!(sub_mode, EditSubMode::Insert) {
+            let last_segment_idx = doc.segments().len().saturating_sub(1);
+            let offset = initial
+                .chars()
+                .rev()
+                .take_while(|c| *c != '\n')
+                .count();
+            let row_offset = initial.chars().count();
+            // Prose-only sub-doc: single segment. Use the full char
+            // count when there's no newline split; otherwise compute
+            // end-of-last-line offset.
+            let _ = offset;
+            doc.set_cursor(crate::buffer::Cursor::InProse {
+                segment_idx: last_segment_idx,
+                offset: row_offset,
+            });
+        }
+        Self {
+            field,
+            doc,
+            sub_mode,
+        }
+    }
+
+    /// Read the current buffer contents as a plain string. Strips
+    /// the trailing newline that `Document::to_markdown` always
+    /// appends so the saved value matches what the user typed.
+    pub fn current_text(&self) -> String {
+        let s = self.doc.to_markdown();
+        s.strip_suffix('\n').map(str::to_string).unwrap_or(s)
     }
 }
 

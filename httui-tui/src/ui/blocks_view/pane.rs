@@ -18,6 +18,7 @@ pub(super) fn render_leaf(
     focused: bool,
     workspace: Option<&BlocksWorkspace>,
     vault: &std::path::Path,
+    visual_overlay: Option<crate::ui::VisualOverlay>,
 ) {
     let border_color = if focused {
         crate::ui::palette::accent()
@@ -51,7 +52,7 @@ pub(super) fn render_leaf(
         return;
     };
 
-    render_block(frame, inner, file, block, leaf, focused, vault);
+    render_block(frame, inner, file, block, leaf, focused, vault, visual_overlay);
 }
 
 fn paint_empty_state(frame: &mut Frame, area: Rect) {
@@ -97,6 +98,7 @@ fn paint_missing(frame: &mut Frame, area: Rect) {
     frame.render_widget(Paragraph::new(line), area);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_block(
     frame: &mut Frame,
     area: Rect,
@@ -105,6 +107,7 @@ fn render_block(
     pane: &Pane,
     pane_focused: bool,
     vault_path: &Path,
+    visual_overlay: Option<crate::ui::VisualOverlay>,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -124,6 +127,7 @@ fn render_block(
             &block.block_type,
             pane,
             pane_focused,
+            visual_overlay,
         );
     } else if block.block_type.starts_with("db") {
         render_db_regions(
@@ -134,6 +138,7 @@ fn render_block(
             &block.block_type,
             pane,
             pane_focused,
+            visual_overlay,
         );
     } else {
         render_fallback(frame, chunks[1], &parsed.raw);
@@ -187,6 +192,7 @@ fn render_header(
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_http_regions(
     frame: &mut Frame,
     area: Rect,
@@ -195,6 +201,7 @@ fn render_http_regions(
     block_type: &str,
     pane: &Pane,
     pane_focused: bool,
+    visual_overlay: Option<crate::ui::VisualOverlay>,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -216,8 +223,7 @@ fn render_http_regions(
         .block_edit
         .as_ref()
         .filter(|e| matches!(e.field, EditField::HttpUrl))
-        .and_then(|e| e.buffer.as_line())
-        .map(|le| le.as_str().to_string())
+        .map(|e| e.current_text())
         .unwrap_or_else(|| parsed.url.clone().unwrap_or_default());
     render_request_region(
         frame,
@@ -230,6 +236,7 @@ fn render_http_regions(
         pane.block_edit
             .as_deref()
             .filter(|_| editing_url),
+        visual_overlay,
     );
     render_headers_region(
         frame,
@@ -239,6 +246,7 @@ fn render_http_regions(
         parsed,
         pane,
         pane_focused,
+        visual_overlay,
     );
     render_multiline_region(
         frame,
@@ -251,6 +259,7 @@ fn render_http_regions(
         pane,
         pane_focused,
         |f| matches!(f, EditField::HttpBody),
+        visual_overlay,
     );
     let response_lines: Vec<String> = if parsed.cached.is_empty() {
         vec!["(no response — run with Alt+R)".to_string()]
@@ -267,6 +276,29 @@ fn render_http_regions(
     );
 }
 
+/// Convert a `RegionEdit` sub-Document cursor into a visual `(row,
+/// col)` pair counted from the start of the buffer text. Works for
+/// single-line and multi-line fields since the doc is prose-only.
+fn edit_cursor_row_col(edit: &RegionEdit) -> (usize, usize) {
+    let offset = match edit.doc.cursor() {
+        crate::buffer::Cursor::InProse { offset, .. } => offset,
+        crate::buffer::Cursor::InBlock { offset, .. } => offset,
+        crate::buffer::Cursor::InBlockResult { .. } => 0,
+    };
+    let text = edit.current_text();
+    let mut row = 0usize;
+    let mut col = 0usize;
+    for ch in text.chars().take(offset) {
+        if ch == '\n' {
+            row += 1;
+            col = 0;
+        } else {
+            col += 1;
+        }
+    }
+    (row, col)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_request_region(
     frame: &mut Frame,
@@ -277,6 +309,7 @@ fn render_request_region(
     method: &str,
     url: &str,
     edit: Option<&RegionEdit>,
+    visual_overlay: Option<crate::ui::VisualOverlay>,
 ) {
     let block_widget = region_block(block_type, 0, focused, editing);
     let inner = block_widget.inner(area);
@@ -299,12 +332,28 @@ fn render_request_region(
     ]);
     frame.render_widget(Paragraph::new(line), inner);
     if let Some(edit) = edit {
-        if let Some(le) = edit.buffer.as_line() {
-            let col = le.cursor_col() as u16;
-            let cx = inner.x.saturating_add(prefix_w).saturating_add(col);
-            if cx < inner.x + inner.width && inner.height > 0 {
-                frame.set_cursor_position((cx, inner.y));
-            }
+        let (_row, col) = edit_cursor_row_col(edit);
+        let cx = inner.x.saturating_add(prefix_w).saturating_add(col as u16);
+        if cx < inner.x + inner.width && inner.height > 0 {
+            frame.set_cursor_position((cx, inner.y));
+        }
+        // Paint the visual selection background on top of the URL
+        // text. The text area starts at `inner.x + prefix_w`, so we
+        // offset the overlay rect to match.
+        if let Some(overlay) = visual_overlay {
+            let text_area = ratatui::layout::Rect {
+                x: inner.x.saturating_add(prefix_w),
+                y: inner.y,
+                width: inner.width.saturating_sub(prefix_w),
+                height: inner.height,
+            };
+            crate::ui::overlay_visual_selection(
+                frame,
+                text_area,
+                &edit.doc,
+                0,
+                overlay,
+            );
         }
     }
 }
@@ -318,6 +367,7 @@ fn render_headers_region(
     parsed: &ParsedView,
     pane: &Pane,
     pane_focused: bool,
+    visual_overlay: Option<crate::ui::VisualOverlay>,
 ) {
     let editing = pane_focused
         && focused
@@ -368,8 +418,7 @@ fn render_headers_region(
                 let buf = pane
                     .block_edit
                     .as_ref()
-                    .and_then(|e| e.buffer.as_line())
-                    .map(|le| le.as_str().to_string())
+                    .map(|e| e.current_text())
                     .unwrap_or_default();
                 if col == 0 {
                     key_text = buf;
@@ -406,11 +455,9 @@ fn render_headers_region(
         if row_y >= inner.y + inner.height {
             return;
         }
-        let Some(le) = edit.buffer.as_line() else {
-            return;
-        };
         let leading = 2u16;
-        let cell_col = le.cursor_col() as u16;
+        let (_doc_row, doc_col) = edit_cursor_row_col(edit);
+        let cell_col = doc_col as u16;
         let base_x = if col == 0 {
             inner.x + leading
         } else {
@@ -419,6 +466,27 @@ fn render_headers_region(
         let cx = base_x.saturating_add(cell_col);
         if cx < inner.x + inner.width {
             frame.set_cursor_position((cx, row_y));
+        }
+        // Visual selection overlay over the edited field's cell.
+        if let Some(overlay) = visual_overlay {
+            let cell_w = if col == 0 {
+                key_w
+            } else {
+                inner.width.saturating_sub(leading + key_w + 2)
+            };
+            let cell_area = ratatui::layout::Rect {
+                x: base_x,
+                y: row_y,
+                width: cell_w,
+                height: 1,
+            };
+            crate::ui::overlay_visual_selection(
+                frame,
+                cell_area,
+                &edit.doc,
+                0,
+                overlay,
+            );
         }
     }
 }
@@ -468,6 +536,7 @@ fn region_block(block_type: &str, index: usize, focused: bool, editing: bool) ->
     block
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_db_regions(
     frame: &mut Frame,
     area: Rect,
@@ -476,6 +545,7 @@ fn render_db_regions(
     block_type: &str,
     pane: &Pane,
     pane_focused: bool,
+    visual_overlay: Option<crate::ui::VisualOverlay>,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -501,6 +571,7 @@ fn render_db_regions(
         pane,
         pane_focused,
         |f| matches!(f, EditField::DbQuery),
+        visual_overlay,
     );
     let result_lines: Vec<String> = if parsed.cached.is_empty() {
         vec!["(no result — run with Alt+R)".to_string()]
@@ -526,6 +597,7 @@ fn render_multiline_region(
     pane: &Pane,
     pane_focused: bool,
     field_matches: impl Fn(&EditField) -> bool,
+    visual_overlay: Option<crate::ui::VisualOverlay>,
 ) {
     let editing = pane_focused
         && focused
@@ -540,18 +612,19 @@ fn render_multiline_region(
     if inner.width == 0 || inner.height == 0 {
         return;
     }
-    let buffer = pane
+    let active_edit = pane
         .block_edit
         .as_ref()
-        .filter(|e| field_matches(&e.field))
-        .and_then(|e| e.buffer.as_multi());
-    let (lines, caret): (Vec<String>, Option<(u16, u16)>) = if let Some(mb) = buffer {
-        let mut ls: Vec<String> = mb.lines().to_vec();
+        .filter(|e| field_matches(&e.field));
+    let (lines, caret): (Vec<String>, Option<(u16, u16)>) = if let Some(edit) = active_edit {
+        let text = edit.current_text();
+        let mut ls: Vec<String> = text.split('\n').map(str::to_string).collect();
         if ls.is_empty() {
             ls.push(String::new());
         }
-        let cy = inner.y.saturating_add(mb.row as u16);
-        let cx = inner.x.saturating_add(mb.col as u16);
+        let (row, col) = edit_cursor_row_col(edit);
+        let cy = inner.y.saturating_add(row as u16);
+        let cx = inner.x.saturating_add(col as u16);
         (ls, Some((cx, cy)))
     } else if fallback.is_empty() {
         (vec![placeholder.to_string()], None)
@@ -567,6 +640,12 @@ fn render_multiline_region(
         if cx < inner.x + inner.width && cy < inner.y + inner.height {
             frame.set_cursor_position((cx, cy));
         }
+    }
+    // Visual-mode selection overlay over the multi-line text. Only
+    // paints while EDIT is active and the engine is in Visual /
+    // VisualLine on the sub-doc.
+    if let (Some(edit), Some(overlay)) = (active_edit, visual_overlay) {
+        crate::ui::overlay_visual_selection(frame, inner, &edit.doc, 0, overlay);
     }
 }
 

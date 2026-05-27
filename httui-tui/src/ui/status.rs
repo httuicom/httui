@@ -284,8 +284,16 @@ fn blocks_view_chips(app: &App) -> Vec<Span<'static>> {
             .bg(crate::ui::palette::amber())
             .fg(fg)
             .add_modifier(Modifier::BOLD);
+        let chip_label = match (
+            app.config.editor.mode,
+            crate::input::apply::blocks_view::effective_sub_mode(app),
+        ) {
+            (crate::config::EditorMode::Vim, crate::app::EditSubMode::Normal) => " vim NORMAL ",
+            (crate::config::EditorMode::Vim, crate::app::EditSubMode::Insert) => " vim INSERT ",
+            _ => " EDIT ",
+        };
         out.push(Span::raw(" "));
-        out.push(Span::styled(" EDIT ", chip));
+        out.push(Span::styled(chip_label, chip));
         out.push(Span::raw(" "));
         out.push(Span::styled(
             format!("[{}] {region_name} · {field}", region_idx + 1),

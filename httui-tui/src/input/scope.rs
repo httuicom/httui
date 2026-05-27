@@ -154,17 +154,11 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
         if let Some(action) = crate::input::apply::blocks_view::resolve_pane_key(app, key) {
             return KeyOutcome::Effect(action);
         }
-        // While the pane is in EDIT, swallow any key that the resolver
-        // didn't claim so the standard route can't insert it into the
-        // underlying document. EDIT is a scoped buffer above the doc,
-        // not a passthrough.
-        if app
-            .active_pane()
-            .map(|p| p.block_edit.is_some())
-            .unwrap_or(false)
-        {
-            return KeyOutcome::Consumed;
-        }
+        // EDIT lifecycle chords (Esc, Ctrl+C, Ctrl+S) were claimed by
+        // `resolve_pane_key` above. Anything else falls through to the
+        // editor engine below — `App::document_mut` redirects it to
+        // the field's sub-Document, so every vim motion / operator /
+        // count / search / undo lands on the buffer transparently.
     }
     match app.config.editor.mode {
         crate::config::EditorMode::Vim => {

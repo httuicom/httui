@@ -1,7 +1,8 @@
 use crate::app::{
     App, AppView, BlockDraft, BlockIndex, BlocksUnsavedPromptFocus, BlocksUnsavedPromptState,
-    BlocksWorkspace, EditField, RegionEdit, StatusKind,
+    BlocksWorkspace, EditField, EditSubMode, RegionEdit, StatusKind,
 };
+use crate::config::EditorMode;
 use crate::input::action::Action;
 use crate::modal::Modal;
 use crate::vim::mode::Mode;
@@ -9,50 +10,76 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 /// Decode keystrokes that target the BLOCKS-view pane.
 ///
-/// Two layered tables: when the active pane is in EDIT mode every
-/// keystroke flows into the field buffer; in NAV mode only the table
-/// motions, Enter/Ctrl+S, and the legacy Tab/digit chords are claimed.
-/// Everything else falls through to the editor route so global chords
-/// (`Ctrl+W`, `Alt+M`, …) keep working.
+/// Two surfaces:
+/// - **NAV** (no field open): region/row/col motion + Enter / `i`/`a`/`o`
+///   to open a field + Tab/digits/PageUp/PageDown for navigation.
+/// - **EDIT** (a field's sub-`Document` is open): we only claim the
+///   lifecycle chords (`Esc`, `Ctrl+C`, `Ctrl+S`). Everything else
+///   falls through to the editor scope so the vim/standard engine
+///   operates directly on the sub-doc (via the `App::document_mut`
+///   redirect — same pattern as `DbRowDetail`).
 pub(crate) fn resolve_pane_key(app: &App, key: KeyEvent) -> Option<Action> {
     let in_edit = app
         .active_pane()
         .map(|p| p.block_edit.is_some())
         .unwrap_or(false);
+    let vim = app.config.editor.mode == EditorMode::Vim;
     if in_edit {
-        return resolve_edit_key(key);
+        // Effective sub-mode comes from the engine, not the stored
+        // hint on `RegionEdit` — vim's `i`/`a`/`o` flip vim.mode for
+        // us, so reading `edit.sub_mode` would lag behind. Standard
+        // profile is always Insert.
+        let sub_mode = effective_sub_mode(app);
+        return resolve_edit_key(key, sub_mode, vim);
     }
-    resolve_nav_key(key)
+    resolve_nav_key(key, vim)
 }
 
-fn resolve_edit_key(key: KeyEvent) -> Option<Action> {
+/// Source of truth for "is the EDIT buffer currently in Normal or
+/// Insert?". Vim profile reads `app.vim.mode`; standard is always
+/// Insert. Used by both the keystroke resolver and the status bar so
+/// the displayed chip can't disagree with the engine's behaviour.
+pub fn effective_sub_mode(app: &App) -> EditSubMode {
+    if app.config.editor.mode == EditorMode::Standard {
+        return EditSubMode::Insert;
+    }
+    match app.vim.mode {
+        Mode::Normal => EditSubMode::Normal,
+        _ => EditSubMode::Insert,
+    }
+}
+
+/// Lifecycle chords for EDIT — everything else is `None` so the
+/// keystroke flows to the editor engine via the document redirect.
+///
+/// The Esc resolution depends on whether the engine is currently in
+/// Insert (e.g. user just pressed `i`) or Normal: in vim Insert we
+/// drop to Normal without committing (first Esc); in vim Normal /
+/// standard we commit + return to NAV. We swallow only the `Esc`
+/// keystroke itself — the vim Insert→Normal transition is handled
+/// by the engine in the OTHER side of this branch (when we return
+/// `None`, the engine sees Esc and flips mode for free).
+fn resolve_edit_key(key: KeyEvent, sub_mode: EditSubMode, vim: bool) -> Option<Action> {
     let KeyEvent {
         code, modifiers, ..
     } = key;
     match (modifiers, code) {
-        (KeyModifiers::NONE, KeyCode::Esc) => Some(Action::BlocksRegionCommitEdit),
+        (KeyModifiers::NONE, KeyCode::Esc) => match (vim, sub_mode) {
+            // Vim INSERT → let the engine see Esc and flip to Normal
+            // (no commit). We don't claim — `None` falls through.
+            (true, EditSubMode::Insert) => None,
+            // Vim NORMAL or standard profile → Esc commits and exits.
+            _ => Some(Action::BlocksRegionCommitEdit),
+        },
         (m, KeyCode::Char('c')) if m == KeyModifiers::CONTROL => {
             Some(Action::BlocksRegionCancelEdit)
         }
-        (KeyModifiers::NONE, KeyCode::Backspace)
-        | (KeyModifiers::SHIFT, KeyCode::Backspace) => Some(Action::BlocksRegionEditBackspace),
-        (KeyModifiers::NONE, KeyCode::Delete) => Some(Action::BlocksRegionEditDelete),
-        (KeyModifiers::NONE, KeyCode::Left) => Some(Action::BlocksRegionEditCursorLeft),
-        (KeyModifiers::NONE, KeyCode::Right) => Some(Action::BlocksRegionEditCursorRight),
-        (KeyModifiers::NONE, KeyCode::Up) => Some(Action::BlocksRegionEditCursorUp),
-        (KeyModifiers::NONE, KeyCode::Down) => Some(Action::BlocksRegionEditCursorDown),
-        (KeyModifiers::NONE, KeyCode::Home) => Some(Action::BlocksRegionEditCursorHome),
-        (KeyModifiers::NONE, KeyCode::End) => Some(Action::BlocksRegionEditCursorEnd),
-        (KeyModifiers::NONE, KeyCode::Enter) => Some(Action::BlocksRegionEditNewline),
         (m, KeyCode::Char('s')) if m == KeyModifiers::CONTROL => Some(Action::BlocksSaveDraft),
-        (m, KeyCode::Char(c)) if !m.contains(KeyModifiers::CONTROL) => {
-            Some(Action::BlocksRegionEditChar(c))
-        }
         _ => None,
     }
 }
 
-fn resolve_nav_key(key: KeyEvent) -> Option<Action> {
+fn resolve_nav_key(key: KeyEvent, vim: bool) -> Option<Action> {
     let KeyEvent {
         code, modifiers, ..
     } = key;
@@ -65,10 +92,8 @@ fn resolve_nav_key(key: KeyEvent) -> Option<Action> {
             let n = (c as u8 - b'0') as usize;
             Some(Action::BlocksPaneJumpRegion(n))
         }
-        // hjkl mirrors arrows in NAV. Available in standard mode too —
-        // the pane isn't editing, so capturing the letters here can't
-        // shadow text input. Story 6 layers vim chords (`gj`/`g1`…)
-        // for region jumps on top of this base motion vocabulary.
+        // hjkl mirrors arrows in NAV for both profiles. The pane isn't
+        // editing, so claiming the letters here can't shadow text input.
         (KeyModifiers::NONE, KeyCode::Up)
         | (KeyModifiers::NONE, KeyCode::Char('k')) => Some(Action::BlocksPaneRowUp),
         (KeyModifiers::NONE, KeyCode::Down)
@@ -78,6 +103,27 @@ fn resolve_nav_key(key: KeyEvent) -> Option<Action> {
         (KeyModifiers::NONE, KeyCode::Right)
         | (KeyModifiers::NONE, KeyCode::Char('l')) => Some(Action::BlocksPaneColRight),
         (KeyModifiers::NONE, KeyCode::Enter) => Some(Action::BlocksRegionEnterEdit),
+        // Vim-only NAV chords: `i`/`a`/`o` skip past NORMAL straight
+        // into INSERT (`Enter` in vim lands in NORMAL).
+        (KeyModifiers::NONE, KeyCode::Char('i')) if vim => {
+            Some(Action::BlocksRegionEnterEditInsert)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('a')) if vim => {
+            Some(Action::BlocksRegionEnterEditInsert)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('o')) if vim => {
+            Some(Action::BlocksRegionEnterEditInsert)
+        }
+        // `]`/`[` step between blocks in the workspace (vim only —
+        // standard uses PageDown/PageUp below).
+        (KeyModifiers::NONE, KeyCode::Char(']')) if vim => {
+            Some(Action::BlocksNextBlockMotion)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('[')) if vim => {
+            Some(Action::BlocksPrevBlockMotion)
+        }
+        (KeyModifiers::NONE, KeyCode::PageDown) => Some(Action::BlocksNextBlockMotion),
+        (KeyModifiers::NONE, KeyCode::PageUp) => Some(Action::BlocksPrevBlockMotion),
         (m, KeyCode::Char('s')) if m == KeyModifiers::CONTROL => Some(Action::BlocksSaveDraft),
         _ => None,
     }
@@ -95,20 +141,13 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         Action::BlocksPaneRowDown => shift_row(app, 1),
         Action::BlocksPaneColLeft => shift_col(app, -1),
         Action::BlocksPaneColRight => shift_col(app, 1),
-        Action::BlocksRegionEnterEdit => enter_edit(app),
+        Action::BlocksRegionEnterEdit => enter_edit(app, EnterMode::Auto),
+        Action::BlocksRegionEnterEditInsert => enter_edit(app, EnterMode::Insert),
         Action::BlocksRegionCommitEdit => commit_edit(app),
         Action::BlocksRegionCancelEdit => cancel_edit(app),
-        Action::BlocksRegionEditChar(c) => buffer_insert(app, c),
-        Action::BlocksRegionEditBackspace => buffer_backspace(app),
-        Action::BlocksRegionEditDelete => buffer_delete(app),
-        Action::BlocksRegionEditCursorLeft => buffer_move(app, BufMove::Left),
-        Action::BlocksRegionEditCursorRight => buffer_move(app, BufMove::Right),
-        Action::BlocksRegionEditCursorUp => buffer_move(app, BufMove::Up),
-        Action::BlocksRegionEditCursorDown => buffer_move(app, BufMove::Down),
-        Action::BlocksRegionEditCursorHome => buffer_move(app, BufMove::Home),
-        Action::BlocksRegionEditCursorEnd => buffer_move(app, BufMove::End),
-        Action::BlocksRegionEditNewline => buffer_newline_or_commit(app),
         Action::BlocksSaveDraft => save_draft(app),
+        Action::BlocksNextBlockMotion => shift_block(app, 1),
+        Action::BlocksPrevBlockMotion => shift_block(app, -1),
         Action::BlocksUnsavedPromptSave => {
             close_unsaved_prompt(app);
             save_draft(app);
@@ -231,13 +270,12 @@ fn shift_region(app: &mut App, delta: isize) {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum BufMove {
-    Left,
-    Right,
-    Up,
-    Down,
-    Home,
-    End,
+enum EnterMode {
+    /// Profile picks: standard lands in INSERT, vim in NORMAL. Used by
+    /// the `Enter` chord from NAV.
+    Auto,
+    /// Force INSERT (used by vim `i`/`a`/`o`).
+    Insert,
 }
 
 fn shift_row(app: &mut App, delta: isize) {
@@ -348,11 +386,13 @@ fn read_header_count(
         .unwrap_or(0)
 }
 
-/// Open the field at `(region, row, col)` for inline editing. Allocates
-/// a `BlockDraft` on first edit (pulled from disk via `parse_blocks`)
-/// so commits have somewhere to land without touching the file. Single-
-/// line fields only — onda B adds multi-line via Rope.
-fn enter_edit(app: &mut App) {
+/// Open the field at `(region, row, col)` for inline editing. The
+/// sub-`Document` is seeded from the draft's current value so vim
+/// motions / search / undo land on something real from frame zero.
+/// `EnterMode::Auto` defers the sub-mode to the active profile:
+/// standard → INSERT, vim → NORMAL. `EnterMode::Insert` forces INSERT
+/// (vim `i`/`a`/`o`).
+fn enter_edit(app: &mut App, mode: EnterMode) {
     let Some(field) = field_for_focus(app) else {
         return;
     };
@@ -365,14 +405,34 @@ fn enter_edit(app: &mut App) {
         return;
     }
     let initial = current_field_value(app, &field).unwrap_or_default();
+    let vim = app.config.editor.mode == EditorMode::Vim;
+    let edit = match mode {
+        EnterMode::Insert => RegionEdit::insert(field, initial),
+        EnterMode::Auto if vim => RegionEdit::normal(field, initial),
+        EnterMode::Auto => RegionEdit::insert(field, initial),
+    };
     if let Some(pane) = app.active_pane_mut() {
-        pane.block_edit = Some(Box::new(RegionEdit::new(field, initial)));
+        pane.block_edit = Some(Box::new(edit));
     }
+    // Pin the vim engine to the mode matching the sub-doc so chords
+    // arrive at the right parser (`parse_normal` for NORMAL,
+    // `parse_insert` for INSERT). Standard profile ignores vim.mode.
+    let mode = if matches!(
+        app.active_pane().and_then(|p| p.block_edit.as_ref()).map(|e| e.sub_mode),
+        Some(EditSubMode::Insert)
+    ) {
+        Mode::Insert
+    } else {
+        Mode::Normal
+    };
+    app.vim.mode = mode;
+    app.vim.reset_pending();
 }
 
-/// Esc on an active buffer: write the buffer into the draft and clear
-/// `block_edit`. Canonicalisation (header name validity, URL trimming)
-/// is deferred to execute time.
+/// Esc on an active buffer: serialize the sub-doc and write it into
+/// the draft's matching field, then clear `block_edit`. The trailing
+/// newline that `Document::to_markdown` appends is stripped — it's a
+/// rendering artefact, not part of the user's value.
 fn commit_edit(app: &mut App) {
     let Some(pane) = app.active_pane_mut() else {
         return;
@@ -383,9 +443,8 @@ fn commit_edit(app: &mut App) {
     let Some(draft) = pane.block_draft.as_mut() else {
         return;
     };
-    let field = edit.field.clone();
-    let value = edit.buffer.into_string();
-    match field {
+    let value = edit.current_text();
+    match edit.field {
         EditField::HttpUrl => draft.set_url(value),
         EditField::HttpHeaderKey(row) => {
             draft.set_header(row, 0, value);
@@ -396,94 +455,67 @@ fn commit_edit(app: &mut App) {
         EditField::HttpBody => draft.set_body(value),
         EditField::DbQuery => draft.set_query(value),
     }
+    // Restore vim NORMAL on the (now hidden) field so the next Enter
+    // doesn't land in stale Insert state.
+    app.vim.enter_normal();
 }
 
 fn cancel_edit(app: &mut App) {
     if let Some(pane) = app.active_pane_mut() {
         pane.block_edit = None;
     }
+    app.vim.enter_normal();
 }
 
-fn buffer_insert(app: &mut App, c: char) {
-    if let Some(pane) = app.active_pane_mut() {
-        if let Some(edit) = pane.block_edit.as_mut() {
-            match &mut edit.buffer {
-                crate::app::EditBuffer::Line(le) => le.insert_char(c),
-                crate::app::EditBuffer::Multi(mb) => mb.insert_char(c),
-            }
-        }
-    }
-}
-
-fn buffer_backspace(app: &mut App) {
-    if let Some(pane) = app.active_pane_mut() {
-        if let Some(edit) = pane.block_edit.as_mut() {
-            match &mut edit.buffer {
-                crate::app::EditBuffer::Line(le) => {
-                    le.delete_before();
-                }
-                crate::app::EditBuffer::Multi(mb) => {
-                    mb.delete_before();
-                }
-            }
-        }
-    }
-}
-
-fn buffer_delete(app: &mut App) {
-    if let Some(pane) = app.active_pane_mut() {
-        if let Some(edit) = pane.block_edit.as_mut() {
-            match &mut edit.buffer {
-                crate::app::EditBuffer::Line(le) => {
-                    le.delete_after();
-                }
-                crate::app::EditBuffer::Multi(mb) => {
-                    mb.delete_after();
-                }
-            }
-        }
-    }
-}
-
-fn buffer_move(app: &mut App, dir: BufMove) {
-    if let Some(pane) = app.active_pane_mut() {
-        if let Some(edit) = pane.block_edit.as_mut() {
-            match (&mut edit.buffer, dir) {
-                (crate::app::EditBuffer::Line(le), BufMove::Left) => le.move_left(),
-                (crate::app::EditBuffer::Line(le), BufMove::Right) => le.move_right(),
-                (crate::app::EditBuffer::Line(le), BufMove::Home) => le.move_home(),
-                (crate::app::EditBuffer::Line(le), BufMove::End) => le.move_end(),
-                (crate::app::EditBuffer::Line(_), BufMove::Up | BufMove::Down) => {}
-                (crate::app::EditBuffer::Multi(mb), BufMove::Left) => mb.move_left(),
-                (crate::app::EditBuffer::Multi(mb), BufMove::Right) => mb.move_right(),
-                (crate::app::EditBuffer::Multi(mb), BufMove::Up) => mb.move_up(),
-                (crate::app::EditBuffer::Multi(mb), BufMove::Down) => mb.move_down(),
-                (crate::app::EditBuffer::Multi(mb), BufMove::Home) => mb.move_home(),
-                (crate::app::EditBuffer::Multi(mb), BufMove::End) => mb.move_end(),
-            }
-        }
-    }
-}
-
-/// Enter on a multi-line buffer inserts `\n`. Enter on a single-line
-/// buffer commits and returns to NAV — matches the conventional form
-/// behaviour where Enter "submits".
-fn buffer_newline_or_commit(app: &mut App) {
-    let is_multi = app
-        .active_pane()
-        .and_then(|p| p.block_edit.as_ref())
-        .map(|e| e.field.is_multiline())
-        .unwrap_or(false);
-    if !is_multi {
-        commit_edit(app);
+/// `]b`/`[b` motion — flatten every block in the workspace into a
+/// single list and step `delta` positions, wrapping at both ends.
+fn shift_block(app: &mut App, delta: isize) {
+    let Some(ws) = app.blocks_workspace.as_ref() else {
+        return;
+    };
+    let flat: Vec<crate::app::BlockRef> = ws
+        .index
+        .files
+        .iter()
+        .enumerate()
+        .flat_map(|(fi, f)| {
+            (0..f.blocks.len()).map(move |bi| crate::app::BlockRef {
+                file_idx: fi,
+                block_idx: bi,
+            })
+        })
+        .collect();
+    if flat.is_empty() {
         return;
     }
-    if let Some(pane) = app.active_pane_mut() {
-        if let Some(edit) = pane.block_edit.as_mut() {
-            if let crate::app::EditBuffer::Multi(mb) = &mut edit.buffer {
-                mb.insert_newline();
-            }
+    let current = app
+        .active_pane()
+        .and_then(|p| p.block_selected)
+        .or(ws.selected);
+    let pos = current
+        .and_then(|sel| flat.iter().position(|r| *r == sel))
+        .unwrap_or(0) as isize;
+    let len = flat.len() as isize;
+    let next = ((pos + delta) % len + len) % len;
+    let target = flat[next as usize];
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.select(target);
+        if !ws.expanded.contains(&target.file_idx) {
+            ws.expanded.insert(target.file_idx);
         }
+        if let Some(row) = ws
+            .rows()
+            .iter()
+            .position(|r| r.file_idx == target.file_idx && r.block_idx == Some(target.block_idx))
+        {
+            ws.cursor = row;
+        }
+    }
+    if let Some(pane) = app.active_pane_mut() {
+        pane.block_selected = Some(target);
+        pane.block_region = 0;
+        pane.block_row = 0;
+        pane.block_col = 1;
     }
 }
 
@@ -954,30 +986,36 @@ mod tests {
         (app, data, vault)
     }
 
+    /// Stand-in for the engine wiring: simulate the user typing into
+    /// the sub-Document by writing directly via the redirect, the
+    /// same path the vim/standard route uses in production.
+    fn type_into_active_edit(app: &mut App, text: &str) {
+        let doc = app.document_mut().expect("EDIT must be active");
+        for c in text.chars() {
+            if c == '\n' {
+                doc.insert_newline_at_cursor();
+            } else {
+                doc.insert_char_at_cursor(c);
+            }
+        }
+    }
+
     #[tokio::test(flavor = "multi_thread")]
-    async fn enter_edit_url_hydrates_draft_and_seeds_buffer() {
+    async fn enter_edit_url_hydrates_draft_and_seeds_subdoc() {
         let (mut app, _d, _v) = enter_blocks_on_first_http().await;
-        // [1] Request is region 0; Enter opens the URL field.
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
         let pane = app.active_pane().unwrap();
         assert!(pane.block_draft.is_some(), "draft hydrated on first edit");
         let edit = pane.block_edit.as_ref().expect("edit state allocated");
         assert!(matches!(edit.field, EditField::HttpUrl));
-        let le = edit
-            .buffer
-            .as_line()
-            .expect("URL is single-line");
-        assert_eq!(le.as_str(), "https://x.com");
+        assert_eq!(edit.current_text(), "https://x.com");
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn commit_writes_buffer_into_draft_and_marks_dirty() {
+    async fn commit_writes_subdoc_text_into_draft() {
         let (mut app, _d, _v) = enter_blocks_on_first_http().await;
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
-        // Type " /test" then commit; the draft URL must reflect it.
-        for c in " /test".chars() {
-            apply_blocks_view(&mut app, Action::BlocksRegionEditChar(c));
-        }
+        type_into_active_edit(&mut app, " /test");
         apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
         let pane = app.active_pane().unwrap();
         assert!(pane.block_edit.is_none(), "edit cleared after commit");
@@ -985,17 +1023,15 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn cancel_discards_buffer_without_touching_draft() {
+    async fn cancel_discards_subdoc_without_touching_draft() {
         let (mut app, _d, _v) = enter_blocks_on_first_http().await;
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
-        for c in "xxxx".chars() {
-            apply_blocks_view(&mut app, Action::BlocksRegionEditChar(c));
-        }
+        type_into_active_edit(&mut app, "xxxx");
         apply_blocks_view(&mut app, Action::BlocksRegionCancelEdit);
         let pane = app.active_pane().unwrap();
         assert!(pane.block_edit.is_none(), "edit cleared after cancel");
         // Draft was hydrated by enter_edit (so it's Some), but the
-        // URL is unchanged because the buffer was discarded.
+        // URL is unchanged because the sub-doc was discarded.
         assert_eq!(pane.block_draft.as_ref().unwrap().url(), "https://x.com");
     }
 
@@ -1003,9 +1039,7 @@ mod tests {
     async fn save_writes_canonical_fence_to_disk() {
         let (mut app, _d, vault) = enter_blocks_on_first_http().await;
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
-        for c in "/edited".chars() {
-            apply_blocks_view(&mut app, Action::BlocksRegionEditChar(c));
-        }
+        type_into_active_edit(&mut app, "/edited");
         apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
         apply_blocks_view(&mut app, Action::BlocksSaveDraft);
         let on_disk = std::fs::read_to_string(vault.path().join("api.md")).unwrap();
@@ -1020,16 +1054,14 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn toggle_view_with_dirty_opens_unsaved_prompt() {
         let (mut app, _d, _v) = enter_blocks_on_first_http().await;
-        // Hydrate a draft via an edit, then attempt to toggle back.
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
-        apply_blocks_view(&mut app, Action::BlocksRegionEditChar('z'));
+        type_into_active_edit(&mut app, "z");
         apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
         apply_blocks_view(&mut app, Action::ToggleAppView);
         assert!(matches!(
             app.modal,
             Some(crate::modal::Modal::BlocksUnsavedPrompt(_))
         ));
-        // The toggle was deferred — view still in BLOCKS.
         assert!(matches!(app.view, AppView::Blocks));
     }
 
@@ -1037,11 +1069,10 @@ mod tests {
     async fn unsaved_prompt_discard_drops_drafts_and_toggles() {
         let (mut app, _d, _v) = enter_blocks_on_first_http().await;
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
-        apply_blocks_view(&mut app, Action::BlocksRegionEditChar('z'));
+        type_into_active_edit(&mut app, "z");
         apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
         apply_blocks_view(&mut app, Action::ToggleAppView);
         apply_blocks_view(&mut app, Action::BlocksUnsavedPromptDiscard);
-        // Modal closed, view toggled, draft gone.
         assert!(app.modal.is_none());
         assert!(matches!(app.view, AppView::Doc));
     }
@@ -1049,18 +1080,67 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn multiline_body_inserts_newline_then_commits_via_esc() {
         let (mut app, _d, _v) = enter_blocks_on_first_http().await;
-        // Jump to [3] Body region.
         apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(3));
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
-        for c in "line1".chars() {
-            apply_blocks_view(&mut app, Action::BlocksRegionEditChar(c));
-        }
-        apply_blocks_view(&mut app, Action::BlocksRegionEditNewline);
-        for c in "line2".chars() {
-            apply_blocks_view(&mut app, Action::BlocksRegionEditChar(c));
-        }
+        type_into_active_edit(&mut app, "line1\nline2");
         apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
         let pane = app.active_pane().unwrap();
         assert_eq!(pane.block_draft.as_ref().unwrap().body(), "line1\nline2");
+    }
+
+    // ---- Story 6: vim opt-in (via Document) ----
+
+    async fn enter_blocks_vim() -> (App, TempDir, TempDir) {
+        let (mut app, data, vault) = enter_blocks_on_first_http().await;
+        app.config.editor.mode = crate::config::EditorMode::Vim;
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn vim_enter_lands_with_engine_in_normal() {
+        let (mut app, _d, _v) = enter_blocks_vim().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        assert!(app.active_pane().unwrap().block_edit.is_some());
+        // Engine pinned to Normal so vim chords parse correctly.
+        assert_eq!(app.vim.mode, Mode::Normal);
+        assert_eq!(effective_sub_mode(&app), EditSubMode::Normal);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn vim_i_action_lands_engine_in_insert() {
+        let (mut app, _d, _v) = enter_blocks_vim().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEditInsert);
+        assert_eq!(app.vim.mode, Mode::Insert);
+        assert_eq!(effective_sub_mode(&app), EditSubMode::Insert);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_enter_lands_engine_in_insert() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        // Standard profile always reports Insert; vim.mode is the
+        // same so the engine inserts directly.
+        assert_eq!(effective_sub_mode(&app), EditSubMode::Insert);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn next_block_motion_wraps_workspace() {
+        let (mut app, _d, _v) = enter_blocks_vim().await;
+        let total: usize = app
+            .blocks_workspace
+            .as_ref()
+            .unwrap()
+            .index
+            .files
+            .iter()
+            .map(|f| f.blocks.len())
+            .sum();
+        assert!(total >= 2, "fixture has >= 2 blocks");
+        apply_blocks_view(&mut app, Action::BlocksNextBlockMotion);
+        let after_one = app.active_pane().unwrap().block_selected;
+        for _ in 0..total {
+            apply_blocks_view(&mut app, Action::BlocksNextBlockMotion);
+        }
+        assert_eq!(app.active_pane().unwrap().block_selected, after_one);
     }
 }

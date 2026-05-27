@@ -4,9 +4,11 @@ use ratatui::{layout::Rect, Frame};
 
 use crate::app::BlocksWorkspace;
 use crate::pane::PaneNode;
+use crate::ui::VisualOverlay;
 
 use super::pane;
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render(
     frame: &mut Frame,
     area: Rect,
@@ -14,6 +16,7 @@ pub(super) fn render(
     focused_path: Option<&[u8]>,
     workspace: Option<&BlocksWorkspace>,
     vault: &Path,
+    visual_overlay: Option<VisualOverlay>,
 ) {
     if area.width == 0 || area.height == 0 {
         return;
@@ -28,6 +31,7 @@ pub(super) fn render(
         workspace,
         vault,
         picker_active,
+        visual_overlay,
         &mut counter,
     );
 }
@@ -41,6 +45,7 @@ fn render_inner(
     workspace: Option<&BlocksWorkspace>,
     vault: &Path,
     picker_active: bool,
+    visual_overlay: Option<VisualOverlay>,
     counter: &mut usize,
 ) {
     if area.width == 0 || area.height == 0 {
@@ -50,7 +55,10 @@ fn render_inner(
         PaneNode::Leaf(leaf) => {
             leaf.viewport_height = area.height;
             let is_focused = matches!(focused_path, Some(p) if p.is_empty());
-            pane::render_leaf(frame, area, leaf, is_focused, workspace, vault);
+            // Visual overlay only paints on the focused leaf — the
+            // moving end of the selection is the active pane's cursor.
+            let leaf_overlay = if is_focused { visual_overlay } else { None };
+            pane::render_leaf(frame, area, leaf, is_focused, workspace, vault, leaf_overlay);
             if picker_active {
                 let n = *counter + 1;
                 pane::paint_picker_overlay(frame, area, n);
@@ -86,6 +94,7 @@ fn render_inner(
                 workspace,
                 vault,
                 picker_active,
+                visual_overlay,
                 counter,
             );
             render_inner(
@@ -96,6 +105,7 @@ fn render_inner(
                 workspace,
                 vault,
                 picker_active,
+                visual_overlay,
                 counter,
             );
         }

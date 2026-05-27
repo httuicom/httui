@@ -345,19 +345,12 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::BlocksPaneColLeft
         | Action::BlocksPaneColRight
         | Action::BlocksRegionEnterEdit
+        | Action::BlocksRegionEnterEditInsert
         | Action::BlocksRegionCommitEdit
         | Action::BlocksRegionCancelEdit
-        | Action::BlocksRegionEditChar(_)
-        | Action::BlocksRegionEditBackspace
-        | Action::BlocksRegionEditDelete
-        | Action::BlocksRegionEditCursorLeft
-        | Action::BlocksRegionEditCursorRight
-        | Action::BlocksRegionEditCursorUp
-        | Action::BlocksRegionEditCursorDown
-        | Action::BlocksRegionEditCursorHome
-        | Action::BlocksRegionEditCursorEnd
-        | Action::BlocksRegionEditNewline
         | Action::BlocksSaveDraft
+        | Action::BlocksNextBlockMotion
+        | Action::BlocksPrevBlockMotion
         | Action::BlocksUnsavedPromptSave
         | Action::BlocksUnsavedPromptDiscard
         | Action::BlocksUnsavedPromptCancel => {
