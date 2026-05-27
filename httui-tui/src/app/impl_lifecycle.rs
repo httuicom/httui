@@ -173,11 +173,22 @@ impl App {
             ));
         let user_config_path = httui_core::vault_config::user_store::default_user_config_path()
             .unwrap_or_else(|_| canonical.join("user.toml"));
-        let environments_store =
-            httui_core::vault_config::EnvironmentsStore::new(canonical.clone(), user_config_path);
+        let environments_store = httui_core::vault_config::EnvironmentsStore::new(
+            canonical.clone(),
+            user_config_path.clone(),
+        );
         let connection_names = super::helpers::load_connection_names(&connections_store);
 
+        // Save snapshot of the outgoing vault BEFORE the rewrite — a
+        // captured-after state would already point at the new vault's
+        // tabs/blocks_workspace.
+        let outgoing_snap = crate::persist::capture(self);
+        let outgoing_vault = self.vault_path.clone();
+        let store = httui_core::vault_config::UserStore::with_path(self.user_config_path.clone());
+        crate::persist::save_snapshot(&store, &outgoing_vault, outgoing_snap);
+
         self.vault_path = canonical;
+        self.user_config_path = user_config_path;
         self.connections_store = connections_store;
         self.pool_manager = new_pool_manager;
         self.environments_store = environments_store;
@@ -201,8 +212,16 @@ impl App {
         // Replace tabs + tree with a fresh post-bootstrap state.
         self.tabs = super::TabBar::default();
         self.tree = crate::tree::FileTree::default();
+        self.view = super::AppView::default();
+        self.blocks_workspace = None;
         self.load_initial_document();
         self.refresh_active_env_name();
+
+        let restore_store =
+            httui_core::vault_config::UserStore::with_path(self.user_config_path.clone());
+        if let Some(snap) = crate::persist::load_snapshot(&restore_store, &self.vault_path) {
+            crate::persist::restore(self, &snap);
+        }
 
         // Rewire the filesystem watchers if production already
         // installed them. In unit tests they're `None` and we leave

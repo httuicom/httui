@@ -35,6 +35,13 @@ pub async fn run(
     let mut events = EventLoop::start(Duration::from_millis(250))?;
     let mut app = App::new(config, resolved, app_pool);
     app.config_path = Some(config_path);
+    {
+        let store =
+            httui_core::vault_config::UserStore::with_path(app.user_config_path.clone());
+        if let Some(snap) = crate::persist::load_snapshot(&store, &app.vault_path) {
+            crate::persist::restore(&mut app, &snap);
+        }
+    }
     // Spawned async tasks (currently the DB executor in
     // `vim::dispatch`) push their results back through this sender;
     // the main loop folds them into the app via `AppEvent` matches.
@@ -151,6 +158,9 @@ async fn main_loop(
 /// `super::autosave::flush_all_dirty`.
 fn flush_on_exit(app: &mut App) {
     super::autosave::flush_all_dirty(app);
+    let store = httui_core::vault_config::UserStore::with_path(app.user_config_path.clone());
+    let snap = crate::persist::capture(app);
+    crate::persist::save_snapshot(&store, &app.vault_path, snap);
 }
 
 /// Fold a single `AppEvent` into `app`. Extracted verbatim from the

@@ -164,6 +164,10 @@ pub struct App {
     pub git_commit_template: String,
     pub view: AppView,
     pub blocks_workspace: Option<BlocksWorkspace>,
+    /// Path to `user.toml` resolved at construction. Cached so
+    /// snapshot save/load on quit + vault switch reuse the same
+    /// store without re-walking the XDG resolution.
+    pub user_config_path: PathBuf,
 }
 
 impl App {
@@ -229,6 +233,7 @@ impl App {
             git_commit_template,
             view: AppView::default(),
             blocks_workspace: None,
+            user_config_path,
         };
         app.load_initial_document();
         app.refresh_active_env_name();

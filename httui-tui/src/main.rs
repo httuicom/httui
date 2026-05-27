@@ -20,6 +20,7 @@ mod git;
 mod input;
 mod modal;
 mod pane;
+mod persist;
 mod schema;
 mod session_overrides;
 mod sql_completion;
