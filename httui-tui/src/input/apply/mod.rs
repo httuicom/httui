@@ -2,7 +2,6 @@
 //! `vim::dispatch` dispatches each `Action` variant to the matching
 //! `apply_<group>` here.
 
-pub mod blocks_view;
 pub mod completion;
 /// Create-connection form handlers.
 pub mod connection_form;

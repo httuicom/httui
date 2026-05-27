@@ -5,7 +5,6 @@ mod anchor;
 mod block_history;
 mod block_template_picker;
 mod blocks;
-mod blocks_view;
 mod completion_popup;
 mod connection_delete_confirm;
 mod connection_form;

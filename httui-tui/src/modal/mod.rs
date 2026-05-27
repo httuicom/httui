@@ -1,5 +1,5 @@
 use crate::app::{
-    BlockHistoryState, BlockTemplatePickerState, BlocksViewState, CompletionPopupState,
+    BlockHistoryState, BlockTemplatePickerState, CompletionPopupState,
     ConnectionDeleteConfirmState, ConnectionFormState, ConnectionPickerState, ConnectionsPageState,
     ContentSearchState, DbConfirmRunState, DbExportPickerState, DbRowDetailState, DbSettingsState,
     EnvCloneFormState, EnvDeleteConfirmState, EnvFormState, EnvironmentPickerState, EnvsPageState,
@@ -10,7 +10,6 @@ use crate::app::{
 use crate::config::EditorMode;
 use crate::vim::state::VimState;
 
-mod blocks_view_handler;
 mod clone_form;
 /// Detail-modal handlers (`DbRowDetail`, `HttpResponseDetail`). They
 /// route keys through the vim engine over a read-only sub-`Document`,
@@ -26,7 +25,6 @@ mod settings_handler;
 mod util;
 
 use crate::input::action::Action;
-use blocks_view_handler::blocks_view_handle_key;
 use crossterm::event::KeyEvent;
 use handlers::*;
 use settings_handler::settings_page_handle_key;
@@ -155,7 +153,6 @@ pub enum Modal {
     /// cursor isn't on a DB/HTTP block (DB-block case routes to
     /// `DbSettings` instead — see [`Action::OpenSettings`]).
     Settings(SettingsPageState),
-    BlocksView(BlocksViewState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -241,7 +238,6 @@ impl Modal {
             Modal::GitLogPage(_) => git::log_page_handle_key(key),
             Modal::GitConflictResolver(_) => git::conflict_resolver_handle_key(key),
             Modal::Settings(s) => settings_page_handle_key(s.capture.is_some(), key),
-            Modal::BlocksView(_) => blocks_view_handle_key(key),
         }
     }
 
@@ -343,21 +339,6 @@ impl Modal {
     pub fn as_completion_popup_mut(&mut self) -> Option<&mut CompletionPopupState> {
         match self {
             Modal::CompletionPopup(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    pub fn as_blocks_view(&self) -> Option<&BlocksViewState> {
-        match self {
-            Modal::BlocksView(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn as_blocks_view_mut(&mut self) -> Option<&mut BlocksViewState> {
-        match self {
-            Modal::BlocksView(s) => Some(s),
             _ => None,
         }
     }
