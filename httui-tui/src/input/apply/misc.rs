@@ -167,6 +167,20 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
             app.vim.reset_pending();
         }
         Action::WriteFile => {
+            // BLOCKS view doesn't serialize the active doc directly —
+            // it routes through `BlocksSaveDraft` so the focused
+            // pane's edit buffer + draft are flushed to disk via the
+            // same path Ctrl+S uses. Otherwise `:w` would try to
+            // serialize the sub-doc (which is only the field text)
+            // and leave the draft dirty.
+            if matches!(app.view, crate::app::AppView::Blocks) {
+                crate::input::dispatch::apply_action(
+                    app,
+                    crate::input::action::Action::BlocksSaveDraft,
+                    false,
+                );
+                return;
+            }
             // `<C-s>` — same code path as `:w`, status reporting and
             // all. Routed through `ex::execute` (rather than the
             // string-based `ex::run`) to skip a redundant parse.

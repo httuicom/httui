@@ -174,6 +174,23 @@ fn resolve_edit_key(key: KeyEvent, sub_mode: EditSubMode, vim: bool) -> Option<A
             Some(Action::BlocksRegionCancelEdit)
         }
         (m, KeyCode::Char('s')) if m == KeyModifiers::CONTROL => Some(Action::BlocksSaveDraft),
+        // Run / cancel from inside EDIT.
+        // Alt+R / Alt+. always work (terminal-friendly chord).
+        (m, KeyCode::Char('r')) if m == KeyModifiers::ALT => Some(Action::BlocksRunFocused),
+        (m, KeyCode::Char('.')) if m == KeyModifiers::ALT => Some(Action::BlocksCancelRun),
+        // Bare `r` / `.` in vim NORMAL sub-mode (no typing happening
+        // here) — same chord NAV uses, lifted into EDIT-NORMAL so
+        // the run/cancel cycle works without leaving the buffer.
+        (KeyModifiers::NONE, KeyCode::Char('r'))
+            if vim && matches!(sub_mode, EditSubMode::Normal) =>
+        {
+            Some(Action::BlocksRunFocused)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('.'))
+            if vim && matches!(sub_mode, EditSubMode::Normal) =>
+        {
+            Some(Action::BlocksCancelRun)
+        }
         _ => None,
     }
 }
@@ -397,25 +414,75 @@ fn shift_response_subtab(app: &mut App, delta: isize) {
             let sel = pane.block_selected?;
             let file = ws.index.files.get(sel.file_idx)?;
             let block = file.blocks.get(sel.block_idx)?;
-            if block.block_type != "http" || pane.block_region != 3 {
+            let kind = if block.block_type == "http" && pane.block_region == 3 {
+                ResponseTabKind::Http
+            } else if block.block_type.starts_with("db") && pane.block_region == 2 {
+                ResponseTabKind::Db
+            } else {
                 return None;
-            }
-            Some((file.display.clone(), block.alias.clone()))
+            };
+            Some((
+                kind,
+                file.display.clone(),
+                block.alias.clone(),
+                block.line_start,
+                block.block_type.clone(),
+            ))
         });
-    let Some((file, alias)) = target else {
+    let Some((kind, file, alias, line_start, block_type)) = target else {
         return;
     };
-    let Some(pane) = app.active_pane_mut() else {
-        return;
-    };
-    let count: isize = 5;
-    pane.response_subtab =
-        (pane.response_subtab as isize + delta).rem_euclid(count) as usize;
-    if pane.response_subtab == 4 {
-        if let Some(alias) = alias {
-            refresh_pane_history(app, file, alias);
+    match kind {
+        ResponseTabKind::Http => {
+            let Some(pane) = app.active_pane_mut() else {
+                return;
+            };
+            let count: isize = 5;
+            pane.response_subtab =
+                (pane.response_subtab as isize + delta).rem_euclid(count) as usize;
+            if pane.response_subtab == 4 {
+                if let Some(alias) = alias {
+                    refresh_pane_history(app, file, alias);
+                }
+            }
+        }
+        ResponseTabKind::Db => {
+            // Reuse App.result_tabs (BlockId-keyed) — same state the
+            // DOC view cycles via ResultPanelTab::next_for/prev_for,
+            // so behaviour stays consistent across views. The key
+            // mirrors `block_node_id` in the renderer.
+            let id = result_tab_block_id(&file, line_start);
+            let current = app
+                .result_tabs
+                .get(&id)
+                .copied()
+                .unwrap_or(crate::app::ResultPanelTab::Result);
+            let next = if delta >= 0 {
+                current.next_for(&block_type)
+            } else {
+                current.prev_for(&block_type)
+            };
+            app.result_tabs.insert(id, next);
         }
     }
+}
+
+#[derive(Clone, Copy)]
+enum ResponseTabKind {
+    Http,
+    Db,
+}
+
+/// Mirrors `block_node_id` in `ui::blocks_view::pane`. The two MUST
+/// agree on the hash inputs or the renderer reads a different tab
+/// state from what `shift_response_subtab` wrote.
+fn result_tab_block_id(file_display: &str, line_start: usize) -> crate::buffer::block::BlockId {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    file_display.hash(&mut h);
+    line_start.hash(&mut h);
+    crate::buffer::block::BlockId(h.finish())
 }
 
 /// Pull recent `block_run_history` rows for (file, alias) and stash
@@ -737,6 +804,10 @@ fn run_focused_block(app: &mut App) {
     if !matches!(app.view, AppView::Blocks) {
         return;
     }
+    // Sync sub-doc → draft → pane.document in memory WITHOUT closing
+    // the EDIT buffer. The user expects `r` mid-edit to run the
+    // current text and return them to keep typing, like a REPL.
+    sync_edit_to_doc_in_memory(app);
     let Some(pane) = app.active_pane() else { return };
     let Some(sel) = pane.block_selected else {
         app.set_status(StatusKind::Error, "no block selected");
@@ -787,12 +858,13 @@ fn run_focused_block(app: &mut App) {
         }
     }
 
-    // Map the selected block to a segment_idx in the doc. Match by
-    // `(block_type, alias)` — the sidebar guarantees these identify
-    // a unique block within the file at this point in the workspace
-    // index.
+    // Map the selected block to a segment_idx in the pane's doc.
+    // Bypass the `app.document()` redirect — in EDIT it returns the
+    // sub-doc (a prose-only field buffer with zero blocks), so the
+    // block lookup would always miss.
     let segment_idx = {
-        let Some(doc) = app.document() else { return };
+        let Some(pane) = app.active_pane() else { return };
+        let Some(doc) = pane.document.as_ref() else { return };
         let mut found = None;
         for (idx, seg) in doc.segments().iter().enumerate() {
             if let crate::buffer::Segment::Block(b) = seg {
@@ -811,15 +883,92 @@ fn run_focused_block(app: &mut App) {
         }
     };
 
-    // Park the cursor on the block so `apply_run_block` picks it up.
-    if let Some(doc) = app.document_mut() {
-        doc.set_cursor(crate::buffer::Cursor::InBlock {
-            segment_idx,
-            offset: 0,
-        });
+    // Park the cursor on the block in the pane's doc (same bypass —
+    // we want apply_run_block to see InBlock on the real document,
+    // not the sub-doc).
+    if let Some(pane) = app.active_pane_mut() {
+        if let Some(doc) = pane.document.as_mut() {
+            doc.set_cursor(crate::buffer::Cursor::InBlock {
+                segment_idx,
+                offset: 0,
+            });
+        }
     }
 
-    crate::commands::refs::apply_run_block(app);
+    // Temporarily detach `block_edit` so the `app.document()` redirect
+    // points at the real pane document (which has the block) during
+    // the run. The executor reads `doc.segments()` directly to fetch
+    // the block — restoring the edit buffer after lets the user keep
+    // typing without observing any flicker.
+    let detached = app.active_pane_mut().and_then(|p| p.block_edit.take());
+    crate::commands::refs::start_run_chain(app, segment_idx);
+    if let Some(edit) = detached {
+        if let Some(pane) = app.active_pane_mut() {
+            pane.block_edit = Some(edit);
+        }
+    }
+}
+
+/// Copy the open sub-doc's text into the draft + into the matching
+/// segment of `pane.document`, **without** closing `block_edit`.
+/// Used by `r` mid-EDIT so a re-run sees the user's in-flight text
+/// while the EDIT buffer stays open (REPL-like).
+fn sync_edit_to_doc_in_memory(app: &mut App) {
+    let (field, text) = {
+        let Some(pane) = app.active_pane() else { return };
+        let Some(edit) = pane.block_edit.as_ref() else { return };
+        (edit.field.clone(), edit.current_text())
+    };
+    // Update the draft so the next `Ctrl+S` writes the right text.
+    if let Some(pane) = app.active_pane_mut() {
+        if let Some(draft) = pane.block_draft.as_mut() {
+            match &field {
+                EditField::HttpUrl => draft.set_url(text.clone()),
+                EditField::HttpHeaderKey(row) => {
+                    draft.set_header(*row, 0, text.clone());
+                }
+                EditField::HttpHeaderValue(row) => {
+                    draft.set_header(*row, 1, text.clone());
+                }
+                EditField::HttpBody => draft.set_body(text.clone()),
+                EditField::DbQuery => draft.set_query(text.clone()),
+            }
+        }
+    }
+    // Mirror into pane.document so apply_run_block sees the new
+    // text — it reads the segment's params.query / params.body
+    // directly. The block's `raw` rope stays stale (no re-serialize
+    // mid-edit) but the executor reads params first.
+    let field_key = match &field {
+        EditField::HttpUrl => "url",
+        EditField::HttpHeaderKey(_) | EditField::HttpHeaderValue(_) => "headers",
+        EditField::HttpBody => "body",
+        EditField::DbQuery => "query",
+    };
+    // Find the matching segment in pane.document by (type, alias) —
+    // same key apply_run_block uses to identify the block.
+    let target = {
+        let Some(ws) = app.blocks_workspace.as_ref() else { return };
+        let Some(sel) = app.active_pane().and_then(|p| p.block_selected) else { return };
+        let Some(file) = ws.index.files.get(sel.file_idx) else { return };
+        let Some(meta) = file.blocks.get(sel.block_idx) else { return };
+        (meta.block_type.clone(), meta.alias.clone())
+    };
+    let Some(pane) = app.active_pane_mut() else { return };
+    let Some(doc) = pane.document.as_mut() else { return };
+    let segment_idx = doc.segments().iter().position(|s| {
+        matches!(s, crate::buffer::Segment::Block(b)
+            if b.block_type == target.0 && b.alias == target.1)
+    });
+    let Some(idx) = segment_idx else { return };
+    if let Some(b) = doc.block_at_mut(idx) {
+        if let Some(obj) = b.params.as_object_mut() {
+            obj.insert(
+                field_key.to_string(),
+                serde_json::Value::String(text),
+            );
+        }
+    }
 }
 
 fn cancel_edit(app: &mut App) {
@@ -1317,6 +1466,13 @@ fn hydrate_draft(app: &mut App) -> bool {
 /// `.md` via `write_note`, then clear the draft. Saving is per-pane
 /// (not per-tab) so two panes editing different files both flush.
 fn save_draft(app: &mut App) {
+    // Flush an open EDIT buffer first — Ctrl+S while a sub-doc is
+    // active needs to push that text into the draft before the
+    // disk write, otherwise the user's in-flight edit doesn't make
+    // it into the file and `*` stays on the header.
+    if app.active_pane().is_some_and(|p| p.block_edit.is_some()) {
+        commit_edit(app);
+    }
     let dirty = collect_dirty_panes(app);
     if dirty.is_empty() {
         return;

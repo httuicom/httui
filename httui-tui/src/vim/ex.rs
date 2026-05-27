@@ -193,10 +193,25 @@ fn unescape_slashes(s: &str) -> String {
 /// when appropriate. Returns a status message to display.
 pub fn execute(app: &mut App, cmd: ExCmd) -> ExResult {
     match cmd {
-        ExCmd::Write => match write_document(app) {
-            Ok(msg) => ExResult::Ok(msg),
-            Err(msg) => ExResult::Err(msg),
-        },
+        ExCmd::Write => {
+            // BLOCKS view persists via the per-pane draft (sub-doc →
+            // draft → disk), not by serializing the active doc — the
+            // sub-doc is only the field text, not a full file. Route
+            // through `BlocksSaveDraft` so `:w` lands on the same
+            // path Ctrl+S uses.
+            if matches!(app.view, crate::app::AppView::Blocks) {
+                crate::input::dispatch::apply_action(
+                    app,
+                    crate::input::action::Action::BlocksSaveDraft,
+                    false,
+                );
+                return ExResult::Ok(String::new());
+            }
+            match write_document(app) {
+                Ok(msg) => ExResult::Ok(msg),
+                Err(msg) => ExResult::Err(msg),
+            }
+        }
         ExCmd::Quit { force } => quit_or_close(app, force),
         ExCmd::WriteQuit => match write_document(app) {
             Ok(_) => quit_or_close(app, /* force = */ true),
