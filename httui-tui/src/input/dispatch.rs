@@ -334,6 +334,9 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::SettingsResetBinding => {
             crate::input::apply::settings_page::apply_settings_page(app, action)
         }
+        Action::ToggleAppView => {
+            crate::input::apply::blocks_view::apply_blocks_view(app, action)
+        }
         Action::JumpNextBlock
         | Action::JumpPrevBlock
         | Action::RerunLastBlock

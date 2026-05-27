@@ -362,5 +362,6 @@ pub enum Action {
     SettingsCommitCapture(crossterm::event::KeyEvent),
     /// Restore the row under the cursor to its built-in default.
     SettingsResetBinding,
+    ToggleAppView,
     Noop,
 }

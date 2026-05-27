@@ -57,25 +57,34 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
             let Some(node) = app.tree.current().cloned() else {
                 return;
             };
-            if node.is_dir {
+            if let Some(meta) = node.block.as_ref() {
+                if let Some(ws) = app.blocks_workspace.as_mut() {
+                    ws.selected = Some(crate::app::BlockRef {
+                        file_idx: meta.file_idx,
+                        block_idx: meta.block_idx,
+                    });
+                }
+                return;
+            }
+            if node.is_dir || app.tree.block_index.is_some() {
                 if app.tree.toggle_expand() {
                     let vault = app.vault_path.clone();
                     app.tree.refresh(&vault);
                 }
-            } else {
-                // Tree-driven open mirrors the modal: every Enter opens
-                // a new tab (or switches to an existing one). Use `:e
-                // <path>` if you want the vim-style replace behavior.
-                let path = std::path::PathBuf::from(&node.path);
-                match app.open_in_new_tab(path) {
-                    Ok(msg) => {
-                        app.set_status(StatusKind::Info, msg);
-                        // Hand focus back to the editor on successful open —
-                        // matches how netrw exits the tree after Enter.
-                        app.vim.enter_normal();
-                    }
-                    Err(msg) => app.set_status(StatusKind::Error, msg),
+                return;
+            }
+            // Tree-driven open mirrors the modal: every Enter opens
+            // a new tab (or switches to an existing one). Use `:e
+            // <path>` if you want the vim-style replace behavior.
+            let path = std::path::PathBuf::from(&node.path);
+            match app.open_in_new_tab(path) {
+                Ok(msg) => {
+                    app.set_status(StatusKind::Info, msg);
+                    // Hand focus back to the editor on successful open —
+                    // matches how netrw exits the tree after Enter.
+                    app.vim.enter_normal();
                 }
+                Err(msg) => app.set_status(StatusKind::Error, msg),
             }
         }
         Action::TabNext => {

@@ -198,7 +198,9 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     // result table writes back its scroll offset).
     let active_idx = app.tabs.active;
     let result_viewport_top = &mut app.result_viewport_top;
-    if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {
+    if matches!(app.view, crate::app::AppView::Blocks) {
+        crate::ui::blocks_view::render(frame, editor_area, app);
+    } else if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {
         let focused = tab.focused.clone();
         if matches!(tab.root, PaneNode::Leaf(ref p) if p.document.is_none())
             && tab.leaf_count() == 1

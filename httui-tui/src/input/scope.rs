@@ -113,6 +113,18 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
         crate::input::dispatch::dispatch(app, key);
         return KeyOutcome::Consumed;
     }
+    if matches!(
+        app.vim.mode,
+        crate::vim::mode::Mode::Tree | crate::vim::mode::Mode::TreePrompt
+    ) {
+        if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {
+            if crate::input::keymap::is_editor_global_shortcut(action) {
+                return KeyOutcome::Effect(action);
+            }
+        }
+        crate::input::dispatch::dispatch(app, key);
+        return KeyOutcome::Consumed;
+    }
     match app.config.editor.mode {
         crate::config::EditorMode::Vim => {
             if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {

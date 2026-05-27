@@ -36,19 +36,48 @@ pub fn render(frame: &mut Frame, area: Rect, tree: &FileTree, focused: bool) {
             Style::default().fg(Color::Gray),
         )
     };
+    let title = if tree.block_index.is_some() {
+        " Blocks "
+    } else {
+        " Files "
+    };
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
-        .title(Span::styled(" Files ", title_style));
+        .title(Span::styled(title, title_style));
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
+    let block_mode = tree.block_index.is_some();
     let items: Vec<ListItem> = tree
         .entries
         .iter()
         .map(|node| {
             let indent = "  ".repeat(node.depth);
-            let icon = if node.is_dir {
+            if let Some(meta) = node.block.as_ref() {
+                let badge = block_badge(&meta.block_type);
+                let badge_bg = if meta.block_type == "http" {
+                    crate::ui::palette::accent()
+                } else {
+                    crate::ui::palette::popup_border_accent()
+                };
+                let line = Line::from(vec![
+                    Span::raw(indent),
+                    Span::raw("  "),
+                    Span::styled(
+                        badge,
+                        Style::default()
+                            .bg(badge_bg)
+                            .fg(crate::ui::palette::popup_bg())
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(" "),
+                    Span::styled(meta.label.clone(), Style::default()),
+                ]);
+                return ListItem::new(line);
+            }
+            let expandable = node.is_dir || block_mode;
+            let icon = if expandable {
                 if tree.expanded.contains(&node.path) {
                     "▾ "
                 } else {
@@ -92,6 +121,16 @@ pub fn render(frame: &mut Frame, area: Rect, tree: &FileTree, focused: bool) {
     frame.render_stateful_widget(list, inner, &mut state);
 }
 
+fn block_badge(block_type: &str) -> String {
+    if block_type == "http" {
+        " HTTP ".into()
+    } else if block_type.starts_with("db") {
+        " DB ".into()
+    } else {
+        format!(" {block_type} ")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,18 +162,21 @@ mod tests {
                     path: "notes".into(),
                     is_dir: true,
                     depth: 0,
+                    block: None,
                 },
                 TreeNode {
                     name: "alpha.md".into(),
                     path: "notes/alpha.md".into(),
                     is_dir: false,
                     depth: 1,
+                    block: None,
                 },
                 TreeNode {
                     name: "beta.md".into(),
                     path: "notes/beta.md".into(),
                     is_dir: false,
                     depth: 1,
+                    block: None,
                 },
             ],
             ..FileTree::default()

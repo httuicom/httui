@@ -22,6 +22,7 @@ use crate::vim::VimState;
 // The blanket `pub use` re-exports keep every `crate::app::*` call
 // site resolving without edits.
 mod autosave;
+mod blocks_view;
 mod event_loop;
 mod helpers;
 mod impl_accessors;
@@ -39,6 +40,7 @@ mod standard_state;
 mod status;
 mod tabbar;
 mod viewport;
+pub use blocks_view::*;
 pub use event_loop::run;
 pub(crate) use helpers::*;
 pub use modal_state::*;
@@ -160,6 +162,8 @@ pub struct App {
     /// Empty → built-in default. Placeholders: `{{notes}}`,
     /// `{{count}}`, `{{date}}`.
     pub git_commit_template: String,
+    pub view: AppView,
+    pub blocks_workspace: Option<BlocksWorkspace>,
 }
 
 impl App {
@@ -223,6 +227,8 @@ impl App {
             resume_vault_picker: false,
             run_chain: Vec::new(),
             git_commit_template,
+            view: AppView::default(),
+            blocks_workspace: None,
         };
         app.load_initial_document();
         app.refresh_active_env_name();
