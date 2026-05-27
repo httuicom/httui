@@ -55,6 +55,15 @@ pub(crate) fn force_open_completion_popup(app: &mut App) {
 /// only knob is whether an empty prefix is acceptable — auto closes
 /// the popup, manual opens it with the full dialect listing.
 pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) {
+    // BLOCKS view EDIT: the doc redirect points at the sub-doc
+    // (`pane.block_edit.doc`), so the cursor is `InProse` not
+    // `InBlock`. Detect that here and route to the helper that
+    // knows how to extract body + line/col from the sub-doc plus
+    // pull the block node from the pane.
+    if blocks_edit_completion_active(app) {
+        rebuild_completion_popup_blocks_edit(app, allow_empty_prefix);
+        return;
+    }
     let Some(doc) = app.document() else {
         if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
             app.modal = None;
@@ -315,9 +324,215 @@ pub(crate) fn apply_completion_prev(app: &mut App) {
     };
 }
 
+/// True when the active pane is editing a DB block's query field
+/// via the BLOCKS-view sub-document. SQL completion in EDIT only
+/// fires here — other fields (URL, header, HTTP body) have their
+/// own non-SQL semantics.
+fn blocks_edit_completion_active(app: &App) -> bool {
+    if !matches!(app.view, crate::app::AppView::Blocks) {
+        return false;
+    }
+    let Some(pane) = app.active_pane() else {
+        return false;
+    };
+    let Some(edit) = pane.block_edit.as_ref() else {
+        return false;
+    };
+    matches!(edit.field, crate::app::EditField::DbQuery)
+}
+
+/// `rebuild_completion_popup` for BLOCKS view EDIT on a DB Query.
+/// Mirrors the DOC view path but reads body + cursor from the
+/// sub-doc rather than `Cursor::InBlock` on the pane document.
+fn rebuild_completion_popup_blocks_edit(app: &mut App, allow_empty_prefix: bool) {
+    // Pull the sub-doc text + cursor (line, col) from the edit
+    // buffer the user is typing into.
+    let (body, line, offset, block_type, conn_raw) = {
+        let Some(pane) = app.active_pane() else {
+            close_completion_popup_if_open(app);
+            return;
+        };
+        let Some(edit) = pane.block_edit.as_ref() else {
+            close_completion_popup_if_open(app);
+            return;
+        };
+        let body = edit.current_text();
+        let cursor_offset = match edit.doc.cursor() {
+            crate::buffer::Cursor::InProse { offset, .. } => offset,
+            crate::buffer::Cursor::InBlock { offset, .. } => offset,
+            _ => 0,
+        };
+        let mut line = 0usize;
+        let mut col = 0usize;
+        for ch in body.chars().take(cursor_offset) {
+            if ch == '\n' {
+                line += 1;
+                col = 0;
+            } else {
+                col += 1;
+            }
+        }
+        // Resolve the block_type + connection raw from the workspace
+        // index — we need both to pick the dialect and the schema.
+        let Some(ws) = app.blocks_workspace.as_ref() else {
+            close_completion_popup_if_open(app);
+            return;
+        };
+        let Some(sel) = pane.block_selected else {
+            close_completion_popup_if_open(app);
+            return;
+        };
+        let Some(file) = ws.index.files.get(sel.file_idx) else {
+            close_completion_popup_if_open(app);
+            return;
+        };
+        let Some(meta) = file.blocks.get(sel.block_idx) else {
+            close_completion_popup_if_open(app);
+            return;
+        };
+        let block_type = meta.block_type.clone();
+        // Re-read fence params from disk to pull `connection=…`.
+        // This stays cheap — the file is small and the read happens
+        // only on keystroke when EDIT popup refreshes.
+        let conn_raw = read_block_connection(&app.vault_path, &file.path, meta.line_start);
+        (body, line, col, block_type, conn_raw)
+    };
+
+    // Use segment_idx = 0 as a stable anchor key — there's only one
+    // edit buffer per pane, and the renderer's anchor calc falls
+    // back to a centered popup when this segment can't be resolved
+    // in the pane document (BLOCKS-view case).
+    let segment_idx = 0usize;
+
+    // Ref completion (`{{...}}`) — works in any block kind. Same
+    // engine the DOC view uses.
+    if let Some(ref_detect) = crate::sql_completion::detect_ref_context(&body, line, offset) {
+        let env_vars: std::collections::HashMap<String, String> =
+            tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current()
+                    .block_on(load_active_env_vars(&app.environments_store))
+            })
+            .unwrap_or_default();
+        let segments_snapshot: Vec<crate::buffer::Segment> = app
+            .document()
+            .map(|d| d.segments().to_vec())
+            .unwrap_or_default();
+        let items = crate::sql_completion::complete_refs(
+            &ref_detect,
+            &segments_snapshot,
+            segment_idx,
+            &env_vars,
+        );
+        if items.is_empty() {
+            close_completion_popup_if_open(app);
+            return;
+        }
+        let prior_label = app
+            .completion_popup()
+            .and_then(|p| p.items.get(p.selected))
+            .map(|i| i.label.clone());
+        let selected = prior_label
+            .and_then(|lbl| items.iter().position(|i| i.label == lbl))
+            .unwrap_or(0);
+        app.modal = Some(crate::modal::Modal::CompletionPopup(
+            crate::app::CompletionPopupState {
+                segment_idx,
+                items,
+                selected,
+                anchor_line: line,
+                anchor_offset: ref_detect.anchor_offset,
+                prefix: ref_detect.prefix,
+            },
+        ));
+        return;
+    }
+
+    // SQL completion — DB blocks only.
+    if !block_type.starts_with("db") {
+        close_completion_popup_if_open(app);
+        return;
+    }
+    let (anchor_offset, prefix) =
+        match crate::sql_completion::prefix_at_cursor(&body, line, offset) {
+            Some(p) => p,
+            None if allow_empty_prefix => (offset, String::new()),
+            None => {
+                close_completion_popup_if_open(app);
+                return;
+            }
+        };
+    let dialect = crate::sql_completion::Dialect::from_block_type(&block_type);
+    let context = crate::sql_completion::detect_context(&body, line, anchor_offset);
+    let conn_id = conn_raw
+        .as_deref()
+        .map(|raw| resolve_connection_id_sync(raw, &app.connection_names));
+    let schema_tables: Option<Vec<crate::schema::SchemaTable>> = conn_id
+        .as_deref()
+        .and_then(|id| app.schema_cache.get(id))
+        .map(|e| e.tables.clone());
+    if let Some(id) = conn_id.as_deref() {
+        if schema_tables.is_none() {
+            app.ensure_schema_loaded(id);
+        }
+    }
+    let items =
+        crate::sql_completion::complete(dialect, &prefix, context, schema_tables.as_deref());
+    if items.is_empty() {
+        close_completion_popup_if_open(app);
+        return;
+    }
+    let prior_label = app
+        .completion_popup()
+        .and_then(|p| p.items.get(p.selected))
+        .map(|i| i.label.clone());
+    let selected = prior_label
+        .and_then(|lbl| items.iter().position(|i| i.label == lbl))
+        .unwrap_or(0);
+    app.modal = Some(crate::modal::Modal::CompletionPopup(
+        crate::app::CompletionPopupState {
+            segment_idx,
+            items,
+            selected,
+            anchor_line: line,
+            anchor_offset,
+            prefix,
+        },
+    ));
+}
+
+fn close_completion_popup_if_open(app: &mut App) {
+    if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+        app.modal = None;
+    }
+}
+
+fn read_block_connection(
+    vault: &std::path::Path,
+    file: &std::path::Path,
+    line_start: usize,
+) -> Option<String> {
+    let text =
+        httui_core::fs::read_note(&vault.to_string_lossy(), &file.to_string_lossy()).ok()?;
+    let parsed = httui_core::blocks::parse_blocks(&text);
+    let p = parsed.iter().find(|p| p.line_start == line_start)?;
+    p.params
+        .get("connection")
+        .or_else(|| p.params.get("connection_id"))
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+}
+
 pub(crate) fn apply_completion_dismiss(app: &mut App) {
     if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
         app.modal = None;
+    }
+    // Mirror nvim: Esc on an open completion popup both dismisses
+    // the popup AND drops Insert → Normal. The user typed `<Esc>`
+    // intending "exit"; doing only half is jarring.
+    if app.config.editor.mode == crate::config::EditorMode::Vim
+        && matches!(app.vim.mode, crate::vim::mode::Mode::Insert)
+    {
+        app.vim.enter_normal();
     }
 }
 
@@ -337,7 +552,7 @@ pub(crate) fn apply_completion_accept(app: &mut App) {
         return;
     };
     let prefix_chars = state.prefix.chars().count();
-    let Some(doc) = app.tabs.active_document_mut() else {
+    let Some(doc) = app.document_mut() else {
         return;
     };
     doc.snapshot();

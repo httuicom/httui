@@ -142,6 +142,7 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
     // dedicated (fully-covered) `standard_sel` module, with a real
     // clipboard injected here. The vim path never reaches this — it
     // never decodes into these `Action`s — so Cenário 2 is untouched.
+    let action_for_refresh = action.clone();
     match action {
         Action::SelectExtend(_)
         | Action::ClearSelection
@@ -165,6 +166,15 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
             crate::input::dispatch::apply_action(app, action, /* recording = */ true);
         }
         _ => crate::input::dispatch::apply_action(app, action, /* recording = */ true),
+    }
+    // Mirror the vim dispatcher's post-action refresh so SQL/ref
+    // completion works in standard mode too. The popup engine itself
+    // is profile-agnostic.
+    if matches!(
+        action_for_refresh,
+        Action::InsertChar(_) | Action::DeleteBackward | Action::DeleteForward
+    ) {
+        crate::input::apply::completion::refresh_completion_popup(app);
     }
 }
 

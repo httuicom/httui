@@ -70,7 +70,11 @@ pub enum Dialect {
 
 impl Dialect {
     pub fn from_block(block: &BlockNode) -> Self {
-        match block.block_type.as_str() {
+        Self::from_block_type(&block.block_type)
+    }
+
+    pub fn from_block_type(block_type: &str) -> Self {
+        match block_type {
             "db-postgres" => Dialect::Postgres,
             "db-mysql" => Dialect::MySql,
             "db-sqlite" => Dialect::Sqlite,
