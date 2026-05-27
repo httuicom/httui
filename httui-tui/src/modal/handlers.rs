@@ -1,13 +1,52 @@
 //! Per-surface key handlers extracted from `modal::mod`.
 
 use crate::app::{
-    ConnectionFormState, EnvsPaneFocus, VarFormFocus, VaultCloneFormFocus, VaultCreateFormFocus,
+    BlocksUnsavedPromptFocus, BlocksUnsavedPromptState, ConnectionFormState, EnvsPaneFocus,
+    VarFormFocus, VaultCloneFormFocus, VaultCreateFormFocus,
 };
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::util::digit_1_9;
 use super::{ModalOutcome, PromptKind};
+
+pub(super) fn blocks_unsaved_prompt_handle_key(
+    state: &mut BlocksUnsavedPromptState,
+    key: KeyEvent,
+) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::BlocksUnsavedPromptCancel)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('s')) | (KeyModifiers::NONE, KeyCode::Char('S')) => {
+            ModalOutcome::Emit(Action::BlocksUnsavedPromptSave)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('d')) | (KeyModifiers::NONE, KeyCode::Char('D')) => {
+            ModalOutcome::Emit(Action::BlocksUnsavedPromptDiscard)
+        }
+        (KeyModifiers::NONE, KeyCode::Right) | (_, KeyCode::Tab) => {
+            state.focus = state.focus.next();
+            ModalOutcome::Continue
+        }
+        (KeyModifiers::NONE, KeyCode::Left) | (_, KeyCode::BackTab) => {
+            state.focus = state.focus.prev();
+            ModalOutcome::Continue
+        }
+        (_, KeyCode::Enter) => match state.focus {
+            BlocksUnsavedPromptFocus::Save => ModalOutcome::Emit(Action::BlocksUnsavedPromptSave),
+            BlocksUnsavedPromptFocus::Discard => {
+                ModalOutcome::Emit(Action::BlocksUnsavedPromptDiscard)
+            }
+            BlocksUnsavedPromptFocus::Cancel => {
+                ModalOutcome::Emit(Action::BlocksUnsavedPromptCancel)
+            }
+        },
+        _ => ModalOutcome::Continue,
+    }
+}
 
 pub(super) fn vault_missing_secrets_handle_key(editing: bool, key: KeyEvent) -> ModalOutcome {
     let KeyEvent {

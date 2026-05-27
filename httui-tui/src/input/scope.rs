@@ -151,8 +151,19 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
         return KeyOutcome::Consumed;
     }
     if matches!(app.view, crate::app::AppView::Blocks) {
-        if let Some(action) = crate::input::apply::blocks_view::resolve_pane_key(key) {
+        if let Some(action) = crate::input::apply::blocks_view::resolve_pane_key(app, key) {
             return KeyOutcome::Effect(action);
+        }
+        // While the pane is in EDIT, swallow any key that the resolver
+        // didn't claim so the standard route can't insert it into the
+        // underlying document. EDIT is a scoped buffer above the doc,
+        // not a passthrough.
+        if app
+            .active_pane()
+            .map(|p| p.block_edit.is_some())
+            .unwrap_or(false)
+        {
+            return KeyOutcome::Consumed;
         }
     }
     match app.config.editor.mode {

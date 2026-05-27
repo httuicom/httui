@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use crate::app::BlockRef;
+use crate::app::{BlockDraft, BlockRef, RegionEdit};
 use crate::buffer::Document;
 
 pub struct Pane {
@@ -23,6 +23,27 @@ pub struct Pane {
     /// Focused region inside the displayed block (0-based; clamped to
     /// the block kind's region count by the applier).
     pub block_region: usize,
+    /// Row index inside a table-shaped region (Headers). Clamped by the
+    /// applier to the region's current row count. Ignored by regions
+    /// that aren't table-shaped (Request line, Connection, Body…).
+    pub block_row: usize,
+    /// Column index inside a table-shaped region: `0 = key`, `1 = value`.
+    /// Default `1` so a fresh focus into Headers lands on "value" — the
+    /// most-edited field in practice (Cenário 4 enters on `value`).
+    pub block_col: usize,
+    /// `Some` while a region field is being edited. The applier captures
+    /// every keystroke into the buffer until Esc (commit) or Ctrl+C
+    /// (discard); the renderer paints the buffer in place of the field
+    /// value plus an "EDIT" label on the focused region's border.
+    /// Boxed so an idle pane doesn't carry the multi-line buffer's
+    /// `Vec<String>` on the stack (keeps `PaneNode::Leaf` lean).
+    pub block_edit: Option<Box<RegionEdit>>,
+    /// `Some` once the pane has any committed-but-not-saved edit. Saving
+    /// (Ctrl+S) re-serializes the draft into the `.md` and clears this
+    /// field. The header shows `*` next to the alias while this is set.
+    /// Boxed for the same reason as `block_edit` — `ParsedBlock` carries
+    /// a `serde_json::Value` whose worst case is non-trivial.
+    pub block_draft: Option<Box<BlockDraft>>,
 }
 
 impl Pane {
@@ -34,6 +55,10 @@ impl Pane {
             viewport_height: 0,
             block_selected: None,
             block_region: 0,
+            block_row: 0,
+            block_col: 1,
+            block_edit: None,
+            block_draft: None,
         }
     }
 
@@ -45,13 +70,20 @@ impl Pane {
             viewport_height: 0,
             block_selected: None,
             block_region: 0,
+            block_row: 0,
+            block_col: 1,
+            block_edit: None,
+            block_draft: None,
         }
     }
 
     /// Snapshot the pane's state into a fresh independent pane via a
     /// markdown roundtrip. Used by `Ctrl+W v/s` so the new split shows
     /// the same content as the current one without sharing buffers.
-    /// Cursor returns to the document start; viewport is reset.
+    /// Cursor returns to the document start; viewport is reset. The
+    /// BLOCKS-view edit buffer and draft do NOT carry into the split —
+    /// each pane edits and saves independently (mirrors how unsaved
+    /// changes in DOC are tied to the source pane).
     pub fn snapshot_clone(&self) -> Self {
         let document = self
             .document
@@ -64,6 +96,10 @@ impl Pane {
             viewport_height: 0,
             block_selected: self.block_selected,
             block_region: self.block_region,
+            block_row: self.block_row,
+            block_col: self.block_col,
+            block_edit: None,
+            block_draft: None,
         }
     }
 }
@@ -82,6 +118,12 @@ pub enum SplitDir {
 
 /// Node in a pane tree. Either a leaf carrying a [`Pane`] or an inner
 /// node holding two children separated by a [`SplitDir`].
+//
+// Story 5 grew `Pane` with the BLOCKS-view draft + edit fields (both
+// boxed), so the size delta between `Leaf` and `Split` is acceptable
+// — both variants live in `Box<PaneNode>` slots from the parent split
+// anyway, so the extra slack only hits the single root `PaneNode`.
+#[allow(clippy::large_enum_variant)]
 pub enum PaneNode {
     Leaf(Pane),
     Split {
@@ -361,6 +403,10 @@ mod tests {
             viewport_height: 0,
             block_selected: None,
             block_region: 0,
+            block_row: 0,
+            block_col: 1,
+            block_edit: None,
+            block_draft: None,
         }
     }
 

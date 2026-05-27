@@ -1,5 +1,5 @@
 use crate::app::{
-    BlockHistoryState, BlockTemplatePickerState, CompletionPopupState,
+    BlockHistoryState, BlockTemplatePickerState, BlocksUnsavedPromptState, CompletionPopupState,
     ConnectionDeleteConfirmState, ConnectionFormState, ConnectionPickerState, ConnectionsPageState,
     ContentSearchState, DbConfirmRunState, DbExportPickerState, DbRowDetailState, DbSettingsState,
     EnvCloneFormState, EnvDeleteConfirmState, EnvFormState, EnvironmentPickerState, EnvsPageState,
@@ -153,6 +153,11 @@ pub enum Modal {
     /// cursor isn't on a DB/HTTP block (DB-block case routes to
     /// `DbSettings` instead — see [`Action::OpenSettings`]).
     Settings(SettingsPageState),
+    /// "Unsaved blocks" guard — pops when the user toggles
+    /// `Alt+M` (or attempts another view-switching action) with at
+    /// least one pane carrying a `BlockDraft`. Save commits every
+    /// dirty pane + replays the deferred toggle; Discard drops them.
+    BlocksUnsavedPrompt(BlocksUnsavedPromptState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -238,6 +243,7 @@ impl Modal {
             Modal::GitLogPage(_) => git::log_page_handle_key(key),
             Modal::GitConflictResolver(_) => git::conflict_resolver_handle_key(key),
             Modal::Settings(s) => settings_page_handle_key(s.capture.is_some(), key),
+            Modal::BlocksUnsavedPrompt(s) => blocks_unsaved_prompt_handle_key(s, key),
         }
     }
 

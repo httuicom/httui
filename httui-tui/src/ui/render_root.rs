@@ -14,13 +14,13 @@ use crate::pane::PaneNode;
 use crate::vim::mode::Mode;
 
 use super::{
-    anchor, block_history, block_template_picker, completion_popup, connection_delete_confirm,
-    connection_form, connection_picker, connections_page, content_search, db_confirm_run,
-    db_export_picker, db_row_detail, db_settings_modal, environment_picker, envs_page, fence_edit,
-    git_branch_picker, git_conflict_resolver, git_log_page, git_panel, git_set_upstream_confirm,
-    help, http_response_detail, quickopen, render_empty_state_inline, render_pane_tree, status,
-    tab_picker, tabs, tree, vault_clone_form, vault_create_form, vault_missing_secrets,
-    vault_open_picker, vault_picker, VisualOverlay,
+    anchor, block_history, block_template_picker, blocks_unsaved_prompt, completion_popup,
+    connection_delete_confirm, connection_form, connection_picker, connections_page,
+    content_search, db_confirm_run, db_export_picker, db_row_detail, db_settings_modal,
+    environment_picker, envs_page, fence_edit, git_branch_picker, git_conflict_resolver,
+    git_log_page, git_panel, git_set_upstream_confirm, help, http_response_detail, quickopen,
+    render_empty_state_inline, render_pane_tree, status, tab_picker, tabs, tree, vault_clone_form,
+    vault_create_form, vault_missing_secrets, vault_open_picker, vault_picker, VisualOverlay,
 };
 
 pub fn render(frame: &mut Frame, app: &mut App) {
@@ -556,6 +556,12 @@ pub fn render(frame: &mut Frame, app: &mut App) {
         let themes = crate::input::apply::settings_page::theme_view(app);
         let editor = crate::input::apply::settings_page::editor_view(app);
         crate::ui::settings_page::render(frame, editor_area, state, &keymaps, &themes, &editor);
+    }
+
+    // BLOCKS-view unsaved guard — painted on top of the BLOCKS pane so
+    // the file list + chip row sit over the workspace.
+    if let Some(crate::modal::Modal::BlocksUnsavedPrompt(state)) = app.modal.as_ref() {
+        blocks_unsaved_prompt::render(frame, editor_area, state);
     }
 }
 

@@ -186,6 +186,7 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     } else {
         Vec::new()
     };
+    spans.extend(blocks_view_chips(app));
     spans.extend(running_chip);
     spans.extend(git_chip);
     spans.extend(env_chip);
@@ -240,6 +241,79 @@ fn compact_vault_path(path: &std::path::Path) -> String {
     }
     let tail = segments[segments.len() - 2..].join("/");
     format!("…/{tail}")
+}
+
+/// BLOCKS-view-only chips: `BLOCKS · NAV · [N] Region` while navigating,
+/// or `BLOCKS · EDIT · [N] field` once a buffer is open. Returns an
+/// empty vec in DOC view so the status bar paints unchanged for the
+/// majority case.
+fn blocks_view_chips(app: &App) -> Vec<Span<'static>> {
+    if !matches!(app.view, crate::app::AppView::Blocks) {
+        return Vec::new();
+    }
+    let bg = crate::ui::palette::popup_border_accent();
+    let fg = crate::ui::palette::popup_bg();
+    let chip_style = Style::default()
+        .bg(bg)
+        .fg(fg)
+        .add_modifier(Modifier::BOLD);
+    let mut out = vec![
+        Span::raw(" "),
+        Span::styled(" BLOCKS ", chip_style),
+    ];
+    let Some(pane) = app.active_pane() else {
+        return out;
+    };
+    let block_type = pane.block_selected.and_then(|sel| {
+        app.blocks_workspace.as_ref().and_then(|ws| {
+            ws.index
+                .files
+                .get(sel.file_idx)
+                .and_then(|f| f.blocks.get(sel.block_idx))
+                .map(|b| b.block_type.clone())
+        })
+    });
+    let region_idx = pane.block_region;
+    let region_name = block_type
+        .as_deref()
+        .map(|bt| crate::app::region_label(bt, region_idx))
+        .unwrap_or("");
+    if let Some(edit) = pane.block_edit.as_ref() {
+        let field = field_label(&edit.field);
+        let chip = Style::default()
+            .bg(crate::ui::palette::amber())
+            .fg(fg)
+            .add_modifier(Modifier::BOLD);
+        out.push(Span::raw(" "));
+        out.push(Span::styled(" EDIT ", chip));
+        out.push(Span::raw(" "));
+        out.push(Span::styled(
+            format!("[{}] {region_name} · {field}", region_idx + 1),
+            Style::default().fg(crate::ui::palette::muted()),
+        ));
+    } else {
+        out.push(Span::raw(" "));
+        out.push(Span::styled(
+            "NAV",
+            Style::default().fg(crate::ui::palette::accent()),
+        ));
+        out.push(Span::raw(" "));
+        out.push(Span::styled(
+            format!("[{}] {region_name}", region_idx + 1),
+            Style::default().fg(crate::ui::palette::muted()),
+        ));
+    }
+    out
+}
+
+fn field_label(field: &crate::app::EditField) -> &'static str {
+    match field {
+        crate::app::EditField::HttpUrl => "url",
+        crate::app::EditField::HttpHeaderKey(_) => "header key",
+        crate::app::EditField::HttpHeaderValue(_) => "header value",
+        crate::app::EditField::HttpBody => "body",
+        crate::app::EditField::DbQuery => "query",
+    }
 }
 
 /// Build the running-indicator chip label, or `None` when no

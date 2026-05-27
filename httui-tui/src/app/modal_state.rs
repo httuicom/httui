@@ -311,6 +311,57 @@ pub struct DbSettingsState {
     pub focus: usize,
 }
 
+/// Open state for the "you have unsaved blocks" prompt. Shown when the
+/// user attempts to toggle DOC↔BLOCKS with at least one pane carrying a
+/// `BlockDraft`. `dirty` is informational — the actual draft data still
+/// lives on each pane; this struct only records the file list so the
+/// modal can render "X files unsaved" without re-walking the tree.
+#[derive(Debug, Clone)]
+pub struct BlocksUnsavedPromptState {
+    pub dirty: Vec<std::path::PathBuf>,
+    /// What focus rests on. Save is the leftmost / safest action so
+    /// pressing Enter immediately commits and proceeds — matches the
+    /// vault picker / connections-page muscle memory.
+    pub focus: BlocksUnsavedPromptFocus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BlocksUnsavedPromptFocus {
+    #[default]
+    Save,
+    Discard,
+    Cancel,
+}
+
+impl BlocksUnsavedPromptFocus {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Save => Self::Discard,
+            Self::Discard => Self::Cancel,
+            Self::Cancel => Self::Save,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Self::Save => Self::Cancel,
+            Self::Discard => Self::Save,
+            Self::Cancel => Self::Discard,
+        }
+    }
+
+    /// Human label for chips / debug. Renderer reads chip text from a
+    /// fixed table so this is only used by tests / future surfaces.
+    #[allow(dead_code)]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Save => "Save",
+            Self::Discard => "Discard",
+            Self::Cancel => "Cancel",
+        }
+    }
+}
+
 impl DbSettingsState {
     /// Borrow the LineEdit for the focused field. Used by char /
     /// backspace / cursor-move actions to route into the right

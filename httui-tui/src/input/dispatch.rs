@@ -339,7 +339,28 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::BlocksPanePrevRegion
         | Action::BlocksPaneJumpRegion(_)
         | Action::BlocksPanePickerChoose(_)
-        | Action::BlocksPanePickerCancel => {
+        | Action::BlocksPanePickerCancel
+        | Action::BlocksPaneRowUp
+        | Action::BlocksPaneRowDown
+        | Action::BlocksPaneColLeft
+        | Action::BlocksPaneColRight
+        | Action::BlocksRegionEnterEdit
+        | Action::BlocksRegionCommitEdit
+        | Action::BlocksRegionCancelEdit
+        | Action::BlocksRegionEditChar(_)
+        | Action::BlocksRegionEditBackspace
+        | Action::BlocksRegionEditDelete
+        | Action::BlocksRegionEditCursorLeft
+        | Action::BlocksRegionEditCursorRight
+        | Action::BlocksRegionEditCursorUp
+        | Action::BlocksRegionEditCursorDown
+        | Action::BlocksRegionEditCursorHome
+        | Action::BlocksRegionEditCursorEnd
+        | Action::BlocksRegionEditNewline
+        | Action::BlocksSaveDraft
+        | Action::BlocksUnsavedPromptSave
+        | Action::BlocksUnsavedPromptDiscard
+        | Action::BlocksUnsavedPromptCancel => {
             crate::input::apply::blocks_view::apply_blocks_view(app, action)
         }
         Action::JumpNextBlock

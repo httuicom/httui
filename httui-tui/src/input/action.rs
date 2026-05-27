@@ -371,5 +371,45 @@ pub enum Action {
     /// overlay is open. Closes the overlay either way.
     BlocksPanePickerChoose(usize),
     BlocksPanePickerCancel,
+    /// NAV-mode row/col motion inside a table-shaped region (Headers).
+    /// No-op when the focused region isn't a table.
+    BlocksPaneRowUp,
+    BlocksPaneRowDown,
+    BlocksPaneColLeft,
+    BlocksPaneColRight,
+    /// Enter (standard) on the focused region: open the field at
+    /// `(block_region, block_row, block_col)` for inline editing.
+    /// Allocates the per-pane `BlockDraft` on first edit so the
+    /// in-memory mutation has somewhere to land.
+    BlocksRegionEnterEdit,
+    /// Esc on an open buffer: commit to `BlockDraft`, return to NAV.
+    BlocksRegionCommitEdit,
+    /// Ctrl+C on an open buffer: discard the buffer without touching
+    /// the draft.
+    BlocksRegionCancelEdit,
+    BlocksRegionEditChar(char),
+    BlocksRegionEditBackspace,
+    BlocksRegionEditDelete,
+    BlocksRegionEditCursorLeft,
+    BlocksRegionEditCursorRight,
+    BlocksRegionEditCursorUp,
+    BlocksRegionEditCursorDown,
+    BlocksRegionEditCursorHome,
+    BlocksRegionEditCursorEnd,
+    /// Multi-line buffers only — inserts a `\n` at the caret.
+    /// Single-line buffers (URL, header value) ignore this and commit
+    /// the buffer instead, mirroring the conventional Enter behaviour.
+    BlocksRegionEditNewline,
+    /// Ctrl+S on the focused pane (BLOCKS view): serialize the draft
+    /// into the `.md` via `write_note`. No-op when there's no draft.
+    BlocksSaveDraft,
+    /// `Save` button on the unsaved-prompt modal: write every dirty
+    /// pane, close the modal, replay the deferred `ToggleAppView`.
+    BlocksUnsavedPromptSave,
+    /// `Discard` button: drop every pane draft, close the modal,
+    /// replay the deferred `ToggleAppView`.
+    BlocksUnsavedPromptDiscard,
+    /// `Cancel` button (or Esc): close the modal, stay in BLOCKS.
+    BlocksUnsavedPromptCancel,
     Noop,
 }

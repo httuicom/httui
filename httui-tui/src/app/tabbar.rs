@@ -81,12 +81,8 @@ mod tests {
 
     fn tab_with_path(name: &str) -> TabState {
         TabState::new(Pane {
-            document: None,
             document_path: Some(PathBuf::from(name)),
-            viewport_top: 0,
-            viewport_height: 0,
-            block_selected: None,
-            block_region: 0,
+            ..Pane::empty()
         })
     }
 

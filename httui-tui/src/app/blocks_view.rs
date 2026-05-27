@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use httui_core::blocks::parser::ParsedBlock;
 use httui_core::fs::FileEntry;
 
+use crate::vim::lineedit::LineEdit;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AppView {
     #[default]
@@ -270,6 +272,390 @@ pub fn region_label(block_type: &str, index: usize) -> &'static str {
         }
     } else {
         "?"
+    }
+}
+
+/// Identifies which field inside a region's NAV grid is being edited.
+/// Single-line fields use a [`LineEdit`]; multi-line fields (Body HTTP,
+/// Query DB) use a [`MultilineBuffer`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EditField {
+    /// `[1] Request` line — the URL after the method token. The method
+    /// is cycled rather than typed, so a single-line buffer over the
+    /// URL alone covers the cenário-4 path.
+    HttpUrl,
+    /// `[2] Headers` row `i`, key column.
+    HttpHeaderKey(usize),
+    /// `[2] Headers` row `i`, value column.
+    HttpHeaderValue(usize),
+    /// `[3] Body` — HTTP request body (multi-line). Stored as the
+    /// `body` string in `ParsedBlock.params`; serializer keeps line
+    /// breaks verbatim.
+    HttpBody,
+    /// `[2] Query` — DB SQL body (multi-line). Stored as the `query`
+    /// string in `ParsedBlock.params`.
+    DbQuery,
+}
+
+impl EditField {
+    pub fn is_multiline(&self) -> bool {
+        matches!(self, EditField::HttpBody | EditField::DbQuery)
+    }
+}
+
+/// Minimal multi-line buffer: a `Vec<String>` of lines plus a `(row,
+/// col)` caret. Onda B uses this for HTTP body / DB query without
+/// pulling in the full vim engine — Story 6 layers vim motions on top
+/// once vim opt-in lands, and Story 12 swaps in a rope-backed read-
+/// only viewer for the response side.
+///
+/// Cursor invariants:
+/// - `row < lines.len()` (always at least 1 line, possibly empty)
+/// - `col <= lines[row].chars().count()` (caret can sit past the last
+///   char — that's "end of line")
+#[derive(Debug, Clone)]
+pub struct MultilineBuffer {
+    lines: Vec<String>,
+    /// Char-column, not byte offset, so movement is monospace-correct.
+    pub row: usize,
+    pub col: usize,
+}
+
+impl MultilineBuffer {
+    pub fn from_str(text: &str) -> Self {
+        let mut lines: Vec<String> = text.split('\n').map(str::to_string).collect();
+        if lines.is_empty() {
+            lines.push(String::new());
+        }
+        let row = lines.len().saturating_sub(1);
+        let col = lines[row].chars().count();
+        Self { lines, row, col }
+    }
+
+    pub fn as_string(&self) -> String {
+        self.lines.join("\n")
+    }
+
+    pub fn lines(&self) -> &[String] {
+        &self.lines
+    }
+
+    pub fn insert_char(&mut self, c: char) {
+        let line = &mut self.lines[self.row];
+        let byte = char_col_to_byte(line, self.col);
+        line.insert(byte, c);
+        self.col += 1;
+    }
+
+    pub fn insert_newline(&mut self) {
+        let line = &mut self.lines[self.row];
+        let byte = char_col_to_byte(line, self.col);
+        let rest = line.split_off(byte);
+        self.row += 1;
+        self.lines.insert(self.row, rest);
+        self.col = 0;
+    }
+
+    pub fn delete_before(&mut self) -> bool {
+        if self.col > 0 {
+            let line = &mut self.lines[self.row];
+            let byte = char_col_to_byte(line, self.col);
+            let prev_byte = prev_char_boundary(line, byte);
+            line.replace_range(prev_byte..byte, "");
+            self.col -= 1;
+            return true;
+        }
+        if self.row == 0 {
+            return false;
+        }
+        let current = self.lines.remove(self.row);
+        self.row -= 1;
+        let new_col = self.lines[self.row].chars().count();
+        self.lines[self.row].push_str(&current);
+        self.col = new_col;
+        true
+    }
+
+    pub fn delete_after(&mut self) -> bool {
+        let line_len_chars = self.lines[self.row].chars().count();
+        if self.col < line_len_chars {
+            let line = &mut self.lines[self.row];
+            let byte = char_col_to_byte(line, self.col);
+            let next_byte = next_char_boundary(line, byte);
+            line.replace_range(byte..next_byte, "");
+            return true;
+        }
+        if self.row + 1 >= self.lines.len() {
+            return false;
+        }
+        let next = self.lines.remove(self.row + 1);
+        self.lines[self.row].push_str(&next);
+        true
+    }
+
+    pub fn move_left(&mut self) {
+        if self.col > 0 {
+            self.col -= 1;
+        } else if self.row > 0 {
+            self.row -= 1;
+            self.col = self.lines[self.row].chars().count();
+        }
+    }
+
+    pub fn move_right(&mut self) {
+        let line_len = self.lines[self.row].chars().count();
+        if self.col < line_len {
+            self.col += 1;
+        } else if self.row + 1 < self.lines.len() {
+            self.row += 1;
+            self.col = 0;
+        }
+    }
+
+    pub fn move_up(&mut self) {
+        if self.row == 0 {
+            return;
+        }
+        self.row -= 1;
+        let max = self.lines[self.row].chars().count();
+        if self.col > max {
+            self.col = max;
+        }
+    }
+
+    pub fn move_down(&mut self) {
+        if self.row + 1 >= self.lines.len() {
+            return;
+        }
+        self.row += 1;
+        let max = self.lines[self.row].chars().count();
+        if self.col > max {
+            self.col = max;
+        }
+    }
+
+    pub fn move_home(&mut self) {
+        self.col = 0;
+    }
+
+    pub fn move_end(&mut self) {
+        self.col = self.lines[self.row].chars().count();
+    }
+}
+
+fn char_col_to_byte(s: &str, col: usize) -> usize {
+    s.char_indices()
+        .nth(col)
+        .map(|(i, _)| i)
+        .unwrap_or_else(|| s.len())
+}
+
+fn prev_char_boundary(s: &str, byte: usize) -> usize {
+    let mut i = byte;
+    if i == 0 {
+        return 0;
+    }
+    i -= 1;
+    while i > 0 && !s.is_char_boundary(i) {
+        i -= 1;
+    }
+    i
+}
+
+fn next_char_boundary(s: &str, byte: usize) -> usize {
+    let len = s.len();
+    let mut i = byte;
+    if i >= len {
+        return len;
+    }
+    i += 1;
+    while i < len && !s.is_char_boundary(i) {
+        i += 1;
+    }
+    i
+}
+
+/// Buffer that backs an active `RegionEdit`. Single-line fields use
+/// the existing `LineEdit`; multi-line fields use `MultilineBuffer`.
+#[derive(Debug, Clone)]
+pub enum EditBuffer {
+    Line(LineEdit),
+    Multi(MultilineBuffer),
+}
+
+impl EditBuffer {
+    pub fn as_line(&self) -> Option<&LineEdit> {
+        if let EditBuffer::Line(le) = self {
+            Some(le)
+        } else {
+            None
+        }
+    }
+    pub fn as_multi(&self) -> Option<&MultilineBuffer> {
+        if let EditBuffer::Multi(mb) = self {
+            Some(mb)
+        } else {
+            None
+        }
+    }
+    pub fn into_string(self) -> String {
+        match self {
+            EditBuffer::Line(le) => le.as_str().to_string(),
+            EditBuffer::Multi(mb) => mb.as_string(),
+        }
+    }
+}
+
+
+/// Edit state for the focused pane: which field is open, plus a
+/// buffer carrying the in-progress text (single- or multi-line). The
+/// buffer is detached from the draft — only the commit path writes
+/// back to `BlockDraft`, so cancelling (Ctrl+C) is a true revert.
+#[derive(Debug, Clone)]
+pub struct RegionEdit {
+    pub field: EditField,
+    pub buffer: EditBuffer,
+}
+
+impl RegionEdit {
+    pub fn new(field: EditField, initial: impl Into<String>) -> Self {
+        let s: String = initial.into();
+        let buffer = if field.is_multiline() {
+            EditBuffer::Multi(MultilineBuffer::from_str(&s))
+        } else {
+            EditBuffer::Line(LineEdit::from_str(s))
+        };
+        Self { field, buffer }
+    }
+}
+
+/// Pending edits for the block currently selected in a pane. Stored as
+/// a mutable `ParsedBlock` so committing a field edit is a simple
+/// in-place mutation and saving is `serialize_block` → replace by
+/// `[line_start..=line_end]` → `write_note`.
+///
+/// `file_path` is vault-relative (matches `BlockMeta` / `FileBlocks`),
+/// so it survives a workspace switch unchanged. `block_line_start`
+/// identifies the block within the file (the pair `(line_start,
+/// block_type)` is the same identity the renderer uses in
+/// `load_parsed`).
+#[derive(Debug, Clone)]
+pub struct BlockDraft {
+    pub file_path: PathBuf,
+    pub block_line_start: usize,
+    pub block: ParsedBlock,
+}
+
+impl BlockDraft {
+    /// Apply a key/value patch to the `headers` array, lazily growing
+    /// the array to fit `row`. Returns `false` if `col` isn't `0`/`1`
+    /// (defensive — the applier should never pass anything else).
+    pub fn set_header(&mut self, row: usize, col: usize, value: String) -> bool {
+        if col > 1 {
+            return false;
+        }
+        let params = self
+            .block
+            .params
+            .as_object_mut()
+            .expect("ParsedBlock.params is always an object after parse");
+        let headers = params
+            .entry("headers".to_string())
+            .or_insert_with(|| serde_json::Value::Array(Vec::new()));
+        let arr = headers
+            .as_array_mut()
+            .expect("headers field is always an array");
+        while arr.len() <= row {
+            arr.push(serde_json::json!({"key": "", "value": ""}));
+        }
+        let row_obj = arr[row]
+            .as_object_mut()
+            .expect("header rows are always objects");
+        let field = if col == 0 { "key" } else { "value" };
+        row_obj.insert(field.to_string(), serde_json::Value::String(value));
+        true
+    }
+
+    /// Replace the URL on an HTTP block.
+    pub fn set_url(&mut self, value: String) {
+        let params = self
+            .block
+            .params
+            .as_object_mut()
+            .expect("ParsedBlock.params is always an object after parse");
+        params.insert("url".to_string(), serde_json::Value::String(value));
+    }
+
+    /// Read the current URL string from the draft.
+    pub fn url(&self) -> &str {
+        self.block
+            .params
+            .get("url")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+    }
+
+    /// Read the current header at `(row, col)`. Empty string when the
+    /// row doesn't exist yet.
+    pub fn header_at(&self, row: usize, col: usize) -> &str {
+        let arr = self
+            .block
+            .params
+            .get("headers")
+            .and_then(|v| v.as_array());
+        let Some(arr) = arr else { return "" };
+        let Some(row_val) = arr.get(row) else {
+            return "";
+        };
+        let field = if col == 0 { "key" } else { "value" };
+        row_val.get(field).and_then(|v| v.as_str()).unwrap_or("")
+    }
+
+    /// Count of header rows in the draft (0 when the block has none).
+    pub fn header_count(&self) -> usize {
+        self.block
+            .params
+            .get("headers")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len())
+            .unwrap_or(0)
+    }
+
+    /// Set the HTTP body string. The serializer reads `body` directly.
+    pub fn set_body(&mut self, value: String) {
+        let params = self
+            .block
+            .params
+            .as_object_mut()
+            .expect("ParsedBlock.params is always an object");
+        params.insert("body".to_string(), serde_json::Value::String(value));
+    }
+
+    pub fn body(&self) -> &str {
+        self.block
+            .params
+            .get("body")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+    }
+
+    /// Set the DB query string. Stored under `query`; the serializer
+    /// renders the body straight from this field.
+    pub fn set_query(&mut self, value: String) {
+        let params = self
+            .block
+            .params
+            .as_object_mut()
+            .expect("ParsedBlock.params is always an object");
+        params.insert("query".to_string(), serde_json::Value::String(value));
+    }
+
+    pub fn query(&self) -> &str {
+        self.block
+            .params
+            .get("query")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
     }
 }
 

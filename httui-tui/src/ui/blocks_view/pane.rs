@@ -8,7 +8,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{region_label, BlockMeta, BlocksWorkspace, FileBlocks};
+use crate::app::{region_label, BlockMeta, BlocksWorkspace, EditField, FileBlocks, RegionEdit};
 use crate::pane::Pane;
 
 pub(super) fn render_leaf(
@@ -51,7 +51,7 @@ pub(super) fn render_leaf(
         return;
     };
 
-    render_block(frame, inner, file, block, leaf.block_region, vault);
+    render_block(frame, inner, file, block, leaf, focused, vault);
 }
 
 fn paint_empty_state(frame: &mut Frame, area: Rect) {
@@ -102,26 +102,51 @@ fn render_block(
     area: Rect,
     file: &FileBlocks,
     block: &BlockMeta,
-    region: usize,
+    pane: &Pane,
+    pane_focused: bool,
     vault_path: &Path,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Min(1)])
         .split(area);
-    render_header(frame, chunks[0], file, block);
+    let dirty = pane.block_draft.is_some();
+    render_header(frame, chunks[0], file, block, dirty);
 
-    let parsed = load_parsed(vault_path, file, block);
+    let parsed = load_view(vault_path, file, block, pane);
+    let region = pane.block_region;
     if block.block_type == "http" {
-        render_http_regions(frame, chunks[1], region, &parsed, &block.block_type);
+        render_http_regions(
+            frame,
+            chunks[1],
+            region,
+            &parsed,
+            &block.block_type,
+            pane,
+            pane_focused,
+        );
     } else if block.block_type.starts_with("db") {
-        render_db_regions(frame, chunks[1], region, &parsed, &block.block_type);
+        render_db_regions(
+            frame,
+            chunks[1],
+            region,
+            &parsed,
+            &block.block_type,
+            pane,
+            pane_focused,
+        );
     } else {
         render_fallback(frame, chunks[1], &parsed.raw);
     }
 }
 
-fn render_header(frame: &mut Frame, area: Rect, file: &FileBlocks, block: &BlockMeta) {
+fn render_header(
+    frame: &mut Frame,
+    area: Rect,
+    file: &FileBlocks,
+    block: &BlockMeta,
+    dirty: bool,
+) {
     if area.width == 0 {
         return;
     }
@@ -132,7 +157,7 @@ fn render_header(frame: &mut Frame, area: Rect, file: &FileBlocks, block: &Block
         crate::ui::palette::popup_border_accent()
     };
     let muted = Style::default().fg(crate::ui::palette::muted());
-    let line = Line::from(vec![
+    let mut spans = vec![
         Span::raw(" "),
         Span::styled(
             badge,
@@ -148,10 +173,18 @@ fn render_header(frame: &mut Frame, area: Rect, file: &FileBlocks, block: &Block
                 .fg(crate::ui::palette::accent())
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled("  ·  ", muted),
-        Span::styled(file.display.clone(), muted),
-    ]);
-    frame.render_widget(Paragraph::new(line), area);
+    ];
+    if dirty {
+        spans.push(Span::styled(
+            " *",
+            Style::default()
+                .fg(crate::ui::palette::amber())
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
+    spans.push(Span::styled("  ·  ", muted));
+    spans.push(Span::styled(file.display.clone(), muted));
+    frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
 fn render_http_regions(
@@ -160,6 +193,8 @@ fn render_http_regions(
     region: usize,
     parsed: &ParsedView,
     block_type: &str,
+    pane: &Pane,
+    pane_focused: bool,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -170,34 +205,53 @@ fn render_http_regions(
             Constraint::Min(3),
         ])
         .split(area);
-    render_region(
+    let editing_url = pane_focused
+        && pane
+            .block_edit
+            .as_ref()
+            .map(|e| matches!(e.field, EditField::HttpUrl))
+            .unwrap_or(false);
+    let method = parsed.method.as_deref().unwrap_or("GET").to_string();
+    let url_value = pane
+        .block_edit
+        .as_ref()
+        .filter(|e| matches!(e.field, EditField::HttpUrl))
+        .and_then(|e| e.buffer.as_line())
+        .map(|le| le.as_str().to_string())
+        .unwrap_or_else(|| parsed.url.clone().unwrap_or_default());
+    render_request_region(
         frame,
         chunks[0],
-        0,
         block_type,
         region == 0,
-        &[format!(
-            " {}  {}",
-            parsed.method.as_deref().unwrap_or("GET"),
-            parsed.url.as_deref().unwrap_or("")
-        )],
+        editing_url,
+        &method,
+        &url_value,
+        pane.block_edit
+            .as_deref()
+            .filter(|_| editing_url),
     );
-    let header_lines: Vec<String> = if parsed.headers.is_empty() {
-        vec!["(no headers)".to_string()]
-    } else {
-        parsed
-            .headers
-            .iter()
-            .map(|(k, v)| format!("  {k}: {v}"))
-            .collect()
-    };
-    render_region(frame, chunks[1], 1, block_type, region == 1, &header_lines);
-    let body_lines: Vec<String> = if parsed.body.is_empty() {
-        vec!["(no body)".to_string()]
-    } else {
-        parsed.body.lines().map(str::to_string).collect()
-    };
-    render_region(frame, chunks[2], 2, block_type, region == 2, &body_lines);
+    render_headers_region(
+        frame,
+        chunks[1],
+        block_type,
+        region == 1,
+        parsed,
+        pane,
+        pane_focused,
+    );
+    render_multiline_region(
+        frame,
+        chunks[2],
+        block_type,
+        2,
+        region == 2,
+        &parsed.body,
+        "(no body)",
+        pane,
+        pane_focused,
+        |f| matches!(f, EditField::HttpBody),
+    );
     let response_lines: Vec<String> = if parsed.cached.is_empty() {
         vec!["(no response — run with Alt+R)".to_string()]
     } else {
@@ -213,12 +267,215 @@ fn render_http_regions(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
+fn render_request_region(
+    frame: &mut Frame,
+    area: Rect,
+    block_type: &str,
+    focused: bool,
+    editing: bool,
+    method: &str,
+    url: &str,
+    edit: Option<&RegionEdit>,
+) {
+    let block_widget = region_block(block_type, 0, focused, editing);
+    let inner = block_widget.inner(area);
+    frame.render_widget(block_widget, area);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    let prefix = format!(" {method}  ");
+    let prefix_w = prefix.chars().count() as u16;
+    let value_style = if focused {
+        Style::default()
+            .fg(crate::ui::palette::foreground())
+            .add_modifier(Modifier::UNDERLINED)
+    } else {
+        Style::default()
+    };
+    let line = Line::from(vec![
+        Span::raw(prefix),
+        Span::styled(url.to_string(), value_style),
+    ]);
+    frame.render_widget(Paragraph::new(line), inner);
+    if let Some(edit) = edit {
+        if let Some(le) = edit.buffer.as_line() {
+            let col = le.cursor_col() as u16;
+            let cx = inner.x.saturating_add(prefix_w).saturating_add(col);
+            if cx < inner.x + inner.width && inner.height > 0 {
+                frame.set_cursor_position((cx, inner.y));
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_headers_region(
+    frame: &mut Frame,
+    area: Rect,
+    block_type: &str,
+    focused: bool,
+    parsed: &ParsedView,
+    pane: &Pane,
+    pane_focused: bool,
+) {
+    let editing = pane_focused
+        && focused
+        && pane
+            .block_edit
+            .as_ref()
+            .map(|e| {
+                matches!(
+                    e.field,
+                    EditField::HttpHeaderKey(_) | EditField::HttpHeaderValue(_)
+                )
+            })
+            .unwrap_or(false);
+    let block_widget = region_block(block_type, 1, focused, editing);
+    let inner = block_widget.inner(area);
+    frame.render_widget(block_widget, area);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    if parsed.headers.is_empty() && pane.block_edit.is_none() {
+        let muted = Style::default().fg(crate::ui::palette::muted());
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled("(no headers)", muted))),
+            inner,
+        );
+        return;
+    }
+    let key_w: u16 = parsed
+        .headers
+        .iter()
+        .map(|(k, _)| k.chars().count() as u16)
+        .max()
+        .unwrap_or(8)
+        .max(8);
+    let cursor_row = if focused { pane.block_row } else { usize::MAX };
+    let cursor_col = if focused { pane.block_col } else { usize::MAX };
+    let edit_row_col = pane.block_edit.as_ref().and_then(|e| match e.field {
+        EditField::HttpHeaderKey(r) => Some((r, 0usize)),
+        EditField::HttpHeaderValue(r) => Some((r, 1usize)),
+        _ => None,
+    });
+    let mut lines: Vec<Line<'static>> = Vec::with_capacity(parsed.headers.len());
+    for (i, (k, v)) in parsed.headers.iter().enumerate() {
+        let mut key_text = k.clone();
+        let mut value_text = v.clone();
+        if let Some((row, col)) = edit_row_col {
+            if row == i {
+                let buf = pane
+                    .block_edit
+                    .as_ref()
+                    .and_then(|e| e.buffer.as_line())
+                    .map(|le| le.as_str().to_string())
+                    .unwrap_or_default();
+                if col == 0 {
+                    key_text = buf;
+                } else {
+                    value_text = buf;
+                }
+            }
+        }
+        let key_focused = cursor_row == i && cursor_col == 0;
+        let value_focused = cursor_row == i && cursor_col == 1;
+        let key_style = field_style(key_focused);
+        let value_style = field_style(value_focused);
+        let padded_key = format!("{key_text:<width$}", width = key_w as usize);
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(padded_key, key_style),
+            Span::raw("  "),
+            Span::styled(value_text, value_style),
+        ]));
+    }
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
+    // Place the terminal caret at the edited field's cursor column,
+    // accounting for the leading padding and the key column width.
+    if let Some(edit) = pane.block_edit.as_ref() {
+        let (row, col) = match edit.field {
+            EditField::HttpHeaderKey(r) => (r, 0usize),
+            EditField::HttpHeaderValue(r) => (r, 1usize),
+            _ => return,
+        };
+        if row >= parsed.headers.len() {
+            return;
+        }
+        let row_y = inner.y.saturating_add(row as u16);
+        if row_y >= inner.y + inner.height {
+            return;
+        }
+        let Some(le) = edit.buffer.as_line() else {
+            return;
+        };
+        let leading = 2u16;
+        let cell_col = le.cursor_col() as u16;
+        let base_x = if col == 0 {
+            inner.x + leading
+        } else {
+            inner.x + leading + key_w + 2
+        };
+        let cx = base_x.saturating_add(cell_col);
+        if cx < inner.x + inner.width {
+            frame.set_cursor_position((cx, row_y));
+        }
+    }
+}
+
+fn field_style(focused: bool) -> Style {
+    if focused {
+        Style::default()
+            .fg(crate::ui::palette::foreground())
+            .add_modifier(Modifier::UNDERLINED)
+    } else {
+        Style::default()
+    }
+}
+
+/// Title-bearing border for a region. When `editing` is true, the title
+/// gets a trailing `EDIT` chip so it's obvious from any pane width that
+/// the keystrokes are flowing into the buffer, not the doc.
+fn region_block(block_type: &str, index: usize, focused: bool, editing: bool) -> Block<'static> {
+    let (border_color, title_color) = if focused {
+        (crate::ui::palette::accent(), crate::ui::palette::accent())
+    } else {
+        (crate::ui::palette::muted(), crate::ui::palette::muted())
+    };
+    let title_style = if focused {
+        Style::default()
+            .fg(title_color)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(title_color)
+    };
+    let label = format!(" [{}] {} ", index + 1, region_label(block_type, index));
+    let mut block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(border_color))
+        .title(Span::styled(label, title_style));
+    if editing {
+        let edit_chip = Span::styled(
+            " EDIT ",
+            Style::default()
+                .bg(crate::ui::palette::amber())
+                .fg(crate::ui::palette::popup_bg())
+                .add_modifier(Modifier::BOLD),
+        );
+        block = block.title_top(Line::from(edit_chip).right_aligned());
+    }
+    block
+}
+
 fn render_db_regions(
     frame: &mut Frame,
     area: Rect,
     region: usize,
     parsed: &ParsedView,
     block_type: &str,
+    pane: &Pane,
+    pane_focused: bool,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -233,18 +490,84 @@ fn render_db_regions(
         .clone()
         .unwrap_or_else(|| "(no connection)".to_string());
     render_region(frame, chunks[0], 0, block_type, region == 0, &[conn]);
-    let query_lines: Vec<String> = if parsed.body.is_empty() {
-        vec!["(empty query)".to_string()]
-    } else {
-        parsed.body.lines().map(str::to_string).collect()
-    };
-    render_region(frame, chunks[1], 1, block_type, region == 1, &query_lines);
+    render_multiline_region(
+        frame,
+        chunks[1],
+        block_type,
+        1,
+        region == 1,
+        &parsed.body,
+        "(empty query)",
+        pane,
+        pane_focused,
+        |f| matches!(f, EditField::DbQuery),
+    );
     let result_lines: Vec<String> = if parsed.cached.is_empty() {
         vec!["(no result — run with Alt+R)".to_string()]
     } else {
         parsed.cached.lines().map(str::to_string).collect()
     };
     render_region(frame, chunks[2], 2, block_type, region == 2, &result_lines);
+}
+
+/// Render a region whose value is a multi-line string (HTTP body / DB
+/// query). When the pane is in EDIT for the matching field, paints the
+/// `MultilineBuffer` contents in place of the disk value and places the
+/// terminal caret at the buffer's (row, col).
+#[allow(clippy::too_many_arguments)]
+fn render_multiline_region(
+    frame: &mut Frame,
+    area: Rect,
+    block_type: &str,
+    index: usize,
+    focused: bool,
+    fallback: &str,
+    placeholder: &str,
+    pane: &Pane,
+    pane_focused: bool,
+    field_matches: impl Fn(&EditField) -> bool,
+) {
+    let editing = pane_focused
+        && focused
+        && pane
+            .block_edit
+            .as_ref()
+            .map(|e| field_matches(&e.field))
+            .unwrap_or(false);
+    let block_widget = region_block(block_type, index, focused, editing);
+    let inner = block_widget.inner(area);
+    frame.render_widget(block_widget, area);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    let buffer = pane
+        .block_edit
+        .as_ref()
+        .filter(|e| field_matches(&e.field))
+        .and_then(|e| e.buffer.as_multi());
+    let (lines, caret): (Vec<String>, Option<(u16, u16)>) = if let Some(mb) = buffer {
+        let mut ls: Vec<String> = mb.lines().to_vec();
+        if ls.is_empty() {
+            ls.push(String::new());
+        }
+        let cy = inner.y.saturating_add(mb.row as u16);
+        let cx = inner.x.saturating_add(mb.col as u16);
+        (ls, Some((cx, cy)))
+    } else if fallback.is_empty() {
+        (vec![placeholder.to_string()], None)
+    } else {
+        (fallback.lines().map(str::to_string).collect(), None)
+    };
+    let rendered: Vec<Line<'static>> = lines
+        .iter()
+        .map(|l| Line::from(Span::raw(l.clone())))
+        .collect();
+    frame.render_widget(Paragraph::new(rendered).wrap(Wrap { trim: false }), inner);
+    if let Some((cx, cy)) = caret {
+        if cx < inner.x + inner.width && cy < inner.y + inner.height {
+            frame.set_cursor_position((cx, cy));
+        }
+    }
 }
 
 fn render_region(
@@ -318,7 +641,23 @@ struct ParsedView {
     raw: String,
 }
 
-fn load_parsed(vault_path: &Path, file: &FileBlocks, block: &BlockMeta) -> ParsedView {
+fn load_view(
+    vault_path: &Path,
+    file: &FileBlocks,
+    block: &BlockMeta,
+    pane: &Pane,
+) -> ParsedView {
+    // Per-pane draft wins over disk so committed edits are reflected
+    // before save (otherwise the renderer would still show stale
+    // values after Esc). Draft and disk parse share the same
+    // ParsedBlock shape, so the view mapping is identical.
+    if let Some(draft) = pane.block_draft.as_ref() {
+        if draft.block_line_start == block.line_start && draft.block.block_type == block.block_type
+        {
+            let raw = httui_core::blocks::serialize_block(&draft.block);
+            return parsed_to_view(&draft.block, raw);
+        }
+    }
     let Ok(raw) = httui_core::fs::read_note(
         &vault_path.to_string_lossy(),
         &file.path.to_string_lossy(),
@@ -335,7 +674,10 @@ fn load_parsed(vault_path: &Path, file: &FileBlocks, block: &BlockMeta) -> Parse
     let end = p.line_end.min(lines.len().saturating_sub(1));
     let start = p.line_start.min(end);
     let raw_block = lines[start..=end].join("\n");
+    parsed_to_view(p, raw_block)
+}
 
+fn parsed_to_view(p: &httui_core::blocks::parser::ParsedBlock, raw: String) -> ParsedView {
     let method = p
         .params
         .get("method")
@@ -389,7 +731,7 @@ fn load_parsed(vault_path: &Path, file: &FileBlocks, block: &BlockMeta) -> Parse
         body,
         connection,
         cached: String::new(),
-        raw: raw_block,
+        raw,
     }
 }
 
