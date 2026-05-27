@@ -199,7 +199,18 @@ pub fn render(frame: &mut Frame, app: &mut App) {
     let active_idx = app.tabs.active;
     let result_viewport_top = &mut app.result_viewport_top;
     if matches!(app.view, crate::app::AppView::Blocks) {
-        crate::ui::blocks_view::render(frame, editor_area, app);
+        let workspace = app.blocks_workspace.clone();
+        if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {
+            let focused = tab.focused.clone();
+            crate::ui::blocks_view::render(
+                frame,
+                editor_area,
+                &mut tab.root,
+                &focused,
+                workspace.as_ref(),
+                &vault,
+            );
+        }
     } else if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {
         let focused = tab.focused.clone();
         if matches!(tab.root, PaneNode::Leaf(ref p) if p.document.is_none())

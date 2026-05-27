@@ -143,7 +143,7 @@ pub(crate) fn render_pane_tree(
 /// The `ratio` is clamped so neither child gets less than one row /
 /// column; the separator is dropped when `area` is too small to fit
 /// it.
-fn split_rect(area: Rect, dir: SplitDir, ratio: f32) -> (Rect, Rect, Rect) {
+pub(crate) fn split_rect(area: Rect, dir: SplitDir, ratio: f32) -> (Rect, Rect, Rect) {
     let ratio = ratio.clamp(0.1, 0.9);
     match dir {
         SplitDir::Vertical => {
@@ -203,7 +203,7 @@ fn split_rect(area: Rect, dir: SplitDir, ratio: f32) -> (Rect, Rect, Rect) {
     }
 }
 
-fn draw_separator(frame: &mut Frame, area: Rect, dir: SplitDir) {
+pub(crate) fn draw_separator(frame: &mut Frame, area: Rect, dir: SplitDir) {
     if area.width == 0 || area.height == 0 {
         return;
     }
@@ -260,7 +260,7 @@ mod tests {
     // ---- split_rect: pure math, no App / backend -------------------
 
     #[test]
-    fn split_rect_vertical_carves_two_children_plus_separator() {
+    pub(crate) fn split_rect_vertical_carves_two_children_plus_separator() {
         let area = Rect::new(0, 0, 100, 30);
         let (a, b, sep) = split_rect(area, SplitDir::Vertical, 0.5);
         assert_eq!(sep.width, 1, "separator strip is 1 col wide");
@@ -273,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn split_rect_horizontal_carves_top_and_bottom() {
+    pub(crate) fn split_rect_horizontal_carves_top_and_bottom() {
         let area = Rect::new(2, 4, 40, 50);
         let (a, b, sep) = split_rect(area, SplitDir::Horizontal, 0.5);
         assert_eq!(sep.height, 1);
@@ -285,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn split_rect_drops_separator_when_too_small_vertical() {
+    pub(crate) fn split_rect_drops_separator_when_too_small_vertical() {
         // width < 3 → sep_w = 0.
         let (a, b, sep) = split_rect(Rect::new(0, 0, 2, 10), SplitDir::Vertical, 0.5);
         assert_eq!(sep.width, 0);
@@ -293,14 +293,14 @@ mod tests {
     }
 
     #[test]
-    fn split_rect_drops_separator_when_too_small_horizontal() {
+    pub(crate) fn split_rect_drops_separator_when_too_small_horizontal() {
         let (a, b, sep) = split_rect(Rect::new(0, 0, 10, 2), SplitDir::Horizontal, 0.5);
         assert_eq!(sep.height, 0);
         assert_eq!(a.height + b.height, 2);
     }
 
     #[test]
-    fn split_rect_clamps_ratio_low_extreme() {
+    pub(crate) fn split_rect_clamps_ratio_low_extreme() {
         // ratio 0.0 clamps to 0.1 — first child stays ≥ 1 col.
         let (a, _b, _s) = split_rect(Rect::new(0, 0, 100, 10), SplitDir::Vertical, 0.0);
         assert!(a.width >= 1, "first width clamped to ≥1: {}", a.width);
@@ -309,7 +309,7 @@ mod tests {
     }
 
     #[test]
-    fn split_rect_clamps_ratio_high_extreme() {
+    pub(crate) fn split_rect_clamps_ratio_high_extreme() {
         // ratio 1.0 clamps to 0.9; first never eats the entire usable
         // width.
         let (a, b, _s) = split_rect(Rect::new(0, 0, 100, 10), SplitDir::Vertical, 1.0);
@@ -318,7 +318,7 @@ mod tests {
     }
 
     #[test]
-    fn split_rect_handles_minimum_three_wide() {
+    pub(crate) fn split_rect_handles_minimum_three_wide() {
         // Exactly 3 wide is the boundary where the separator survives.
         let (a, b, sep) = split_rect(Rect::new(0, 0, 3, 5), SplitDir::Vertical, 0.5);
         assert_eq!(sep.width, 1);
@@ -327,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    fn split_rect_horizontal_ratio_clamp_keeps_first_row() {
+    pub(crate) fn split_rect_horizontal_ratio_clamp_keeps_first_row() {
         let (a, _b, _s) = split_rect(Rect::new(0, 0, 10, 100), SplitDir::Horizontal, 0.0);
         assert!(a.height >= 1);
     }
@@ -484,7 +484,7 @@ mod tests {
     // ---- draw_separator + render_empty_state_inline ----------------
 
     #[test]
-    fn draw_separator_zero_size_is_a_noop() {
+    pub(crate) fn draw_separator_zero_size_is_a_noop() {
         let backend = TestBackend::new(4, 4);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal

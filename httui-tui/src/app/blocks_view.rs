@@ -105,7 +105,7 @@ pub struct SidebarRow {
     pub kind: SidebarRowKind,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlocksWorkspace {
     pub index: BlockIndex,
     pub expanded: HashSet<usize>,

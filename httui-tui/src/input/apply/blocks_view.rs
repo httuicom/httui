@@ -23,19 +23,55 @@ pub(crate) fn resolve_pane_key(key: KeyEvent) -> Option<Action> {
 pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
     match action {
         Action::ToggleAppView => toggle_view(app),
-        Action::BlocksPaneNextRegion => with_workspace(app, |w| w.next_region()),
-        Action::BlocksPanePrevRegion => with_workspace(app, |w| w.prev_region()),
-        Action::BlocksPaneJumpRegion(n) => with_workspace(app, move |w| {
-            w.set_region(n.saturating_sub(1));
-        }),
+        Action::BlocksPaneNextRegion => shift_region(app, 1),
+        Action::BlocksPanePrevRegion => shift_region(app, -1),
+        Action::BlocksPaneJumpRegion(n) => set_region(app, n.saturating_sub(1)),
         _ => {}
     }
 }
 
-fn with_workspace(app: &mut App, f: impl FnOnce(&mut BlocksWorkspace)) {
-    if let Some(ws) = app.blocks_workspace.as_mut() {
-        f(ws);
+fn shift_region(app: &mut App, delta: isize) {
+    let count = active_block_region_count(app);
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    if count == 0 {
+        pane.block_region = 0;
+        return;
     }
+    let current = pane.block_region as isize;
+    let next = (current + delta).rem_euclid(count as isize);
+    pane.block_region = next as usize;
+}
+
+fn set_region(app: &mut App, index: usize) {
+    let count = active_block_region_count(app);
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    if count == 0 {
+        pane.block_region = 0;
+        return;
+    }
+    pane.block_region = index.min(count - 1);
+}
+
+fn active_block_region_count(app: &App) -> usize {
+    let Some(pane) = app.active_pane() else {
+        return 0;
+    };
+    let Some(ws) = app.blocks_workspace.as_ref() else {
+        return 0;
+    };
+    let Some(target) = pane.block_selected else {
+        return 0;
+    };
+    ws.index
+        .files
+        .get(target.file_idx)
+        .and_then(|f| f.blocks.get(target.block_idx))
+        .map(|b| crate::app::region_count_for(&b.block_type))
+        .unwrap_or(0)
 }
 
 fn toggle_view(app: &mut App) {

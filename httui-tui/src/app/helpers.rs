@@ -90,6 +90,8 @@ mod tests {
             document_path: Some(PathBuf::from(name)),
             viewport_top: 0,
             viewport_height: 0,
+            block_selected: None,
+            block_region: 0,
         }
     }
 

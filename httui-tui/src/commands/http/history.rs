@@ -134,6 +134,8 @@ mod tests {
                 document_path: None,
                 viewport_top: 0,
                 viewport_height: 0,
+            block_selected: None,
+            block_region: 0,
             },
         };
         // App::new auto-loads an initial pane; replace it with ours so

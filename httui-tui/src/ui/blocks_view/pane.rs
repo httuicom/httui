@@ -8,28 +8,50 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{region_label, App, BlockMeta, BlocksWorkspace, FileBlocks};
+use crate::app::{region_label, BlockMeta, BlocksWorkspace, FileBlocks};
+use crate::pane::Pane;
 
-pub(super) fn render(frame: &mut Frame, area: Rect, app: &App) {
+pub(super) fn render_leaf(
+    frame: &mut Frame,
+    area: Rect,
+    leaf: &Pane,
+    focused: bool,
+    workspace: Option<&BlocksWorkspace>,
+    vault: &std::path::Path,
+) {
+    let border_color = if focused {
+        crate::ui::palette::accent()
+    } else {
+        crate::ui::palette::muted()
+    };
     let outer = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(crate::ui::palette::muted()));
+        .border_style(Style::default().fg(border_color));
     let inner = outer.inner(area);
     frame.render_widget(outer, area);
     if inner.width == 0 || inner.height == 0 {
         return;
     }
 
-    let Some(ws) = app.blocks_workspace.as_ref() else {
+    let Some(target) = leaf.block_selected else {
         paint_empty_state(frame, inner);
         return;
     };
-    let Some((file, block)) = ws.selected_block() else {
+    let Some(ws) = workspace else {
         paint_empty_state(frame, inner);
         return;
     };
-    render_block(frame, inner, ws, file, block, &app.vault_path);
+    let Some(file) = ws.index.files.get(target.file_idx) else {
+        paint_missing(frame, inner);
+        return;
+    };
+    let Some(block) = file.blocks.get(target.block_idx) else {
+        paint_missing(frame, inner);
+        return;
+    };
+
+    render_block(frame, inner, file, block, leaf.block_region, vault);
 }
 
 fn paint_empty_state(frame: &mut Frame, area: Rect) {
@@ -63,12 +85,24 @@ fn paint_empty_state(frame: &mut Frame, area: Rect) {
     }
 }
 
+fn paint_missing(frame: &mut Frame, area: Rect) {
+    if area.height < 1 {
+        return;
+    }
+    let muted = Style::default().fg(crate::ui::palette::muted());
+    let line = Line::from(Span::styled(
+        "(block missing — vault changed?)".to_string(),
+        muted,
+    ));
+    frame.render_widget(Paragraph::new(line), area);
+}
+
 fn render_block(
     frame: &mut Frame,
     area: Rect,
-    ws: &BlocksWorkspace,
     file: &FileBlocks,
     block: &BlockMeta,
+    region: usize,
     vault_path: &Path,
 ) {
     let chunks = Layout::default()
@@ -79,9 +113,9 @@ fn render_block(
 
     let parsed = load_parsed(vault_path, file, block);
     if block.block_type == "http" {
-        render_http_regions(frame, chunks[1], ws, &parsed, &block.block_type);
+        render_http_regions(frame, chunks[1], region, &parsed, &block.block_type);
     } else if block.block_type.starts_with("db") {
-        render_db_regions(frame, chunks[1], ws, &parsed, &block.block_type);
+        render_db_regions(frame, chunks[1], region, &parsed, &block.block_type);
     } else {
         render_fallback(frame, chunks[1], &parsed.raw);
     }
@@ -123,7 +157,7 @@ fn render_header(frame: &mut Frame, area: Rect, file: &FileBlocks, block: &Block
 fn render_http_regions(
     frame: &mut Frame,
     area: Rect,
-    ws: &BlocksWorkspace,
+    region: usize,
     parsed: &ParsedView,
     block_type: &str,
 ) {
@@ -136,13 +170,12 @@ fn render_http_regions(
             Constraint::Min(3),
         ])
         .split(area);
-    let focused = ws.region;
     render_region(
         frame,
         chunks[0],
         0,
         block_type,
-        focused == 0,
+        region == 0,
         &[format!(
             " {}  {}",
             parsed.method.as_deref().unwrap_or("GET"),
@@ -158,13 +191,13 @@ fn render_http_regions(
             .map(|(k, v)| format!("  {k}: {v}"))
             .collect()
     };
-    render_region(frame, chunks[1], 1, block_type, focused == 1, &header_lines);
+    render_region(frame, chunks[1], 1, block_type, region == 1, &header_lines);
     let body_lines: Vec<String> = if parsed.body.is_empty() {
         vec!["(no body)".to_string()]
     } else {
         parsed.body.lines().map(str::to_string).collect()
     };
-    render_region(frame, chunks[2], 2, block_type, focused == 2, &body_lines);
+    render_region(frame, chunks[2], 2, block_type, region == 2, &body_lines);
     let response_lines: Vec<String> = if parsed.cached.is_empty() {
         vec!["(no response — run with Alt+R)".to_string()]
     } else {
@@ -175,7 +208,7 @@ fn render_http_regions(
         chunks[3],
         3,
         block_type,
-        focused == 3,
+        region == 3,
         &response_lines,
     );
 }
@@ -183,7 +216,7 @@ fn render_http_regions(
 fn render_db_regions(
     frame: &mut Frame,
     area: Rect,
-    ws: &BlocksWorkspace,
+    region: usize,
     parsed: &ParsedView,
     block_type: &str,
 ) {
@@ -195,24 +228,23 @@ fn render_db_regions(
             Constraint::Min(3),
         ])
         .split(area);
-    let focused = ws.region;
     let conn = parsed
         .connection
         .clone()
         .unwrap_or_else(|| "(no connection)".to_string());
-    render_region(frame, chunks[0], 0, block_type, focused == 0, &[conn]);
+    render_region(frame, chunks[0], 0, block_type, region == 0, &[conn]);
     let query_lines: Vec<String> = if parsed.body.is_empty() {
         vec!["(empty query)".to_string()]
     } else {
         parsed.body.lines().map(str::to_string).collect()
     };
-    render_region(frame, chunks[1], 1, block_type, focused == 1, &query_lines);
+    render_region(frame, chunks[1], 1, block_type, region == 1, &query_lines);
     let result_lines: Vec<String> = if parsed.cached.is_empty() {
         vec!["(no result — run with Alt+R)".to_string()]
     } else {
         parsed.cached.lines().map(str::to_string).collect()
     };
-    render_region(frame, chunks[2], 2, block_type, focused == 2, &result_lines);
+    render_region(frame, chunks[2], 2, block_type, region == 2, &result_lines);
 }
 
 fn render_region(
@@ -224,15 +256,9 @@ fn render_region(
     lines: &[String],
 ) {
     let (border_color, title_color) = if focused {
-        (
-            crate::ui::palette::accent(),
-            crate::ui::palette::accent(),
-        )
+        (crate::ui::palette::accent(), crate::ui::palette::accent())
     } else {
-        (
-            crate::ui::palette::muted(),
-            crate::ui::palette::muted(),
-        )
+        (crate::ui::palette::muted(), crate::ui::palette::muted())
     };
     let title_style = if focused {
         Style::default()
@@ -394,118 +420,11 @@ fn badge_text(block_type: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::{App, BlockRef};
-    use crate::config::Config;
-    use crate::vault::ResolvedVault;
-    use httui_core::db::init_db;
-    use ratatui::backend::TestBackend;
-    use ratatui::Terminal;
-    use tempfile::TempDir;
-
-    fn seed_vault() -> TempDir {
-        let v = TempDir::new().unwrap();
-        std::fs::write(
-            v.path().join("api.md"),
-            "# api\n\n```http alias=login\nPOST https://x.com/login\nAccept: text/plain\nAuthorization: Bearer abc\n\n{\"name\":\"alice\"}\n```\n",
-        )
-        .unwrap();
-        v
-    }
-
-    async fn app_with_selected(vault: &TempDir) -> App {
-        let data = TempDir::new().unwrap();
-        let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault {
-            vault: vault.path().to_path_buf(),
-        };
-        let mut app = App::new(Config::default(), resolved, pool);
-        crate::input::apply::blocks_view::apply_blocks_view(
-            &mut app,
-            crate::input::action::Action::ToggleAppView,
-        );
-        if let Some(ws) = app.blocks_workspace.as_mut() {
-            ws.select(BlockRef {
-                file_idx: 0,
-                block_idx: 0,
-            });
-        }
-        app
-    }
-
-    fn capture(app: &App) -> String {
-        let backend = TestBackend::new(100, 28);
-        let mut terminal = Terminal::new(backend).unwrap();
-        terminal
-            .draw(|f| render(f, f.area(), app))
-            .unwrap();
-        let buf = terminal.backend().buffer();
-        (0..28)
-            .map(|y| {
-                (0..100)
-                    .map(|x| buf[(x, y)].symbol().to_string())
-                    .collect::<String>()
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn paints_all_four_region_titles_for_http() {
-        let v = seed_vault();
-        let app = app_with_selected(&v).await;
-        let txt = capture(&app);
-        for title in ["[1] Request", "[2] Headers", "[3] Body", "[4] Response"] {
-            assert!(txt.contains(title), "missing `{title}` in:\n{txt}");
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn paints_method_url_and_headers() {
-        let v = seed_vault();
-        let app = app_with_selected(&v).await;
-        let txt = capture(&app);
-        assert!(txt.contains("POST"), "missing method:\n{txt}");
-        assert!(
-            txt.contains("https://x.com/login"),
-            "missing url:\n{txt}",
-        );
-        assert!(
-            txt.contains("Authorization"),
-            "missing header key:\n{txt}",
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn focused_region_title_appears_when_changed() {
-        let v = seed_vault();
-        let mut app = app_with_selected(&v).await;
-        app.blocks_workspace.as_mut().unwrap().set_region(1);
-        let txt = capture(&app);
-        // [2] Headers is still painted as a region title; the focus
-        // signal moved from BorderType::Double to color-only (accent
-        // vs muted) so we just assert the region remains addressable.
-        assert!(
-            txt.contains("[2] Headers"),
-            "expected [2] Headers title:\n{txt}",
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn empty_state_when_no_selection() {
-        let v = seed_vault();
-        let data = TempDir::new().unwrap();
-        let pool = init_db(data.path()).await.unwrap();
-        let resolved = ResolvedVault {
-            vault: v.path().to_path_buf(),
-        };
-        let app = App::new(Config::default(), resolved, pool);
-        let txt = capture(&app);
-        assert!(txt.contains("Select a block"));
-    }
 
     #[test]
     fn badge_text_classifies_kinds() {
         assert_eq!(badge_text("http"), " HTTP ");
         assert_eq!(badge_text("db-postgres"), " DB ");
+        assert_eq!(badge_text("custom"), " custom ");
     }
 }

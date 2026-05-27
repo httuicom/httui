@@ -64,10 +64,24 @@ pub(crate) fn toggle_editor_mode(app: &mut App) {
 /// Invoked by the `Editor` scope handler in `input::scope`; preempting
 /// scopes (modal, popup, query cancel, etc.) already had their chance.
 pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
+    use crate::input::action::Action;
+    use crossterm::event::{KeyCode, KeyModifiers};
+
+    if app.standard.pending_window_chord {
+        app.standard.pending_window_chord = false;
+        if let Some(cmd) = decode_window_suffix(key) {
+            crate::input::dispatch::apply_action(app, Action::Window(cmd), true);
+        }
+        return;
+    }
+    if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('w') {
+        app.standard.pending_window_chord = true;
+        return;
+    }
+
     let Some(action) = crate::input::standard::resolve(&app.standard_keymap, key) else {
         return;
     };
-    use crate::input::action::Action;
 
     // Ctrl+C is contextual in Standard mode: with an active selection
     // it copies; with no selection it quits the TUI (Windows-Terminal
@@ -130,6 +144,31 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
             crate::input::dispatch::apply_action(app, action, /* recording = */ true);
         }
         _ => crate::input::dispatch::apply_action(app, action, /* recording = */ true),
+    }
+}
+
+/// Decode a key as the suffix after `Ctrl+W` (vim-style window chord).
+/// Returns `None` for anything that isn't a recognized command — the
+/// caller drops the pending state regardless.
+fn decode_window_suffix(key: crossterm::event::KeyEvent) -> Option<crate::input::types::WindowCmd> {
+    use crate::input::types::WindowCmd;
+    use crossterm::event::{KeyCode, KeyModifiers};
+    let mods = key.modifiers;
+    let allows_letter = mods == KeyModifiers::NONE || mods == KeyModifiers::CONTROL;
+    if !allows_letter {
+        return None;
+    }
+    match key.code {
+        KeyCode::Char('v') => Some(WindowCmd::SplitVertical),
+        KeyCode::Char('s') => Some(WindowCmd::SplitHorizontal),
+        KeyCode::Char('h') => Some(WindowCmd::FocusLeft),
+        KeyCode::Char('l') => Some(WindowCmd::FocusRight),
+        KeyCode::Char('k') => Some(WindowCmd::FocusUp),
+        KeyCode::Char('j') => Some(WindowCmd::FocusDown),
+        KeyCode::Char('w') => Some(WindowCmd::Cycle),
+        KeyCode::Char('c') | KeyCode::Char('q') => Some(WindowCmd::Close),
+        KeyCode::Char('=') => Some(WindowCmd::Equalize),
+        _ => None,
     }
 }
 

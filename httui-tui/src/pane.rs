@@ -5,12 +5,9 @@
 
 use std::path::PathBuf;
 
+use crate::app::BlockRef;
 use crate::buffer::Document;
 
-/// A single editor pane: one open document plus its viewport. Multiple
-/// panes can share the *same* file path but each has its own
-/// independent [`Document`] instance — saving in one pane will not
-/// reflect in the other until that other reloads.
 pub struct Pane {
     pub document: Option<Document>,
     pub document_path: Option<PathBuf>,
@@ -19,6 +16,13 @@ pub struct Pane {
     /// recent frame. Updated by the renderer; read by motion code that
     /// needs page-relative scroll amounts (e.g. `Ctrl+D`).
     pub viewport_height: u16,
+    /// Currently-rendered block in BLOCKS view (`AppView::Blocks`).
+    /// Ignored when the app is in DOC view; survives the round-trip so
+    /// re-entering BLOCKS restores the per-pane selection.
+    pub block_selected: Option<BlockRef>,
+    /// Focused region inside the displayed block (0-based; clamped to
+    /// the block kind's region count by the applier).
+    pub block_region: usize,
 }
 
 impl Pane {
@@ -28,6 +32,8 @@ impl Pane {
             document_path: None,
             viewport_top: 0,
             viewport_height: 0,
+            block_selected: None,
+            block_region: 0,
         }
     }
 
@@ -37,6 +43,8 @@ impl Pane {
             document_path: Some(path),
             viewport_top: 0,
             viewport_height: 0,
+            block_selected: None,
+            block_region: 0,
         }
     }
 
@@ -54,6 +62,8 @@ impl Pane {
             document_path: self.document_path.clone(),
             viewport_top: 0,
             viewport_height: 0,
+            block_selected: self.block_selected,
+            block_region: self.block_region,
         }
     }
 }
@@ -349,6 +359,8 @@ mod tests {
             document_path: Some(PathBuf::from(name)),
             viewport_top: 0,
             viewport_height: 0,
+            block_selected: None,
+            block_region: 0,
         }
     }
 
