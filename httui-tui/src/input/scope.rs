@@ -109,6 +109,31 @@ fn handle_scope(kind: ScopeKind, app: &mut App, key: KeyEvent) -> KeyOutcome {
 /// (`Ctrl+B` = tree). We dispatch through the per-mode parser
 /// directly without the global pre-empt so the panel wins.
 fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
+    if app
+        .blocks_workspace
+        .as_ref()
+        .is_some_and(|w| w.pane_picker.is_some())
+    {
+        use crossterm::event::{KeyCode, KeyModifiers};
+        if key.code == KeyCode::Esc
+            || (key.modifiers.contains(KeyModifiers::CONTROL)
+                && key.code == KeyCode::Char('c'))
+        {
+            return KeyOutcome::Effect(crate::input::action::Action::BlocksPanePickerCancel);
+        }
+        if let KeyCode::Char(c) = key.code {
+            if c.is_ascii_lowercase() {
+                let n = (c as u8 - b'a' + 1) as usize;
+                let leaves = app.active_tab().map(|t| t.leaf_count()).unwrap_or(0);
+                if n <= leaves {
+                    return KeyOutcome::Effect(
+                        crate::input::action::Action::BlocksPanePickerChoose(n),
+                    );
+                }
+            }
+        }
+        return KeyOutcome::Consumed;
+    }
     if app.vim.mode == crate::vim::mode::Mode::Git {
         crate::input::dispatch::dispatch(app, key);
         return KeyOutcome::Consumed;

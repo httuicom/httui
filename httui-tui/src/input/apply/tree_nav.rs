@@ -62,6 +62,13 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
                     file_idx: meta.file_idx,
                     block_idx: meta.block_idx,
                 };
+                let leaves = app.active_tab().map(|t| t.leaf_count()).unwrap_or(1);
+                if leaves > 1 {
+                    if let Some(ws) = app.blocks_workspace.as_mut() {
+                        ws.pane_picker = Some(target);
+                    }
+                    return;
+                }
                 if let Some(pane) = app.active_pane_mut() {
                     pane.block_selected = Some(target);
                     pane.block_region = 0;

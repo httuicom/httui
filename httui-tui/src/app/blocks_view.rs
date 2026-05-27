@@ -112,6 +112,9 @@ pub struct BlocksWorkspace {
     pub cursor: usize,
     pub selected: Option<BlockRef>,
     pub region: usize,
+    /// Some(block) = sidebar picked a block while multiple panes were
+    /// open — next digit chooses which pane to open it in. Esc cancels.
+    pub pane_picker: Option<BlockRef>,
 }
 
 impl BlocksWorkspace {
@@ -129,6 +132,7 @@ impl BlocksWorkspace {
             cursor: 0,
             selected: None,
             region: 0,
+            pane_picker: None,
         }
     }
 

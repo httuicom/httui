@@ -337,7 +337,9 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         Action::ToggleAppView
         | Action::BlocksPaneNextRegion
         | Action::BlocksPanePrevRegion
-        | Action::BlocksPaneJumpRegion(_) => {
+        | Action::BlocksPaneJumpRegion(_)
+        | Action::BlocksPanePickerChoose(_)
+        | Action::BlocksPanePickerCancel => {
             crate::input::apply::blocks_view::apply_blocks_view(app, action)
         }
         Action::JumpNextBlock

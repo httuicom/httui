@@ -26,7 +26,65 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         Action::BlocksPaneNextRegion => shift_region(app, 1),
         Action::BlocksPanePrevRegion => shift_region(app, -1),
         Action::BlocksPaneJumpRegion(n) => set_region(app, n.saturating_sub(1)),
+        Action::BlocksPanePickerChoose(n) => choose_picker(app, n.saturating_sub(1)),
+        Action::BlocksPanePickerCancel => cancel_picker(app),
         _ => {}
+    }
+}
+
+fn choose_picker(app: &mut App, leaf_idx: usize) {
+    let Some(target) = app
+        .blocks_workspace
+        .as_ref()
+        .and_then(|w| w.pane_picker)
+    else {
+        return;
+    };
+    let Some(tab) = app.active_tab_mut() else {
+        cancel_picker(app);
+        return;
+    };
+    let leaves = tab.leaf_count();
+    if leaves == 0 {
+        cancel_picker(app);
+        return;
+    }
+    let idx = leaf_idx.min(leaves - 1);
+    let mut visited = 0usize;
+    apply_to_nth_leaf(&mut tab.root, idx, &mut visited, &mut |pane| {
+        pane.block_selected = Some(target);
+        pane.block_region = 0;
+    });
+    cancel_picker(app);
+}
+
+fn cancel_picker(app: &mut App) {
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.pane_picker = None;
+    }
+}
+
+fn apply_to_nth_leaf(
+    node: &mut crate::pane::PaneNode,
+    target: usize,
+    counter: &mut usize,
+    f: &mut impl FnMut(&mut crate::pane::Pane),
+) -> bool {
+    match node {
+        crate::pane::PaneNode::Leaf(pane) => {
+            if *counter == target {
+                f(pane);
+                return true;
+            }
+            *counter += 1;
+            false
+        }
+        crate::pane::PaneNode::Split { first, second, .. } => {
+            if apply_to_nth_leaf(first, target, counter, f) {
+                return true;
+            }
+            apply_to_nth_leaf(second, target, counter, f)
+        }
     }
 }
 

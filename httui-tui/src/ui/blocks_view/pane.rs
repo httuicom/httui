@@ -407,6 +407,35 @@ impl ParsedView {
     }
 }
 
+pub(super) fn paint_picker_overlay(frame: &mut Frame, area: Rect, n: usize) {
+    if area.width < 5 || area.height < 3 {
+        return;
+    }
+    let letter = if (1..=26).contains(&n) {
+        (b'a' + (n - 1) as u8) as char
+    } else {
+        '?'
+    };
+    let label = format!("[ {letter} ]");
+    let cy = area.y + area.height / 2;
+    let label_w = label.chars().count() as u16;
+    let cx = area.x + area.width.saturating_sub(label_w) / 2;
+    let style = Style::default()
+        .bg(crate::ui::palette::popup_border_accent())
+        .fg(crate::ui::palette::popup_bg())
+        .add_modifier(Modifier::BOLD);
+    let row = Rect {
+        x: cx,
+        y: cy,
+        width: label_w.min(area.width),
+        height: 1,
+    };
+    frame.render_widget(
+        Paragraph::new(Line::from(Span::styled(label, style))),
+        row,
+    );
+}
+
 fn badge_text(block_type: &str) -> String {
     if block_type == "http" {
         " HTTP ".into()

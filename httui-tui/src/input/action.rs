@@ -367,5 +367,9 @@ pub enum Action {
     BlocksPanePrevRegion,
     /// 1-based; clamps to the block kind's region count.
     BlocksPaneJumpRegion(usize),
+    /// 1-based pane index — used when the sidebar's pane-picker
+    /// overlay is open. Closes the overlay either way.
+    BlocksPanePickerChoose(usize),
+    BlocksPanePickerCancel,
     Noop,
 }
