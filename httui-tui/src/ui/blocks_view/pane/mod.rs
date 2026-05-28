@@ -13,8 +13,8 @@ use super::BlocksRenderCtx;
 
 mod view;
 use view::{
-    block_node_from_pane, block_node_id, edit_cursor_row_col, format_bytes, load_block_node,
-    load_view, ParsedView,
+    block_node_from_pane, block_node_id, edit_cursor_row_col, load_block_node, load_view,
+    ParsedView,
 };
 
 mod header;
@@ -30,41 +30,33 @@ pub(super) fn render_leaf(
     running: Option<&str>,
     ctx: &mut BlocksRenderCtx<'_>,
 ) {
-    let border_color = if focused {
-        crate::ui::palette::accent()
-    } else {
-        crate::ui::palette::muted()
-    };
-    let outer = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(border_color));
-    let inner = outer.inner(area);
-    frame.render_widget(outer, area);
-    if inner.width == 0 || inner.height == 0 {
+    // No outer pane frame — the region cards (REQUEST / RESPONSE /
+    // QUERY / RESULT) carry their own borders, and focus reads off
+    // their accent colouring, so a wrapping border would just nest.
+    if area.width == 0 || area.height == 0 {
         return;
     }
 
     let Some(target) = leaf.block_selected else {
-        paint_empty_state(frame, inner);
+        paint_empty_state(frame, area);
         return;
     };
     let Some(ws) = ctx.workspace else {
-        paint_empty_state(frame, inner);
+        paint_empty_state(frame, area);
         return;
     };
     let Some(file) = ws.index.files.get(target.file_idx) else {
-        paint_missing(frame, inner);
+        paint_missing(frame, area);
         return;
     };
     let Some(block) = file.blocks.get(target.block_idx) else {
-        paint_missing(frame, inner);
+        paint_missing(frame, area);
         return;
     };
 
     render_block(
         frame,
-        inner,
+        area,
         file,
         block,
         leaf,
@@ -162,6 +154,9 @@ fn render_block(
             pane_focused,
             visual_overlay,
             running,
+            file,
+            block,
+            ctx,
         );
     } else if block.block_type.starts_with("db") {
         db::render_db_regions(
@@ -254,6 +249,22 @@ fn field_style(focused: bool) -> Style {
     }
 }
 
+/// `{{ref}}` placeholders rendered as chips via the same highlighter the
+/// DOC view uses, so refs paint identically across views. Underlines
+/// every span when the field carries the NAV cursor.
+fn refs_spans(text: &str, focused: bool) -> Vec<Span<'static>> {
+    let mut spans = crate::ui::blocks::ref_highlight::highlight_refs(
+        text,
+        &std::collections::HashSet::new(),
+    );
+    if focused {
+        for s in &mut spans {
+            s.style = s.style.add_modifier(Modifier::UNDERLINED);
+        }
+    }
+    spans
+}
+
 /// Title-bearing border for a region. When `editing` is true, the title
 /// gets a trailing `EDIT` chip so it's obvious from any pane width that
 /// the keystrokes are flowing into the buffer, not the doc.
@@ -324,16 +335,21 @@ fn render_multiline_region(
         (fallback.to_string(), None)
     };
     // SQL blocks pick up the same syntax highlighter the DOC view
-    // uses (`ui::sql_highlight::highlight`). Anything else paints
-    // plain so URL/headers/HTTP body still render verbatim.
+    // uses (`ui::sql_highlight::highlight`). HTTP body paints `{{ref}}`
+    // as chips in NAV; while editing it stays verbatim so the caret
+    // column and the visual-selection overlay map 1:1 to bytes.
     let rendered: Vec<Line<'static>> = if block_type.starts_with("db") {
         crate::ui::sql_highlight::highlight(&text)
             .into_iter()
             .map(Line::from)
             .collect()
-    } else {
+    } else if active_edit.is_some() {
         text.split('\n')
             .map(|l| Line::from(Span::raw(l.to_string())))
+            .collect()
+    } else {
+        text.split('\n')
+            .map(|l| Line::from(refs_spans(l, false)))
             .collect()
     };
     frame.render_widget(Paragraph::new(rendered), inner);
@@ -439,5 +455,39 @@ pub(super) fn paint_picker_overlay(frame: &mut Frame, area: Rect, n: usize) {
         Paragraph::new(Line::from(Span::styled(label, style))),
         row,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refs_spans_chips_a_reference() {
+        let spans = refs_spans("/users/{{id}}", false);
+        let chip = spans
+            .iter()
+            .find(|s| s.content == "{{id}}")
+            .expect("ref chip span");
+        assert_eq!(
+            chip.style,
+            crate::ui::blocks::ref_highlight::normal_style()
+        );
+    }
+
+    #[test]
+    fn refs_spans_plain_text_is_a_single_span() {
+        let spans = refs_spans("no refs here", false);
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].content, "no refs here");
+    }
+
+    #[test]
+    fn refs_spans_underlines_every_span_when_focused() {
+        let spans = refs_spans("a {{b}} c", true);
+        assert!(!spans.is_empty());
+        assert!(spans
+            .iter()
+            .all(|s| s.style.add_modifier.contains(Modifier::UNDERLINED)));
+    }
 }
 

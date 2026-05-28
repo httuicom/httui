@@ -11,6 +11,9 @@ pub(super) fn render_http_regions(
     pane_focused: bool,
     visual_overlay: Option<crate::ui::VisualOverlay>,
     running: Option<&str>,
+    file: &FileBlocks,
+    block: &BlockMeta,
+    ctx: &BlocksRenderCtx<'_>,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -67,10 +70,11 @@ pub(super) fn render_http_regions(
     render_http_response_region(
         frame,
         chunks[1],
-        block_type,
-        region == 3,
-        parsed,
+        pane_focused && region == 3,
+        file,
+        block,
         pane,
+        ctx,
         running,
     );
 }
@@ -83,25 +87,40 @@ fn render_request_tabbar(frame: &mut Frame, area: Rect, active: usize, focused: 
     render_subtab_cells(frame, area, &labels, active_cell, focused);
 }
 
-/// `[4] Response` with sub-tabs `Body / Headers / Cookies / Timing /
-/// History`. Tab header sits inside the region's inner area; body
-/// fills the remainder. Sub-tab driven by `pane.response_subtab`.
+/// `[3] RESPONSE` — tab strip (Body / Headers / Cookies / Timing / Raw)
+/// over the shared `ResultPanelTab`; content is delegated to the DOC
+/// view's `render_http_response_panel` so highlighting is identical.
+#[allow(clippy::too_many_arguments)]
 fn render_http_response_region(
     frame: &mut Frame,
     area: Rect,
-    block_type: &str,
     focused: bool,
-    parsed: &ParsedView,
+    file: &FileBlocks,
+    block: &BlockMeta,
     pane: &Pane,
+    ctx: &BlocksRenderCtx<'_>,
     running: Option<&str>,
 ) {
-    let _ = block_type;
-    let block_widget = card_block("[3] RESPONSE", focused);
-    let inner = block_widget.inner(area);
-    frame.render_widget(block_widget, area);
+    let card = card_block("[3] RESPONSE", focused);
+    let inner = card.inner(area);
+    frame.render_widget(card, area);
     if inner.width == 0 || inner.height == 0 {
         return;
     }
+    // Shared, BlockId-keyed selection — same map the DOC view cycles, so
+    // a sub-tab choice carries across views/panes for the same block.
+    let tab = ctx
+        .result_tabs
+        .get(&block_node_id(file, block))
+        .copied()
+        .unwrap_or(crate::app::ResultPanelTab::Result);
+    let variants = crate::app::ResultPanelTab::variants_for("http");
+    let labels: Vec<String> = variants
+        .iter()
+        .map(|t| t.label_for("http").to_string())
+        .collect();
+    let active_cell = variants.iter().position(|t| *t == tab).unwrap_or(0);
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -110,199 +129,34 @@ fn render_http_response_region(
             Constraint::Min(0),
         ])
         .split(inner);
-    let active = pane.response_subtab.min(4);
-    paint_response_tabs(frame, chunks[0], active, focused);
+    render_subtab_cells(frame, chunks[0], &labels, active_cell, focused);
     render_tab_separator(frame, chunks[1]);
     if chunks[2].height == 0 {
         return;
     }
-    let lines = if let Some(label) = running {
-        vec![label.to_string()]
-    } else if active == 4 {
-        history_lines(pane)
-    } else if parsed.cached_json.is_none() {
-        vec!["(no response — press r to run)".to_string()]
-    } else {
-        response_subtab_lines(parsed, active)
-    };
-    let lines: Vec<Line> = lines
-        .into_iter()
-        .map(|s| Line::from(Span::raw(s)))
-        .collect();
-    frame.render_widget(
-        Paragraph::new(lines).wrap(Wrap { trim: false }),
-        chunks[2],
-    );
-}
-
-fn paint_response_tabs(frame: &mut Frame, area: Rect, active: usize, focused: bool) {
-    let labels: Vec<String> = ["Body", "Headers", "Cookies", "Timing", "History"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-    render_subtab_cells(frame, area, &labels, active, focused);
-}
-
-fn history_lines(pane: &Pane) -> Vec<String> {
-    let Some(history) = pane.response_history.as_deref() else {
-        return vec!["(no history — switch to History tab to load)".to_string()];
-    };
-    if history.entries.is_empty() {
-        return vec!["(no runs recorded for this block)".to_string()];
+    if let Some(label) = running {
+        frame.render_widget(Paragraph::new(label.to_string()), chunks[2]);
+        return;
     }
-    history
-        .entries
-        .iter()
-        .enumerate()
-        .map(|(i, e)| {
-            let cursor = if i == history.cursor { "▸" } else { " " };
-            let status = e
-                .status
-                .map(|s| format!("{s}"))
-                .unwrap_or_else(|| "—".to_string());
-            let elapsed = e
-                .elapsed_ms
-                .map(|m| format!("{m}ms"))
-                .unwrap_or_else(|| "—".to_string());
-            let size = e
-                .response_size
-                .map(|s| format_bytes(s as u64))
-                .unwrap_or_else(|| "—".to_string());
-            format!(
-                "{cursor} {ran_at}  {method:<6} {status:<4} {elapsed:>7}  {size}",
-                ran_at = e.ran_at,
-                method = e.method
-            )
-        })
-        .collect()
-}
-
-fn response_subtab_lines(parsed: &ParsedView, subtab: usize) -> Vec<String> {
-    let Some(json) = parsed.cached_json.as_ref() else {
-        return vec!["(no cached response)".to_string()];
-    };
-    match subtab {
-        0 => cached_body_lines(json),
-        1 => cached_headers_lines(json),
-        2 => cached_cookies_lines(json),
-        3 => cached_timing_lines(json),
-        _ => vec!["(history: press Enter on an entry to replay)".to_string()],
-    }
-}
-
-fn cached_body_lines(json: &serde_json::Value) -> Vec<String> {
-    let summary_first_line = parsed_cached_summary_line(json);
-    let body = json
-        .get("body")
-        .or_else(|| json.get("results"))
-        .cloned()
-        .unwrap_or(serde_json::Value::Null);
-    let body_text = match &body {
-        serde_json::Value::String(s) => s.clone(),
-        serde_json::Value::Null => String::new(),
-        _ => serde_json::to_string_pretty(&body).unwrap_or_else(|_| body.to_string()),
-    };
-    let mut out = Vec::new();
-    if let Some(summary) = summary_first_line {
-        out.push(summary);
-        out.push(String::new());
-    }
-    out.extend(body_text.lines().map(str::to_string));
-    if out.is_empty() {
-        out.push("(empty body)".to_string());
-    }
-    out
-}
-
-fn parsed_cached_summary_line(json: &serde_json::Value) -> Option<String> {
-    let obj = json.as_object()?;
-    let status = obj.get("status").and_then(|s| s.as_i64())?;
-    let mut summary = format!("{status}");
-    if let Some(text) = obj.get("status_text").and_then(|s| s.as_str()) {
-        if !text.is_empty() {
-            summary.push(' ');
-            summary.push_str(text);
-        }
-    }
-    if let Some(elapsed) = obj
-        .get("elapsed_ms")
-        .or_else(|| obj.get("total_ms"))
-        .and_then(|v| v.as_u64())
+    // Results live only in the in-memory pane Document; disk has none.
+    match block_node_from_pane(pane, file, block)
+        .or_else(|| load_block_node(ctx.vault, file, block))
     {
-        summary.push_str(" · ");
-        summary.push_str(&format!("{elapsed}ms"));
-    }
-    if let Some(size) = obj.get("size_bytes").and_then(|v| v.as_u64()) {
-        summary.push_str(" · ");
-        summary.push_str(&format_bytes(size));
-    }
-    Some(summary)
-}
-
-fn cached_headers_lines(json: &serde_json::Value) -> Vec<String> {
-    let arr = json
-        .get("headers")
-        .and_then(|h| h.as_array())
-        .cloned()
-        .unwrap_or_default();
-    if arr.is_empty() {
-        return vec!["(no headers)".to_string()];
-    }
-    arr.iter()
-        .map(|h| {
-            let name = h.get("name").or_else(|| h.get("key")).and_then(|v| v.as_str()).unwrap_or("");
-            let value = h.get("value").and_then(|v| v.as_str()).unwrap_or("");
-            format!("{name}: {value}")
-        })
-        .collect()
-}
-
-fn cached_cookies_lines(json: &serde_json::Value) -> Vec<String> {
-    let arr = json
-        .get("cookies")
-        .and_then(|c| c.as_array())
-        .cloned()
-        .unwrap_or_default();
-    if arr.is_empty() {
-        return vec!["(no cookies)".to_string()];
-    }
-    arr.iter()
-        .map(|c| {
-            let name = c.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            let value = c.get("value").and_then(|v| v.as_str()).unwrap_or("");
-            let domain = c.get("domain").and_then(|v| v.as_str()).unwrap_or("");
-            if domain.is_empty() {
-                format!("{name} = {value}")
-            } else {
-                format!("{name} = {value}    domain={domain}")
-            }
-        })
-        .collect()
-}
-
-fn cached_timing_lines(json: &serde_json::Value) -> Vec<String> {
-    let obj = match json.as_object() {
-        Some(o) => o,
-        None => return vec!["(no timing)".to_string()],
-    };
-    let mut out: Vec<String> = Vec::new();
-    let push = |out: &mut Vec<String>, label: &str, key: &str| {
-        if let Some(ms) = obj.get(key).and_then(|v| v.as_u64()) {
-            out.push(format!("{label:<20} {ms}ms"));
+        Some(b) if b.cached_result.is_some() => {
+            crate::ui::blocks::http_panel::response::render_http_response_panel(
+                frame,
+                chunks[2],
+                &b,
+                tab,
+            );
         }
-    };
-    push(&mut out, "Total", "total_ms");
-    push(&mut out, "TTFB", "ttfb_ms");
-    push(&mut out, "DNS", "dns_ms");
-    push(&mut out, "Connect", "connect_ms");
-    push(&mut out, "TLS", "tls_ms");
-    if let Some(reused) = obj.get("connection_reused").and_then(|v| v.as_bool()) {
-        out.push(format!("{:<20} {reused}", "Conn reused"));
+        _ => {
+            frame.render_widget(
+                Paragraph::new("(no response — press r to run)"),
+                chunks[2],
+            );
+        }
     }
-    if out.is_empty() {
-        out.push("(no timing data)".to_string());
-    }
-    out
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -364,12 +218,19 @@ fn render_headers_region(
         let key_style = field_style(key_focused);
         let value_style = field_style(value_focused);
         let padded_key = format!("{key_text:<width$}", width = key_w as usize);
-        lines.push(Line::from(vec![
+        let mut row_spans = vec![
             Span::raw("  "),
             Span::styled(padded_key, key_style),
             Span::raw("  "),
-            Span::styled(value_text, value_style),
-        ]));
+        ];
+        // The cell under edit shows the raw buffer (caret tracked
+        // below); idle cells chip `{{ref}}` like the DOC view.
+        if edit_row_col == Some((i, 1)) {
+            row_spans.push(Span::styled(value_text, value_style));
+        } else {
+            row_spans.extend(refs_spans(&value_text, value_focused));
+        }
+        lines.push(Line::from(row_spans));
     }
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
     // Place the terminal caret at the edited field's cursor column,

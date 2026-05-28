@@ -62,17 +62,19 @@ pub(super) fn render_header(
         Span::raw(gap),
     ];
     if is_http {
-        let url = url_edit
-            .map(|e| e.current_text())
-            .unwrap_or_else(|| parsed.url.clone().unwrap_or_default());
-        let style = if url_focused {
-            Style::default()
-                .fg(crate::ui::palette::foreground())
-                .add_modifier(Modifier::UNDERLINED)
+        if let Some(edit) = url_edit {
+            // Editing inline: verbatim text so the caret column (placed
+            // below) maps 1:1 to bytes; refs aren't chipped mid-edit.
+            left.push(Span::styled(
+                edit.current_text(),
+                Style::default()
+                    .fg(crate::ui::palette::foreground())
+                    .add_modifier(Modifier::UNDERLINED),
+            ));
         } else {
-            Style::default().fg(crate::ui::palette::foreground())
-        };
-        left.push(Span::styled(url, style));
+            let url = parsed.url.clone().unwrap_or_default();
+            left.extend(refs_spans(&url, url_focused));
+        }
     } else {
         let conn = parsed
             .connection

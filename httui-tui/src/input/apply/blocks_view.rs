@@ -406,10 +406,10 @@ fn apply_to_nth_leaf(
     }
 }
 
-/// Cycle the response sub-tab on the focused pane. Only applies
-/// when the focused block is HTTP and the focused region is the
-/// Response region (region == 3). 5 tabs: Body / Headers / Cookies
-/// / Timing / History.
+/// Cycle the result/response sub-tab on the focused pane via the
+/// shared, BlockId-keyed `ResultPanelTab` — the same state the DOC view
+/// cycles, so a choice carries across views/panes for the same block.
+/// Applies only on the result band (HTTP region 3, DB region 2).
 fn shift_response_subtab(app: &mut App, delta: isize) {
     let target = app
         .blocks_workspace
@@ -419,63 +419,32 @@ fn shift_response_subtab(app: &mut App, delta: isize) {
             let sel = pane.block_selected?;
             let file = ws.index.files.get(sel.file_idx)?;
             let block = file.blocks.get(sel.block_idx)?;
-            let kind = if block.block_type == "http" && pane.block_region == 3 {
-                ResponseTabKind::Http
-            } else if block.block_type.starts_with("db") && pane.block_region == 2 {
-                ResponseTabKind::Db
-            } else {
+            let on_result = (block.block_type == "http" && pane.block_region == 3)
+                || (block.block_type.starts_with("db") && pane.block_region == 2);
+            if !on_result {
                 return None;
-            };
+            }
             Some((
-                kind,
                 file.display.clone(),
-                block.alias.clone(),
                 block.line_start,
                 block.block_type.clone(),
             ))
         });
-    let Some((kind, file, alias, line_start, block_type)) = target else {
+    let Some((file, line_start, block_type)) = target else {
         return;
     };
-    match kind {
-        ResponseTabKind::Http => {
-            let Some(pane) = app.active_pane_mut() else {
-                return;
-            };
-            let count: isize = 5;
-            pane.response_subtab =
-                (pane.response_subtab as isize + delta).rem_euclid(count) as usize;
-            if pane.response_subtab == 4 {
-                if let Some(alias) = alias {
-                    refresh_pane_history(app, file, alias);
-                }
-            }
-        }
-        ResponseTabKind::Db => {
-            // Reuse App.result_tabs (BlockId-keyed) — same state the
-            // DOC view cycles via ResultPanelTab::next_for/prev_for,
-            // so behaviour stays consistent across views. The key
-            // mirrors `block_node_id` in the renderer.
-            let id = result_tab_block_id(&file, line_start);
-            let current = app
-                .result_tabs
-                .get(&id)
-                .copied()
-                .unwrap_or(crate::app::ResultPanelTab::Result);
-            let next = if delta >= 0 {
-                current.next_for(&block_type)
-            } else {
-                current.prev_for(&block_type)
-            };
-            app.result_tabs.insert(id, next);
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum ResponseTabKind {
-    Http,
-    Db,
+    let id = result_tab_block_id(&file, line_start);
+    let current = app
+        .result_tabs
+        .get(&id)
+        .copied()
+        .unwrap_or(crate::app::ResultPanelTab::Result);
+    let next = if delta >= 0 {
+        current.next_for(&block_type)
+    } else {
+        current.prev_for(&block_type)
+    };
+    app.result_tabs.insert(id, next);
 }
 
 /// Mirrors `block_node_id` in `ui::blocks_view::pane`. The two MUST
@@ -488,28 +457,6 @@ fn result_tab_block_id(file_display: &str, line_start: usize) -> crate::buffer::
     file_display.hash(&mut h);
     line_start.hash(&mut h);
     crate::buffer::block::BlockId(h.finish())
-}
-
-/// Pull recent `block_run_history` rows for (file, alias) and stash
-/// them on the focused pane. Block-on-pool is OK here because the
-/// list is capped by `history_retention` (default 10).
-fn refresh_pane_history(app: &mut App, file: String, alias: String) {
-    let pool = app.pool_manager.app_pool().clone();
-    let entries = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async {
-            httui_core::block_history::list_history(&pool, &file, &alias)
-                .await
-                .unwrap_or_default()
-        })
-    });
-    if let Some(pane) = app.active_pane_mut() {
-        pane.response_history = Some(Box::new(crate::pane::ResponseHistory {
-            file,
-            alias,
-            cursor: 0,
-            entries,
-        }));
-    }
 }
 
 /// Vertical band neighbour for `dir` (-1 up / +1 down). HTTP bands:
@@ -703,6 +650,33 @@ fn focused_db_result_row(app: &App) -> Option<(usize, usize)> {
     None
 }
 
+/// `Some(segment_idx)` when the focused pane is on `[3] Response` of an
+/// HTTP block whose run is cached in the pane document. Mirrors
+/// `focused_db_result_row` for the Enter→detail-modal path.
+fn focused_http_response_segment(app: &App) -> Option<usize> {
+    let pane = app.active_pane()?;
+    if pane.block_region != 3 {
+        return None;
+    }
+    let ws = app.blocks_workspace.as_ref()?;
+    let sel = pane.block_selected?;
+    let file = ws.index.files.get(sel.file_idx)?;
+    let block = file.blocks.get(sel.block_idx)?;
+    if block.block_type != "http" {
+        return None;
+    }
+    let doc = pane.document.as_ref()?;
+    for (idx, seg) in doc.segments().iter().enumerate() {
+        if let crate::buffer::Segment::Block(b) = seg {
+            if b.block_type == block.block_type && b.alias == block.alias {
+                b.cached_result.as_ref()?;
+                return Some(idx);
+            }
+        }
+    }
+    None
+}
+
 /// Number of result rows accessible from the focused pane's loaded
 /// document. `0` when the block hasn't been run yet so up/down stays
 /// pinned.
@@ -790,6 +764,19 @@ fn enter_edit(app: &mut App, mode: EnterMode) {
             doc.set_cursor(crate::buffer::Cursor::InBlockResult { segment_idx, row });
         }
         crate::input::apply::modal_detail::apply_open_db_row_detail(app);
+        return;
+    }
+    // Response region of an HTTP block: Enter opens the response-detail
+    // modal (reuses the DOC view's `apply_open_http_response_detail`
+    // after parking the cursor on the block's result).
+    if let Some(segment_idx) = focused_http_response_segment(app) {
+        if let Some(doc) = app.document_mut() {
+            doc.set_cursor(crate::buffer::Cursor::InBlockResult {
+                segment_idx,
+                row: 0,
+            });
+        }
+        crate::input::apply::modal_detail::apply_open_http_response_detail(app);
         return;
     }
     let Some(field) = field_for_focus(app) else {
@@ -923,6 +910,11 @@ fn run_focused_block(app: &mut App) {
         }
     }
 
+    // Apply any committed-but-unsaved draft onto the (possibly just
+    // reloaded) pane document so the run uses the edited values without
+    // requiring Ctrl+S first — edit→run→decide-to-save is the flow.
+    sync_draft_to_doc_in_memory(app);
+
     // Map the selected block to a segment_idx in the pane's doc.
     // Bypass the `app.document()` redirect — in EDIT it returns the
     // sub-doc (a prose-only field buffer with zero blocks), so the
@@ -1033,6 +1025,32 @@ fn sync_edit_to_doc_in_memory(app: &mut App) {
                 serde_json::Value::String(text),
             );
         }
+    }
+}
+
+/// Mirror the committed-but-unsaved draft's params onto the matching
+/// segment of `pane.document` so a run uses the edited request without
+/// a save first (edit → run → decide-to-save). `cached_result` lives
+/// on a separate field, so it survives. No-op without a draft.
+fn sync_draft_to_doc_in_memory(app: &mut App) {
+    let (bt, alias, params) = {
+        let Some(pane) = app.active_pane() else { return };
+        let Some(draft) = pane.block_draft.as_ref() else { return };
+        (
+            draft.block.block_type.clone(),
+            draft.block.alias.clone(),
+            draft.block.params.clone(),
+        )
+    };
+    let Some(pane) = app.active_pane_mut() else { return };
+    let Some(doc) = pane.document.as_mut() else { return };
+    let idx = doc.segments().iter().position(|s| {
+        matches!(s, crate::buffer::Segment::Block(b)
+            if b.block_type == bt && b.alias == alias)
+    });
+    let Some(idx) = idx else { return };
+    if let Some(b) = doc.block_at_mut(idx) {
+        b.params = params;
     }
 }
 
@@ -1969,6 +1987,53 @@ mod tests {
         (app, data, vault)
     }
 
+    #[tokio::test(flavor = "multi_thread")]
+    async fn response_next_prev_cycles_shared_result_panel_tab() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 3;
+        }
+        let (display, line_start) = {
+            let ws = app.blocks_workspace.as_ref().unwrap();
+            let sel = app.active_pane().unwrap().block_selected.unwrap();
+            let f = &ws.index.files[sel.file_idx];
+            (f.display.clone(), f.blocks[sel.block_idx].line_start)
+        };
+        let id = result_tab_block_id(&display, line_start);
+        apply_blocks_view(&mut app, Action::BlocksResponseNextTab);
+        assert_eq!(
+            app.result_tabs.get(&id).copied(),
+            Some(crate::app::ResultPanelTab::Messages)
+        );
+        apply_blocks_view(&mut app, Action::BlocksResponsePrevTab);
+        assert_eq!(
+            app.result_tabs.get(&id).copied(),
+            Some(crate::app::ResultPanelTab::Result)
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn response_tab_chord_is_noop_off_the_result_band() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 0;
+        }
+        apply_blocks_view(&mut app, Action::BlocksResponseNextTab);
+        assert!(app.result_tabs.is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn http_response_segment_none_without_result_or_off_band() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        // URL band (region 0) — never the response detail trigger.
+        assert!(focused_http_response_segment(&app).is_none());
+        // Response band but no loaded document / cached result yet.
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 3;
+        }
+        assert!(focused_http_response_segment(&app).is_none());
+    }
+
     /// Stand-in for the engine wiring: simulate the user typing into
     /// the sub-Document by writing directly via the redirect, the
     /// same path the vim/standard route uses in production.
@@ -2003,6 +2068,42 @@ mod tests {
         let pane = app.active_pane().unwrap();
         assert!(pane.block_edit.is_none(), "edit cleared after commit");
         assert_eq!(pane.block_draft.as_ref().unwrap().url(), "https://x.com /test");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_sync_applies_committed_unsaved_draft_to_doc() {
+        let (mut app, _d, v) = enter_blocks_on_first_http().await;
+        // Edit the URL and commit with Esc, but DON'T save (no Ctrl+S).
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "/test");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        assert!(app.active_pane().unwrap().block_edit.is_none());
+
+        // Load the on-disk doc into the pane — disk still has the
+        // un-edited URL (mirrors run_focused_block's load step).
+        let text = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
+        let doc = crate::buffer::Document::from_markdown(&text).unwrap();
+        if let Some(p) = app.active_pane_mut() {
+            p.document = Some(doc);
+            p.document_path = Some(v.path().join("api.md"));
+        }
+
+        sync_draft_to_doc_in_memory(&mut app);
+
+        // The segment now carries the edited URL, so a run executes the
+        // unsaved value instead of the stale on-disk one.
+        let pane = app.active_pane().unwrap();
+        let url = pane.document.as_ref().unwrap().segments().iter().find_map(|s| {
+            match s {
+                crate::buffer::Segment::Block(b) if b.block_type == "http" => b
+                    .params
+                    .get("url")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string),
+                _ => None,
+            }
+        });
+        assert_eq!(url.as_deref(), Some("https://x.com/test"));
     }
 
     #[tokio::test(flavor = "multi_thread")]

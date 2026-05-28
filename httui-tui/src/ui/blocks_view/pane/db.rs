@@ -58,7 +58,7 @@ pub(super) fn render_db_regions(
         frame,
         chunks[1],
         block_type,
-        region == 2,
+        pane_focused && region == 2,
         file,
         block,
         pane,

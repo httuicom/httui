@@ -24,7 +24,7 @@ pub(super) enum BodyLang {
 
 /// Tabs map for HTTP: re-uses ResultPanelTab so the keymap that
 /// cycles tabs (`gt`/`gT`) keeps working — labels just change.
-pub(super) fn render_http_response_panel(
+pub(crate) fn render_http_response_panel(
     frame: &mut Frame,
     area: Rect,
     b: &BlockNode,
