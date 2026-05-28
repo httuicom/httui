@@ -1042,3 +1042,29 @@ async fn http_response_detail_renders_in_visual_mode() {
     app.vim.mode = crate::vim::mode::Mode::VisualLine;
     let _ = render(&mut app, 120, 40);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_paint_missing_and_db_no_result_region() {
+    let (mut app, _d, v) = blocks_app().await;
+    // Out-of-range selection → paint_missing branch.
+    let bad = crate::app::BlockRef {
+        file_idx: 0,
+        block_idx: 99,
+    };
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.selected = Some(bad);
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.block_selected = Some(bad);
+    }
+    let _ = render(&mut app, 120, 40);
+    // DB block whose file lost its block on disk → render_region "(no result)".
+    let dbsel = block_ref_of(&app, false);
+    select_ref(&mut app, dbsel);
+    std::fs::write(v.path().join("db.md"), "# db\n").unwrap();
+    if let Some(p) = app.active_pane_mut() {
+        p.block_region = 2;
+        p.document = None;
+    }
+    let _ = render(&mut app, 120, 40);
+}

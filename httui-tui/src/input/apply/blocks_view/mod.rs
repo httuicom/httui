@@ -1094,4 +1094,27 @@ mod tests {
         // Write failed → the draft is restored, not silently lost.
         assert!(app.active_pane().unwrap().block_draft.is_some());
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_reorder_at_top_edge_is_noop() {
+        let (mut app, _d, v) = app_with_mixed_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        app.tree.expanded.insert("data.md".to_string());
+        let vp = app.vault_path.clone();
+        app.tree.refresh(&vp);
+        let b0 = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| {
+                n.path.ends_with("data.md")
+                    && n.block.as_ref().map(|b| b.block_idx == 0).unwrap_or(false)
+            })
+            .expect("first data.md block row");
+        app.tree.selected = b0;
+        apply_blocks_view(&mut app, Action::BlocksTreeReorderUp);
+        let data = httui_core::fs::read_note(&v.path().to_string_lossy(), "data.md").unwrap();
+        let parsed = httui_core::blocks::parse_blocks(&data);
+        assert_eq!(parsed[0].alias.as_deref(), Some("q1"), "top-edge reorder is a no-op");
+    }
 }
