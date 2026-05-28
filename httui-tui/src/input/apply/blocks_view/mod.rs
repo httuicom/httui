@@ -953,4 +953,84 @@ mod tests {
         let parsed = httui_core::blocks::parse_blocks(&data);
         assert_eq!(parsed[0].alias.as_deref(), Some("q2"));
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn commit_edit_persists_body_and_header_fields() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 2;
+        }
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "BODY");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        assert!(app.active_pane().unwrap().block_edit.is_none());
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 1;
+            p.block_col = 1;
+            p.block_row = 0;
+        }
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "Z");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        assert!(app.active_pane().unwrap().block_draft.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn commit_edit_db_query_field() {
+        let (mut app, _d, _v) = app_with_mixed_blocks().await;
+        enter_and_select(&mut app, 1, 0);
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 1;
+        }
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, " WHERE 1=1");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        assert!(app.active_pane().unwrap().block_draft.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn save_draft_writes_edited_url_to_disk() {
+        let (mut app, _d, v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "/edited");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        apply_blocks_view(&mut app, Action::BlocksSaveDraft);
+        let api = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
+        assert!(api.contains("/edited"), "save persisted the edit: {api}");
+        assert!(app.active_pane().unwrap().block_draft.is_none(), "draft cleared after save");
+        // A second save with no draft is a no-op.
+        apply_blocks_view(&mut app, Action::BlocksSaveDraft);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_new_on_block_row_and_delete_opens_prompt() {
+        let (mut app, _d, v) = app_with_mixed_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        app.tree.expanded.insert("data.md".to_string());
+        let vp = app.vault_path.clone();
+        app.tree.refresh(&vp);
+        let bidx = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| n.block.is_some() && n.path.ends_with("data.md"))
+            .expect("data.md block row");
+        app.tree.selected = bidx;
+        apply_blocks_view(&mut app, Action::BlocksTreeNewBlock);
+        let data = httui_core::fs::read_note(&v.path().to_string_lossy(), "data.md").unwrap();
+        assert_eq!(httui_core::blocks::parse_blocks(&data).len(), 3);
+        // Delete on a block row opens the confirm prompt (no removal yet).
+        app.tree.expanded.insert("data.md".to_string());
+        let vp = app.vault_path.clone();
+        app.tree.refresh(&vp);
+        let bidx2 = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| n.block.is_some())
+            .expect("a block row");
+        app.tree.selected = bidx2;
+        apply_blocks_view(&mut app, Action::BlocksTreeDeleteBlock);
+        assert!(app.tree.prompt.is_some(), "delete-block confirm prompt opened");
+    }
 }

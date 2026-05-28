@@ -971,3 +971,40 @@ async fn blocks_view_renders_pane_picker_overlay() {
     let (text, _) = render(&mut app, 120, 40);
     assert!(text.contains("[ a ]"), "picker label expected: {text:?}");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn render_modals_overlay_stack_dispatch() {
+    let (mut app, _d, _v) = app_with_files(&[("a.md", "# a\n")]).await;
+    open_doc(&mut app, "# a\n");
+    let modals: Vec<crate::modal::Modal> = vec![
+        crate::modal::Modal::Help,
+        crate::modal::Modal::Connections(Default::default()),
+        crate::modal::Modal::EnvsPage(Default::default()),
+        crate::modal::Modal::ConnectionDeleteConfirm(crate::app::ConnectionDeleteConfirmState {
+            name: "conn".into(),
+        }),
+        crate::modal::Modal::GitSetUpstreamConfirm(crate::git::GitSetUpstreamConfirmState {
+            remote: "origin".into(),
+            branch: "main".into(),
+        }),
+        crate::modal::Modal::GitBranchPicker(crate::git::GitBranchPickerState {
+            branches: vec![],
+            selected: 0,
+            error: None,
+        }),
+        crate::modal::Modal::VaultPicker(crate::app::VaultPickerState {
+            entries: vec!["vault".into()],
+            selected: 0,
+            active: None,
+        }),
+        crate::modal::Modal::VaultOpenPicker(crate::app::VaultOpenPickerState {
+            cwd: std::path::PathBuf::from("/tmp"),
+            entries: vec![],
+            selected: 0,
+        }),
+    ];
+    for m in modals {
+        app.modal = Some(m);
+        let _ = render(&mut app, 120, 40);
+    }
+}
