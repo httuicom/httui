@@ -1199,4 +1199,61 @@ mod tests {
             apply_blocks_view(&mut app, Action::BlocksTreeNewBlock);
         }
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_alias_collision_and_adjacent_reorder() {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        // `untitled3` already taken (collides with the len+1 candidate),
+        // and the two blocks are adjacent (no prose between fences).
+        write(
+            vault.path(),
+            "y.md",
+            "```http alias=untitled3\nGET /1\n```\n```http alias=x\nGET /2\n```\n",
+        );
+        let pool = init_db(data.path()).await.unwrap();
+        let mut app = App::new(
+            Config::default(),
+            ResolvedVault {
+                vault: vault.path().to_path_buf(),
+            },
+            pool,
+        );
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        let fi = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| n.path.ends_with("y.md") && n.block.is_none())
+            .expect("y.md row");
+        app.tree.selected = fi;
+        apply_blocks_view(&mut app, Action::BlocksTreeNewBlock);
+        let t = httui_core::fs::read_note(&vault.path().to_string_lossy(), "y.md").unwrap();
+        let aliases: Vec<_> = httui_core::blocks::parse_blocks(&t)
+            .iter()
+            .filter_map(|p| p.alias.clone())
+            .collect();
+        assert!(aliases.iter().any(|a| a == "untitled4"), "dedup skipped the collision: {aliases:?}");
+
+        // Reorder the two adjacent blocks (no prose between them).
+        app.tree.expanded.insert("y.md".to_string());
+        let vp = app.vault_path.clone();
+        app.tree.refresh(&vp);
+        let bi = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| {
+                n.path.ends_with("y.md")
+                    && n.block.as_ref().map(|b| b.block_idx == 0).unwrap_or(false)
+            })
+            .expect("y.md first block");
+        app.tree.selected = bi;
+        apply_blocks_view(&mut app, Action::BlocksTreeReorderDown);
+        let t = httui_core::fs::read_note(&vault.path().to_string_lossy(), "y.md").unwrap();
+        assert_eq!(
+            httui_core::blocks::parse_blocks(&t)[0].alias.as_deref(),
+            Some("x")
+        );
+    }
 }
