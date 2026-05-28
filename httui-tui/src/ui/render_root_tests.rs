@@ -738,3 +738,151 @@ async fn render_paints_env_form_and_var_form() {
     }));
     let _ = render(&mut app, 80, 20);
 }
+
+// ---- BLOCKS view render coverage -------------------------------
+
+async fn blocks_app() -> (App, TempDir, TempDir) {
+    let (mut app, data, vault) = app_with_files(&[
+        (
+            "api.md",
+            "# api\n\n```http alias=req1\nGET https://x.com\nAuthorization: Bearer {{TOKEN}}\n```\n",
+        ),
+        ("db.md", "# db\n\n```db-postgres alias=q1\nSELECT 1\n```\n"),
+    ])
+    .await;
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::ToggleAppView,
+    );
+    (app, data, vault)
+}
+
+fn block_ref_of(app: &App, want_http: bool) -> crate::app::BlockRef {
+    let ws = app.blocks_workspace.as_ref().expect("workspace built");
+    for (fi, f) in ws.index.files.iter().enumerate() {
+        for (bi, b) in f.blocks.iter().enumerate() {
+            if (b.block_type == "http") == want_http {
+                return crate::app::BlockRef {
+                    file_idx: fi,
+                    block_idx: bi,
+                };
+            }
+        }
+    }
+    panic!("no matching block in index");
+}
+
+fn select_ref(app: &mut App, sel: crate::app::BlockRef) {
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.selected = Some(sel);
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.block_selected = Some(sel);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_http_block() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("REQUEST"), "expected REQUEST card: {text:?}");
+    assert!(text.contains("RESPONSE"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_db_block() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, false);
+    select_ref(&mut app, sel);
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("QUERY"), "expected QUERY card: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_empty_selection_paints_placeholder() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("Select a block"), "expected placeholder: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_vertical_split() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let http = block_ref_of(&app, true);
+    let db = block_ref_of(&app, false);
+    select_ref(&mut app, http);
+    let active = app.tabs.active;
+    let tab = app.tabs.tabs.get_mut(active).unwrap();
+    let old = std::mem::replace(&mut tab.root, crate::pane::PaneNode::Leaf(crate::pane::Pane::empty()));
+    let mut second = crate::pane::Pane::empty();
+    second.block_selected = Some(db);
+    tab.root = crate::pane::PaneNode::Split {
+        direction: crate::pane::SplitDir::Vertical,
+        ratio: 0.5,
+        first: Box::new(old),
+        second: Box::new(crate::pane::PaneNode::Leaf(second)),
+    };
+    // Focus must point at a leaf, not the new split root.
+    tab.focused = vec![0];
+    let (text, _) = render(&mut app, 160, 40);
+    assert!(text.contains("REQUEST"));
+    assert!(text.contains("QUERY"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_edit_buffer() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::BlocksRegionEnterEdit,
+    );
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("EDIT"), "edit chip expected: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_http_response_with_cached_result() {
+    let (mut app, _d, v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let text = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
+    let mut doc = Document::from_markdown(&text).unwrap();
+    let idx = doc
+        .segments()
+        .iter()
+        .position(|s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type == "http"))
+        .unwrap();
+    if let Some(b) = doc.block_at_mut(idx) {
+        b.cached_result = Some(serde_json::json!({
+            "status": 200, "status_text": "OK",
+            "headers": [{"key": "content-type", "value": "application/json"}],
+            "body": "{\"ok\":true}", "elapsed_ms": 12, "size_bytes": 11
+        }));
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.document = Some(doc);
+        p.document_path = Some(v.path().join("api.md"));
+        p.block_region = 3;
+    }
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("200"), "status badge expected: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_unsaved_prompt_renders_over_pane() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    app.modal = Some(crate::modal::Modal::BlocksUnsavedPrompt(
+        crate::app::BlocksUnsavedPromptState {
+            dirty: vec![std::path::PathBuf::from("api.md")],
+            focus: crate::app::BlocksUnsavedPromptFocus::default(),
+        },
+    ));
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(!text.trim().is_empty());
+}

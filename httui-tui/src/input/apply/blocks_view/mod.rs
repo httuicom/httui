@@ -667,4 +667,97 @@ mod tests {
         }
         assert_eq!(app.active_pane().unwrap().block_selected, after_one);
     }
+
+    fn knone(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    #[test]
+    fn nav_keys_map_to_region_and_motion_actions() {
+        use Action::*;
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Tab), false, false), Some(BlocksPaneNextRegion)));
+        assert!(matches!(
+            resolve_nav_key(KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT), false, false),
+            Some(BlocksPanePrevRegion)
+        ));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('2')), false, false), Some(BlocksPaneJumpRegion(2))));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('k')), false, false), Some(BlocksPaneRowUp)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('j')), false, false), Some(BlocksPaneRowDown)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('h')), false, false), Some(BlocksPaneColLeft)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('l')), false, false), Some(BlocksPaneColRight)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Enter), false, false), Some(BlocksRegionEnterEdit)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::PageDown), false, false), Some(BlocksNextBlockMotion)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::PageUp), false, false), Some(BlocksPrevBlockMotion)));
+        assert!(resolve_nav_key(knone(KeyCode::Char('z')), false, false).is_none());
+    }
+
+    #[test]
+    fn nav_vim_only_and_headers_table_chords() {
+        use Action::*;
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('i')), true, false), Some(BlocksRegionEnterEditInsert)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('a')), true, false), Some(BlocksRegionEnterEditInsert)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char(']')), true, false), Some(BlocksNextBlockMotion)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('[')), true, false), Some(BlocksPrevBlockMotion)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('o')), false, true), Some(BlocksHeaderInsertRow)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Insert), false, true), Some(BlocksHeaderInsertRow)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('d')), false, true), Some(BlocksHeaderDeleteRow)));
+        assert!(matches!(resolve_nav_key(knone(KeyCode::Delete), false, true), Some(BlocksHeaderDeleteRow)));
+    }
+
+    #[test]
+    fn nav_save_and_response_tab_chords() {
+        use Action::*;
+        assert!(matches!(
+            resolve_nav_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL), false, false),
+            Some(BlocksSaveDraft)
+        ));
+        assert!(matches!(
+            resolve_nav_key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::ALT), false, false),
+            Some(BlocksResponseNextTab)
+        ));
+        assert!(matches!(
+            resolve_nav_key(
+                KeyEvent::new(KeyCode::Char('T'), KeyModifiers::ALT | KeyModifiers::SHIFT),
+                false,
+                false
+            ),
+            Some(BlocksResponsePrevTab)
+        ));
+    }
+
+    #[test]
+    fn edit_key_lifecycle_chords() {
+        use Action::*;
+        assert!(resolve_edit_key(knone(KeyCode::Esc), EditSubMode::Insert, true).is_none());
+        assert!(matches!(resolve_edit_key(knone(KeyCode::Esc), EditSubMode::Normal, true), Some(BlocksRegionCommitEdit)));
+        assert!(matches!(resolve_edit_key(knone(KeyCode::Esc), EditSubMode::Insert, false), Some(BlocksRegionCommitEdit)));
+        assert!(matches!(
+            resolve_edit_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL), EditSubMode::Insert, false),
+            Some(BlocksRegionCancelEdit)
+        ));
+        assert!(matches!(
+            resolve_edit_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL), EditSubMode::Insert, false),
+            Some(BlocksSaveDraft)
+        ));
+        assert!(matches!(
+            resolve_edit_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::ALT), EditSubMode::Insert, false),
+            Some(BlocksRunFocused)
+        ));
+        assert!(matches!(
+            resolve_edit_key(KeyEvent::new(KeyCode::Char('.'), KeyModifiers::ALT), EditSubMode::Insert, false),
+            Some(BlocksCancelRun)
+        ));
+        assert!(matches!(resolve_edit_key(knone(KeyCode::Char('r')), EditSubMode::Normal, true), Some(BlocksRunFocused)));
+        assert!(matches!(resolve_edit_key(knone(KeyCode::Char('.')), EditSubMode::Normal, true), Some(BlocksCancelRun)));
+        assert!(resolve_edit_key(knone(KeyCode::Char('x')), EditSubMode::Insert, false).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn resolve_pane_key_nav_modal_guard_and_submode() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        assert!(matches!(resolve_pane_key(&app, knone(KeyCode::Tab)), Some(Action::BlocksPaneNextRegion)));
+        assert_eq!(effective_sub_mode(&app), EditSubMode::Insert);
+        app.modal = Some(Modal::Help);
+        assert!(resolve_pane_key(&app, knone(KeyCode::Tab)).is_none());
+    }
 }
