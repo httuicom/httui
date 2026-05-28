@@ -1033,4 +1033,65 @@ mod tests {
         apply_blocks_view(&mut app, Action::BlocksTreeDeleteBlock);
         assert!(app.tree.prompt.is_some(), "delete-block confirm prompt opened");
     }
+
+    /// Load `data.md` into the focused pane with cached result rows on
+    /// its first DB block, parked on the Result band.
+    fn load_db_result_rows(app: &mut App, vault: &std::path::Path) {
+        let text = httui_core::fs::read_note(&vault.to_string_lossy(), "data.md").unwrap();
+        let mut doc = crate::buffer::Document::from_markdown(&text).unwrap();
+        let idx = doc
+            .segments()
+            .iter()
+            .position(|s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type.starts_with("db")))
+            .unwrap();
+        if let Some(b) = doc.block_at_mut(idx) {
+            b.cached_result = Some(serde_json::json!({
+                "results": [{
+                    "kind": "select",
+                    "columns": ["id"],
+                    "rows": [{"id": 1}, {"id": 2}, {"id": 3}]
+                }]
+            }));
+        }
+        if let Some(p) = app.active_pane_mut() {
+            p.document = Some(doc);
+            p.document_path = Some(vault.join("data.md"));
+            p.block_region = 2;
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn nav_db_result_rows_and_col_clamp() {
+        let (mut app, _d, v) = app_with_mixed_blocks().await;
+        enter_and_select(&mut app, 1, 0);
+        load_db_result_rows(&mut app, v.path());
+        apply_blocks_view(&mut app, Action::BlocksPaneRowDown);
+        apply_blocks_view(&mut app, Action::BlocksPaneRowDown);
+        assert_eq!(app.active_pane().unwrap().block_row, 2);
+        apply_blocks_view(&mut app, Action::BlocksPaneColLeft);
+        apply_blocks_view(&mut app, Action::BlocksPaneColRight);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn enter_edit_on_db_result_opens_row_detail_modal() {
+        let (mut app, _d, v) = app_with_mixed_blocks().await;
+        enter_and_select(&mut app, 1, 0);
+        load_db_result_rows(&mut app, v.path());
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        assert!(matches!(app.modal, Some(Modal::DbRowDetail(_))));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn save_draft_restores_on_write_failure() {
+        let (mut app, _d, v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "/x");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        // Make the target path unwritable: replace the file with a dir.
+        std::fs::remove_file(v.path().join("api.md")).unwrap();
+        std::fs::create_dir(v.path().join("api.md")).unwrap();
+        apply_blocks_view(&mut app, Action::BlocksSaveDraft);
+        // Write failed → the draft is restored, not silently lost.
+        assert!(app.active_pane().unwrap().block_draft.is_some());
+    }
 }
