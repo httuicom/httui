@@ -1256,4 +1256,41 @@ mod tests {
             Some("x")
         );
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_reorder_and_delete_on_file_without_trailing_newline() {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        write(
+            vault.path(),
+            "z.md",
+            "```http alias=a\nGET /1\n```\n\n```http alias=b\nGET /2\n```",
+        );
+        let pool = init_db(data.path()).await.unwrap();
+        let mut app = App::new(
+            Config::default(),
+            ResolvedVault {
+                vault: vault.path().to_path_buf(),
+            },
+            pool,
+        );
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        app.tree.expanded.insert("z.md".to_string());
+        let vp = app.vault_path.clone();
+        app.tree.refresh(&vp);
+        let bi = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| {
+                n.path.ends_with("z.md")
+                    && n.block.as_ref().map(|b| b.block_idx == 0).unwrap_or(false)
+            })
+            .expect("z.md first block");
+        app.tree.selected = bi;
+        apply_blocks_view(&mut app, Action::BlocksTreeReorderDown);
+        tree_delete_block_confirmed(&mut app, "z.md", 0);
+        let t = httui_core::fs::read_note(&vault.path().to_string_lossy(), "z.md").unwrap();
+        assert_eq!(httui_core::blocks::parse_blocks(&t).len(), 1);
+    }
 }
