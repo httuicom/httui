@@ -212,7 +212,16 @@ fn toggle_view(app: &mut App) {
 }
 
 fn enter_blocks(app: &mut App) {
-    let index = BlockIndex::build(&app.vault_path);
+    let mut index = BlockIndex::build(&app.vault_path);
+    // Fill in last-run badges from history (synchronous read — cheap on
+    // a local SQLite file; toggling into BLOCKS is infrequent).
+    let pool = app.pool_manager.app_pool().clone();
+    let vault = app.vault_path.clone();
+    tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(async {
+            crate::app::enrich_last_runs(&mut index, &vault, &pool).await;
+        });
+    });
     if app.blocks_workspace.is_none() {
         app.blocks_workspace = Some(BlocksWorkspace::new(index.clone()));
     } else if let Some(ws) = app.blocks_workspace.as_mut() {
@@ -232,7 +241,6 @@ fn enter_blocks(app: &mut App) {
     app.view = AppView::Blocks;
     app.tree.block_index = Some(index);
     app.tree.visible = true;
-    let vault = app.vault_path.clone();
     app.tree.refresh(&vault);
     app.vim.mode = Mode::Tree;
     app.vim.reset_pending();

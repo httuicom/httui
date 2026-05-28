@@ -206,6 +206,23 @@ impl PaneNode {
             PaneNode::Split { first, second, .. } => first.leaf_count() + second.leaf_count(),
         }
     }
+
+    /// Borrow every leaf pane in depth-first order.
+    pub fn leaf_panes(&self) -> Vec<&Pane> {
+        let mut out = Vec::new();
+        self.collect_leaf_panes(&mut out);
+        out
+    }
+
+    fn collect_leaf_panes<'a>(&'a self, out: &mut Vec<&'a Pane>) {
+        match self {
+            PaneNode::Leaf(p) => out.push(p),
+            PaneNode::Split { first, second, .. } => {
+                first.collect_leaf_panes(out);
+                second.collect_leaf_panes(out);
+            }
+        }
+    }
 }
 
 /// A tab's pane tree plus the path of the currently focused leaf.

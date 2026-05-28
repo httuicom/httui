@@ -252,7 +252,18 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     let tree_focused = matches!(app.vim.mode, Mode::Tree | Mode::TreePrompt);
     if let Some(sa) = sidebar_area {
-        tree::render(frame, sa, &app.tree, tree_focused);
+        // Files with a committed-but-unsaved block draft in any pane get
+        // a dirty dot. `block_draft` is only ever set in BLOCKS view, so
+        // this set is naturally empty in DOC mode.
+        let dirty_files: std::collections::HashSet<String> = app
+            .tabs
+            .tabs
+            .iter()
+            .flat_map(|t| t.root.leaf_panes())
+            .filter_map(|p| p.block_draft.as_ref())
+            .map(|d| d.file_path.to_string_lossy().into_owned())
+            .collect();
+        tree::render(frame, sa, &app.tree, tree_focused, &dirty_files);
     }
     let git_cursor = if let Some(ga) = git_area {
         let focused = app.vim.mode == Mode::Git;

@@ -22,6 +22,7 @@ use crate::vim::VimState;
 // The blanket `pub use` re-exports keep every `crate::app::*` call
 // site resolving without edits.
 mod autosave;
+mod block_badges;
 mod blocks_view;
 mod event_loop;
 mod helpers;
@@ -40,6 +41,7 @@ mod standard_state;
 mod status;
 mod tabbar;
 mod viewport;
+pub use block_badges::*;
 pub use blocks_view::*;
 pub use event_loop::run;
 pub(crate) use helpers::*;

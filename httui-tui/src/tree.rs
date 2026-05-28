@@ -15,7 +15,7 @@ use std::path::Path;
 
 use httui_core::fs::FileEntry;
 
-use crate::app::BlockIndex;
+use crate::app::{BlockIndex, BlockLastRun};
 
 #[derive(Debug, Default)]
 pub struct FileTree {
@@ -109,6 +109,9 @@ pub struct TreeBlockMeta {
     pub block_idx: usize,
     pub block_type: String,
     pub label: String,
+    /// Last recorded run, copied from the source [`BlockMeta`] when the
+    /// tree is flattened. Drives the sidebar status badge.
+    pub last_run: Option<BlockLastRun>,
 }
 
 impl FileTree {
@@ -260,6 +263,7 @@ fn flatten_blocks(
                     block_idx,
                     block_type: block.block_type.clone(),
                     label: block.label(),
+                    last_run: block.last_run.clone(),
                 }),
             });
         }

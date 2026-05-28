@@ -11,11 +11,27 @@ pub enum AppView {
     Blocks,
 }
 
+/// Last recorded run of a block, distilled from `block_run_history`
+/// into just what the sidebar badge needs. `status` overloads the
+/// history column the same way the writer does: the HTTP status code
+/// for HTTP blocks, the SELECT row-count / mutation rows-affected for
+/// DB blocks (see `derive_db_history_stats`). `outcome` is the raw
+/// history outcome (`"ok"`, `"error"`, `"cancelled"`, …).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockLastRun {
+    pub status: Option<i64>,
+    pub outcome: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockMeta {
     pub alias: Option<String>,
     pub block_type: String,
     pub line_start: usize,
+    /// Populated by [`enrich_last_runs`] after the index is built —
+    /// `None` until then, and for anonymous blocks (history is keyed
+    /// by alias) or blocks that never ran.
+    pub last_run: Option<BlockLastRun>,
 }
 
 impl BlockMeta {
@@ -76,6 +92,7 @@ fn collect_files(vault: &Path, entries: &[FileEntry], out: &mut Vec<FileBlocks>)
                 alias: p.alias.clone(),
                 block_type: p.block_type.clone(),
                 line_start: p.line_start,
+                last_run: None,
             })
             .collect();
         out.push(FileBlocks {
@@ -582,12 +599,14 @@ mod tests {
             alias: Some("login".into()),
             block_type: "http".into(),
             line_start: 5,
+            last_run: None,
         };
         assert_eq!(with_alias.label(), "login");
         let no_alias = BlockMeta {
             alias: None,
             block_type: "http".into(),
             line_start: 5,
+            last_run: None,
         };
         assert_eq!(no_alias.label(), "L6");
     }
@@ -602,6 +621,7 @@ mod tests {
                     alias: Some("q".into()),
                     block_type: "http".into(),
                     line_start: 1,
+                    last_run: None,
                 }],
             }],
         };

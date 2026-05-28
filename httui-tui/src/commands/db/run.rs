@@ -338,6 +338,16 @@ pub fn run_db_block_inner(
             if row.status == "success" {
                 if let Ok(value) = serde_json::from_str::<serde_json::Value>(&row.response) {
                     let summary = db_summary_from_value(Some(&value), row.elapsed_ms as u64);
+                    // Row count for the sidebar badge — read before the
+                    // value is moved into the block. Cached rows are only
+                    // ever successes (errors aren't cached).
+                    let rows = value
+                        .get("results")
+                        .and_then(|r| r.as_array())
+                        .and_then(|a| a.first())
+                        .and_then(|r| r.get("rows"))
+                        .and_then(|r| r.as_array())
+                        .map(|r| r.len() as i64);
                     if let Some(doc) = app.tabs.active_document_mut() {
                         if let Some(b) = doc.block_at_mut(segment_idx) {
                             b.state = ExecutionState::Cached;
@@ -345,6 +355,17 @@ pub fn run_db_block_inner(
                         }
                     }
                     app.set_status(StatusKind::Info, format!("⛁ cached · {summary}"));
+                    if let Some(alias) = block.alias.as_deref() {
+                        crate::app::refresh_block_badge(
+                            app,
+                            fp,
+                            alias,
+                            crate::app::BlockLastRun {
+                                status: rows,
+                                outcome: "success".into(),
+                            },
+                        );
+                    }
                     // No AppEvent for cache hits; advance the chain ourselves.
                     crate::commands::refs::on_block_complete(app, segment_idx, true);
                     return;

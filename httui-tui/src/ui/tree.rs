@@ -14,6 +14,8 @@ use ratatui::{
     Frame,
 };
 
+use std::collections::HashSet;
+
 use crate::tree::FileTree;
 
 const SIDEBAR_WIDTH: u16 = 30;
@@ -22,7 +24,16 @@ pub fn width() -> u16 {
     SIDEBAR_WIDTH
 }
 
-pub fn render(frame: &mut Frame, area: Rect, tree: &FileTree, focused: bool) {
+/// `dirty_files` holds vault-relative paths of files that have at least
+/// one block in draft (committed-but-unsaved in some pane). Matching
+/// file rows get a red `●` dot. Empty outside BLOCKS view.
+pub fn render(
+    frame: &mut Frame,
+    area: Rect,
+    tree: &FileTree,
+    focused: bool,
+    dirty_files: &HashSet<String>,
+) {
     let (border_color, title_style) = if focused {
         (
             crate::ui::palette::popup_border_accent(),
@@ -94,7 +105,7 @@ pub fn render(frame: &mut Frame, area: Rect, tree: &FileTree, focused: bool) {
                 } else {
                     crate::ui::palette::popup_border_accent()
                 };
-                let line = Line::from(vec![
+                let mut spans = vec![
                     Span::raw(indent),
                     Span::raw("  "),
                     Span::styled(
@@ -106,8 +117,20 @@ pub fn render(frame: &mut Frame, area: Rect, tree: &FileTree, focused: bool) {
                     ),
                     Span::raw(" "),
                     Span::styled(meta.label.clone(), Style::default()),
-                ]);
-                return ListItem::new(line);
+                ];
+                if let Some(lr) = meta.last_run.as_ref() {
+                    let (label, color) = block_run_chip(
+                        meta.block_type.starts_with("db"),
+                        lr.status,
+                        &lr.outcome,
+                    );
+                    spans.push(Span::raw("  "));
+                    spans.push(Span::styled(
+                        label,
+                        Style::default().fg(color).add_modifier(Modifier::BOLD),
+                    ));
+                }
+                return ListItem::new(Line::from(spans));
             }
             let expandable = node.is_dir || block_mode;
             let icon = if expandable {
@@ -124,12 +147,16 @@ pub fn render(frame: &mut Frame, area: Rect, tree: &FileTree, focused: bool) {
             } else {
                 Style::default()
             };
-            let line = Line::from(vec![
+            let mut spans = vec![
                 Span::raw(indent),
                 Span::styled(icon, Style::default().fg(crate::ui::palette::muted())),
                 Span::styled(node.name.clone(), name_style),
-            ]);
-            ListItem::new(line)
+            ];
+            if !node.is_dir && dirty_files.contains(&node.path) {
+                spans.push(Span::raw(" "));
+                spans.push(Span::styled("●", Style::default().fg(Color::Red)));
+            }
+            ListItem::new(Line::from(spans))
         })
         .collect();
 
@@ -161,6 +188,36 @@ fn block_badge(block_type: &str) -> String {
         " DB ".into()
     } else {
         format!(" {block_type} ")
+    }
+}
+
+/// Last-run badge text + color for a sidebar block row. HTTP shows the
+/// status code colored by class (2xx green, 3xx blue, 4xx/5xx red); DB
+/// shows the row count in blue (`status` holds `rows.len()` /
+/// `rows_affected` — see `derive_db_history_stats`). A recorded
+/// `"error"` outcome is always red; `"cancelled"` is a muted dash.
+fn block_run_chip(is_db: bool, status: Option<i64>, outcome: &str) -> (String, Color) {
+    match outcome {
+        "cancelled" => ("—".into(), crate::ui::palette::muted()),
+        "error" => (
+            status.map(|c| c.to_string()).unwrap_or_else(|| "err".into()),
+            Color::Red,
+        ),
+        _ if is_db => match status {
+            Some(1) => ("1 row".into(), crate::ui::palette::accent()),
+            Some(n) => (format!("{n} rows"), crate::ui::palette::accent()),
+            None => ("ok".into(), crate::ui::palette::accent()),
+        },
+        _ => match status {
+            Some(c) if (200..300).contains(&c) => {
+                (c.to_string(), crate::ui::palette::success())
+            }
+            Some(c) if (300..400).contains(&c) => {
+                (c.to_string(), crate::ui::palette::accent())
+            }
+            Some(c) => (c.to_string(), Color::Red),
+            None => ("—".into(), crate::ui::palette::muted()),
+        },
     }
 }
 
@@ -227,7 +284,7 @@ mod tests {
     fn renders_entries_with_files_block_title_and_dir_icon() {
         let mut t = term(30, 8);
         let tree = fixture();
-        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false))
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
             .unwrap();
         let text = buffer_text(&t);
         assert!(text.contains("httui"));
@@ -243,7 +300,7 @@ mod tests {
         let mut t = term(30, 8);
         let mut tree = fixture();
         tree.expanded.clear();
-        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false))
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
             .unwrap();
         let text = buffer_text(&t);
         assert!(text.contains("▸"), "collapsed icon missing: {text}");
@@ -253,7 +310,7 @@ mod tests {
     fn empty_tree_renders_without_panic() {
         let mut t = term(30, 6);
         let tree = FileTree::default();
-        t.draw(|f| render(f, Rect::new(0, 0, 30, 6), &tree, false))
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 6), &tree, false, &HashSet::new()))
             .unwrap();
         let text = buffer_text(&t);
         assert!(text.contains("httui"));
@@ -266,7 +323,7 @@ mod tests {
         let tree = fixture();
         for focused in [false, true] {
             let mut t = term(30, 8);
-            t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, focused))
+            t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, focused, &HashSet::new()))
                 .unwrap();
             assert!(buffer_text(&t).contains("httui"));
         }
@@ -279,8 +336,140 @@ mod tests {
         let mut t = term(30, 8);
         let mut tree = fixture();
         tree.selected = 999;
-        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, true))
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, true, &HashSet::new()))
             .unwrap();
         assert!(buffer_text(&t).contains("beta.md"));
+    }
+
+    use crate::app::BlockLastRun;
+    use crate::tree::TreeBlockMeta;
+
+    fn block_row(block_type: &str, label: &str, last_run: Option<BlockLastRun>) -> FileTree {
+        FileTree {
+            entries: vec![
+                TreeNode {
+                    name: "api.md".into(),
+                    path: "api.md".into(),
+                    is_dir: false,
+                    depth: 0,
+                    block: None,
+                },
+                TreeNode {
+                    name: label.into(),
+                    path: "api.md".into(),
+                    is_dir: false,
+                    depth: 1,
+                    block: Some(TreeBlockMeta {
+                        file_idx: 0,
+                        block_idx: 0,
+                        block_type: block_type.into(),
+                        label: label.into(),
+                        last_run,
+                    }),
+                },
+            ],
+            ..FileTree::default()
+        }
+    }
+
+    #[test]
+    fn block_run_chip_http_status_classes() {
+        assert_eq!(
+            block_run_chip(false, Some(204), "ok"),
+            ("204".into(), crate::ui::palette::success())
+        );
+        assert_eq!(
+            block_run_chip(false, Some(301), "ok"),
+            ("301".into(), crate::ui::palette::accent())
+        );
+        assert_eq!(block_run_chip(false, Some(500), "ok"), ("500".into(), Color::Red));
+        assert_eq!(block_run_chip(false, Some(404), "ok"), ("404".into(), Color::Red));
+    }
+
+    #[test]
+    fn block_run_chip_db_rows_are_blue() {
+        assert_eq!(
+            block_run_chip(true, Some(12), "ok"),
+            ("12 rows".into(), crate::ui::palette::accent())
+        );
+        assert_eq!(
+            block_run_chip(true, Some(1), "ok"),
+            ("1 row".into(), crate::ui::palette::accent())
+        );
+    }
+
+    #[test]
+    fn block_run_chip_error_and_cancelled() {
+        assert_eq!(block_run_chip(false, Some(500), "error"), ("500".into(), Color::Red));
+        assert_eq!(block_run_chip(true, None, "error"), ("err".into(), Color::Red));
+        assert_eq!(
+            block_run_chip(false, None, "cancelled"),
+            ("—".into(), crate::ui::palette::muted())
+        );
+    }
+
+    #[test]
+    fn renders_http_status_badge_next_to_block() {
+        let mut t = term(30, 8);
+        let tree = block_row(
+            "http",
+            "login",
+            Some(BlockLastRun {
+                status: Some(200),
+                outcome: "ok".into(),
+            }),
+        );
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
+            .unwrap();
+        let text = buffer_text(&t);
+        assert!(text.contains("login"), "{text}");
+        assert!(text.contains("200"), "status badge missing: {text}");
+    }
+
+    #[test]
+    fn renders_db_row_count_badge() {
+        let mut t = term(30, 8);
+        let tree = block_row(
+            "db-postgres",
+            "audit",
+            Some(BlockLastRun {
+                status: Some(12),
+                outcome: "ok".into(),
+            }),
+        );
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
+            .unwrap();
+        assert!(buffer_text(&t).contains("12 rows"));
+    }
+
+    #[test]
+    fn block_without_last_run_has_no_badge() {
+        let mut t = term(30, 8);
+        let tree = block_row("http", "login", None);
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
+            .unwrap();
+        let text = buffer_text(&t);
+        // The label is there but no trailing status digits.
+        assert!(text.contains("login"), "{text}");
+    }
+
+    #[test]
+    fn dirty_file_gets_red_dot() {
+        let mut t = term(30, 8);
+        let tree = fixture();
+        let mut dirty = HashSet::new();
+        dirty.insert("notes/alpha.md".to_string());
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &dirty))
+            .unwrap();
+        assert!(buffer_text(&t).contains("●"), "dirty dot missing");
+    }
+
+    #[test]
+    fn clean_files_have_no_dot() {
+        let mut t = term(30, 8);
+        let tree = fixture();
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
+            .unwrap();
+        assert!(!buffer_text(&t).contains("●"), "unexpected dirty dot");
     }
 }
