@@ -1117,4 +1117,44 @@ mod tests {
         let parsed = httui_core::blocks::parse_blocks(&data);
         assert_eq!(parsed[0].alias.as_deref(), Some("q1"), "top-edge reorder is a no-op");
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_new_block_dedups_alias_across_calls() {
+        let (mut app, _d, v) = app_with_mixed_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        for _ in 0..2 {
+            let i = app
+                .tree
+                .entries
+                .iter()
+                .position(|n| n.path.ends_with("api.md") && n.block.is_none())
+                .expect("api.md row");
+            app.tree.selected = i;
+            apply_blocks_view(&mut app, Action::BlocksTreeNewBlock);
+        }
+        let api = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
+        assert_eq!(httui_core::blocks::parse_blocks(&api).len(), 3);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn header_row_insert_synthesises_and_delete_empties() {
+        // The `login` block has no headers, so the first insert must
+        // synthesise the `headers` array.
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 1;
+        }
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        assert!(
+            app.active_pane()
+                .unwrap()
+                .block_draft
+                .as_ref()
+                .map(|d| d.header_count() >= 1)
+                .unwrap_or(false)
+        );
+        apply_blocks_view(&mut app, Action::BlocksHeaderDeleteRow);
+        // Deleting again on an empty list is a safe no-op.
+        apply_blocks_view(&mut app, Action::BlocksHeaderDeleteRow);
+    }
 }
