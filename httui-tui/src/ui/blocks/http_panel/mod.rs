@@ -418,7 +418,7 @@ fn http_body(b: &BlockNode) -> Vec<Line<'static>> {
     lines
 }
 
-pub(super) fn method_color(method: &str) -> Color {
+pub(crate) fn method_color(method: &str) -> Color {
     match method {
         "GET" => Color::Green,
         "POST" => Color::Blue,

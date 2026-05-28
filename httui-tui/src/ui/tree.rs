@@ -10,7 +10,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
 
@@ -36,18 +36,50 @@ pub fn render(frame: &mut Frame, area: Rect, tree: &FileTree, focused: bool) {
             Style::default().fg(Color::Gray),
         )
     };
-    let title = if tree.block_index.is_some() {
-        " Blocks "
-    } else {
-        " Files "
-    };
+    let logo = Line::from(vec![
+        Span::raw(" "),
+        Span::styled(
+            "H>",
+            Style::default()
+                .fg(crate::ui::palette::accent())
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" httui ", title_style),
+    ]);
     let block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(Style::default().fg(border_color))
-        .title(Span::styled(title, title_style));
+        .title(logo)
+        .title_top(Line::from(Span::styled(" ⚙ ", title_style)).right_aligned());
     let inner = block.inner(area);
     frame.render_widget(block, area);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    // Reserve the top line for the quick-jump hint; the tree list fills
+    // the rest.
+    let rows = ratatui::layout::Layout::default()
+        .direction(ratatui::layout::Direction::Vertical)
+        .constraints([
+            ratatui::layout::Constraint::Length(1),
+            ratatui::layout::Constraint::Min(0),
+        ])
+        .split(inner);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                " Ctrl+P",
+                Style::default().fg(crate::ui::palette::accent()),
+            ),
+            Span::styled(
+                "  Jump…",
+                Style::default().fg(crate::ui::palette::muted()),
+            ),
+        ])),
+        rows[0],
+    );
+    let inner = rows[1];
 
     let block_mode = tree.block_index.is_some();
     let items: Vec<ListItem> = tree
@@ -198,7 +230,7 @@ mod tests {
         t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false))
             .unwrap();
         let text = buffer_text(&t);
-        assert!(text.contains("Files"));
+        assert!(text.contains("httui"));
         assert!(text.contains("notes"));
         assert!(text.contains("alpha.md"));
         assert!(text.contains("beta.md"));
@@ -224,7 +256,7 @@ mod tests {
         t.draw(|f| render(f, Rect::new(0, 0, 30, 6), &tree, false))
             .unwrap();
         let text = buffer_text(&t);
-        assert!(text.contains("Files"));
+        assert!(text.contains("httui"));
     }
 
     #[test]
@@ -236,7 +268,7 @@ mod tests {
             let mut t = term(30, 8);
             t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, focused))
                 .unwrap();
-            assert!(buffer_text(&t).contains("Files"));
+            assert!(buffer_text(&t).contains("httui"));
         }
     }
 

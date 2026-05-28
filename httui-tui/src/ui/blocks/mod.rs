@@ -20,8 +20,8 @@ use crate::buffer::block::{BlockNode, ExecutionState};
 
 mod db_chrome;
 pub(crate) mod db_table;
-mod http_panel;
-mod ref_highlight;
+pub(crate) mod http_panel;
+pub(crate) mod ref_highlight;
 pub(crate) mod result_tabs;
 
 /// Lookup `connection_id → human_name` so DB block footers can show

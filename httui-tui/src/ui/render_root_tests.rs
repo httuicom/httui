@@ -167,7 +167,7 @@ async fn git_panel_and_tree_share_body_with_editor_in_middle() {
     app.git_panel.visible = true;
     let (text, _c) = render(&mut app, 110, 16);
     // All three columns coexist: tree title, editor content, panel title.
-    assert!(text.contains("Files"), "tree painted: {text:?}");
+    assert!(text.contains("httui"), "tree painted: {text:?}");
     assert!(text.contains("middle slot"), "editor painted: {text:?}");
     assert!(text.contains("Git"), "git panel painted: {text:?}");
 }

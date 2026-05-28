@@ -214,12 +214,63 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
                 .add_modifier(Modifier::BOLD),
         ));
     }
-    spans.push(Span::raw(format!(
-        " {file}{dirty_marker} · {block_count} blocks · {cursor_label} · vault: {vault} · theme: {}",
-        app.config.theme
-    )));
+    if matches!(app.view, crate::app::AppView::Blocks) {
+        spans.extend(blocks_view_status_tail(app));
+    } else {
+        spans.push(Span::raw(format!(
+            " {file}{dirty_marker} · {block_count} blocks · {cursor_label} · vault: {vault} · theme: {}",
+            app.config.theme
+        )));
+    }
     let line = Line::from(spans);
     frame.render_widget(Paragraph::new(line), area);
+}
+
+/// Trailing status segment for BLOCKS view: open-block count, split
+/// shape and the binary version. The capture summary slot is reserved
+/// but unpopulated until cross-block usage lands.
+fn blocks_view_status_tail(app: &App) -> Vec<Span<'static>> {
+    let muted = Style::default().fg(crate::ui::palette::muted());
+    let version = env!("CARGO_PKG_VERSION");
+    let Some(tab) = app.active_tab() else {
+        return vec![Span::styled(format!(" httui {version}"), muted)];
+    };
+    let leaves = tab.leaf_count();
+    let open = count_open_blocks(&tab.root);
+    let split = split_label(&tab.root, leaves);
+    vec![Span::styled(
+        format!(
+            " {open} block{} open · split: {split} · httui {version}",
+            if open == 1 { "" } else { "s" },
+        ),
+        muted,
+    )]
+}
+
+fn count_open_blocks(node: &crate::pane::PaneNode) -> usize {
+    match node {
+        crate::pane::PaneNode::Leaf(p) => usize::from(p.block_selected.is_some()),
+        crate::pane::PaneNode::Split { first, second, .. } => {
+            count_open_blocks(first) + count_open_blocks(second)
+        }
+    }
+}
+
+fn split_label(root: &crate::pane::PaneNode, leaves: usize) -> &'static str {
+    if leaves <= 1 {
+        return "none";
+    }
+    match root {
+        crate::pane::PaneNode::Split {
+            direction: crate::pane::SplitDir::Vertical,
+            ..
+        } if leaves == 2 => "side-by-side",
+        crate::pane::PaneNode::Split {
+            direction: crate::pane::SplitDir::Horizontal,
+            ..
+        } if leaves == 2 => "stacked",
+        _ => "complex",
+    }
 }
 
 /// Render a compact form of the vault path for the status bar.
@@ -252,10 +303,8 @@ fn compact_vault_path(path: &std::path::Path) -> String {
     format!("…/{tail}")
 }
 
-/// BLOCKS-view-only chips: `BLOCKS · NAV · [N] Region` while navigating,
-/// or `BLOCKS · EDIT · [N] field` once a buffer is open. Returns an
-/// empty vec in DOC view so the status bar paints unchanged for the
-/// majority case.
+/// BLOCKS-view-only chips: `BLOCKS · NAV · Region` while navigating, or
+/// `BLOCKS · EDIT · field` once a buffer is open. Empty in DOC view.
 fn blocks_view_chips(app: &App) -> Vec<Span<'static>> {
     if !matches!(app.view, crate::app::AppView::Blocks) {
         return Vec::new();
@@ -305,7 +354,7 @@ fn blocks_view_chips(app: &App) -> Vec<Span<'static>> {
         out.push(Span::styled(chip_label, chip));
         out.push(Span::raw(" "));
         out.push(Span::styled(
-            format!("[{}] {region_name} · {field}", region_idx + 1),
+            format!("{region_name} · {field}"),
             Style::default().fg(crate::ui::palette::muted()),
         ));
     } else {
@@ -316,7 +365,7 @@ fn blocks_view_chips(app: &App) -> Vec<Span<'static>> {
         ));
         out.push(Span::raw(" "));
         out.push(Span::styled(
-            format!("[{}] {region_name}", region_idx + 1),
+            region_name.to_string(),
             Style::default().fg(crate::ui::palette::muted()),
         ));
     }
@@ -492,6 +541,49 @@ mod tests {
     use std::time::Instant;
     use tempfile::TempDir;
     use tokio_util::sync::CancellationToken;
+
+    // ---- BLOCKS-view status tail helpers -----------------------------
+
+    #[test]
+    fn split_label_classifies_shapes() {
+        use crate::pane::{Pane, PaneNode, SplitDir};
+        let leaf = || PaneNode::Leaf(Pane::empty());
+        assert_eq!(split_label(&leaf(), 1), "none");
+        let vsplit = PaneNode::Split {
+            direction: SplitDir::Vertical,
+            ratio: 0.5,
+            first: Box::new(leaf()),
+            second: Box::new(leaf()),
+        };
+        assert_eq!(split_label(&vsplit, 2), "side-by-side");
+        let hsplit = PaneNode::Split {
+            direction: SplitDir::Horizontal,
+            ratio: 0.5,
+            first: Box::new(leaf()),
+            second: Box::new(leaf()),
+        };
+        assert_eq!(split_label(&hsplit, 2), "stacked");
+        assert_eq!(split_label(&vsplit, 3), "complex");
+    }
+
+    #[test]
+    fn count_open_blocks_counts_selected_leaves() {
+        use crate::pane::{Pane, PaneNode, SplitDir};
+        let empty = PaneNode::Leaf(Pane::empty());
+        assert_eq!(count_open_blocks(&empty), 0);
+        let mut selected_pane = Pane::empty();
+        selected_pane.block_selected = Some(crate::app::BlockRef {
+            file_idx: 0,
+            block_idx: 0,
+        });
+        let tree = PaneNode::Split {
+            direction: SplitDir::Vertical,
+            ratio: 0.5,
+            first: Box::new(PaneNode::Leaf(selected_pane)),
+            second: Box::new(PaneNode::Leaf(Pane::empty())),
+        };
+        assert_eq!(count_open_blocks(&tree), 1);
+    }
 
     // ---- compact_vault_path (pure-string, no App needed) -------------
 

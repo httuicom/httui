@@ -268,9 +268,14 @@ fn resolve_nav_key(key: KeyEvent, vim: bool, in_headers: bool) -> Option<Action>
 pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
     match action {
         Action::ToggleAppView => request_toggle_view(app),
-        Action::BlocksPaneNextRegion => shift_region(app, 1),
-        Action::BlocksPanePrevRegion => shift_region(app, -1),
-        Action::BlocksPaneJumpRegion(n) => set_region(app, n.saturating_sub(1)),
+        Action::BlocksPaneNextRegion => cycle_band_subtab(app, 1),
+        Action::BlocksPanePrevRegion => cycle_band_subtab(app, -1),
+        Action::BlocksPaneJumpRegion(n) => {
+            let target = active_block_type(app)
+                .map(|bt| jump_target_region(&bt, n))
+                .unwrap_or(0);
+            set_region(app, target);
+        }
         Action::BlocksPanePickerChoose(n) => choose_picker(app, n.saturating_sub(1)),
         Action::BlocksPanePickerCancel => cancel_picker(app),
         Action::BlocksPaneRowUp => shift_row(app, -1),
@@ -507,20 +512,73 @@ fn refresh_pane_history(app: &mut App, file: String, alias: String) {
     }
 }
 
-fn shift_region(app: &mut App, delta: isize) {
-    let count = active_block_region_count(app);
-    let Some(pane) = app.active_pane_mut() else {
+/// Vertical band neighbour for `dir` (-1 up / +1 down). HTTP bands:
+/// URL(0) → Request(1/2) → Response(3). DB: Connection(0) → Query(1) →
+/// Result(2). `None` at the top/bottom edge.
+fn band_neighbor(block_type: &str, region: usize, dir: isize) -> Option<usize> {
+    if block_type == "http" {
+        match (region, dir.signum()) {
+            (0, 1) => Some(1),
+            (1 | 2, -1) => Some(0),
+            (1 | 2, 1) => Some(3),
+            (3, -1) => Some(1),
+            _ => None,
+        }
+    } else {
+        match (region, dir.signum()) {
+            (0, 1) => Some(1),
+            (1, -1) => Some(0),
+            (1, 1) => Some(2),
+            (2, -1) => Some(1),
+            _ => None,
+        }
+    }
+}
+
+/// Move to the band above/below, landing on its bottom row going up and
+/// its top row going down (vim split-edge feel).
+fn move_band(app: &mut App, dir: isize) {
+    let Some(bt) = active_block_type(app) else {
         return;
     };
-    if count == 0 {
-        pane.block_region = 0;
+    let region = app.active_pane().map(|p| p.block_region).unwrap_or(0);
+    let Some(target) = band_neighbor(&bt, region, dir) else {
         return;
+    };
+    if let Some(pane) = app.active_pane_mut() {
+        pane.block_region = target;
+        pane.block_col = 1;
     }
-    let current = pane.block_region as isize;
-    let next = (current + delta).rem_euclid(count as isize);
-    pane.block_region = next as usize;
-    pane.block_row = 0;
-    pane.block_col = 1;
+    let count = active_region_row_count(app);
+    if let Some(pane) = app.active_pane_mut() {
+        pane.block_row = if dir < 0 { count.saturating_sub(1) } else { 0 };
+    }
+}
+
+/// `Tab` cycles the sub-tabs of the focused band only: HTTP Request
+/// toggles Headers↔Body, Response cycles its result sub-tabs; the URL
+/// band has none. DB cycles only the Result sub-tabs.
+fn cycle_band_subtab(app: &mut App, delta: isize) {
+    let Some(bt) = active_block_type(app) else {
+        return;
+    };
+    let region = app.active_pane().map(|p| p.block_region).unwrap_or(0);
+    if bt == "http" {
+        match region {
+            1 | 2 => {
+                let next = if region == 1 { 2 } else { 1 };
+                if let Some(pane) = app.active_pane_mut() {
+                    pane.block_region = next;
+                    pane.block_row = 0;
+                    pane.block_col = 1;
+                }
+            }
+            3 => shift_response_subtab(app, delta),
+            _ => {}
+        }
+    } else if region == 2 {
+        shift_response_subtab(app, delta);
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -534,13 +592,20 @@ enum EnterMode {
 
 fn shift_row(app: &mut App, delta: isize) {
     let count = active_region_row_count(app);
+    let row = app.active_pane().map(|p| p.block_row).unwrap_or(0);
+    // At a region's top/bottom edge, vertical motion crosses into the
+    // neighbouring band instead of clamping in place.
+    if delta < 0 && row == 0 {
+        move_band(app, -1);
+        return;
+    }
+    if delta > 0 && (count <= 1 || row + 1 >= count) {
+        move_band(app, 1);
+        return;
+    }
     let Some(pane) = app.active_pane_mut() else {
         return;
     };
-    if count == 0 {
-        pane.block_row = 0;
-        return;
-    }
     let last = (count - 1) as isize;
     pane.block_row = (pane.block_row as isize + delta).clamp(0, last) as usize;
 }
@@ -1675,6 +1740,8 @@ fn set_region(app: &mut App, index: usize) {
         return;
     }
     pane.block_region = index.min(count - 1);
+    pane.block_row = 0;
+    pane.block_col = 1;
 }
 
 fn active_block_region_count(app: &App) -> usize {
@@ -1693,6 +1760,30 @@ fn active_block_region_count(app: &App) -> usize {
         .and_then(|f| f.blocks.get(target.block_idx))
         .map(|b| crate::app::region_count_for(&b.block_type))
         .unwrap_or(0)
+}
+
+fn active_block_type(app: &App) -> Option<String> {
+    let pane = app.active_pane()?;
+    let target = pane.block_selected?;
+    let ws = app.blocks_workspace.as_ref()?;
+    ws.index
+        .files
+        .get(target.file_idx)
+        .and_then(|f| f.blocks.get(target.block_idx))
+        .map(|b| b.block_type.clone())
+}
+
+/// Numeric jump targets the entry region of each band. HTTP has three
+/// bands — `1`→URL, `2`→Request (Headers/Body sub-tabs), `3`→Response;
+/// DB — `1`→Connection, `2`→Query, `3`→Result.
+fn jump_target_region(block_type: &str, n: usize) -> usize {
+    let bands: &[usize] = if block_type == "http" {
+        &[0, 1, 3]
+    } else {
+        &[0, 1, 2]
+    };
+    let idx = n.saturating_sub(1).min(bands.len() - 1);
+    bands[idx]
 }
 
 fn toggle_view(app: &mut App) {
@@ -1750,6 +1841,39 @@ mod tests {
     use httui_core::db::init_db;
     use std::path::Path;
     use tempfile::TempDir;
+
+    #[test]
+    fn band_neighbor_walks_http_bands() {
+        // URL(0) ↓ Request(1) ; Request ↑ URL, ↓ Response(3) ;
+        // Response(3) ↑ Request(1). Edges return None.
+        assert_eq!(band_neighbor("http", 0, 1), Some(1));
+        assert_eq!(band_neighbor("http", 0, -1), None);
+        assert_eq!(band_neighbor("http", 1, -1), Some(0));
+        assert_eq!(band_neighbor("http", 2, 1), Some(3));
+        assert_eq!(band_neighbor("http", 3, -1), Some(1));
+        assert_eq!(band_neighbor("http", 3, 1), None);
+    }
+
+    #[test]
+    fn band_neighbor_walks_db_bands() {
+        assert_eq!(band_neighbor("db-postgres", 0, 1), Some(1));
+        assert_eq!(band_neighbor("db-postgres", 1, 1), Some(2));
+        assert_eq!(band_neighbor("db-postgres", 2, 1), None);
+        assert_eq!(band_neighbor("db-postgres", 1, -1), Some(0));
+    }
+
+    #[test]
+    fn jump_targets_band_entry_regions() {
+        // HTTP 3 bands: 1→URL(0), 2→Request(1), 3→Response(3); clamp.
+        assert_eq!(jump_target_region("http", 1), 0);
+        assert_eq!(jump_target_region("http", 2), 1);
+        assert_eq!(jump_target_region("http", 3), 3);
+        assert_eq!(jump_target_region("http", 9), 3);
+        // DB 3 bands: 1→Connection(0), 2→Query(1), 3→Result(2).
+        assert_eq!(jump_target_region("db-postgres", 1), 0);
+        assert_eq!(jump_target_region("db-postgres", 2), 1);
+        assert_eq!(jump_target_region("db-postgres", 3), 2);
+    }
 
     fn write(dir: &Path, rel: &str, body: &str) {
         let p = dir.join(rel);
@@ -1939,7 +2063,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn multiline_body_inserts_newline_then_commits_via_esc() {
         let (mut app, _d, _v) = enter_blocks_on_first_http().await;
-        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(3));
+        // Jump to the Request band (Headers), then Tab toggles its
+        // sub-tab to Body.
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        apply_blocks_view(&mut app, Action::BlocksPaneNextRegion);
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
         type_into_active_edit(&mut app, "line1\nline2");
         apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
