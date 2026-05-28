@@ -1157,4 +1157,46 @@ mod tests {
         // Deleting again on an empty list is a safe no-op.
         apply_blocks_view(&mut app, Action::BlocksHeaderDeleteRow);
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_new_block_no_trailing_newline_then_read_failure() {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        // No trailing newline → exercises the `else` append branch.
+        write(vault.path(), "x.md", "# x\n\n```http alias=a\nGET /1\n```");
+        let pool = init_db(data.path()).await.unwrap();
+        let mut app = App::new(
+            Config::default(),
+            ResolvedVault {
+                vault: vault.path().to_path_buf(),
+            },
+            pool,
+        );
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        let fi = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| n.path.ends_with("x.md") && n.block.is_none())
+            .expect("x.md row");
+        app.tree.selected = fi;
+        apply_blocks_view(&mut app, Action::BlocksTreeNewBlock);
+        let t = httui_core::fs::read_note(&vault.path().to_string_lossy(), "x.md").unwrap();
+        assert_eq!(httui_core::blocks::parse_blocks(&t).len(), 2);
+
+        // Replace the file with a directory so the next read fails — the
+        // new-block and reorder handlers must bail with a status, not panic.
+        std::fs::remove_file(vault.path().join("x.md")).unwrap();
+        std::fs::create_dir(vault.path().join("x.md")).unwrap();
+        apply_blocks_view(&mut app, Action::BlocksTreeNewBlock);
+        app.tree.expanded.insert("x.md".to_string());
+        let vp = app.vault_path.clone();
+        app.tree.refresh(&vp);
+        if let Some(bi) = app.tree.entries.iter().position(|n| n.block.is_some()) {
+            app.tree.selected = bi;
+            apply_blocks_view(&mut app, Action::BlocksTreeReorderDown);
+            app.tree.selected = bi;
+            apply_blocks_view(&mut app, Action::BlocksTreeNewBlock);
+        }
+    }
 }
