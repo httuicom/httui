@@ -1,0 +1,670 @@
+use crate::app::{
+    App, AppView, BlockDraft, BlockIndex, BlocksUnsavedPromptFocus, BlocksUnsavedPromptState,
+    BlocksWorkspace, EditField, EditSubMode, RegionEdit, StatusKind,
+};
+use crate::config::EditorMode;
+use crate::input::action::Action;
+use crate::modal::Modal;
+use crate::vim::mode::Mode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+mod draft;
+mod edit;
+mod keys;
+mod nav;
+mod tree;
+
+pub(crate) use self::draft::*;
+pub(crate) use self::edit::*;
+pub(crate) use self::keys::*;
+pub(crate) use self::nav::*;
+pub(crate) use self::tree::*;
+
+pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
+    match action {
+        Action::ToggleAppView => request_toggle_view(app),
+        Action::BlocksPaneNextRegion => cycle_band_subtab(app, 1),
+        Action::BlocksPanePrevRegion => cycle_band_subtab(app, -1),
+        Action::BlocksPaneJumpRegion(n) => {
+            let target = active_block_type(app)
+                .map(|bt| jump_target_region(&bt, n))
+                .unwrap_or(0);
+            set_region(app, target);
+        }
+        Action::BlocksPanePickerChoose(n) => choose_picker(app, n.saturating_sub(1)),
+        Action::BlocksPanePickerCancel => cancel_picker(app),
+        Action::BlocksPaneRowUp => shift_row(app, -1),
+        Action::BlocksPaneRowDown => shift_row(app, 1),
+        Action::BlocksPaneColLeft => shift_col(app, -1),
+        Action::BlocksPaneColRight => shift_col(app, 1),
+        Action::BlocksRegionEnterEdit => enter_edit(app, EnterMode::Auto),
+        Action::BlocksRegionEnterEditInsert => enter_edit(app, EnterMode::Insert),
+        Action::BlocksRegionCommitEdit => commit_edit(app),
+        Action::BlocksRegionCancelEdit => cancel_edit(app),
+        Action::BlocksSaveDraft => save_draft(app),
+        Action::BlocksNextBlockMotion => shift_block(app, 1),
+        Action::BlocksPrevBlockMotion => shift_block(app, -1),
+        Action::BlocksRunFocused => run_focused_block(app),
+        Action::BlocksCancelRun => {
+            crate::commands::db::cancel_running_query(app);
+        }
+        Action::BlocksHeaderInsertRow => insert_header_row(app),
+        Action::BlocksHeaderDeleteRow => delete_header_row(app),
+        Action::BlocksResponseNextTab => shift_response_subtab(app, 1),
+        Action::BlocksResponsePrevTab => shift_response_subtab(app, -1),
+        Action::BlocksTreeNewBlock => tree_new_block(app),
+        Action::BlocksTreeReorderUp => tree_reorder_block(app, -1),
+        Action::BlocksTreeReorderDown => tree_reorder_block(app, 1),
+        Action::BlocksTreeDeleteBlock => tree_delete_block(app),
+        Action::BlocksUnsavedPromptSave => {
+            close_unsaved_prompt(app);
+            save_draft(app);
+            toggle_view(app);
+        }
+        Action::BlocksUnsavedPromptDiscard => {
+            close_unsaved_prompt(app);
+            discard_all_drafts(app);
+            toggle_view(app);
+        }
+        Action::BlocksUnsavedPromptCancel => {
+            close_unsaved_prompt(app);
+        }
+        _ => {}
+    }
+}
+
+/// `Alt+M` entry point. If any pane carries a draft, open the
+/// Save/Discard/Cancel modal instead of toggling immediately. The
+/// modal's emit re-enters this applier with the resolved action.
+fn request_toggle_view(app: &mut App) {
+    let dirty = collect_dirty_panes(app);
+    if dirty.is_empty() {
+        toggle_view(app);
+        return;
+    }
+    let files: Vec<std::path::PathBuf> = dirty.iter().map(|(p, _)| p.clone()).collect();
+    app.modal = Some(Modal::BlocksUnsavedPrompt(BlocksUnsavedPromptState {
+        dirty: files,
+        focus: BlocksUnsavedPromptFocus::default(),
+    }));
+}
+
+fn close_unsaved_prompt(app: &mut App) {
+    if let Some(Modal::BlocksUnsavedPrompt(_)) = app.modal {
+        app.modal = None;
+    }
+}
+
+fn choose_picker(app: &mut App, leaf_idx: usize) {
+    let Some(target) = app
+        .blocks_workspace
+        .as_ref()
+        .and_then(|w| w.pane_picker)
+    else {
+        return;
+    };
+    let Some(tab) = app.active_tab_mut() else {
+        cancel_picker(app);
+        return;
+    };
+    let leaves = tab.leaf_count();
+    if leaves == 0 {
+        cancel_picker(app);
+        return;
+    }
+    let idx = leaf_idx.min(leaves - 1);
+    let mut visited = 0usize;
+    apply_to_nth_leaf(&mut tab.root, idx, &mut visited, &mut |pane| {
+        pane.block_selected = Some(target);
+        pane.block_region = 0;
+    });
+    cancel_picker(app);
+}
+
+fn cancel_picker(app: &mut App) {
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.pane_picker = None;
+    }
+}
+
+fn apply_to_nth_leaf(
+    node: &mut crate::pane::PaneNode,
+    target: usize,
+    counter: &mut usize,
+    f: &mut impl FnMut(&mut crate::pane::Pane),
+) -> bool {
+    match node {
+        crate::pane::PaneNode::Leaf(pane) => {
+            if *counter == target {
+                f(pane);
+                return true;
+            }
+            *counter += 1;
+            false
+        }
+        crate::pane::PaneNode::Split { first, second, .. } => {
+            if apply_to_nth_leaf(first, target, counter, f) {
+                return true;
+            }
+            apply_to_nth_leaf(second, target, counter, f)
+        }
+    }
+}
+
+/// Cycle the result/response sub-tab on the focused pane via the
+/// shared, BlockId-keyed `ResultPanelTab` — the same state the DOC view
+/// cycles, so a choice carries across views/panes for the same block.
+/// Applies only on the result band (HTTP region 3, DB region 2).
+fn shift_response_subtab(app: &mut App, delta: isize) {
+    let target = app
+        .blocks_workspace
+        .as_ref()
+        .zip(app.active_pane())
+        .and_then(|(ws, pane)| {
+            let sel = pane.block_selected?;
+            let file = ws.index.files.get(sel.file_idx)?;
+            let block = file.blocks.get(sel.block_idx)?;
+            let on_result = (block.block_type == "http" && pane.block_region == 3)
+                || (block.block_type.starts_with("db") && pane.block_region == 2);
+            if !on_result {
+                return None;
+            }
+            Some((
+                file.display.clone(),
+                block.line_start,
+                block.block_type.clone(),
+            ))
+        });
+    let Some((file, line_start, block_type)) = target else {
+        return;
+    };
+    let id = result_tab_block_id(&file, line_start);
+    let current = app
+        .result_tabs
+        .get(&id)
+        .copied()
+        .unwrap_or(crate::app::ResultPanelTab::Result);
+    let next = if delta >= 0 {
+        current.next_for(&block_type)
+    } else {
+        current.prev_for(&block_type)
+    };
+    app.result_tabs.insert(id, next);
+}
+
+/// Mirrors `block_node_id` in `ui::blocks_view::pane`. The two MUST
+/// agree on the hash inputs or the renderer reads a different tab
+/// state from what `shift_response_subtab` wrote.
+fn result_tab_block_id(file_display: &str, line_start: usize) -> crate::buffer::block::BlockId {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    file_display.hash(&mut h);
+    line_start.hash(&mut h);
+    crate::buffer::block::BlockId(h.finish())
+}
+
+fn toggle_view(app: &mut App) {
+    match app.view {
+        AppView::Doc => enter_blocks(app),
+        AppView::Blocks => exit_blocks(app),
+    }
+}
+
+fn enter_blocks(app: &mut App) {
+    let index = BlockIndex::build(&app.vault_path);
+    if app.blocks_workspace.is_none() {
+        app.blocks_workspace = Some(BlocksWorkspace::new(index.clone()));
+    } else if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.index = index.clone();
+        if let Some(sel) = ws.selected {
+            let still_valid = ws
+                .index
+                .files
+                .get(sel.file_idx)
+                .map(|f| sel.block_idx < f.blocks.len())
+                .unwrap_or(false);
+            if !still_valid {
+                ws.selected = None;
+            }
+        }
+    }
+    app.view = AppView::Blocks;
+    app.tree.block_index = Some(index);
+    app.tree.visible = true;
+    let vault = app.vault_path.clone();
+    app.tree.refresh(&vault);
+    app.vim.mode = Mode::Tree;
+    app.vim.reset_pending();
+}
+
+fn exit_blocks(app: &mut App) {
+    app.view = AppView::Doc;
+    app.tree.block_index = None;
+    app.tree.expanded.clear();
+    let vault = app.vault_path.clone();
+    app.tree.refresh(&vault);
+    app.tree.selected = 0;
+    if matches!(app.vim.mode, Mode::Tree | Mode::TreePrompt) {
+        app.vim.enter_normal();
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::AppView;
+    use crate::config::Config;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use std::path::Path;
+    use tempfile::TempDir;
+
+    #[test]
+    fn band_neighbor_walks_http_bands() {
+        // URL(0) ↓ Request(1) ; Request ↑ URL, ↓ Response(3) ;
+        // Response(3) ↑ Request(1). Edges return None.
+        assert_eq!(band_neighbor("http", 0, 1), Some(1));
+        assert_eq!(band_neighbor("http", 0, -1), None);
+        assert_eq!(band_neighbor("http", 1, -1), Some(0));
+        assert_eq!(band_neighbor("http", 2, 1), Some(3));
+        assert_eq!(band_neighbor("http", 3, -1), Some(1));
+        assert_eq!(band_neighbor("http", 3, 1), None);
+    }
+
+    #[test]
+    fn band_neighbor_walks_db_bands() {
+        assert_eq!(band_neighbor("db-postgres", 0, 1), Some(1));
+        assert_eq!(band_neighbor("db-postgres", 1, 1), Some(2));
+        assert_eq!(band_neighbor("db-postgres", 2, 1), None);
+        assert_eq!(band_neighbor("db-postgres", 1, -1), Some(0));
+    }
+
+    #[test]
+    fn jump_targets_band_entry_regions() {
+        // HTTP 3 bands: 1→URL(0), 2→Request(1), 3→Response(3); clamp.
+        assert_eq!(jump_target_region("http", 1), 0);
+        assert_eq!(jump_target_region("http", 2), 1);
+        assert_eq!(jump_target_region("http", 3), 3);
+        assert_eq!(jump_target_region("http", 9), 3);
+        // DB 3 bands: 1→Connection(0), 2→Query(1), 3→Result(2).
+        assert_eq!(jump_target_region("db-postgres", 1), 0);
+        assert_eq!(jump_target_region("db-postgres", 2), 1);
+        assert_eq!(jump_target_region("db-postgres", 3), 2);
+    }
+
+    fn write(dir: &Path, rel: &str, body: &str) {
+        let p = dir.join(rel);
+        if let Some(parent) = p.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(&p, body).unwrap();
+    }
+
+    async fn app_with_blocks() -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        write(
+            vault.path(),
+            "api.md",
+            "# api\n\n```http alias=login\nGET https://x.com\n```\n",
+        );
+        write(
+            vault.path(),
+            "users.md",
+            "# users\n\n```http alias=list\nGET https://x.com/users\n```\n",
+        );
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let app = App::new(Config::default(), resolved, pool);
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_enters_blocks_with_index_loaded() {
+        let (mut app, _d, _v) = app_with_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        assert!(matches!(app.view, AppView::Blocks));
+        assert!(app.blocks_workspace.is_some());
+        assert!(app.tree.block_index.is_some());
+        assert!(app.tree.visible);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_back_restores_doc_view() {
+        let (mut app, _d, _v) = app_with_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        assert!(matches!(app.view, AppView::Doc));
+        assert!(app.tree.block_index.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_preserves_workspace_state_across_round_trips() {
+        let (mut app, _d, _v) = app_with_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        if let Some(ws) = app.blocks_workspace.as_mut() {
+            ws.selected = Some(crate::app::BlockRef {
+                file_idx: 0,
+                block_idx: 0,
+            });
+        }
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        let ws = app.blocks_workspace.as_ref().unwrap();
+        assert_eq!(
+            ws.selected,
+            Some(crate::app::BlockRef {
+                file_idx: 0,
+                block_idx: 0
+            })
+        );
+    }
+
+    /// Drive the focused pane into BLOCKS view with the first HTTP
+    /// block selected — every Story 5 test starts here. Returns the
+    /// vault dir so the test can read what got written.
+    async fn enter_blocks_on_first_http() -> (App, TempDir, TempDir) {
+        let (mut app, data, vault) = app_with_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        if let Some(ws) = app.blocks_workspace.as_mut() {
+            ws.selected = Some(crate::app::BlockRef {
+                file_idx: 0,
+                block_idx: 0,
+            });
+        }
+        if let Some(pane) = app.active_pane_mut() {
+            pane.block_selected = Some(crate::app::BlockRef {
+                file_idx: 0,
+                block_idx: 0,
+            });
+            pane.block_region = 0;
+            pane.block_row = 0;
+            pane.block_col = 1;
+        }
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn response_next_prev_cycles_shared_result_panel_tab() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 3;
+        }
+        let (display, line_start) = {
+            let ws = app.blocks_workspace.as_ref().unwrap();
+            let sel = app.active_pane().unwrap().block_selected.unwrap();
+            let f = &ws.index.files[sel.file_idx];
+            (f.display.clone(), f.blocks[sel.block_idx].line_start)
+        };
+        let id = result_tab_block_id(&display, line_start);
+        apply_blocks_view(&mut app, Action::BlocksResponseNextTab);
+        assert_eq!(
+            app.result_tabs.get(&id).copied(),
+            Some(crate::app::ResultPanelTab::Messages)
+        );
+        apply_blocks_view(&mut app, Action::BlocksResponsePrevTab);
+        assert_eq!(
+            app.result_tabs.get(&id).copied(),
+            Some(crate::app::ResultPanelTab::Result)
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn response_tab_chord_is_noop_off_the_result_band() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 0;
+        }
+        apply_blocks_view(&mut app, Action::BlocksResponseNextTab);
+        assert!(app.result_tabs.is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn http_response_segment_none_without_result_or_off_band() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        // URL band (region 0) — never the response detail trigger.
+        assert!(focused_http_response_segment(&app).is_none());
+        // Response band but no loaded document / cached result yet.
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 3;
+        }
+        assert!(focused_http_response_segment(&app).is_none());
+    }
+
+    /// Stand-in for the engine wiring: simulate the user typing into
+    /// the sub-Document by writing directly via the redirect, the
+    /// same path the vim/standard route uses in production.
+    fn type_into_active_edit(app: &mut App, text: &str) {
+        let doc = app.document_mut().expect("EDIT must be active");
+        for c in text.chars() {
+            if c == '\n' {
+                doc.insert_newline_at_cursor();
+            } else {
+                doc.insert_char_at_cursor(c);
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn enter_edit_url_hydrates_draft_and_seeds_subdoc() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        let pane = app.active_pane().unwrap();
+        assert!(pane.block_draft.is_some(), "draft hydrated on first edit");
+        let edit = pane.block_edit.as_ref().expect("edit state allocated");
+        assert!(matches!(edit.field, EditField::HttpUrl));
+        assert_eq!(edit.current_text(), "https://x.com");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn commit_writes_subdoc_text_into_draft() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, " /test");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        let pane = app.active_pane().unwrap();
+        assert!(pane.block_edit.is_none(), "edit cleared after commit");
+        assert_eq!(pane.block_draft.as_ref().unwrap().url(), "https://x.com /test");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_sync_applies_committed_unsaved_draft_to_doc() {
+        let (mut app, _d, v) = enter_blocks_on_first_http().await;
+        // Edit the URL and commit with Esc, but DON'T save (no Ctrl+S).
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "/test");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        assert!(app.active_pane().unwrap().block_edit.is_none());
+
+        // Load the on-disk doc into the pane — disk still has the
+        // un-edited URL (mirrors run_focused_block's load step).
+        let text = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
+        let doc = crate::buffer::Document::from_markdown(&text).unwrap();
+        if let Some(p) = app.active_pane_mut() {
+            p.document = Some(doc);
+            p.document_path = Some(v.path().join("api.md"));
+        }
+
+        sync_draft_to_doc_in_memory(&mut app);
+
+        // The segment now carries the edited URL, so a run executes the
+        // unsaved value instead of the stale on-disk one.
+        let pane = app.active_pane().unwrap();
+        let url = pane.document.as_ref().unwrap().segments().iter().find_map(|s| {
+            match s {
+                crate::buffer::Segment::Block(b) if b.block_type == "http" => b
+                    .params
+                    .get("url")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string),
+                _ => None,
+            }
+        });
+        assert_eq!(url.as_deref(), Some("https://x.com/test"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_discards_subdoc_without_touching_draft() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "xxxx");
+        apply_blocks_view(&mut app, Action::BlocksRegionCancelEdit);
+        let pane = app.active_pane().unwrap();
+        assert!(pane.block_edit.is_none(), "edit cleared after cancel");
+        // Draft was hydrated by enter_edit (so it's Some), but the
+        // URL is unchanged because the sub-doc was discarded.
+        assert_eq!(pane.block_draft.as_ref().unwrap().url(), "https://x.com");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn save_writes_canonical_fence_to_disk() {
+        let (mut app, _d, vault) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "/edited");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        apply_blocks_view(&mut app, Action::BlocksSaveDraft);
+        let on_disk = std::fs::read_to_string(vault.path().join("api.md")).unwrap();
+        assert!(
+            on_disk.contains("https://x.com/edited"),
+            "saved file should contain edited URL, got: {on_disk:?}"
+        );
+        let pane = app.active_pane().unwrap();
+        assert!(pane.block_draft.is_none(), "draft cleared after save");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn toggle_view_with_dirty_opens_unsaved_prompt() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "z");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        assert!(matches!(
+            app.modal,
+            Some(crate::modal::Modal::BlocksUnsavedPrompt(_))
+        ));
+        assert!(matches!(app.view, AppView::Blocks));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn unsaved_prompt_discard_drops_drafts_and_toggles() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "z");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        apply_blocks_view(&mut app, Action::BlocksUnsavedPromptDiscard);
+        assert!(app.modal.is_none());
+        assert!(matches!(app.view, AppView::Doc));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn multiline_body_inserts_newline_then_commits_via_esc() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        // Jump to the Request band (Headers), then Tab toggles its
+        // sub-tab to Body.
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        apply_blocks_view(&mut app, Action::BlocksPaneNextRegion);
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        type_into_active_edit(&mut app, "line1\nline2");
+        apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
+        let pane = app.active_pane().unwrap();
+        assert_eq!(pane.block_draft.as_ref().unwrap().body(), "line1\nline2");
+    }
+
+    // ---- Story 6: vim opt-in (via Document) ----
+
+    async fn enter_blocks_vim() -> (App, TempDir, TempDir) {
+        let (mut app, data, vault) = enter_blocks_on_first_http().await;
+        app.config.editor.mode = crate::config::EditorMode::Vim;
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn vim_enter_lands_with_engine_in_normal() {
+        let (mut app, _d, _v) = enter_blocks_vim().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        assert!(app.active_pane().unwrap().block_edit.is_some());
+        // Engine pinned to Normal so vim chords parse correctly.
+        assert_eq!(app.vim.mode, Mode::Normal);
+        assert_eq!(effective_sub_mode(&app), EditSubMode::Normal);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn vim_i_action_lands_engine_in_insert() {
+        let (mut app, _d, _v) = enter_blocks_vim().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEditInsert);
+        assert_eq!(app.vim.mode, Mode::Insert);
+        assert_eq!(effective_sub_mode(&app), EditSubMode::Insert);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn standard_enter_lands_engine_in_insert() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        // Standard profile always reports Insert; vim.mode is the
+        // same so the engine inserts directly.
+        assert_eq!(effective_sub_mode(&app), EditSubMode::Insert);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn insert_header_row_grows_array_and_moves_cursor() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        let before = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .map(|d| d.header_count())
+            .unwrap_or(0);
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        let pane = app.active_pane().unwrap();
+        let after = pane.block_draft.as_ref().unwrap().header_count();
+        assert_eq!(after, before + 1);
+        assert_eq!(pane.block_col, 0, "cursor moved to new key cell");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn delete_header_row_shrinks_array() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        let after_insert = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .unwrap()
+            .header_count();
+        apply_blocks_view(&mut app, Action::BlocksHeaderDeleteRow);
+        let after_delete = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .unwrap()
+            .header_count();
+        assert_eq!(after_delete, after_insert - 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn next_block_motion_wraps_workspace() {
+        let (mut app, _d, _v) = enter_blocks_vim().await;
+        let total: usize = app
+            .blocks_workspace
+            .as_ref()
+            .unwrap()
+            .index
+            .files
+            .iter()
+            .map(|f| f.blocks.len())
+            .sum();
+        assert!(total >= 2, "fixture has >= 2 blocks");
+        apply_blocks_view(&mut app, Action::BlocksNextBlockMotion);
+        let after_one = app.active_pane().unwrap().block_selected;
+        for _ in 0..total {
+            apply_blocks_view(&mut app, Action::BlocksNextBlockMotion);
+        }
+        assert_eq!(app.active_pane().unwrap().block_selected, after_one);
+    }
+}
