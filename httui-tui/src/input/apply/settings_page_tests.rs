@@ -98,8 +98,9 @@ async fn move_cursor_clamps_to_last_row_per_section() {
     apply_settings_page(&mut app, Action::OpenSettings);
     apply_settings_page(&mut app, Action::SettingsNextSection); // Theme
     apply_settings_page(&mut app, Action::SettingsMoveCursor(99));
-    // Theme has 3 presets → last index is 2.
-    assert_eq!(page(&app).unwrap().theme_cursor, 2);
+    // Clamps to the last theme preset, whatever the count.
+    let last_theme = crate::input::apply::settings_page::THEME_PRESETS.len() - 1;
+    assert_eq!(page(&app).unwrap().theme_cursor, last_theme);
     // Editor section has 2 rows → last index is 1.
     apply_settings_page(&mut app, Action::SettingsNextSection); // Editor
     apply_settings_page(&mut app, Action::SettingsMoveCursor(99));

@@ -133,7 +133,7 @@ fn format_entry_line(
         "error" => (
             " err ".into(),
             Style::default()
-                .bg(Color::Red)
+                .bg(crate::ui::palette::error())
                 .fg(crate::ui::palette::popup_bg())
                 .add_modifier(Modifier::BOLD),
         ),
@@ -178,14 +178,14 @@ fn format_entry_line(
             Some(code) => (
                 format!(" {code} "),
                 Style::default()
-                    .bg(Color::Red)
+                    .bg(crate::ui::palette::error())
                     .fg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD),
             ),
             None => (
                 " err ".into(),
                 Style::default()
-                    .bg(Color::Red)
+                    .bg(crate::ui::palette::error())
                     .fg(crate::ui::palette::popup_bg())
                     .add_modifier(Modifier::BOLD),
             ),

@@ -112,3 +112,10 @@ pub fn popup_key_label() -> Color {
 pub fn success() -> Color {
     theme::current().success
 }
+
+/// "Negative / failed / error" indicator color. Theme-aware
+/// replacement for a hardcoded `Color::Red`.
+#[inline]
+pub fn error() -> Color {
+    theme::current().error
+}

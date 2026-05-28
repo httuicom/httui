@@ -329,7 +329,8 @@ fn bool_label(on: bool) -> String {
 
 /// Built-in theme presets, in display order — also the cursor index
 /// space for the Theme section.
-pub const THEME_PRESETS: &[&str] = &["default-dark", "default-light", "terminal-native"];
+pub const THEME_PRESETS: &[&str] =
+    &["default-dark", "default-light", "terminal-native", "tokyo-night"];
 
 /// Resolved view of a single Theme row.
 #[derive(Debug, Clone)]

@@ -17,54 +17,46 @@ pub(super) fn render_header(
     if area.width == 0 {
         return;
     }
+    let focused = pane_focused && region == 0;
+    let inner = region_frame(frame, area, focused);
+    if inner.width == 0 {
+        return;
+    }
     let is_http = block.block_type == "http";
     let method = parsed.method.as_deref().unwrap_or("GET");
-
-    // Region 0 is the request line — edited inline in the header.
-    let url_focused = is_http && pane_focused && region == 0;
     let url_edit = pane
         .block_edit
         .as_ref()
         .filter(|e| pane_focused && matches!(e.field, EditField::HttpUrl));
 
-    let chip_fg = crate::ui::palette::popup_bg();
-    let (chip_label, chip_bg) = if is_http {
-        (format!(" {method} "), method_chip_color(method))
-    } else {
-        (
-            " SQL ".to_string(),
-            crate::ui::palette::popup_border_accent(),
-        )
-    };
-    // Band [1] tag — the URL/connection line is the first jump target.
-    let tag = "[1] ";
-    let lead = " ";
-    let gap = "  ";
-    let url_start_x =
-        area.x + (lead.len() + tag.len() + chip_label.chars().count() + gap.len()) as u16;
-    let tag_style = if url_focused {
-        Style::default()
-            .fg(crate::ui::palette::accent())
-            .add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(crate::ui::palette::muted())
-    };
-    let mut left = vec![
-        Span::raw(lead),
-        Span::styled(tag, tag_style),
-        Span::styled(
-            chip_label,
+    // Identity reads alias → method → target, all as text (no chips).
+    let mut left: Vec<Span<'static>> = Vec::new();
+    if let Some(alias) = block.alias.as_deref().filter(|a| !a.is_empty()) {
+        left.push(Span::styled(
+            alias.to_string(),
             Style::default()
-                .bg(chip_bg)
-                .fg(chip_fg)
+                .fg(crate::ui::palette::foreground())
                 .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(gap),
-    ];
+        ));
+        left.push(Span::raw("  "));
+    }
+    let (method_label, method_color) = if is_http {
+        (method.to_string(), method_chip_color(method))
+    } else {
+        ("SQL".to_string(), crate::ui::palette::popup_border_accent())
+    };
+    left.push(Span::styled(
+        method_label,
+        Style::default()
+            .fg(method_color)
+            .add_modifier(Modifier::BOLD),
+    ));
+    left.push(Span::raw("  "));
+    let url_start_x =
+        inner.x + left.iter().map(|s| s.content.chars().count()).sum::<usize>() as u16;
     if is_http {
         if let Some(edit) = url_edit {
-            // Editing inline: verbatim text so the caret column (placed
-            // below) maps 1:1 to bytes; refs aren't chipped mid-edit.
+            // Verbatim while editing so the caret maps 1:1 to bytes.
             left.push(Span::styled(
                 edit.current_text(),
                 Style::default()
@@ -73,7 +65,7 @@ pub(super) fn render_header(
             ));
         } else {
             let url = parsed.url.clone().unwrap_or_default();
-            left.extend(refs_spans(&url, url_focused));
+            left.extend(refs_spans(&url, false));
         }
     } else {
         let conn = parsed
@@ -88,14 +80,12 @@ pub(super) fn render_header(
             .unwrap_or_else(|| "(no connection)".to_string());
         left.push(Span::styled(
             conn,
-            Style::default()
-                .fg(crate::ui::palette::accent())
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(crate::ui::palette::muted()),
         ));
     }
     if dirty {
         left.push(Span::styled(
-            " •",
+            "  •",
             Style::default()
                 .fg(crate::ui::palette::amber())
                 .add_modifier(Modifier::BOLD),
@@ -113,14 +103,16 @@ pub(super) fn render_header(
         right.push(Span::raw("  "));
     } else if let Some((badge, badge_color, latency)) = run_summary(parsed, is_http) {
         right.push(Span::styled(
-            format!(" {badge} "),
+            badge,
             Style::default()
-                .bg(badge_color)
-                .fg(chip_fg)
+                .fg(badge_color)
                 .add_modifier(Modifier::BOLD),
         ));
         if let Some(latency) = latency {
-            right.push(Span::raw(" "));
+            right.push(Span::styled(
+                " · ",
+                Style::default().fg(crate::ui::palette::muted()),
+            ));
             right.push(Span::styled(
                 latency,
                 Style::default().fg(crate::ui::palette::muted()),
@@ -138,25 +130,25 @@ pub(super) fn render_header(
 
     let left_w: usize = left.iter().map(|s| s.content.chars().count()).sum();
     let right_w: usize = right.iter().map(|s| s.content.chars().count()).sum();
-    let total = area.width as usize;
+    let total = inner.width as usize;
     let mut spans = left;
     if total > left_w + right_w {
         spans.push(Span::raw(" ".repeat(total - left_w - right_w)));
         spans.extend(right);
     }
-    frame.render_widget(Paragraph::new(Line::from(spans)), area);
+    frame.render_widget(Paragraph::new(Line::from(spans)), inner);
 
     if let Some(edit) = url_edit {
         let (_row, col) = edit_cursor_row_col(edit);
         let cx = url_start_x.saturating_add(col as u16);
-        if cx < area.x + area.width {
-            frame.set_cursor_position((cx, area.y));
+        if cx < inner.x + inner.width {
+            frame.set_cursor_position((cx, inner.y));
         }
         if let Some(overlay) = visual_overlay {
             let text_area = Rect {
                 x: url_start_x,
-                y: area.y,
-                width: area.width.saturating_sub(url_start_x - area.x),
+                y: inner.y,
+                width: inner.width.saturating_sub(url_start_x - inner.x),
                 height: 1,
             };
             crate::ui::overlay_visual_selection(frame, text_area, &edit.doc, 0, overlay);

@@ -20,30 +20,30 @@ pub(super) fn render_http_regions(
         .constraints([Constraint::Min(3), Constraint::Min(3)])
         .split(area);
 
-    // Request card: one border + a [Headers│Body] tab bar. The active
+    // Request region: accent rail + a Headers│Body tab row. The active
     // tab follows the focused region (1=Headers, 2=Body); when focus is
-    // on the URL (0) or Response (3) the card shows Headers, unfocused.
+    // on the URL (0) or Response (3) the region shows Headers, dimmed.
     let req_focused = pane_focused && (region == 1 || region == 2);
-    let active_req = if region == 2 { 2 } else { 1 };
-    let card = card_block("[2] REQUEST", req_focused);
-    let inner = card.inner(chunks[0]);
-    frame.render_widget(card, chunks[0]);
+    let active_cell = if region == 2 { 1 } else { 0 };
+    let inner = region_frame(frame, chunks[0], req_focused);
     if inner.width > 0 && inner.height > 0 {
         let parts = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Length(1), Constraint::Min(0)])
             .split(inner);
-        render_request_tabbar(frame, parts[0], active_req, req_focused);
-        render_tab_separator(frame, parts[1]);
-        if parts[2].height > 0 {
-            if active_req == 2 {
+        render_region_tabs(
+            frame,
+            parts[0],
+            "Request",
+            &["Headers".to_string(), "Body".to_string()],
+            active_cell,
+            req_focused,
+        );
+        if parts[1].height > 0 {
+            if active_cell == 1 {
                 render_multiline_region(
                     frame,
-                    parts[2],
+                    parts[1],
                     block_type,
                     region == 2,
                     &parsed.body,
@@ -56,7 +56,7 @@ pub(super) fn render_http_regions(
             } else {
                 render_headers_region(
                     frame,
-                    parts[2],
+                    parts[1],
                     region == 1,
                     parsed,
                     pane,
@@ -79,14 +79,6 @@ pub(super) fn render_http_regions(
     );
 }
 
-/// `Headers │ Body` tab cells for the HTTP request card. `active` is the
-/// focused region (1=Headers, 2=Body) mapped to cell index.
-fn render_request_tabbar(frame: &mut Frame, area: Rect, active: usize, focused: bool) {
-    let labels = ["Headers".to_string(), "Body".to_string()];
-    let active_cell = if active == 2 { 1 } else { 0 };
-    render_subtab_cells(frame, area, &labels, active_cell, focused);
-}
-
 /// `[3] RESPONSE` — tab strip (Body / Headers / Cookies / Timing / Raw)
 /// over the shared `ResultPanelTab`; content is delegated to the DOC
 /// view's `render_http_response_panel` so highlighting is identical.
@@ -101,9 +93,7 @@ fn render_http_response_region(
     ctx: &BlocksRenderCtx<'_>,
     running: Option<&str>,
 ) {
-    let card = card_block("[3] RESPONSE", focused);
-    let inner = card.inner(area);
-    frame.render_widget(card, area);
+    let inner = region_frame(frame, area, focused);
     if inner.width == 0 || inner.height == 0 {
         return;
     }
@@ -123,19 +113,14 @@ fn render_http_response_region(
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Min(0),
-        ])
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
         .split(inner);
-    render_subtab_cells(frame, chunks[0], &labels, active_cell, focused);
-    render_tab_separator(frame, chunks[1]);
-    if chunks[2].height == 0 {
+    render_region_tabs(frame, chunks[0], "Response", &labels, active_cell, focused);
+    if chunks[1].height == 0 {
         return;
     }
     if let Some(label) = running {
-        frame.render_widget(Paragraph::new(label.to_string()), chunks[2]);
+        frame.render_widget(Paragraph::new(label.to_string()), chunks[1]);
         return;
     }
     // Results live only in the in-memory pane Document; disk has none.
@@ -145,7 +130,7 @@ fn render_http_response_region(
         Some(b) if b.cached_result.is_some() => {
             crate::ui::blocks::http_panel::response::render_http_response_panel(
                 frame,
-                chunks[2],
+                chunks[1],
                 &b,
                 tab,
             );
@@ -153,7 +138,7 @@ fn render_http_response_region(
         _ => {
             frame.render_widget(
                 Paragraph::new("(no response — press r to run)"),
-                chunks[2],
+                chunks[1],
             );
         }
     }
@@ -175,10 +160,11 @@ fn render_headers_region(
     }
     if parsed.headers.is_empty() && pane.block_edit.is_none() {
         let muted = Style::default().fg(crate::ui::palette::muted());
-        frame.render_widget(
-            Paragraph::new(Line::from(Span::styled("(no headers)", muted))),
-            inner,
-        );
+        let mut lines = vec![Line::from(Span::styled("  (no headers)", muted))];
+        if focused {
+            lines.push(add_header_hint());
+        }
+        frame.render_widget(Paragraph::new(lines), inner);
         return;
     }
     let key_w: u16 = parsed
@@ -232,6 +218,9 @@ fn render_headers_region(
         }
         lines.push(Line::from(row_spans));
     }
+    if focused {
+        lines.push(add_header_hint());
+    }
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
     // Place the terminal caret at the edited field's cursor column,
     // accounting for the leading padding and the key column width.
@@ -282,5 +271,24 @@ fn render_headers_region(
             );
         }
     }
+}
+
+/// Dim affordance shown under the headers when the Request region is
+/// focused — surfaces the otherwise-invisible "press `o` to add a row".
+fn add_header_hint() -> Line<'static> {
+    Line::from(vec![
+        Span::raw("  "),
+        Span::styled(
+            "＋ add header",
+            Style::default().fg(crate::ui::palette::muted()),
+        ),
+        Span::raw("   "),
+        Span::styled(
+            "o",
+            Style::default()
+                .fg(crate::ui::palette::accent())
+                .add_modifier(Modifier::BOLD),
+        ),
+    ])
 }
 

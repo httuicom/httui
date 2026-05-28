@@ -787,8 +787,8 @@ async fn blocks_view_renders_http_block() {
     let sel = block_ref_of(&app, true);
     select_ref(&mut app, sel);
     let (text, _) = render(&mut app, 120, 40);
-    assert!(text.contains("REQUEST"), "expected REQUEST card: {text:?}");
-    assert!(text.contains("RESPONSE"));
+    assert!(text.contains("Request"), "expected Request region: {text:?}");
+    assert!(text.contains("Response"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -797,7 +797,7 @@ async fn blocks_view_renders_db_block() {
     let sel = block_ref_of(&app, false);
     select_ref(&mut app, sel);
     let (text, _) = render(&mut app, 120, 40);
-    assert!(text.contains("QUERY"), "expected QUERY card: {text:?}");
+    assert!(text.contains("Query"), "expected Query region: {text:?}");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -827,8 +827,8 @@ async fn blocks_view_renders_vertical_split() {
     // Focus must point at a leaf, not the new split root.
     tab.focused = vec![0];
     let (text, _) = render(&mut app, 160, 40);
-    assert!(text.contains("REQUEST"));
-    assert!(text.contains("QUERY"));
+    assert!(text.contains("Request"));
+    assert!(text.contains("Query"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

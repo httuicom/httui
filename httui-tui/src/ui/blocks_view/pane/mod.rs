@@ -2,11 +2,11 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
+    widgets::{Block, Paragraph, Wrap},
     Frame,
 };
 
-use crate::app::{region_label, BlockMeta, EditField, FileBlocks};
+use crate::app::{BlockMeta, EditField, FileBlocks};
 use crate::pane::Pane;
 
 use super::BlocksRenderCtx;
@@ -177,66 +177,79 @@ fn render_block(
     }
 }
 
-/// Rounded card border with a left title; accent when focused, muted
-/// otherwise. Shared by the request/response/query/result bands.
-fn card_block(title: &str, focused: bool) -> Block<'static> {
-    let color = if focused {
-        crate::ui::palette::accent()
-    } else {
-        crate::ui::palette::muted()
-    };
-    let title_style = if focused {
-        Style::default().fg(color).add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(color)
-    };
-    Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(color))
-        .title(Span::styled(format!(" {title} "), title_style))
+/// IDE-style region frame. The focused region gets an accent left-rail
+/// (`▎`) plus a lifted panel background; unfocused regions stay flat on
+/// the canvas (the dim label + dim content carry the de-emphasis). No
+/// box border. Returns the content rect, left-padded past the rail so
+/// content aligns whether or not the region is focused.
+fn region_frame(frame: &mut Frame, area: Rect, focused: bool) -> Rect {
+    if area.width == 0 || area.height == 0 {
+        return area;
+    }
+    if focused {
+        let bg = crate::ui::palette::block_body_bg();
+        frame.render_widget(Block::default().style(Style::default().bg(bg)), area);
+        let bar_style = Style::default().fg(crate::ui::palette::accent()).bg(bg);
+        let buf = frame.buffer_mut();
+        for y in area.y..area.y.saturating_add(area.height) {
+            if let Some(cell) = buf.cell_mut((area.x, y)) {
+                cell.set_symbol("▎");
+                cell.set_style(bar_style);
+            }
+        }
+    }
+    Rect {
+        x: area.x.saturating_add(2),
+        y: area.y,
+        width: area.width.saturating_sub(2),
+        height: area.height,
+    }
 }
 
-/// Paint a strip of tab cells. Only the active cell gets a background
-/// (accent when focused, popup-accent otherwise); inactive cells sit on
-/// the canvas background so the active tab is the sole highlight.
-fn render_subtab_cells(frame: &mut Frame, area: Rect, labels: &[String], active: usize, focused: bool) {
+/// One header row for a region: the title, then its sub-tab cells. The
+/// active cell gets a subtle lifted bg (T4); inactive cells are muted
+/// text — no bright fill. The title is accent-bold when the region is
+/// focused, muted otherwise. Pass an empty `labels` for regions with no
+/// sub-tabs (just the title shows).
+fn render_region_tabs(
+    frame: &mut Frame,
+    area: Rect,
+    title: &str,
+    labels: &[String],
+    active: usize,
+    focused: bool,
+) {
     if area.width == 0 || area.height == 0 {
         return;
     }
-    let active_bg = if focused {
-        crate::ui::palette::accent()
+    let title_style = if focused {
+        Style::default()
+            .fg(crate::ui::palette::accent())
+            .add_modifier(Modifier::BOLD)
     } else {
-        crate::ui::palette::popup_border_accent()
+        Style::default().fg(crate::ui::palette::muted())
     };
     let active_style = Style::default()
-        .bg(active_bg)
-        .fg(crate::ui::palette::popup_bg())
-        .add_modifier(Modifier::BOLD);
+        .bg(crate::ui::palette::block_active_bg())
+        .fg(crate::ui::palette::foreground());
     let idle_style = Style::default().fg(crate::ui::palette::muted());
-    let mut spans: Vec<Span<'static>> = vec![Span::raw(" ")];
+    // Drop the title when the first tab already carries the same word
+    // (e.g. the DB "Result" region whose first tab is also "Result") —
+    // the tab leads instead of repeating it.
+    let skip_title = labels
+        .first()
+        .is_some_and(|l| l.eq_ignore_ascii_case(title));
+    let mut spans: Vec<Span<'static>> = if skip_title {
+        Vec::new()
+    } else {
+        vec![Span::styled(format!("{title}  "), title_style)]
+    };
     for (i, label) in labels.iter().enumerate() {
         let style = if i == active { active_style } else { idle_style };
         spans.push(Span::styled(format!(" {label} "), style));
         spans.push(Span::raw(" "));
     }
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
-}
-
-/// Thin separator below a tab strip, drawn in the border colour so it
-/// blends with the canvas and just divides tabs from content.
-fn render_tab_separator(frame: &mut Frame, area: Rect) {
-    if area.width == 0 || area.height == 0 {
-        return;
-    }
-    let line: String = "─".repeat(area.width as usize);
-    frame.render_widget(
-        Paragraph::new(Line::from(Span::styled(
-            line,
-            Style::default().fg(crate::ui::palette::border()),
-        ))),
-        area,
-    );
 }
 
 fn field_style(focused: bool) -> Style {
@@ -263,41 +276,6 @@ fn refs_spans(text: &str, focused: bool) -> Vec<Span<'static>> {
         }
     }
     spans
-}
-
-/// Title-bearing border for a region. When `editing` is true, the title
-/// gets a trailing `EDIT` chip so it's obvious from any pane width that
-/// the keystrokes are flowing into the buffer, not the doc.
-fn region_block(block_type: &str, index: usize, focused: bool, editing: bool) -> Block<'static> {
-    let (border_color, title_color) = if focused {
-        (crate::ui::palette::accent(), crate::ui::palette::accent())
-    } else {
-        (crate::ui::palette::muted(), crate::ui::palette::muted())
-    };
-    let title_style = if focused {
-        Style::default()
-            .fg(title_color)
-            .add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(title_color)
-    };
-    let label = format!(" [{}] {} ", index + 1, region_label(block_type, index));
-    let mut block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(border_color))
-        .title(Span::styled(label, title_style));
-    if editing {
-        let edit_chip = Span::styled(
-            " EDIT ",
-            Style::default()
-                .bg(crate::ui::palette::amber())
-                .fg(crate::ui::palette::popup_bg())
-                .add_modifier(Modifier::BOLD),
-        );
-        block = block.title_top(Line::from(edit_chip).right_aligned());
-    }
-    block
 }
 
 /// Render a multi-line value (HTTP body / DB query) borderless into
@@ -365,56 +343,6 @@ fn render_multiline_region(
         crate::ui::overlay_visual_selection(frame, inner, &edit.doc, 0, overlay);
     }
     caret
-}
-
-fn render_region(
-    frame: &mut Frame,
-    area: Rect,
-    index: usize,
-    block_type: &str,
-    focused: bool,
-    lines: &[String],
-) {
-    let (border_color, title_color) = if focused {
-        (crate::ui::palette::accent(), crate::ui::palette::accent())
-    } else {
-        (crate::ui::palette::muted(), crate::ui::palette::muted())
-    };
-    let title_style = if focused {
-        Style::default()
-            .fg(title_color)
-            .add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(title_color)
-    };
-    let block_widget = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(border_color))
-        .title(Span::styled(
-            format!(" [{}] {} ", index + 1, region_label(block_type, index)),
-            title_style,
-        ));
-    let inner = block_widget.inner(area);
-    frame.render_widget(block_widget, area);
-    if inner.width == 0 || inner.height == 0 {
-        return;
-    }
-    let rendered: Vec<Line<'static>> = lines
-        .iter()
-        .enumerate()
-        .map(|(i, l)| {
-            let style = if focused && i == 0 {
-                Style::default()
-                    .fg(crate::ui::palette::foreground())
-                    .add_modifier(Modifier::UNDERLINED)
-            } else {
-                Style::default()
-            };
-            Line::from(Span::styled(l.clone(), style))
-        })
-        .collect();
-    frame.render_widget(Paragraph::new(rendered).wrap(Wrap { trim: false }), inner);
 }
 
 fn render_fallback(frame: &mut Frame, area: Rect, raw: &str) {

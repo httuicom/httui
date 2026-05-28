@@ -1,4 +1,4 @@
-//! Runtime-swappable color palette. Three built-in presets; per-slot
+//! Runtime-swappable color palette. Four built-in presets; per-slot
 //! overrides come from `config.toml` under `[palette]` (any slot you
 //! set there wins over the preset).
 //!
@@ -62,6 +62,10 @@ pub struct Theme {
     /// "Positive / connected / ON" indicator color (toggle marks,
     /// connection status dot, success banner).
     pub success: Color,
+    /// "Negative / failed / error" indicator color (failed run badge,
+    /// error status, dirty/destructive markers). Theme-aware so a
+    /// preset can soften the harsh ANSI red into its own palette.
+    pub error: Color,
 }
 
 impl Theme {
@@ -86,6 +90,7 @@ impl Theme {
         popup_border_accent: Color::LightYellow,
         popup_key_label: Color::Cyan,
         success: Color::LightGreen,
+        error: Color::Red,
     };
 
     /// Light-background variant. Paints a near-white canvas + dark
@@ -109,6 +114,7 @@ impl Theme {
         popup_border_accent: Color::Rgb(170, 110, 0),
         popup_key_label: Color::Rgb(40, 90, 170),
         success: Color::Rgb(0, 130, 60),
+        error: Color::Rgb(176, 0, 32),
     };
 
     /// Every slot is an ANSI named color (or `Color::Reset`) so the
@@ -131,6 +137,31 @@ impl Theme {
         popup_border_accent: Color::Yellow,
         popup_key_label: Color::Cyan,
         success: Color::Green,
+        error: Color::Red,
+    };
+
+    /// Tokyo Night — deep navy canvas with a lifted panel surface and
+    /// soft blue/green/red accents. Paints explicit backgrounds (canvas
+    /// + panel) so the IDE-style region elevation reads on any terminal.
+    pub const TOKYO_NIGHT: Theme = Theme {
+        background: Color::Rgb(0x1a, 0x1b, 0x26),
+        foreground: Color::Rgb(0xc0, 0xca, 0xf5),
+        border: Color::Rgb(0x41, 0x48, 0x68),
+        accent: Color::Rgb(0x7a, 0xa2, 0xf7),
+        muted: Color::Rgb(0x56, 0x5f, 0x89),
+        secondary: Color::Rgb(0x9a, 0xa5, 0xce),
+        selection_bg: Color::Rgb(0x28, 0x34, 0x57),
+        amber: Color::Rgb(0xe0, 0xaf, 0x68),
+        amber_fg_on_amber_bg: Color::Rgb(0x1a, 0x1b, 0x26),
+        block_chrome_bg: Color::Rgb(0x24, 0x28, 0x3b),
+        block_body_bg: Color::Rgb(0x24, 0x28, 0x3b),
+        block_active_bg: Color::Rgb(0x2f, 0x33, 0x4d),
+        table_zebra_bg: Color::Rgb(0x1e, 0x20, 0x30),
+        popup_bg: Color::Rgb(0x1f, 0x23, 0x35),
+        popup_border_accent: Color::Rgb(0x7d, 0xcf, 0xff),
+        popup_key_label: Color::Rgb(0x7d, 0xcf, 0xff),
+        success: Color::Rgb(0x9e, 0xce, 0x6a),
+        error: Color::Rgb(0xf7, 0x76, 0x8e),
     };
 
     /// Map a user-facing preset name to a [`Theme`]. `"auto"` is an
@@ -141,6 +172,7 @@ impl Theme {
             "default-dark" | "dark" => Some(Self::DEFAULT_DARK),
             "default-light" | "light" => Some(Self::DEFAULT_LIGHT),
             "terminal-native" | "auto" => Some(Self::TERMINAL_NATIVE),
+            "tokyo-night" | "tokyonight" => Some(Self::TOKYO_NIGHT),
             _ => None,
         }
     }
@@ -172,6 +204,7 @@ impl Theme {
                 "popup_border_accent" => self.popup_border_accent = color,
                 "popup_key_label" => self.popup_key_label = color,
                 "success" => self.success = color,
+                "error" => self.error = color,
                 _ => {}
             }
         }
@@ -272,6 +305,25 @@ mod tests {
         assert_eq!(Theme::from_preset("dark"), Some(Theme::DEFAULT_DARK));
         assert_eq!(Theme::from_preset("light"), Some(Theme::DEFAULT_LIGHT));
         assert_eq!(Theme::from_preset("auto"), Some(Theme::TERMINAL_NATIVE));
+    }
+
+    #[test]
+    fn tokyo_night_resolves_and_carries_distinct_panel_and_error() {
+        let t = Theme::from_preset("tokyo-night").expect("tokyo-night preset");
+        assert_eq!(t, Theme::TOKYO_NIGHT);
+        assert_eq!(Theme::from_preset("tokyonight"), Some(Theme::TOKYO_NIGHT));
+        // Panel surface must lift off the canvas for the IDE-style look.
+        assert_ne!(t.block_body_bg, t.background);
+        assert_eq!(t.error, Color::Rgb(0xf7, 0x76, 0x8e));
+        assert_eq!(t.accent, Color::Rgb(0x7a, 0xa2, 0xf7));
+    }
+
+    #[test]
+    fn apply_overrides_sets_error_slot() {
+        let mut over = BTreeMap::new();
+        over.insert("error".into(), "#abcdef".into());
+        let t = Theme::DEFAULT_DARK.apply_overrides(&over);
+        assert_eq!(t.error, Color::Rgb(0xab, 0xcd, 0xef));
     }
 
     #[test]

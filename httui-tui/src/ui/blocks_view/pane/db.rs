@@ -19,26 +19,19 @@ pub(super) fn render_db_regions(
         .constraints([Constraint::Min(3), Constraint::Min(3)])
         .split(area);
 
-    // Query card (region 1). Connection (region 0) lives in the header.
+    // Query region (region 1). Connection (region 0) lives in the header.
     let query_focused = pane_focused && region == 1;
-    let card = card_block("[2] QUERY", query_focused);
-    let inner = card.inner(chunks[0]);
-    frame.render_widget(card, chunks[0]);
+    let inner = region_frame(frame, chunks[0], query_focused);
     if inner.width > 0 && inner.height > 0 {
         let parts = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Min(0),
-            ])
+            .constraints([Constraint::Length(1), Constraint::Min(0)])
             .split(inner);
-        render_query_tabbar(frame, parts[0], query_focused);
-        render_tab_separator(frame, parts[1]);
-        if parts[2].height > 0 {
+        render_region_tabs(frame, parts[0], "Query", &[], 0, query_focused);
+        if parts[1].height > 0 {
             let query_caret = render_multiline_region(
                 frame,
-                parts[2],
+                parts[1],
                 block_type,
                 region == 1,
                 &parsed.body,
@@ -66,12 +59,7 @@ pub(super) fn render_db_regions(
     );
 }
 
-/// Single `Query` tab cell for the DB query card.
-fn render_query_tabbar(frame: &mut Frame, area: Rect, focused: bool) {
-    render_subtab_cells(frame, area, &["Query".to_string()], 0, focused);
-}
-
-/// `[3] Result` — delegates to `ui::blocks::result_tabs` +
+/// `Result` region — delegates to `ui::blocks::result_tabs` +
 /// `ui::blocks::db_table::build_result_table`. Carries the result
 /// panel's full tab bar (Result / Messages / Plan / Stats), the
 /// real result table widget (header bold + zebra + numeric align +
@@ -87,12 +75,15 @@ fn render_db_result_region(
     pane: &Pane,
     ctx: &mut BlocksRenderCtx<'_>,
 ) {
-    let block_widget = region_block(block_type, 2, focused, false);
-    let inner = block_widget.inner(area);
-    frame.render_widget(block_widget, area);
+    let inner = region_frame(frame, area, focused);
     if inner.width == 0 || inner.height == 0 {
         return;
     }
+    let variants = crate::app::ResultPanelTab::variants_for(block_type);
+    let labels: Vec<String> = variants
+        .iter()
+        .map(|t| t.label_for(block_type).to_string())
+        .collect();
     // Prefer the pane's loaded document — that's where `cached_result`
     // lives after `run_focused_block`. Falls back to disk for a fresh
     // pane that hasn't loaded the file yet (no cached_result).
@@ -101,14 +92,20 @@ fn render_db_result_region(
     {
         Some(b) => b,
         None => {
-            render_region(
-                frame,
-                area,
-                2,
-                block_type,
-                focused,
-                &["(no result — press r to run)".to_string()],
-            );
+            let parts = ratatui::layout::Layout::default()
+                .direction(ratatui::layout::Direction::Vertical)
+                .constraints([
+                    ratatui::layout::Constraint::Length(1),
+                    ratatui::layout::Constraint::Min(0),
+                ])
+                .split(inner);
+            render_region_tabs(frame, parts[0], "Result", &labels, 0, focused);
+            if parts[1].height > 0 {
+                frame.render_widget(
+                    Paragraph::new("(no result — press r to run)"),
+                    parts[1],
+                );
+            }
             return;
         }
     };
@@ -119,6 +116,7 @@ fn render_db_result_region(
         .get(&key)
         .copied()
         .unwrap_or(crate::app::ResultPanelTab::Result);
+    let active = variants.iter().position(|t| *t == tab).unwrap_or(0);
     let chunks = ratatui::layout::Layout::default()
         .direction(ratatui::layout::Direction::Vertical)
         .constraints([
@@ -126,13 +124,7 @@ fn render_db_result_region(
             ratatui::layout::Constraint::Min(0),
         ])
         .split(inner);
-    crate::ui::blocks::result_tabs::render_result_tab_bar_for(
-        frame,
-        chunks[0],
-        tab,
-        None,
-        block_type,
-    );
+    render_region_tabs(frame, chunks[0], "Result", &labels, active, focused);
     if chunks[1].height == 0 {
         return;
     }
