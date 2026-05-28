@@ -886,3 +886,88 @@ async fn blocks_unsaved_prompt_renders_over_pane() {
     let (text, _) = render(&mut app, 120, 40);
     assert!(!text.trim().is_empty());
 }
+
+fn enter_edit_region(app: &mut App, region: usize) {
+    if let Some(p) = app.active_pane_mut() {
+        p.block_region = region;
+    }
+    crate::input::apply::blocks_view::apply_blocks_view(
+        app,
+        crate::input::action::Action::BlocksRegionEnterEdit,
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_http_headers_edit() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    enter_edit_region(&mut app, 1); // Headers value
+    let (text, cur) = render(&mut app, 120, 40);
+    assert!(text.contains("EDIT"));
+    assert!(cur.is_some(), "caret placed in edited header cell");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_http_body_edit() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    enter_edit_region(&mut app, 2); // Body
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("EDIT"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_db_query_edit() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, false);
+    select_ref(&mut app, sel);
+    enter_edit_region(&mut app, 1); // Query
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("SELECT") || text.contains("EDIT"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_db_result_table() {
+    let (mut app, _d, v) = blocks_app().await;
+    let sel = block_ref_of(&app, false);
+    select_ref(&mut app, sel);
+    let text = httui_core::fs::read_note(&v.path().to_string_lossy(), "db.md").unwrap();
+    let mut doc = Document::from_markdown(&text).unwrap();
+    let idx = doc
+        .segments()
+        .iter()
+        .position(|s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type.starts_with("db")))
+        .unwrap();
+    if let Some(b) = doc.block_at_mut(idx) {
+        b.cached_result = Some(serde_json::json!({
+            "results": [{
+                "kind": "select",
+                "columns": ["id", "name"],
+                "rows": [{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]
+            }]
+        }));
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.document = Some(doc);
+        p.document_path = Some(v.path().join("db.md"));
+        p.block_region = 2; // Result
+    }
+    let (text, _) = render(&mut app, 120, 40);
+    // Rows rendered → not the empty placeholder, so the table-build
+    // path in `render_db_result_region` executed.
+    assert!(!text.contains("no result"), "result table should render rows: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_pane_picker_overlay() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.pane_picker = Some(sel);
+    }
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("[ a ]"), "picker label expected: {text:?}");
+}

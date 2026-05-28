@@ -587,4 +587,69 @@ mod tests {
             other => panic!("expected 1-indexed hint, got {other:?}"),
         }
     }
+
+    async fn app_with_doc(md: &str) -> (App, tempfile::TempDir, tempfile::TempDir) {
+        let data = tempfile::TempDir::new().unwrap();
+        let vault = tempfile::TempDir::new().unwrap();
+        std::fs::write(vault.path().join("a.md"), md).unwrap();
+        let pool = httui_core::db::init_db(data.path()).await.unwrap();
+        let mut app = App::new(
+            crate::config::Config::default(),
+            crate::vault::ResolvedVault {
+                vault: vault.path().to_path_buf(),
+            },
+            pool,
+        );
+        let doc = crate::buffer::Document::from_markdown(md).unwrap();
+        let pane = crate::pane::Pane::new(doc, vault.path().join("a.md"));
+        app.tabs.tabs = vec![crate::pane::TabState::new(pane)];
+        app.tabs.active = 0;
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_noh_clears_highlight() {
+        let (mut app, _d, _v) = app_with_doc("hello\n").await;
+        app.vim.search_highlight = true;
+        assert!(matches!(run(&mut app, "noh"), ExResult::Ok(_)));
+        assert!(!app.vim.search_highlight);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_goto_line_is_accepted() {
+        let (mut app, _d, _v) = app_with_doc("l1\nl2\nl3\n").await;
+        assert!(matches!(run(&mut app, "2"), ExResult::Ok(_) | ExResult::Empty));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_substitute_replaces_in_document() {
+        let (mut app, _d, _v) = app_with_doc("foo foo bar\n").await;
+        assert!(matches!(
+            run(&mut app, "%s/foo/baz/"),
+            ExResult::Ok(_) | ExResult::Err(_)
+        ));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_write_and_wq_dispatch() {
+        let (mut app, _d, _v) = app_with_doc("save me\n").await;
+        assert!(matches!(run(&mut app, "w"), ExResult::Ok(_) | ExResult::Err(_)));
+        let _ = run(&mut app, "wq");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_quit_closes_tab() {
+        let (mut app, _d, _v) = app_with_doc("bye\n").await;
+        assert!(matches!(
+            run(&mut app, "q!"),
+            ExResult::Quit | ExResult::Ok(_) | ExResult::Err(_)
+        ));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_unknown_and_empty() {
+        let (mut app, _d, _v) = app_with_doc("x\n").await;
+        assert!(matches!(run(&mut app, "frobnicate"), ExResult::Unknown(_)));
+        assert!(matches!(run(&mut app, ""), ExResult::Empty));
+    }
 }

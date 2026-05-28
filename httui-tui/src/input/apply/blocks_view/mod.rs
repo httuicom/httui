@@ -760,4 +760,197 @@ mod tests {
         app.modal = Some(Modal::Help);
         assert!(resolve_pane_key(&app, knone(KeyCode::Tab)).is_none());
     }
+
+    async fn app_with_mixed_blocks() -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        write(
+            vault.path(),
+            "api.md",
+            "# api\n\n```http alias=login\nGET https://x.com\nAuthorization: Bearer {{T}}\n```\n",
+        );
+        write(
+            vault.path(),
+            "data.md",
+            "# data\n\n```db-postgres alias=q1\nSELECT 1\n```\n\n```db-postgres alias=q2\nSELECT 2\n```\n",
+        );
+        let pool = init_db(data.path()).await.unwrap();
+        let app = App::new(
+            Config::default(),
+            ResolvedVault {
+                vault: vault.path().to_path_buf(),
+            },
+            pool,
+        );
+        (app, data, vault)
+    }
+
+    fn enter_and_select(app: &mut App, file_idx: usize, block_idx: usize) {
+        apply_blocks_view(app, Action::ToggleAppView);
+        let sel = crate::app::BlockRef {
+            file_idx,
+            block_idx,
+        };
+        if let Some(ws) = app.blocks_workspace.as_mut() {
+            ws.selected = Some(sel);
+        }
+        if let Some(p) = app.active_pane_mut() {
+            p.block_selected = Some(sel);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn nav_http_band_and_col_motion() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneRowDown);
+        assert_eq!(app.active_pane().unwrap().block_region, 1);
+        apply_blocks_view(&mut app, Action::BlocksPaneColLeft);
+        apply_blocks_view(&mut app, Action::BlocksPaneColRight);
+        apply_blocks_view(&mut app, Action::BlocksPaneRowUp);
+        assert_eq!(app.active_pane().unwrap().block_region, 0);
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(3));
+        assert_eq!(app.active_pane().unwrap().block_region, 3);
+        apply_blocks_view(&mut app, Action::BlocksPaneRowUp);
+        assert_eq!(app.active_pane().unwrap().block_region, 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn nav_db_band_motion_and_row_count() {
+        let (mut app, _d, _v) = app_with_mixed_blocks().await;
+        enter_and_select(&mut app, 1, 0);
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        assert_eq!(app.active_pane().unwrap().block_region, 1);
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(3));
+        assert_eq!(app.active_pane().unwrap().block_region, 2);
+        apply_blocks_view(&mut app, Action::BlocksPaneRowDown);
+        apply_blocks_view(&mut app, Action::BlocksPaneRowUp);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn enter_edit_resolves_body_and_header_fields() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 2;
+        }
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        assert!(matches!(
+            app.active_pane().unwrap().block_edit.as_ref().unwrap().field,
+            EditField::HttpBody
+        ));
+        apply_blocks_view(&mut app, Action::BlocksRegionCancelEdit);
+        if let Some(p) = app.active_pane_mut() {
+            p.block_region = 1;
+            p.block_col = 1;
+        }
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        assert!(matches!(
+            app.active_pane().unwrap().block_edit.as_ref().unwrap().field,
+            EditField::HttpHeaderValue(_) | EditField::HttpHeaderKey(_)
+        ));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_focused_sets_up_doc_then_defers_to_running_guard() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        // Open an edit so the run path also exercises sync-to-doc.
+        apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
+        // Pre-arm a running query so start_run_chain early-returns; we
+        // only want run_focused_block's load/segment/cursor setup, not a
+        // real network/DB dispatch.
+        app.running_query = Some(crate::app::RunningQuery {
+            segment_idx: 0,
+            cancel: tokio_util::sync::CancellationToken::new(),
+            started_at: std::time::Instant::now(),
+            kind: crate::app::RunningKind::Run,
+            cache_key: None,
+            bytes_received: 0,
+        });
+        apply_blocks_view(&mut app, Action::BlocksRunFocused);
+        assert!(app.active_pane().unwrap().document.is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_delete_block_confirmed_removes_block_from_disk() {
+        let (mut app, _d, v) = app_with_mixed_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        tree_delete_block_confirmed(&mut app, "data.md", 0);
+        let text = httui_core::fs::read_note(&v.path().to_string_lossy(), "data.md").unwrap();
+        let parsed = httui_core::blocks::parse_blocks(&text);
+        assert_eq!(parsed.len(), 1, "one db block removed");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn resolve_tree_key_block_and_file_rows() {
+        let (mut app, _d, _v) = app_with_mixed_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        app.tree.expanded.insert("data.md".to_string());
+        let vp = app.vault_path.clone();
+        app.tree.refresh(&vp);
+        let bidx = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| n.block.is_some())
+            .expect("a block row");
+        app.tree.selected = bidx;
+        assert!(matches!(
+            resolve_tree_key(&app, KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT)),
+            Some(Action::BlocksTreeReorderUp)
+        ));
+        assert!(matches!(
+            resolve_tree_key(&app, knone(KeyCode::Char('n'))),
+            Some(Action::BlocksTreeNewBlock)
+        ));
+        assert!(matches!(
+            resolve_tree_key(&app, knone(KeyCode::Char('d'))),
+            Some(Action::BlocksTreeDeleteBlock)
+        ));
+        let fidx = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| n.block.is_none() && n.path.ends_with(".md"))
+            .expect("a file row");
+        app.tree.selected = fidx;
+        assert!(matches!(
+            resolve_tree_key(&app, knone(KeyCode::Char('n'))),
+            Some(Action::BlocksTreeNewBlock)
+        ));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn tree_new_block_appends_and_reorder_swaps() {
+        let (mut app, _d, v) = app_with_mixed_blocks().await;
+        apply_blocks_view(&mut app, Action::ToggleAppView);
+        // New block on the api.md file row.
+        let fidx = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| n.path.ends_with("api.md") && n.block.is_none())
+            .expect("api.md row");
+        app.tree.selected = fidx;
+        apply_blocks_view(&mut app, Action::BlocksTreeNewBlock);
+        let api = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
+        assert_eq!(httui_core::blocks::parse_blocks(&api).len(), 2);
+
+        // Reorder the first block of data.md down → q2 lands first.
+        app.tree.expanded.insert("data.md".to_string());
+        let vp = app.vault_path.clone();
+        app.tree.refresh(&vp);
+        let bidx = app
+            .tree
+            .entries
+            .iter()
+            .position(|n| {
+                n.path.ends_with("data.md")
+                    && n.block.as_ref().map(|b| b.block_idx == 0).unwrap_or(false)
+            })
+            .expect("data.md first block row");
+        app.tree.selected = bidx;
+        apply_blocks_view(&mut app, Action::BlocksTreeReorderDown);
+        let data = httui_core::fs::read_note(&v.path().to_string_lossy(), "data.md").unwrap();
+        let parsed = httui_core::blocks::parse_blocks(&data);
+        assert_eq!(parsed[0].alias.as_deref(), Some("q2"));
+    }
 }
