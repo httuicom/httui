@@ -1002,9 +1002,43 @@ async fn render_modals_overlay_stack_dispatch() {
             entries: vec![],
             selected: 0,
         }),
+        crate::modal::Modal::VaultCreateForm(Default::default()),
+        crate::modal::Modal::VaultCloneForm(Default::default()),
     ];
     for m in modals {
         app.modal = Some(m);
         let _ = render(&mut app, 120, 40);
     }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn http_response_detail_renders_in_visual_mode() {
+    let (mut app, _d, v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let text = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
+    let mut doc = Document::from_markdown(&text).unwrap();
+    let idx = doc
+        .segments()
+        .iter()
+        .position(|s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type == "http"))
+        .unwrap();
+    if let Some(b) = doc.block_at_mut(idx) {
+        b.cached_result = Some(serde_json::json!({"status": 200, "body": "ok", "headers": []}));
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.document = Some(doc);
+        p.document_path = Some(v.path().join("api.md"));
+        p.block_region = 3;
+    }
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::BlocksRegionEnterEdit,
+    );
+    // Drive the detail modal's visual-overlay render arm.
+    app.vim.mode = crate::vim::mode::Mode::Visual;
+    app.vim.visual_anchor = Some(crate::buffer::Cursor::InProse { segment_idx: 0, offset: 0 });
+    let _ = render(&mut app, 120, 40);
+    app.vim.mode = crate::vim::mode::Mode::VisualLine;
+    let _ = render(&mut app, 120, 40);
 }

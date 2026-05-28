@@ -812,4 +812,13 @@ mod tests {
         let after = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
         assert_eq!(before, after, "flush after clean save is a no-op");
     }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn watcher_sync_and_change_handlers_run_without_panic() {
+        let (mut app, _d, _v) = app_fixture("# n\n").await;
+        sync_envs_dir_watcher(&mut app);
+        sync_connections_toml_watcher(&mut app);
+        handle_connections_toml_changed(&mut app);
+        handle_envs_dir_changed(&mut app);
+    }
 }
