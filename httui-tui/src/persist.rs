@@ -117,16 +117,10 @@ pub fn restore(app: &mut App, snap: &TuiViewState) {
 
     app.tree.visible = snap.sidebar_open;
     if matches!(target_view, AppView::Blocks) {
-        let mut index = BlockIndex::build(&app.vault_path);
-        let vault = app.vault_path.clone();
-        let pool = app.pool_manager.app_pool().clone();
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                crate::app::enrich_last_runs(&mut index, &vault, &pool).await;
-            });
-        });
+        let index = BlockIndex::build(&app.vault_path);
         app.blocks_workspace = Some(BlocksWorkspace::new(index.clone()));
         app.tree.block_index = Some(index);
+        let vault = app.vault_path.clone();
         app.tree.refresh(&vault);
         // Land focus on the pane (not the sidebar) — Ctrl+W h/j/k/l
         // depend on a non-Tree vim mode. Ctrl+E toggles sidebar focus
@@ -522,7 +516,6 @@ mod tests {
             alias: Some("login".into()),
             block_type: "http".into(),
             line_start: 5,
-            last_run: None,
         };
         let alias_match = BlockKey {
             alias: Some("login".into()),
@@ -545,7 +538,6 @@ mod tests {
             alias: None,
             block_type: "http".into(),
             line_start: 7,
-            last_run: None,
         };
         assert!(block_matches(
             &meta,

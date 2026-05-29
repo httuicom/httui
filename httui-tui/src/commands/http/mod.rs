@@ -195,24 +195,6 @@ pub fn handle_http_block_result(
 
     let success = outcome.is_ok();
 
-    // Snapshot what the sidebar badge needs before `outcome` /
-    // `file_path` / `block_alias` are moved into the history insert.
-    let badge_target = match (&file_path, &block_alias) {
-        (Some(fp), Some(al)) => Some((fp.clone(), al.clone())),
-        _ => None,
-    };
-    let badge_status = match &outcome {
-        Ok(r) => Some(r.status_code as i64),
-        Err(_) => None,
-    };
-    let badge_outcome = if success {
-        "ok"
-    } else if matches!(&outcome, Err(m) if m.to_lowercase().contains("cancel")) {
-        "cancelled"
-    } else {
-        "error"
-    };
-
     // Persist a metadata-only history row when the block has both a
     // file path on disk and an alias — without an alias the history
     // table has no stable key to group runs under, so anonymous
@@ -226,18 +208,6 @@ pub fn handle_http_block_result(
         request_size,
         outcome,
     );
-
-    if let Some((fp, al)) = badge_target {
-        crate::app::refresh_block_badge(
-            app,
-            &fp,
-            &al,
-            crate::app::BlockLastRun {
-                status: badge_status,
-                outcome: badge_outcome.to_string(),
-            },
-        );
-    }
 
     crate::commands::refs::on_block_complete(app, segment_idx, success);
 }

@@ -212,16 +212,8 @@ fn toggle_view(app: &mut App) {
 }
 
 fn enter_blocks(app: &mut App) {
-    let mut index = BlockIndex::build(&app.vault_path);
-    // Fill in last-run badges from history (synchronous read — cheap on
-    // a local SQLite file; toggling into BLOCKS is infrequent).
-    let pool = app.pool_manager.app_pool().clone();
+    let index = BlockIndex::build(&app.vault_path);
     let vault = app.vault_path.clone();
-    tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async {
-            crate::app::enrich_last_runs(&mut index, &vault, &pool).await;
-        });
-    });
     if app.blocks_workspace.is_none() {
         app.blocks_workspace = Some(BlocksWorkspace::new(index.clone()));
     } else if let Some(ws) = app.blocks_workspace.as_mut() {

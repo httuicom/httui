@@ -1,16 +1,13 @@
-//! File-tree sidebar renderer. Two-column layout: indent guides per
-//! depth + entry name. Folders are prefixed with `▾`/`▸` (expanded /
-//! collapsed); files with two spaces.
-//!
-//! When `focused`, the title bar uses a brighter color and the
-//! selected row is highlighted boldly so the user can see which pane
-//! has keyboard focus.
+//! File-tree sidebar renderer. A right divider separates it from the
+//! editor panes; rows show files/dirs and (in BLOCKS mode) the
+//! executable blocks under each file. The divider + the selected row
+//! brighten to the accent when the sidebar holds keyboard focus.
 
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
 
@@ -26,7 +23,7 @@ pub fn width() -> u16 {
 
 /// `dirty_files` holds vault-relative paths of files that have at least
 /// one block in draft (committed-but-unsaved in some pane). Matching
-/// file rows get a red `●` dot. Empty outside BLOCKS view.
+/// file rows get a `●` dot. Empty outside BLOCKS view.
 pub fn render(
     frame: &mut Frame,
     area: Rect,
@@ -34,42 +31,25 @@ pub fn render(
     focused: bool,
     dirty_files: &HashSet<String>,
 ) {
-    let (border_color, title_style) = if focused {
-        (
-            crate::ui::palette::popup_border_accent(),
-            Style::default()
-                .fg(crate::ui::palette::popup_border_accent())
-                .add_modifier(Modifier::BOLD),
-        )
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    // No box — a single right divider separates the sidebar from the
+    // panes; it brightens to the accent when the sidebar holds focus.
+    let divider_color = if focused {
+        crate::ui::palette::accent()
     } else {
-        (
-            crate::ui::palette::muted(),
-            Style::default().fg(Color::Gray),
-        )
+        crate::ui::palette::border()
     };
-    let logo = Line::from(vec![
-        Span::raw(" "),
-        Span::styled(
-            "H>",
-            Style::default()
-                .fg(crate::ui::palette::accent())
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::styled(" httui ", title_style),
-    ]);
     let block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Rounded)
-        .border_style(Style::default().fg(border_color))
-        .title(logo)
-        .title_top(Line::from(Span::styled(" ⚙ ", title_style)).right_aligned());
+        .borders(Borders::RIGHT)
+        .border_style(Style::default().fg(divider_color));
     let inner = block.inner(area);
     frame.render_widget(block, area);
     if inner.width == 0 || inner.height == 0 {
         return;
     }
-    // Reserve the top line for the quick-jump hint; the tree list fills
-    // the rest.
+    // Top line: the quick-jump hint; the tree list fills the rest.
     let rows = ratatui::layout::Layout::default()
         .direction(ratatui::layout::Direction::Vertical)
         .constraints([
@@ -83,14 +63,11 @@ pub fn render(
                 " Ctrl+P",
                 Style::default().fg(crate::ui::palette::accent()),
             ),
-            Span::styled(
-                "  Jump…",
-                Style::default().fg(crate::ui::palette::muted()),
-            ),
+            Span::styled("  Jump…", Style::default().fg(crate::ui::palette::muted())),
         ])),
         rows[0],
     );
-    let inner = rows[1];
+    let list_area = rows[1];
 
     let block_mode = tree.block_index.is_some();
     let items: Vec<ListItem> = tree
@@ -99,38 +76,21 @@ pub fn render(
         .map(|node| {
             let indent = "  ".repeat(node.depth);
             if let Some(meta) = node.block.as_ref() {
-                let badge = block_badge(&meta.block_type);
-                let badge_bg = if meta.block_type == "http" {
-                    crate::ui::palette::accent()
-                } else {
-                    crate::ui::palette::popup_border_accent()
-                };
-                let mut spans = vec![
+                // Block row: dim type tag + bold alias. No status badge —
+                // run status reads off the block's own header.
+                return ListItem::new(Line::from(vec![
                     Span::raw(indent),
                     Span::raw("  "),
                     Span::styled(
-                        badge,
-                        Style::default()
-                            .bg(badge_bg)
-                            .fg(crate::ui::palette::popup_bg())
-                            .add_modifier(Modifier::BOLD),
+                        format!("{:<4}", block_type_label(&meta.block_type)),
+                        Style::default().fg(crate::ui::palette::muted()),
                     ),
-                    Span::raw(" "),
-                    Span::styled(meta.label.clone(), Style::default()),
-                ];
-                if let Some(lr) = meta.last_run.as_ref() {
-                    let (label, color) = block_run_chip(
-                        meta.block_type.starts_with("db"),
-                        lr.status,
-                        &lr.outcome,
-                    );
-                    spans.push(Span::raw("  "));
-                    spans.push(Span::styled(
-                        label,
-                        Style::default().fg(color).add_modifier(Modifier::BOLD),
-                    ));
-                }
-                return ListItem::new(Line::from(spans));
+                    Span::raw("  "),
+                    Span::styled(
+                        meta.label.clone(),
+                        Style::default().add_modifier(Modifier::BOLD),
+                    ),
+                ]));
             }
             let expandable = node.is_dir || block_mode;
             let icon = if expandable {
@@ -154,7 +114,10 @@ pub fn render(
             ];
             if !node.is_dir && dirty_files.contains(&node.path) {
                 spans.push(Span::raw(" "));
-                spans.push(Span::styled("●", Style::default().fg(Color::Red)));
+                spans.push(Span::styled(
+                    "●",
+                    Style::default().fg(crate::ui::palette::amber()),
+                ));
             }
             ListItem::new(Line::from(spans))
         })
@@ -162,12 +125,12 @@ pub fn render(
 
     let highlight_style = if focused {
         Style::default()
-            .bg(Color::Yellow)
+            .bg(crate::ui::palette::accent())
             .fg(crate::ui::palette::popup_bg())
             .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
-            .bg(crate::ui::palette::muted())
+            .bg(crate::ui::palette::selection_bg())
             .fg(crate::ui::palette::foreground())
     };
 
@@ -178,53 +141,24 @@ pub fn render(
     if !tree.entries.is_empty() {
         state.select(Some(tree.selected.min(tree.entries.len() - 1)));
     }
-    frame.render_stateful_widget(list, inner, &mut state);
+    frame.render_stateful_widget(list, list_area, &mut state);
 }
 
-fn block_badge(block_type: &str) -> String {
+/// Compact lowercase type tag for a block row (`http` / `db`).
+fn block_type_label(block_type: &str) -> &str {
     if block_type == "http" {
-        " HTTP ".into()
+        "http"
     } else if block_type.starts_with("db") {
-        " DB ".into()
+        "db"
     } else {
-        format!(" {block_type} ")
-    }
-}
-
-/// Last-run badge text + color for a sidebar block row. HTTP shows the
-/// status code colored by class (2xx green, 3xx blue, 4xx/5xx red); DB
-/// shows the row count in blue (`status` holds `rows.len()` /
-/// `rows_affected` — see `derive_db_history_stats`). A recorded
-/// `"error"` outcome is always red; `"cancelled"` is a muted dash.
-fn block_run_chip(is_db: bool, status: Option<i64>, outcome: &str) -> (String, Color) {
-    match outcome {
-        "cancelled" => ("—".into(), crate::ui::palette::muted()),
-        "error" => (
-            status.map(|c| c.to_string()).unwrap_or_else(|| "err".into()),
-            Color::Red,
-        ),
-        _ if is_db => match status {
-            Some(1) => ("1 row".into(), crate::ui::palette::accent()),
-            Some(n) => (format!("{n} rows"), crate::ui::palette::accent()),
-            None => ("ok".into(), crate::ui::palette::accent()),
-        },
-        _ => match status {
-            Some(c) if (200..300).contains(&c) => {
-                (c.to_string(), crate::ui::palette::success())
-            }
-            Some(c) if (300..400).contains(&c) => {
-                (c.to_string(), crate::ui::palette::accent())
-            }
-            Some(c) => (c.to_string(), Color::Red),
-            None => ("—".into(), crate::ui::palette::muted()),
-        },
+        block_type
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tree::{FileTree, TreeNode};
+    use crate::tree::{FileTree, TreeBlockMeta, TreeNode};
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 
@@ -281,18 +215,26 @@ mod tests {
     }
 
     #[test]
-    fn renders_entries_with_files_block_title_and_dir_icon() {
+    fn renders_files_and_dir_icon() {
         let mut t = term(30, 8);
         let tree = fixture();
         t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
             .unwrap();
         let text = buffer_text(&t);
-        assert!(text.contains("httui"));
         assert!(text.contains("notes"));
         assert!(text.contains("alpha.md"));
         assert!(text.contains("beta.md"));
         // Expanded folder shows the down-pointing triangle.
         assert!(text.contains("▾"));
+    }
+
+    #[test]
+    fn shows_jump_hint() {
+        let mut t = term(30, 8);
+        let tree = fixture();
+        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
+            .unwrap();
+        assert!(buffer_text(&t).contains("Jump"));
     }
 
     #[test]
@@ -302,8 +244,7 @@ mod tests {
         tree.expanded.clear();
         t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
             .unwrap();
-        let text = buffer_text(&t);
-        assert!(text.contains("▸"), "collapsed icon missing: {text}");
+        assert!(buffer_text(&t).contains("▸"), "collapsed icon missing");
     }
 
     #[test]
@@ -312,27 +253,24 @@ mod tests {
         let tree = FileTree::default();
         t.draw(|f| render(f, Rect::new(0, 0, 30, 6), &tree, false, &HashSet::new()))
             .unwrap();
-        let text = buffer_text(&t);
-        assert!(text.contains("httui"));
+        assert!(buffer_text(&t).contains("Jump"));
     }
 
     #[test]
     fn focused_and_unfocused_both_render() {
-        // Smoke test for both branches of the focus styling — neither
-        // should panic and both must keep painting the title.
+        // Smoke test for both branches of the focus styling.
         let tree = fixture();
         for focused in [false, true] {
             let mut t = term(30, 8);
             t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, focused, &HashSet::new()))
                 .unwrap();
-            assert!(buffer_text(&t).contains("httui"));
+            assert!(buffer_text(&t).contains("alpha.md"));
         }
     }
 
     #[test]
     fn selected_index_is_clamped_to_last_entry() {
-        // Defensive: an out-of-range selection must not panic; the
-        // renderer clamps to the last entry.
+        // Defensive: an out-of-range selection must not panic.
         let mut t = term(30, 8);
         let mut tree = fixture();
         tree.selected = 999;
@@ -341,10 +279,7 @@ mod tests {
         assert!(buffer_text(&t).contains("beta.md"));
     }
 
-    use crate::app::BlockLastRun;
-    use crate::tree::TreeBlockMeta;
-
-    fn block_row(block_type: &str, label: &str, last_run: Option<BlockLastRun>) -> FileTree {
+    fn block_row(block_type: &str, label: &str) -> FileTree {
         FileTree {
             entries: vec![
                 TreeNode {
@@ -364,7 +299,6 @@ mod tests {
                         block_idx: 0,
                         block_type: block_type.into(),
                         label: label.into(),
-                        last_run,
                     }),
                 },
             ],
@@ -373,88 +307,29 @@ mod tests {
     }
 
     #[test]
-    fn block_run_chip_http_status_classes() {
-        assert_eq!(
-            block_run_chip(false, Some(204), "ok"),
-            ("204".into(), crate::ui::palette::success())
-        );
-        assert_eq!(
-            block_run_chip(false, Some(301), "ok"),
-            ("301".into(), crate::ui::palette::accent())
-        );
-        assert_eq!(block_run_chip(false, Some(500), "ok"), ("500".into(), Color::Red));
-        assert_eq!(block_run_chip(false, Some(404), "ok"), ("404".into(), Color::Red));
-    }
-
-    #[test]
-    fn block_run_chip_db_rows_are_blue() {
-        assert_eq!(
-            block_run_chip(true, Some(12), "ok"),
-            ("12 rows".into(), crate::ui::palette::accent())
-        );
-        assert_eq!(
-            block_run_chip(true, Some(1), "ok"),
-            ("1 row".into(), crate::ui::palette::accent())
-        );
-    }
-
-    #[test]
-    fn block_run_chip_error_and_cancelled() {
-        assert_eq!(block_run_chip(false, Some(500), "error"), ("500".into(), Color::Red));
-        assert_eq!(block_run_chip(true, None, "error"), ("err".into(), Color::Red));
-        assert_eq!(
-            block_run_chip(false, None, "cancelled"),
-            ("—".into(), crate::ui::palette::muted())
-        );
-    }
-
-    #[test]
-    fn renders_http_status_badge_next_to_block() {
+    fn block_row_shows_type_tag_and_alias() {
         let mut t = term(30, 8);
-        let tree = block_row(
-            "http",
-            "login",
-            Some(BlockLastRun {
-                status: Some(200),
-                outcome: "ok".into(),
-            }),
-        );
+        let tree = block_row("http", "login");
         t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
             .unwrap();
         let text = buffer_text(&t);
-        assert!(text.contains("login"), "{text}");
-        assert!(text.contains("200"), "status badge missing: {text}");
+        assert!(text.contains("http"), "type tag: {text}");
+        assert!(text.contains("login"), "alias: {text}");
     }
 
     #[test]
-    fn renders_db_row_count_badge() {
+    fn db_block_row_uses_db_tag() {
         let mut t = term(30, 8);
-        let tree = block_row(
-            "db-postgres",
-            "audit",
-            Some(BlockLastRun {
-                status: Some(12),
-                outcome: "ok".into(),
-            }),
-        );
-        t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
-            .unwrap();
-        assert!(buffer_text(&t).contains("12 rows"));
-    }
-
-    #[test]
-    fn block_without_last_run_has_no_badge() {
-        let mut t = term(30, 8);
-        let tree = block_row("http", "login", None);
+        let tree = block_row("db-postgres", "audit");
         t.draw(|f| render(f, Rect::new(0, 0, 30, 8), &tree, false, &HashSet::new()))
             .unwrap();
         let text = buffer_text(&t);
-        // The label is there but no trailing status digits.
-        assert!(text.contains("login"), "{text}");
+        assert!(text.contains("db"), "db tag: {text}");
+        assert!(text.contains("audit"));
     }
 
     #[test]
-    fn dirty_file_gets_red_dot() {
+    fn dirty_file_gets_dot() {
         let mut t = term(30, 8);
         let tree = fixture();
         let mut dirty = HashSet::new();

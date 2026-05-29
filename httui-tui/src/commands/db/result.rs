@@ -93,15 +93,6 @@ pub fn handle_db_block_result(
                         response_size,
                         outcome_str,
                     );
-                    crate::app::refresh_block_badge(
-                        app,
-                        &meta.file_path,
-                        &meta.block_alias,
-                        crate::app::BlockLastRun {
-                            status,
-                            outcome: outcome_str.to_string(),
-                        },
-                    );
                 }
 
                 if first_was_error {
@@ -148,15 +139,6 @@ pub fn handle_db_block_result(
                         None,
                         None,
                         outcome_str,
-                    );
-                    crate::app::refresh_block_badge(
-                        app,
-                        &meta.file_path,
-                        &meta.block_alias,
-                        crate::app::BlockLastRun {
-                            status: None,
-                            outcome: outcome_str.to_string(),
-                        },
                     );
                 }
                 app.set_status(StatusKind::Error, msg);
