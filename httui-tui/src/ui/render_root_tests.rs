@@ -849,6 +849,103 @@ async fn blocks_view_empty_selection_paints_placeholder() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_cross_block_usage_footer() {
+    let (mut app, _d, _v) = app_with_files(&[
+        (
+            "auth.md",
+            "# auth\n\n```http alias=createUser\nPOST https://x.com/users\n```\n",
+        ),
+        (
+            "downstream.md",
+            "# downstream\n\n```http alias=audit\nPOST https://x.com/log/{{createUser.body.id}}\n```\n",
+        ),
+    ])
+    .await;
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::ToggleAppView,
+    );
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let (text, _) = render(&mut app, 140, 40);
+    assert!(
+        text.contains("used by"),
+        "expected usage footer when another block references this alias: {text:?}"
+    );
+    assert!(text.contains("downstream.md"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_edit_completion_lists_block_alias_above() {
+    let (mut app, _d, _v) = app_with_files(&[(
+        "api.md",
+        "# api\n\n```http alias=req1\nGET https://x.com\n```\n\n```http alias=req2\nGET https://y.com\nAccept: */*\n```\n",
+    )])
+    .await;
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::ToggleAppView,
+    );
+
+    // Find req2 (the second http block) and select it as the focused
+    // pane's block.
+    let ws = app.blocks_workspace.as_ref().unwrap();
+    let (fi, bi) = ws
+        .index
+        .files
+        .iter()
+        .enumerate()
+        .find_map(|(fi, f)| {
+            f.blocks
+                .iter()
+                .enumerate()
+                .find_map(|(bi, b)| (b.alias.as_deref() == Some("req2")).then_some((fi, bi)))
+        })
+        .expect("req2 indexed");
+    let sel = crate::app::BlockRef {
+        file_idx: fi,
+        block_idx: bi,
+    };
+    select_ref(&mut app, sel);
+
+    // Mirror what `edit::open` does: load the file as the pane
+    // Document so the completion path has a real `Segment::Block`
+    // list to walk.
+    let abs = _v.path().join("api.md");
+    let text = std::fs::read_to_string(&abs).unwrap();
+    let doc = Document::from_markdown(&text).unwrap();
+    if let Some(p) = app.active_pane_mut() {
+        p.document = Some(doc);
+        p.document_path = Some(abs);
+    }
+
+    // Spawn EDIT on req2's header value with the `{{` trigger already
+    // typed and the caret at end.
+    if let Some(p) = app.active_pane_mut() {
+        let mut edit = crate::app::RegionEdit::insert(
+            crate::app::EditField::HttpHeaderValue(0),
+            "{{",
+        );
+        edit.doc.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 2,
+        });
+        p.block_edit = Some(Box::new(edit));
+    }
+
+    crate::input::apply::completion::rebuild_completion_popup(&mut app, false);
+
+    let Some(crate::modal::Modal::CompletionPopup(state)) = app.modal.as_ref() else {
+        panic!("expected completion popup, got {:?}", app.modal);
+    };
+    assert!(
+        state.items.iter().any(|i| i.label == "req1"),
+        "popup must list `req1` alias from the block above: {:?}",
+        state.items
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn blocks_view_renders_vertical_split() {
     let (mut app, _d, _v) = blocks_app().await;
     let http = block_ref_of(&app, true);

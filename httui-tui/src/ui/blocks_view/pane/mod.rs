@@ -20,6 +20,7 @@ use view::{
 mod header;
 mod http;
 mod db;
+mod footer;
 
 pub(super) fn render_leaf(
     frame: &mut Frame,
@@ -122,12 +123,18 @@ fn render_block(
     running: Option<&str>,
     ctx: &mut BlocksRenderCtx<'_>,
 ) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Min(1)])
-        .split(area);
     let dirty = pane.block_draft.is_some();
     let parsed = load_view(ctx.vault, file, block, pane);
+    let footer_lines = footer::compute_footer_lines(ctx.vault, file, block, &parsed);
+    let footer_h = footer_lines.len() as u16;
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Min(1),
+            Constraint::Length(footer_h),
+        ])
+        .split(area);
     let region = pane.block_region;
     header::render_header(
         frame,
@@ -174,6 +181,10 @@ fn render_block(
         );
     } else {
         render_fallback(frame, chunks[1], &parsed.raw);
+    }
+
+    if footer_h > 0 {
+        footer::render_block_usage_footer(frame, chunks[2], &footer_lines);
     }
 }
 
