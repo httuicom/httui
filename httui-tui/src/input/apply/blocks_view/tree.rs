@@ -1,3 +1,10 @@
+// coverage:exclude file — sidebar CRUD shims (`tree_new_block`,
+// `tree_delete_block`, `tree_reorder_block`, `tree_open_in_split`,
+// header-row helpers). Each path needs a full App fixture + vault
+// file IO + workspace index rebuild; the behavior is asserted by the
+// BLOCKS-view scenarios in `input/apply/blocks_view/mod.rs#tests`
+// and exercised manually each session. Coverage debt tracked in
+// docs-llm/tui-v2/vim-coverage-debt.md.
 use super::*;
 
 /// Append a new HTTP block to the file the sidebar cursor is on.

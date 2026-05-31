@@ -443,4 +443,28 @@ mod tests {
             "Ctrl+B in Mode::Git must open the branch picker"
         );
     }
+
+    /// `Ctrl+W` while focused on the sidebar (`Mode::Tree`) must set
+    /// the pending-window-chord flag so the next `h/j/k/l` can route
+    /// to the tree↔pane bridge in `apply::window::focus_dir`.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn ctrl_w_in_tree_mode_sets_pending_chord_then_routes_focus() {
+        let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
+        app.vim.mode = crate::vim::mode::Mode::Tree;
+        // First Ctrl+W: arms the chord, no action yet.
+        dispatch(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL),
+        );
+        assert!(
+            app.standard.pending_window_chord,
+            "Ctrl+W in Mode::Tree should arm the chord"
+        );
+        // Second key `l`: consumes chord + dispatches Window(FocusRight).
+        dispatch(&mut app, key(KeyCode::Char('l')));
+        assert!(
+            !app.standard.pending_window_chord,
+            "chord should be cleared after the follow-up key"
+        );
+    }
 }
