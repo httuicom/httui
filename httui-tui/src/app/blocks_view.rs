@@ -104,6 +104,22 @@ pub struct SidebarRow {
     pub kind: SidebarRowKind,
 }
 
+/// What the pane picker overlay is asking the user to do. Open
+/// replaces the chosen pane's block; SplitVertical/SplitHorizontal
+/// spawn a new half off the chosen pane and put the block there.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PanePickerAction {
+    Open,
+    SplitVertical,
+    SplitHorizontal,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PanePickerIntent {
+    pub target: BlockRef,
+    pub action: PanePickerAction,
+}
+
 #[derive(Debug, Clone)]
 pub struct BlocksWorkspace {
     pub index: BlockIndex,
@@ -111,9 +127,11 @@ pub struct BlocksWorkspace {
     pub cursor: usize,
     pub selected: Option<BlockRef>,
     pub region: usize,
-    /// Some(block) = sidebar picked a block while multiple panes were
-    /// open — next digit chooses which pane to open it in. Esc cancels.
-    pub pane_picker: Option<BlockRef>,
+    /// Some = a sidebar action needs the user to pick which pane it
+    /// should land on. The next a/b/c/… keystroke routes to that pane;
+    /// `Esc` cancels. The carried action distinguishes open-here from
+    /// split-here.
+    pub pane_picker: Option<PanePickerIntent>,
 }
 
 impl BlocksWorkspace {

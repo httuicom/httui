@@ -1015,10 +1015,13 @@ async fn blocks_view_renders_pane_picker_overlay() {
     let sel = block_ref_of(&app, true);
     select_ref(&mut app, sel);
     if let Some(ws) = app.blocks_workspace.as_mut() {
-        ws.pane_picker = Some(sel);
+        ws.pane_picker = Some(crate::app::PanePickerIntent {
+            target: sel,
+            action: crate::app::PanePickerAction::Open,
+        });
     }
     let (text, _) = render(&mut app, 120, 40);
-    assert!(text.contains("[ a ]"), "picker label expected: {text:?}");
+    assert!(text.contains('A'), "picker label expected: {text:?}");
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -357,32 +357,33 @@ fn render_fallback(frame: &mut Frame, area: Rect, raw: &str) {
 }
 
 pub(super) fn paint_picker_overlay(frame: &mut Frame, area: Rect, n: usize) {
-    if area.width < 5 || area.height < 3 {
+    if area.width < 1 || area.height < 1 {
         return;
     }
     let letter = if (1..=26).contains(&n) {
-        (b'a' + (n - 1) as u8) as char
+        (b'A' + (n - 1) as u8) as char
     } else {
         '?'
     };
-    let label = format!("[ {letter} ]");
-    let cy = area.y + area.height / 2;
-    let label_w = label.chars().count() as u16;
-    let cx = area.x + area.width.saturating_sub(label_w) / 2;
-    let style = Style::default()
-        .bg(crate::ui::palette::popup_border_accent())
-        .fg(crate::ui::palette::popup_bg())
-        .add_modifier(Modifier::BOLD);
-    let row = Rect {
-        x: cx,
-        y: cy,
-        width: label_w.min(area.width),
-        height: 1,
-    };
-    frame.render_widget(
-        Paragraph::new(Line::from(Span::styled(label, style))),
-        row,
-    );
+    // Single full-width band centered vertically — minimal chrome,
+    // unmistakable: solid accent bg across the whole pane width with
+    // the bold letter at the horizontal centre.
+    let band_y = area.y + area.height / 2;
+    let fill_style = Style::default()
+        .bg(crate::ui::palette::accent())
+        .fg(crate::ui::palette::popup_bg());
+    let buf = frame.buffer_mut();
+    for x in area.x..area.x + area.width {
+        if let Some(cell) = buf.cell_mut((x, band_y)) {
+            cell.set_symbol(" ");
+            cell.set_style(fill_style);
+        }
+    }
+    let letter_x = area.x + area.width / 2;
+    if let Some(cell) = buf.cell_mut((letter_x, band_y)) {
+        cell.set_symbol(&letter.to_string());
+        cell.set_style(fill_style.add_modifier(Modifier::BOLD));
+    }
 }
 
 #[cfg(test)]

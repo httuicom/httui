@@ -367,6 +367,8 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::BlocksTreeReorderUp
         | Action::BlocksTreeReorderDown
         | Action::BlocksTreeDeleteBlock
+        | Action::BlocksTreeOpenSplitVertical
+        | Action::BlocksTreeOpenSplitHorizontal
         | Action::BlocksUnsavedPromptSave
         | Action::BlocksUnsavedPromptDiscard
         | Action::BlocksUnsavedPromptCancel => {

@@ -65,7 +65,10 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
                 let leaves = app.active_tab().map(|t| t.leaf_count()).unwrap_or(1);
                 if leaves > 1 {
                     if let Some(ws) = app.blocks_workspace.as_mut() {
-                        ws.pane_picker = Some(target);
+                        ws.pane_picker = Some(crate::app::PanePickerIntent {
+                            target,
+                            action: crate::app::PanePickerAction::Open,
+                        });
                     }
                     return;
                 }

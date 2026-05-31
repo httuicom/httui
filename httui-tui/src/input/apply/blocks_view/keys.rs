@@ -131,6 +131,17 @@ pub(crate) fn resolve_tree_key(app: &App, key: KeyEvent) -> Option<Action> {
         {
             return Some(Action::BlocksTreeDeleteBlock);
         }
+        // `v` / `s` on a block splits the focused pane and opens the
+        // block in the new half — `v` = vertical split (left/right),
+        // `s` = horizontal split (top/bottom). Matches the nvim-tree /
+        // neo-tree chord. The new pane lands focused, so subsequent
+        // motions hit it without an Esc dance.
+        if matches!(code, KeyCode::Char('v')) && !modifiers.contains(KeyModifiers::CONTROL) {
+            return Some(Action::BlocksTreeOpenSplitVertical);
+        }
+        if matches!(code, KeyCode::Char('s')) && !modifiers.contains(KeyModifiers::CONTROL) {
+            return Some(Action::BlocksTreeOpenSplitHorizontal);
+        }
         return None;
     }
     // File row focused: `n`/`N` create a new block in the file.

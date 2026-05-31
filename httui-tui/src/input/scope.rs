@@ -122,8 +122,9 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
             return KeyOutcome::Effect(crate::input::action::Action::BlocksPanePickerCancel);
         }
         if let KeyCode::Char(c) = key.code {
-            if c.is_ascii_lowercase() {
-                let n = (c as u8 - b'a' + 1) as usize;
+            let lower = c.to_ascii_lowercase();
+            if lower.is_ascii_lowercase() {
+                let n = (lower as u8 - b'a' + 1) as usize;
                 let leaves = app.active_tab().map(|t| t.leaf_count()).unwrap_or(0);
                 if n <= leaves {
                     return KeyOutcome::Effect(
@@ -142,6 +143,44 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
         app.vim.mode,
         crate::vim::mode::Mode::Tree | crate::vim::mode::Mode::TreePrompt
     ) {
+        use crossterm::event::{KeyCode, KeyModifiers};
+        use crate::input::action::Action;
+        use crate::input::types::WindowCmd;
+        // Treat the sidebar as a navigable window for `Ctrl+W` chords.
+        // Without this, `Ctrl+W l` from the tree was dropped because
+        // `parse_tree` ignores Ctrl+W and the vim engine never sees
+        // the chord either. Re-uses the standard mode's flag so the
+        // existing apply path (`Action::Window(FocusLeft/...)`) takes
+        // care of the actual movement (which already knows the tree↔
+        // pane bridge via `apply::window::focus_dir`).
+        if app.standard.pending_window_chord {
+            app.standard.pending_window_chord = false;
+            let cmd = match (key.modifiers, key.code) {
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char('h')) => {
+                    Some(WindowCmd::FocusLeft)
+                }
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char('l')) => {
+                    Some(WindowCmd::FocusRight)
+                }
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char('j')) => {
+                    Some(WindowCmd::FocusDown)
+                }
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char('k')) => {
+                    Some(WindowCmd::FocusUp)
+                }
+                _ => None,
+            };
+            if let Some(c) = cmd {
+                return KeyOutcome::Effect(Action::Window(c));
+            }
+            return KeyOutcome::Consumed;
+        }
+        if key.modifiers.contains(KeyModifiers::CONTROL)
+            && matches!(key.code, KeyCode::Char('w'))
+        {
+            app.standard.pending_window_chord = true;
+            return KeyOutcome::Consumed;
+        }
         // BLOCKS-view sidebar chords (`n` create, `d`/`Delete`,
         // `Shift+arrow` reorder) take precedence over the generic
         // tree input. Restricted to `Mode::Tree` so they only fire

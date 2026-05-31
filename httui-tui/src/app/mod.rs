@@ -264,7 +264,12 @@ impl App {
             self.tabs.active = 0;
             return;
         };
-        match document_loader::load_document(&self.vault_path, &file) {
+        match document_loader::load_and_hydrate(
+            &self.vault_path,
+            &file,
+            self.pool_manager.app_pool(),
+            &self.environments_store,
+        ) {
             Ok(doc) => {
                 self.tabs.tabs.push(TabState::new(Pane::new(doc, file)));
                 self.tabs.active = 0;

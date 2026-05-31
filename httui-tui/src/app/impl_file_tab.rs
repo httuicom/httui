@@ -32,8 +32,13 @@ impl App {
         {
             return Err("no write since last change (add ! to override)".into());
         }
-        let doc = document_loader::load_document(&self.vault_path, &relative_path)
-            .map_err(|e| format!("E484: Can't open file: {e}"))?;
+        let doc = document_loader::load_and_hydrate(
+            &self.vault_path,
+            &relative_path,
+            self.pool_manager.app_pool(),
+            &self.environments_store,
+        )
+        .map_err(|e| format!("E484: Can't open file: {e}"))?;
         let name = file_name(&relative_path);
         // No tab yet (e.g. last close left us empty)? Open as new tab.
         if self.tabs.is_empty() {
@@ -59,8 +64,13 @@ impl App {
             self.tabs.active = idx;
             return Ok(format!("\"{}\"", file_name(&relative_path)));
         }
-        let doc = document_loader::load_document(&self.vault_path, &relative_path)
-            .map_err(|e| format!("E484: Can't open file: {e}"))?;
+        let doc = document_loader::load_and_hydrate(
+            &self.vault_path,
+            &relative_path,
+            self.pool_manager.app_pool(),
+            &self.environments_store,
+        )
+        .map_err(|e| format!("E484: Can't open file: {e}"))?;
         let name = file_name(&relative_path);
         let new_tab = TabState::new(Pane::new(doc, relative_path));
         self.tabs.tabs.push(new_tab);

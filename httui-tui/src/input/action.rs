@@ -458,6 +458,12 @@ pub enum Action {
     /// from its file. Intercepts before the generic tree-delete so
     /// a block-row chord can't accidentally delete the parent file.
     BlocksTreeDeleteBlock,
+    /// `v` on a block in the sidebar — split the focused pane
+    /// vertically and open the selected block in the new half.
+    BlocksTreeOpenSplitVertical,
+    /// `s` on a block in the sidebar — split the focused pane
+    /// horizontally and open the selected block in the new half.
+    BlocksTreeOpenSplitHorizontal,
     /// `Save` button on the unsaved-prompt modal: write every dirty
     /// pane, close the modal, replay the deferred `ToggleAppView`.
     BlocksUnsavedPromptSave,

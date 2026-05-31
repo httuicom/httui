@@ -6,6 +6,7 @@ use tracing_appender::rolling;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 mod app;
+mod block_hydrate;
 mod buffer;
 mod cli;
 mod clipboard;

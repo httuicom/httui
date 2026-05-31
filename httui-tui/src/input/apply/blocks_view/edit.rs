@@ -138,20 +138,19 @@ pub(crate) fn run_focused_block(app: &mut App) {
         .map(|p| p.document_path.as_deref() != Some(abs_path.as_path()))
         .unwrap_or(true);
     if needs_load {
-        let text = match httui_core::fs::read_note(
-            &app.vault_path.to_string_lossy(),
-            &file_path_rel.to_string_lossy(),
+        // Load + hydrate via the shared helper so the loaded document
+        // carries any persisted `cached_result` for blocks above the
+        // focused one — the BLOCKS view Response card paints
+        // immediately and `{{alias.body.…}}` resolves on first use.
+        let doc = match crate::document_loader::load_and_hydrate(
+            &app.vault_path,
+            &file_path_rel,
+            app.pool_manager.app_pool(),
+            &app.environments_store,
         ) {
-            Ok(t) => t,
-            Err(e) => {
-                app.set_status(StatusKind::Error, format!("read failed: {e}"));
-                return;
-            }
-        };
-        let doc = match crate::buffer::Document::from_markdown(&text) {
             Ok(d) => d,
             Err(e) => {
-                app.set_status(StatusKind::Error, format!("parse failed: {e}"));
+                app.set_status(StatusKind::Error, format!("read failed: {e}"));
                 return;
             }
         };

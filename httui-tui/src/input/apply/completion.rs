@@ -358,8 +358,11 @@ fn blocks_edit_completion_active(app: &App) -> bool {
 /// sub-doc rather than `Cursor::InBlock` on the pane document.
 fn rebuild_completion_popup_blocks_edit(app: &mut App, allow_empty_prefix: bool) {
     // Pull the sub-doc text + cursor (line, col) from the edit
-    // buffer the user is typing into.
-    let (body, line, offset, block_type, conn_raw) = {
+    // buffer the user is typing into. Also snapshot the file-wide
+    // segments + the focused block's index so ref completion sees
+    // every block above this one (not just the field sub-doc, which
+    // has zero `Segment::Block` entries).
+    let (body, line, offset, block_type, conn_raw, mut file_segments, current_segment, abs_path) = {
         let Some(pane) = app.active_pane() else {
             close_completion_popup_if_open(app);
             return;
@@ -403,37 +406,68 @@ fn rebuild_completion_popup_blocks_edit(app: &mut App, allow_empty_prefix: bool)
             return;
         };
         let block_type = meta.block_type.clone();
-        // Re-read fence params from disk to pull `connection=…`.
-        // This stays cheap — the file is small and the read happens
-        // only on keystroke when EDIT popup refreshes.
+        let alias = meta.alias.clone();
         let conn_raw = read_block_connection(&app.vault_path, &file.path, meta.line_start);
-        (body, line, col, block_type, conn_raw)
+        let (file_segments, current_segment) = pane
+            .document
+            .as_ref()
+            .map(|doc| {
+                let segs: Vec<crate::buffer::Segment> = doc.segments().to_vec();
+                let idx = segs
+                    .iter()
+                    .position(|s| matches!(
+                        s,
+                        crate::buffer::Segment::Block(b)
+                            if b.block_type == block_type && b.alias == alias
+                    ))
+                    .unwrap_or(segs.len());
+                (segs, idx)
+            })
+            .unwrap_or_else(|| (Vec::new(), 0));
+        let abs_path = app.vault_path.join(&file.path);
+        (
+            body,
+            line,
+            col,
+            block_type,
+            conn_raw,
+            file_segments,
+            current_segment,
+            abs_path,
+        )
     };
 
-    // Use segment_idx = 0 as a stable anchor key — there's only one
-    // edit buffer per pane, and the renderer's anchor calc falls
-    // back to a centered popup when this segment can't be resolved
-    // in the pane document (BLOCKS-view case).
+    // Re-attach `cached_result` from SQLite onto the segments snapshot
+    // so the popup sees the latest captured response — another pane (or
+    // a previous session) may have refreshed it after this pane's
+    // `pane.document` was last loaded. Without this the popup paths
+    // would drift after every cross-pane rerun.
+    let env_vars_for_hydrate: std::collections::HashMap<String, String> =
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current()
+                .block_on(load_active_env_vars(&app.environments_store))
+        })
+        .unwrap_or_default();
+    crate::block_hydrate::hydrate_segments_blocking(
+        app.pool_manager.app_pool(),
+        &mut file_segments,
+        &env_vars_for_hydrate,
+        &abs_path,
+    );
+
+    // Stable anchor key for the popup state — the renderer overrides
+    // position via `popup_cursor_cell` published from the BLOCKS pane,
+    // so this index just keys the modal.
     let segment_idx = 0usize;
 
     // Ref completion (`{{...}}`) — works in any block kind. Same
     // engine the DOC view uses.
     if let Some(ref_detect) = crate::sql_completion::detect_ref_context(&body, line, offset) {
-        let env_vars: std::collections::HashMap<String, String> =
-            tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current()
-                    .block_on(load_active_env_vars(&app.environments_store))
-            })
-            .unwrap_or_default();
-        let segments_snapshot: Vec<crate::buffer::Segment> = app
-            .document()
-            .map(|d| d.segments().to_vec())
-            .unwrap_or_default();
         let items = crate::sql_completion::complete_refs(
             &ref_detect,
-            &segments_snapshot,
-            segment_idx,
-            &env_vars,
+            &file_segments,
+            current_segment,
+            &env_vars_for_hydrate,
         );
         if items.is_empty() {
             close_completion_popup_if_open(app);

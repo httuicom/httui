@@ -545,6 +545,7 @@ mod tests {
             kind: crate::app::RunningKind::Run,
             cache_key: None,
             bytes_received: 0,
+            http_cache_meta: None,
         }
     }
 

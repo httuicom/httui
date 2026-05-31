@@ -788,6 +788,7 @@ mod tests {
             kind: RunningKind::Run,
             cache_key: None,
             bytes_received: 0,
+            http_cache_meta: None,
         });
     }
 

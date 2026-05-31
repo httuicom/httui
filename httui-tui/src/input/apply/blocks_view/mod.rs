@@ -64,6 +64,12 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         Action::BlocksTreeReorderUp => tree_reorder_block(app, -1),
         Action::BlocksTreeReorderDown => tree_reorder_block(app, 1),
         Action::BlocksTreeDeleteBlock => tree_delete_block(app),
+        Action::BlocksTreeOpenSplitVertical => {
+            tree_open_in_split(app, crate::pane::SplitDir::Vertical);
+        }
+        Action::BlocksTreeOpenSplitHorizontal => {
+            tree_open_in_split(app, crate::pane::SplitDir::Horizontal);
+        }
         Action::BlocksUnsavedPromptSave => {
             close_unsaved_prompt(app);
             save_draft(app);
@@ -104,7 +110,7 @@ fn close_unsaved_prompt(app: &mut App) {
 }
 
 fn choose_picker(app: &mut App, leaf_idx: usize) {
-    let Some(target) = app.blocks_workspace.as_ref().and_then(|w| w.pane_picker) else {
+    let Some(intent) = app.blocks_workspace.as_ref().and_then(|w| w.pane_picker) else {
         return;
     };
     let Some(tab) = app.active_tab_mut() else {
@@ -117,12 +123,75 @@ fn choose_picker(app: &mut App, leaf_idx: usize) {
         return;
     }
     let idx = leaf_idx.min(leaves - 1);
-    let mut visited = 0usize;
-    apply_to_nth_leaf(&mut tab.root, idx, &mut visited, &mut |pane| {
-        pane.block_selected = Some(target);
-        pane.block_region = 0;
-    });
+    match intent.action {
+        crate::app::PanePickerAction::Open => {
+            let mut visited = 0usize;
+            apply_to_nth_leaf(&mut tab.root, idx, &mut visited, &mut |pane| {
+                pane.block_selected = Some(intent.target);
+                pane.block_region = 0;
+            });
+            let mut path: Vec<u8> = Vec::new();
+            if path_to_nth_leaf(&tab.root, idx, &mut 0, &mut path) {
+                tab.focused = path;
+            }
+        }
+        crate::app::PanePickerAction::SplitVertical
+        | crate::app::PanePickerAction::SplitHorizontal => {
+            // Focus the picked pane so `tab.split` (which acts on the
+            // currently-focused leaf) clones the right one.
+            let mut path: Vec<u8> = Vec::new();
+            if path_to_nth_leaf(&tab.root, idx, &mut 0, &mut path) {
+                tab.focused = path;
+            }
+            let dir = match intent.action {
+                crate::app::PanePickerAction::SplitVertical => {
+                    crate::pane::SplitDir::Vertical
+                }
+                _ => crate::pane::SplitDir::Horizontal,
+            };
+            let mut new_pane = tab.active_leaf().snapshot_clone();
+            new_pane.block_selected = Some(intent.target);
+            new_pane.block_region = 0;
+            new_pane.block_row = 0;
+            new_pane.block_col = 0;
+            tab.split(dir, new_pane);
+        }
+    }
     cancel_picker(app);
+    app.vim.enter_normal();
+}
+
+/// Walk the pane tree to find the path (`0`/`1` per split level) of
+/// the leaf at index `target`. Returns true when found and writes
+/// the path into `out`.
+fn path_to_nth_leaf(
+    node: &crate::pane::PaneNode,
+    target: usize,
+    counter: &mut usize,
+    out: &mut Vec<u8>,
+) -> bool {
+    match node {
+        crate::pane::PaneNode::Leaf(_) => {
+            if *counter == target {
+                return true;
+            }
+            *counter += 1;
+            false
+        }
+        crate::pane::PaneNode::Split { first, second, .. } => {
+            out.push(0);
+            if path_to_nth_leaf(first, target, counter, out) {
+                return true;
+            }
+            out.pop();
+            out.push(1);
+            if path_to_nth_leaf(second, target, counter, out) {
+                return true;
+            }
+            out.pop();
+            false
+        }
+    }
 }
 
 fn cancel_picker(app: &mut App) {
@@ -1149,6 +1218,7 @@ mod tests {
             kind: crate::app::RunningKind::Run,
             cache_key: None,
             bytes_received: 0,
+            http_cache_meta: None,
         });
         apply_blocks_view(&mut app, Action::BlocksRunFocused);
         assert!(app.active_pane().unwrap().document.is_some());

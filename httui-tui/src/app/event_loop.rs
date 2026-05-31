@@ -12,7 +12,6 @@ use std::time::Duration;
 use sqlx::SqlitePool;
 use tracing::{debug, info};
 
-use crate::buffer::Document;
 use crate::config::Config;
 use crate::error::TuiResult;
 use crate::event::{AppEvent, EventLoop};
@@ -341,14 +340,24 @@ fn handle_file_changed_externally(app: &mut App, path: std::path::PathBuf) {
         );
         return;
     }
-    // Clean buffer + disk diff → reload silently.
-    let new_doc = match Document::from_markdown(&disk) {
+    // Clean buffer + disk diff → reload silently. Go through
+    // `load_and_hydrate` so persisted `cached_result` rows are
+    // re-attached — without this, saving a block (which the watcher
+    // sees as an external mutation of the file we just wrote) would
+    // wipe the response card.
+    let new_doc = match crate::document_loader::load_and_hydrate(
+        &app.vault_path,
+        &rel,
+        app.pool_manager.app_pool(),
+        &app.environments_store,
+    ) {
         Ok(d) => d,
         Err(e) => {
             app.set_status(crate::app::StatusKind::Error, format!("reload failed: {e}"));
             return;
         }
     };
+    let _ = disk; // disk was only needed for the equality check above
     if let Some(pane) = app.active_pane_mut() {
         pane.document = Some(new_doc);
         pane.viewport_top = 0;

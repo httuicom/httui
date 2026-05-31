@@ -148,7 +148,9 @@ pub fn restore(app: &mut App, snap: &TuiViewState) {
     }
 
     let vault = app.vault_path.clone();
-    let new_root = restore_pane(&snap_blocks.root, &vault, &ws.index);
+    let pool = app.pool_manager.app_pool().clone();
+    let env_store = app.environments_store.clone();
+    let new_root = restore_pane(&snap_blocks.root, &vault, &ws.index, &pool, &env_store);
     let focused = sanitize_focus(&new_root, &snap_blocks.focused);
     let focused_block = focused_leaf(&new_root, &focused).and_then(|p| p.block_selected);
     if let Some(target) = focused_block {
@@ -198,9 +200,15 @@ fn block_matches(meta: &BlockMeta, key: &BlockKey) -> bool {
     }
 }
 
-fn restore_pane(snap: &PaneSnapshot, vault: &std::path::Path, index: &BlockIndex) -> PaneNode {
+fn restore_pane(
+    snap: &PaneSnapshot,
+    vault: &std::path::Path,
+    index: &BlockIndex,
+    pool: &sqlx::sqlite::SqlitePool,
+    env_store: &std::sync::Arc<httui_core::vault_config::EnvironmentsStore>,
+) -> PaneNode {
     match snap {
-        PaneSnapshot::Leaf(leaf) => PaneNode::Leaf(restore_leaf(leaf, vault, index)),
+        PaneSnapshot::Leaf(leaf) => PaneNode::Leaf(restore_leaf(leaf, vault, index, pool, env_store)),
         PaneSnapshot::Split(split) => {
             let direction = if split.direction == SPLIT_HORIZONTAL {
                 SplitDir::Horizontal
@@ -210,16 +218,27 @@ fn restore_pane(snap: &PaneSnapshot, vault: &std::path::Path, index: &BlockIndex
             PaneNode::Split {
                 direction,
                 ratio: split.ratio.clamp(0.1, 0.9),
-                first: Box::new(restore_pane(&split.first, vault, index)),
-                second: Box::new(restore_pane(&split.second, vault, index)),
+                first: Box::new(restore_pane(&split.first, vault, index, pool, env_store)),
+                second: Box::new(restore_pane(&split.second, vault, index, pool, env_store)),
             }
         }
     }
 }
 
-fn restore_leaf(leaf: &PaneLeafSnapshot, vault: &std::path::Path, index: &BlockIndex) -> Pane {
+fn restore_leaf(
+    leaf: &PaneLeafSnapshot,
+    vault: &std::path::Path,
+    index: &BlockIndex,
+    pool: &sqlx::sqlite::SqlitePool,
+    env_store: &std::sync::Arc<httui_core::vault_config::EnvironmentsStore>,
+) -> Pane {
     let mut pane = match leaf.file.as_deref() {
-        Some(rel) => match crate::document_loader::load_document(vault, &PathBuf::from(rel)) {
+        Some(rel) => match crate::document_loader::load_and_hydrate(
+            vault,
+            &PathBuf::from(rel),
+            pool,
+            env_store,
+        ) {
             Ok(doc) => Pane::new(doc, PathBuf::from(rel)),
             Err(_) => Pane::empty(),
         },

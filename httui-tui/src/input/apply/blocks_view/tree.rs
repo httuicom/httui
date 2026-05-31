@@ -506,3 +506,51 @@ pub(crate) fn field_advance_next(app: &mut App) {
         EditField::HttpBody | EditField::DbQuery => {}
     }
 }
+
+/// Split the currently-focused pane and open the sidebar's selected
+/// block in the new half. The new pane lands focused and the tree
+/// mode exits, so the user can act on the block immediately — same
+/// chord shape as nvim-tree (`v` / `s`).
+pub(crate) fn tree_open_in_split(app: &mut App, dir: crate::pane::SplitDir) {
+    let Some(node) = app.tree.current().cloned() else {
+        return;
+    };
+    let Some(meta) = node.block.as_ref() else {
+        return;
+    };
+    let target = crate::app::BlockRef {
+        file_idx: meta.file_idx,
+        block_idx: meta.block_idx,
+    };
+    let leaves = app.active_tab().map(|t| t.leaf_count()).unwrap_or(0);
+    if leaves > 1 {
+        // Multiple panes are open — the user must pick which one to
+        // split off. Park the intent and let the picker overlay drive
+        // the choice; `choose_picker` will perform the split on the
+        // chosen leaf.
+        if let Some(ws) = app.blocks_workspace.as_mut() {
+            let action = match dir {
+                crate::pane::SplitDir::Vertical => {
+                    crate::app::PanePickerAction::SplitVertical
+                }
+                crate::pane::SplitDir::Horizontal => {
+                    crate::app::PanePickerAction::SplitHorizontal
+                }
+            };
+            ws.pane_picker = Some(crate::app::PanePickerIntent { target, action });
+        }
+        return;
+    }
+    // Single pane — no ambiguity, split it directly.
+    let Some(tab) = app.active_tab_mut() else {
+        return;
+    };
+    let mut new_pane = tab.active_leaf().snapshot_clone();
+    new_pane.block_selected = Some(target);
+    new_pane.block_region = 0;
+    new_pane.block_row = 0;
+    new_pane.block_col = 0;
+    tab.split(dir, new_pane);
+    app.vim.enter_normal();
+    app.refresh_viewport_for_cursor();
+}
