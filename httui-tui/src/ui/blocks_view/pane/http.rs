@@ -13,7 +13,7 @@ pub(super) fn render_http_regions(
     running: Option<&str>,
     file: &FileBlocks,
     block: &BlockMeta,
-    ctx: &BlocksRenderCtx<'_>,
+    ctx: &mut BlocksRenderCtx<'_>,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -41,7 +41,7 @@ pub(super) fn render_http_regions(
         );
         if parts[1].height > 0 {
             if active_cell == 1 {
-                render_multiline_region(
+                let body_caret = render_multiline_region(
                     frame,
                     parts[1],
                     block_type,
@@ -53,6 +53,9 @@ pub(super) fn render_http_regions(
                     |f| matches!(f, EditField::HttpBody),
                     visual_overlay,
                 );
+                if let Some(cell) = body_caret {
+                    *ctx.popup_cursor_cell = Some(cell);
+                }
             } else {
                 render_headers_region(
                     frame,
@@ -62,6 +65,7 @@ pub(super) fn render_http_regions(
                     pane,
                     pane_focused,
                     visual_overlay,
+                    ctx,
                 );
             }
         }
@@ -90,7 +94,7 @@ fn render_http_response_region(
     file: &FileBlocks,
     block: &BlockMeta,
     pane: &Pane,
-    ctx: &BlocksRenderCtx<'_>,
+    ctx: &mut BlocksRenderCtx<'_>,
     running: Option<&str>,
 ) {
     let inner = region_frame(frame, area, focused);
@@ -129,17 +133,11 @@ fn render_http_response_region(
     {
         Some(b) if b.cached_result.is_some() => {
             crate::ui::blocks::http_panel::response::render_http_response_panel(
-                frame,
-                chunks[1],
-                &b,
-                tab,
+                frame, chunks[1], &b, tab,
             );
         }
         _ => {
-            frame.render_widget(
-                Paragraph::new("(no response — press r to run)"),
-                chunks[1],
-            );
+            frame.render_widget(Paragraph::new("(no response — press r to run)"), chunks[1]);
         }
     }
 }
@@ -153,6 +151,7 @@ fn render_headers_region(
     pane: &Pane,
     pane_focused: bool,
     visual_overlay: Option<crate::ui::VisualOverlay>,
+    ctx: &mut BlocksRenderCtx<'_>,
 ) {
     let _ = pane_focused;
     if inner.width == 0 || inner.height == 0 {
@@ -170,7 +169,7 @@ fn render_headers_region(
     let key_w: u16 = parsed
         .headers
         .iter()
-        .map(|(k, _)| k.chars().count() as u16)
+        .map(|(k, _, _)| k.chars().count() as u16)
         .max()
         .unwrap_or(8)
         .max(8);
@@ -182,7 +181,7 @@ fn render_headers_region(
         _ => None,
     });
     let mut lines: Vec<Line<'static>> = Vec::with_capacity(parsed.headers.len());
-    for (i, (k, v)) in parsed.headers.iter().enumerate() {
+    for (i, (k, v, enabled)) in parsed.headers.iter().enumerate() {
         let mut key_text = k.clone();
         let mut value_text = v.clone();
         if let Some((row, col)) = edit_row_col {
@@ -201,20 +200,63 @@ fn render_headers_region(
         }
         let key_focused = cursor_row == i && cursor_col == 0;
         let value_focused = cursor_row == i && cursor_col == 1;
-        let key_style = field_style(key_focused);
-        let value_style = field_style(value_focused);
+        // Disabled rows read muted + struck through so they signal "won't be
+        // sent" even where the terminal can't draw strikethrough (the muted
+        // color carries it); the focus underline still shows through.
+        let dim = |base: Style| {
+            if *enabled {
+                base
+            } else {
+                base.fg(crate::ui::palette::muted())
+                    .add_modifier(Modifier::CROSSED_OUT)
+            }
+        };
+        // Focused cell lifts to `block_active_bg` so the user always knows
+        // which field will receive their next keystroke — without the bg the
+        // caret on an empty cell is invisible.
+        let active_bg = crate::ui::palette::block_active_bg();
+        let lift = |base: Style, focused: bool| {
+            if focused {
+                base.bg(active_bg)
+            } else {
+                base
+            }
+        };
+        let key_style = lift(dim(field_style(key_focused)), key_focused);
+        let value_style = lift(dim(field_style(value_focused)), value_focused);
+        let marker = if *enabled { "[x] " } else { "[ ] " };
         let padded_key = format!("{key_text:<width$}", width = key_w as usize);
         let mut row_spans = vec![
-            Span::raw("  "),
+            Span::styled(marker, Style::default().fg(crate::ui::palette::muted())),
             Span::styled(padded_key, key_style),
             Span::raw("  "),
         ];
-        // The cell under edit shows the raw buffer (caret tracked
-        // below); idle cells chip `{{ref}}` like the DOC view.
+        // The cell under edit shows the raw buffer (caret tracked below);
+        // enabled idle cells chip `{{ref}}` like the DOC view; disabled cells
+        // stay plain so the muted/strike reads uniformly. An empty focused
+        // value cell pads to a visible width so the lifted bg actually shows.
+        const EMPTY_VALUE_PAD: usize = 16;
         if edit_row_col == Some((i, 1)) {
-            row_spans.push(Span::styled(value_text, value_style));
+            let display = if value_text.is_empty() {
+                " ".repeat(EMPTY_VALUE_PAD)
+            } else {
+                value_text
+            };
+            row_spans.push(Span::styled(display, value_style));
+        } else if *enabled {
+            if value_focused && value_text.is_empty() {
+                row_spans.push(Span::styled(" ".repeat(EMPTY_VALUE_PAD), value_style));
+            } else {
+                let mut spans = refs_spans(&value_text, value_focused);
+                if value_focused {
+                    for s in &mut spans {
+                        s.style = s.style.bg(active_bg);
+                    }
+                }
+                row_spans.extend(spans);
+            }
         } else {
-            row_spans.extend(refs_spans(&value_text, value_focused));
+            row_spans.push(Span::styled(value_text, value_style));
         }
         lines.push(Line::from(row_spans));
     }
@@ -237,7 +279,8 @@ fn render_headers_region(
         if row_y >= inner.y + inner.height {
             return;
         }
-        let leading = 2u16;
+        // Marker (`[x] `) + key column precede the value cell.
+        let leading = 4u16;
         let (_doc_row, doc_col) = edit_cursor_row_col(edit);
         let cell_col = doc_col as u16;
         let base_x = if col == 0 {
@@ -248,6 +291,9 @@ fn render_headers_region(
         let cx = base_x.saturating_add(cell_col);
         if cx < inner.x + inner.width {
             frame.set_cursor_position((cx, row_y));
+            // Publish the cell so the completion popup anchors under THIS
+            // pane's header value (not the editor area's leftmost column).
+            *ctx.popup_cursor_cell = Some((cx, row_y));
         }
         // Visual selection overlay over the edited field's cell.
         if let Some(overlay) = visual_overlay {
@@ -262,13 +308,7 @@ fn render_headers_region(
                 width: cell_w,
                 height: 1,
             };
-            crate::ui::overlay_visual_selection(
-                frame,
-                cell_area,
-                &edit.doc,
-                0,
-                overlay,
-            );
+            crate::ui::overlay_visual_selection(frame, cell_area, &edit.doc, 0, overlay);
         }
     }
 }
@@ -291,4 +331,3 @@ fn add_header_hint() -> Line<'static> {
         ),
     ])
 }
-

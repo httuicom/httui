@@ -348,8 +348,14 @@ pub(crate) fn apply_open_connection_delete_confirm(app: &mut App) {
     let Some(name) = name else {
         return;
     };
-    app.modal = Some(crate::modal::Modal::ConnectionDeleteConfirm(
-        crate::app::ConnectionDeleteConfirmState { name },
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(
+        crate::app::ConfirmPromptState {
+            title: "Delete connection".to_string(),
+            body: format!("Delete \"{name}\"?"),
+            on_confirm: crate::input::action::Action::ConfirmConnectionDelete,
+            on_cancel: crate::input::action::Action::CancelConnectionDelete,
+            payload: crate::app::ConfirmPayload::ConnectionName(name),
+        },
     ));
     // Mode stays `Modal` (page was already in Modal); keep `vim`
     // untouched so the confirm sits on top of the page conceptually.
@@ -358,7 +364,10 @@ pub(crate) fn apply_open_connection_delete_confirm(app: &mut App) {
 /// y/Enter — call `store.delete` and reload the Connections page.
 pub(crate) fn apply_confirm_connection_delete(app: &mut App) {
     let name = match app.modal.as_ref() {
-        Some(crate::modal::Modal::ConnectionDeleteConfirm(state)) => state.name.clone(),
+        Some(crate::modal::Modal::ConfirmPrompt(state)) => match &state.payload {
+            crate::app::ConfirmPayload::ConnectionName(n) => n.clone(),
+            _ => return,
+        },
         _ => return,
     };
     let store = app.connections_store.clone();
@@ -417,10 +426,7 @@ pub(crate) fn apply_test_selected_connection(app: &mut App) {
 
 /// n/Esc — close confirm and reopen the page unchanged.
 pub(crate) fn apply_cancel_connection_delete(app: &mut App) {
-    if !matches!(
-        app.modal,
-        Some(crate::modal::Modal::ConnectionDeleteConfirm(_))
-    ) {
+    if !matches!(app.modal, Some(crate::modal::Modal::ConfirmPrompt(_))) {
         return;
     }
     // Reopen the page (cheap reload). If reload fails, fall back to
@@ -729,10 +735,14 @@ mod tests {
         crate::input::apply::pickers::open_connections_page(&mut app).unwrap();
         apply_open_connection_delete_confirm(&mut app);
         match &app.modal {
-            Some(crate::modal::Modal::ConnectionDeleteConfirm(state)) => {
-                assert_eq!(state.name, "to-go");
+            Some(crate::modal::Modal::ConfirmPrompt(state)) => {
+                assert!(state.body.contains("to-go"), "body has name: {}", state.body);
+                assert!(matches!(
+                    state.payload,
+                    crate::app::ConfirmPayload::ConnectionName(ref n) if n == "to-go"
+                ));
             }
-            other => panic!("expected ConnectionDeleteConfirm, got {other:?}"),
+            other => panic!("expected ConfirmPrompt, got {other:?}"),
         }
     }
 

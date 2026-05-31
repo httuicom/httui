@@ -9,7 +9,9 @@ use crate::pane::Pane;
 pub(super) struct ParsedView {
     pub method: Option<String>,
     pub url: Option<String>,
-    pub headers: Vec<(String, String)>,
+    /// `(key, value, enabled)`. A disabled header (`# ` in the fence) carries
+    /// `enabled == false`; the renderer shows it unchecked + struck through.
+    pub headers: Vec<(String, String, bool)>,
     pub body: String,
     pub connection: Option<String>,
     pub cached: String,
@@ -67,10 +69,9 @@ pub(super) fn load_view(
             return view;
         }
     }
-    let Ok(raw) = httui_core::fs::read_note(
-        &vault_path.to_string_lossy(),
-        &file.path.to_string_lossy(),
-    ) else {
+    let Ok(raw) =
+        httui_core::fs::read_note(&vault_path.to_string_lossy(), &file.path.to_string_lossy())
+    else {
         return ParsedView::empty();
     };
     let parsed = httui_core::blocks::parse_blocks(&raw);
@@ -172,7 +173,8 @@ fn parsed_to_view(p: &httui_core::blocks::parser::ParsedBlock, raw: String) -> P
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    (k, v)
+                    let enabled = h.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+                    (k, v, enabled)
                 })
                 .collect()
         })

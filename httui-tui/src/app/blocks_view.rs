@@ -44,8 +44,7 @@ impl BlockIndex {
     }
 
     pub fn build(vault: &Path) -> Self {
-        let entries =
-            httui_core::fs::list_workspace(&vault.to_string_lossy()).unwrap_or_default();
+        let entries = httui_core::fs::list_workspace(&vault.to_string_lossy()).unwrap_or_default();
         let mut files: Vec<FileBlocks> = Vec::new();
         collect_files(vault, &entries, &mut files);
         files.retain(|f| !f.blocks.is_empty());
@@ -350,11 +349,7 @@ impl RegionEdit {
         Self::with_sub_mode(field, initial, EditSubMode::Normal)
     }
 
-    fn with_sub_mode(
-        field: EditField,
-        initial: impl Into<String>,
-        sub_mode: EditSubMode,
-    ) -> Self {
+    fn with_sub_mode(field: EditField, initial: impl Into<String>, sub_mode: EditSubMode) -> Self {
         let initial: String = initial.into();
         let mut doc = crate::buffer::Document::from_markdown(&initial)
             .unwrap_or_else(|_| crate::buffer::Document::from_markdown("").unwrap());
@@ -365,11 +360,7 @@ impl RegionEdit {
         // typing into a form field.
         if matches!(sub_mode, EditSubMode::Insert) {
             let last_segment_idx = doc.segments().len().saturating_sub(1);
-            let offset = initial
-                .chars()
-                .rev()
-                .take_while(|c| *c != '\n')
-                .count();
+            let offset = initial.chars().rev().take_while(|c| *c != '\n').count();
             let row_offset = initial.chars().count();
             // Prose-only sub-doc: single segment. Use the full char
             // count when there's no newline split; otherwise compute
@@ -465,11 +456,7 @@ impl BlockDraft {
     /// Read the current header at `(row, col)`. Empty string when the
     /// row doesn't exist yet.
     pub fn header_at(&self, row: usize, col: usize) -> &str {
-        let arr = self
-            .block
-            .params
-            .get("headers")
-            .and_then(|v| v.as_array());
+        let arr = self.block.params.get("headers").and_then(|v| v.as_array());
         let Some(arr) = arr else { return "" };
         let Some(row_val) = arr.get(row) else {
             return "";
@@ -486,6 +473,31 @@ impl BlockDraft {
             .and_then(|v| v.as_array())
             .map(|a| a.len())
             .unwrap_or(0)
+    }
+
+    /// Toggle the header at `row` on/off. Disabling inserts `enabled: false`;
+    /// re-enabling removes the flag (omit-when-true keeps the canonical shape
+    /// the serializer round-trips). Returns the new state, or `None` when the
+    /// row doesn't exist.
+    pub fn toggle_header_enabled(&mut self, row: usize) -> Option<bool> {
+        let arr = self
+            .block
+            .params
+            .as_object_mut()?
+            .get_mut("headers")?
+            .as_array_mut()?;
+        let row_obj = arr.get_mut(row)?.as_object_mut()?;
+        let currently = row_obj
+            .get("enabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+        if currently {
+            row_obj.insert("enabled".to_string(), serde_json::Value::Bool(false));
+            Some(false)
+        } else {
+            row_obj.remove("enabled");
+            Some(true)
+        }
     }
 
     /// Set the HTTP body string. The serializer reads `body` directly.
@@ -574,6 +586,30 @@ mod tests {
         let users = idx.files.iter().find(|f| f.display == "users.md").unwrap();
         assert_eq!(users.blocks.len(), 2);
         assert_eq!(idx.total_blocks(), 3);
+    }
+
+    #[test]
+    fn toggle_header_enabled_flips_and_omits_when_true() {
+        let parsed = httui_core::blocks::parse_blocks(
+            "```http alias=req\nGET https://x.com\nAccept: application/json\n```\n",
+        );
+        let mut draft = BlockDraft {
+            file_path: std::path::PathBuf::from("api.md"),
+            block_line_start: parsed[0].line_start,
+            block: parsed[0].clone(),
+        };
+        // Enabled rows omit the flag.
+        assert!(draft.block.params["headers"][0].get("enabled").is_none());
+        // Disable → enabled:false + the serialized fence carries `# `.
+        assert_eq!(draft.toggle_header_enabled(0), Some(false));
+        assert_eq!(draft.block.params["headers"][0]["enabled"], false);
+        let out = httui_core::blocks::serialize_block(&draft.block);
+        assert!(out.contains("# Accept: application/json"), "got: {out}");
+        // Re-enable → flag removed (omit-when-true).
+        assert_eq!(draft.toggle_header_enabled(0), Some(true));
+        assert!(draft.block.params["headers"][0].get("enabled").is_none());
+        // Out-of-range row is a no-op.
+        assert_eq!(draft.toggle_header_enabled(9), None);
     }
 
     #[test]

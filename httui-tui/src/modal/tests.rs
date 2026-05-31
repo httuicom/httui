@@ -373,34 +373,35 @@ fn vault_create_form_routes_typing_and_navigation() {
 }
 
 // ───────────── tui-V10: coverage gaps in adjacent handlers
-// (connection delete confirm, connections page, db confirm run). ─────
+// (connections page, generic confirm prompt). ─────
 
 #[test]
-fn connection_delete_confirm_routes_y_n_and_cancel() {
-    let mut m = Modal::ConnectionDeleteConfirm(ConnectionDeleteConfirmState {
-        name: String::new(),
-    });
+fn confirm_prompt_with_connection_actions_routes_y_n_and_cancel() {
+    fn make() -> Modal {
+        Modal::ConfirmPrompt(crate::app::ConfirmPromptState {
+            title: "Delete connection".into(),
+            body: String::new(),
+            on_confirm: Action::ConfirmConnectionDelete,
+            on_cancel: Action::CancelConnectionDelete,
+            payload: crate::app::ConfirmPayload::ConnectionName("x".into()),
+        })
+    }
+    let mut m = make();
     assert!(matches!(
         m.handle_key(k(KeyCode::Char('y'), KeyModifiers::NONE)),
         ModalOutcome::Emit(Action::ConfirmConnectionDelete)
     ));
-    let mut m = Modal::ConnectionDeleteConfirm(ConnectionDeleteConfirmState {
-        name: String::new(),
-    });
+    let mut m = make();
     assert!(matches!(
         m.handle_key(k(KeyCode::Char('n'), KeyModifiers::NONE)),
         ModalOutcome::Emit(Action::CancelConnectionDelete)
     ));
-    let mut m = Modal::ConnectionDeleteConfirm(ConnectionDeleteConfirmState {
-        name: String::new(),
-    });
+    let mut m = make();
     assert!(matches!(
         m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
         ModalOutcome::Emit(Action::CancelConnectionDelete)
     ));
-    let mut m = Modal::ConnectionDeleteConfirm(ConnectionDeleteConfirmState {
-        name: String::new(),
-    });
+    let mut m = make();
     assert!(matches!(
         m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
         ModalOutcome::Emit(Action::ConfirmConnectionDelete)
@@ -573,55 +574,32 @@ fn var_form_routes_typing_focus_and_secret_toggle() {
 }
 
 #[test]
-fn env_or_var_confirm_routes_y_n_enter_esc() {
-    assert!(matches!(
-        env_or_var_confirm_handle_key(k(KeyCode::Char('y'), KeyModifiers::NONE)),
-        ModalOutcome::Emit(Action::ConfirmEnvOrVarDelete)
-    ));
-    assert!(matches!(
-        env_or_var_confirm_handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
-        ModalOutcome::Emit(Action::ConfirmEnvOrVarDelete)
-    ));
-    assert!(matches!(
-        env_or_var_confirm_handle_key(k(KeyCode::Char('n'), KeyModifiers::NONE)),
-        ModalOutcome::Emit(Action::CancelEnvOrVarDelete)
-    ));
-    assert!(matches!(
-        env_or_var_confirm_handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
-        ModalOutcome::Emit(Action::CancelEnvOrVarDelete)
-    ));
-}
-
-#[test]
-fn db_confirm_run_routes_y_n_and_enter() {
-    let mut m = Modal::DbConfirmRun(DbConfirmRunState {
-        segment_idx: 0,
-        reason: String::new(),
-    });
+fn confirm_prompt_routes_y_n_and_enter_via_stored_actions() {
+    fn make() -> Modal {
+        Modal::ConfirmPrompt(crate::app::ConfirmPromptState {
+            title: "Confirm write".to_string(),
+            body: String::new(),
+            on_confirm: Action::ConfirmDbRun,
+            on_cancel: Action::CancelDbRun,
+            payload: crate::app::ConfirmPayload::DbSegment(0),
+        })
+    }
+    let mut m = make();
     assert!(matches!(
         m.handle_key(k(KeyCode::Char('y'), KeyModifiers::NONE)),
         ModalOutcome::Emit(Action::ConfirmDbRun)
     ));
-    let mut m = Modal::DbConfirmRun(DbConfirmRunState {
-        segment_idx: 0,
-        reason: String::new(),
-    });
+    let mut m = make();
     assert!(matches!(
         m.handle_key(k(KeyCode::Enter, KeyModifiers::NONE)),
         ModalOutcome::Emit(Action::ConfirmDbRun)
     ));
-    let mut m = Modal::DbConfirmRun(DbConfirmRunState {
-        segment_idx: 0,
-        reason: String::new(),
-    });
+    let mut m = make();
     assert!(matches!(
         m.handle_key(k(KeyCode::Char('n'), KeyModifiers::NONE)),
         ModalOutcome::Emit(Action::CancelDbRun)
     ));
-    let mut m = Modal::DbConfirmRun(DbConfirmRunState {
-        segment_idx: 0,
-        reason: String::new(),
-    });
+    let mut m = make();
     assert!(matches!(
         m.handle_key(k(KeyCode::Esc, KeyModifiers::NONE)),
         ModalOutcome::Emit(Action::CancelDbRun)

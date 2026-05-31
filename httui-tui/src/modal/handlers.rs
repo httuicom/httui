@@ -281,25 +281,6 @@ pub(super) fn connections_page_handle_key(key: KeyEvent) -> ModalOutcome {
     }
 }
 
-/// V3 P4: y/Enter → confirm delete; n/Esc/Ctrl-C → cancel; other → noop.
-pub(super) fn connection_delete_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-    match (modifiers, code) {
-        (_, KeyCode::Esc) => ModalOutcome::Emit(Action::CancelConnectionDelete),
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
-            ModalOutcome::Emit(Action::CancelConnectionDelete)
-        }
-        (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
-            ModalOutcome::Emit(Action::CancelConnectionDelete)
-        }
-        (KeyModifiers::NONE, KeyCode::Char('y'))
-        | (KeyModifiers::NONE, KeyCode::Char('Y'))
-        | (_, KeyCode::Enter) => ModalOutcome::Emit(Action::ConfirmConnectionDelete),
-        _ => ModalOutcome::Continue,
-    }
-}
 
 /// ConnectionPicker reusa o vocab `list_picker_key`, mas adiciona
 /// `Shift+D` para deletar a conexão highlighted (mantém o picker
@@ -540,39 +521,26 @@ pub(super) fn var_form_handle_key(focus: VarFormFocus, key: KeyEvent) -> ModalOu
     }
 }
 
-pub(super) fn env_or_var_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
+/// Generic y/n confirm dispatcher. Emits the modal's stored
+/// `on_confirm` / `on_cancel` action so each flow's applier picks up
+/// its specific side effects (delete a connection, drop a header row, …).
+pub(super) fn confirm_prompt_handle_key(
+    state: &crate::app::ConfirmPromptState,
+    key: KeyEvent,
+) -> ModalOutcome {
     let KeyEvent {
         code, modifiers, ..
     } = key;
     match (modifiers, code) {
-        (_, KeyCode::Esc)
-        | (KeyModifiers::CONTROL, KeyCode::Char('c'))
-        | (KeyModifiers::NONE, KeyCode::Char('n'))
-        | (KeyModifiers::NONE, KeyCode::Char('N')) => {
-            ModalOutcome::Emit(Action::CancelEnvOrVarDelete)
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(state.on_cancel)
         }
-        (_, KeyCode::Enter)
-        | (KeyModifiers::NONE, KeyCode::Char('y'))
-        | (KeyModifiers::NONE, KeyCode::Char('Y')) => {
-            ModalOutcome::Emit(Action::ConfirmEnvOrVarDelete)
-        }
-        _ => ModalOutcome::Continue,
-    }
-}
-
-pub(super) fn db_confirm_run_handle_key(key: KeyEvent) -> ModalOutcome {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-    match (modifiers, code) {
-        (_, KeyCode::Esc) => ModalOutcome::Emit(Action::CancelDbRun),
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => ModalOutcome::Emit(Action::CancelDbRun),
         (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
-            ModalOutcome::Emit(Action::CancelDbRun)
+            ModalOutcome::Emit(state.on_cancel)
         }
         (KeyModifiers::NONE, KeyCode::Char('y'))
         | (KeyModifiers::NONE, KeyCode::Char('Y'))
-        | (_, KeyCode::Enter) => ModalOutcome::Emit(Action::ConfirmDbRun),
+        | (_, KeyCode::Enter) => ModalOutcome::Emit(state.on_confirm),
         _ => ModalOutcome::Continue,
     }
 }

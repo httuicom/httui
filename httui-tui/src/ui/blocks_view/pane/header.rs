@@ -8,7 +8,7 @@ pub(super) fn render_header(
     parsed: &ParsedView,
     dirty: bool,
     running: Option<&str>,
-    ctx: &BlocksRenderCtx<'_>,
+    ctx: &mut BlocksRenderCtx<'_>,
     pane: &Pane,
     pane_focused: bool,
     region: usize,
@@ -143,6 +143,10 @@ pub(super) fn render_header(
         let cx = url_start_x.saturating_add(col as u16);
         if cx < inner.x + inner.width {
             frame.set_cursor_position((cx, inner.y));
+            // Publish the caret cell so the completion popup anchors under
+            // this pane's URL field (not the editor area's left edge in
+            // multi-pane layouts).
+            *ctx.popup_cursor_cell = Some((cx, inner.y));
         }
         if let Some(overlay) = visual_overlay {
             let text_area = Rect {

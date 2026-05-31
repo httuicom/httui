@@ -28,10 +28,8 @@ pub(crate) fn tree_new_block(app: &mut App) {
         return;
     };
     let parsed = httui_core::blocks::parse_blocks(&text);
-    let used_aliases: std::collections::HashSet<String> = parsed
-        .iter()
-        .filter_map(|p| p.alias.clone())
-        .collect();
+    let used_aliases: std::collections::HashSet<String> =
+        parsed.iter().filter_map(|p| p.alias.clone()).collect();
     let mut idx = parsed.len() + 1;
     let alias = loop {
         let candidate = format!("untitled{idx}");
@@ -41,13 +39,9 @@ pub(crate) fn tree_new_block(app: &mut App) {
         idx += 1;
     };
     let appended = if text.ends_with('\n') {
-        format!(
-            "{text}\n```http alias={alias}\nGET https://example.com\n```\n"
-        )
+        format!("{text}\n```http alias={alias}\nGET https://example.com\n```\n")
     } else {
-        format!(
-            "{text}\n\n```http alias={alias}\nGET https://example.com\n```\n"
-        )
+        format!("{text}\n\n```http alias={alias}\nGET https://example.com\n```\n")
     };
     if let Err(e) = httui_core::fs::write_note(&vault, &rel_path, &appended) {
         app.set_status(StatusKind::Error, format!("write failed: {e}"));
@@ -92,11 +86,7 @@ pub(crate) fn tree_delete_block(app: &mut App) {
 /// Execute the block delete after the user typed `y` / `Y` in the
 /// confirm prompt. Reads the file, drops the block fence (and its
 /// trailing blank line), writes back, refreshes the index.
-pub(crate) fn tree_delete_block_confirmed(
-    app: &mut App,
-    rel_path: &str,
-    block_idx: usize,
-) {
+pub(crate) fn tree_delete_block_confirmed(app: &mut App, rel_path: &str, block_idx: usize) {
     let vault = app.vault_path.to_string_lossy().to_string();
     let Ok(text) = httui_core::fs::read_note(&vault, &rel_path) else {
         return;
@@ -253,6 +243,20 @@ pub(crate) fn tree_reorder_block(app: &mut App, delta: isize) {
 /// cell. Hydrates the draft on first use so subsequent edits land in
 /// the same in-memory copy.
 pub(crate) fn insert_header_row(app: &mut App) {
+    insert_header_row_at(app, true);
+}
+
+/// `O`-equivalent: insert a header row ABOVE the focused row. The cursor
+/// stays at its original index (now pointing at the new empty row), with
+/// the previous content pushed one row down.
+pub(crate) fn insert_header_row_above(app: &mut App) {
+    insert_header_row_at(app, false);
+}
+
+/// Shared implementation: insert a fresh empty header row either below
+/// (vim `o`) or above (vim `O`) the focused row, hydrate the draft on
+/// first use, drop straight into INSERT on the new key.
+fn insert_header_row_at(app: &mut App, below: bool) {
     if !focused_region_is_http_headers(app) {
         return;
     }
@@ -271,7 +275,13 @@ pub(crate) fn insert_header_row(app: &mut App) {
     let Some(draft) = pane.block_draft.as_mut() else {
         return;
     };
-    let insert_at = pane.block_row.saturating_add(1).min(draft.header_count());
+    let cur = pane.block_row;
+    let count = draft.header_count();
+    let insert_at = if below {
+        cur.saturating_add(1).min(count)
+    } else {
+        cur.min(count)
+    };
     let arr = draft
         .block
         .params
@@ -287,10 +297,7 @@ pub(crate) fn insert_header_row(app: &mut App) {
                 .params
                 .as_object_mut()
                 .expect("ParsedBlock.params is always an object");
-            params.insert(
-                "headers".to_string(),
-                serde_json::Value::Array(Vec::new()),
-            );
+            params.insert("headers".to_string(), serde_json::Value::Array(Vec::new()));
             params
                 .get_mut("headers")
                 .and_then(|v| v.as_array_mut())
@@ -298,14 +305,82 @@ pub(crate) fn insert_header_row(app: &mut App) {
         }
     };
     arr.insert(insert_at, serde_json::json!({"key": "", "value": ""}));
-    pane.block_row = insert_at;
+    // Below: cursor follows the new row at insert_at. Above: cursor stays at
+    // its original index, which now points to the new (empty) row.
+    pane.block_row = if below { insert_at } else { cur };
     pane.block_col = 0;
+    enter_edit(app, EnterMode::Insert);
 }
 
-/// `d`/`Delete` in HTTP `[2] Headers`: remove the focused row. Cursor
-/// clamps to the row above (or 0 when the list went empty). No-op when
-/// the headers array is empty.
+/// `d`/`Delete` in HTTP `[2] Headers`: open the confirm prompt. Misclicks
+/// on `dd` were dropping the wrong row silently, so the actual delete now
+/// lives behind a `y`/`Enter` confirm (see [`delete_header_row_confirmed`]).
 pub(crate) fn delete_header_row(app: &mut App) {
+    if !focused_region_is_http_headers(app) {
+        return;
+    }
+    // Hydrate so we can read `header_count` even before the user has touched
+    // the block — `dd` on a never-edited HTTP block was opening nothing
+    // because the no-draft branch returned `count = 0`.
+    if app
+        .active_pane()
+        .map(|p| p.block_draft.is_none())
+        .unwrap_or(true)
+        && !hydrate_draft(app)
+    {
+        return;
+    }
+    let Some(pane) = app.active_pane() else {
+        return;
+    };
+    let row = pane.block_row;
+    let Some(draft) = pane.block_draft.as_ref() else {
+        return;
+    };
+    let count = draft.header_count();
+    if count == 0 || row >= count {
+        return;
+    }
+    let key_preview = draft.header_at(row, 0).to_string();
+    let body = if key_preview.is_empty() {
+        format!("Delete header (row {})?", row + 1)
+    } else {
+        format!("Delete header \"{}\"?", key_preview)
+    };
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(
+        crate::app::ConfirmPromptState {
+            title: "Confirm delete".to_string(),
+            body,
+            on_confirm: crate::input::action::Action::BlocksHeaderDeleteConfirm,
+            on_cancel: crate::input::action::Action::BlocksHeaderDeleteCancel,
+            payload: crate::app::ConfirmPayload::HeaderRow(row),
+        },
+    ));
+}
+
+/// Generic-prompt confirm: close the modal, extract the row from
+/// [`crate::app::ConfirmPayload::HeaderRow`], and run the actual delete.
+/// Other payload variants are silently ignored (defensive — should never
+/// happen if `delete_header_row` is the only opener).
+pub(crate) fn apply_header_delete_confirm(app: &mut App) {
+    let row = match app.modal.take() {
+        Some(crate::modal::Modal::ConfirmPrompt(state)) => match state.payload {
+            crate::app::ConfirmPayload::HeaderRow(r) => Some(r),
+            _ => None,
+        },
+        _ => None,
+    };
+    if let Some(row) = row {
+        if let Some(pane) = app.active_pane_mut() {
+            pane.block_row = row;
+        }
+        delete_header_row_confirmed(app);
+    }
+}
+
+/// `y`/`Enter` confirmed the prompt: drop the focused header row. Cursor
+/// clamps to the row above (or 0 when the list went empty).
+pub(crate) fn delete_header_row_confirmed(app: &mut App) {
     if !focused_region_is_http_headers(app) {
         return;
     }
@@ -338,5 +413,96 @@ pub(crate) fn delete_header_row(app: &mut App) {
     arr.remove(pane.block_row);
     if pane.block_row > 0 && pane.block_row >= arr.len() {
         pane.block_row -= 1;
+    }
+}
+
+/// `Space` in HTTP `[2] Headers`: toggle the focused row on/off. Disabling
+/// keeps the row but flags it `enabled: false` (serialized with `# `, skipped
+/// on dispatch). No-op when there are no rows. Hydrates the draft on first use.
+pub(crate) fn toggle_header_enabled(app: &mut App) {
+    if !focused_region_is_http_headers(app) {
+        return;
+    }
+    if app
+        .active_pane()
+        .map(|p| p.block_draft.is_none())
+        .unwrap_or(true)
+        && !hydrate_draft(app)
+    {
+        return;
+    }
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    let row = pane.block_row;
+    let Some(draft) = pane.block_draft.as_mut() else {
+        return;
+    };
+    draft.toggle_header_enabled(row);
+}
+
+/// vim NORMAL `o` on a single-line HTTP cell: commit + insert a new header
+/// row below + INSERT on its key. Same semantics as NAV `o` but reachable
+/// without leaving EDIT first.
+pub(crate) fn field_open_below(app: &mut App) {
+    commit_edit(app);
+    insert_header_row(app);
+}
+
+/// vim NORMAL `O` on a single-line HTTP cell: mirror of [`field_open_below`]
+/// that inserts above the focused row.
+pub(crate) fn field_open_above(app: &mut App) {
+    commit_edit(app);
+    insert_header_row_above(app);
+}
+
+/// `Enter`/`Tab` on a single-line HTTP cell in EDIT INSERT: commit the
+/// current buffer, advance to the next field, re-enter INSERT. Form-style
+/// flow so the user can type key → Enter → value → Enter → next row's key
+/// without ever leaving INSERT or hitting `Esc`+`l`+`i`.
+pub(crate) fn field_advance_next(app: &mut App) {
+    let field = app
+        .active_pane()
+        .and_then(|p| p.block_edit.as_ref())
+        .map(|e| e.field.clone());
+    let Some(field) = field else {
+        return;
+    };
+    commit_edit(app);
+    match field {
+        EditField::HttpHeaderKey(row) => {
+            if let Some(pane) = app.active_pane_mut() {
+                pane.block_row = row;
+                pane.block_col = 1;
+            }
+            enter_edit(app, EnterMode::Insert);
+        }
+        EditField::HttpHeaderValue(row) => {
+            let count = app
+                .active_pane()
+                .and_then(|p| p.block_draft.as_ref())
+                .map(|d| d.header_count())
+                .unwrap_or(0);
+            if row + 1 >= count {
+                // Last row → append new (insert_header_row picks up cursor
+                // from block_row + 1 and re-enters INSERT on the new key).
+                if let Some(pane) = app.active_pane_mut() {
+                    pane.block_row = row;
+                    pane.block_col = 1;
+                }
+                insert_header_row(app);
+            } else {
+                if let Some(pane) = app.active_pane_mut() {
+                    pane.block_row = row + 1;
+                    pane.block_col = 0;
+                }
+                enter_edit(app, EnterMode::Insert);
+            }
+        }
+        // URL has nothing meaningful to advance to without crossing regions;
+        // commit is enough — user can `Tab` (NAV) to switch region.
+        EditField::HttpUrl => {}
+        // Multi-line fields shouldn't reach here (resolver excludes them).
+        EditField::HttpBody | EditField::DbQuery => {}
     }
 }

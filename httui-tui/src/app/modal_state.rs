@@ -90,20 +90,38 @@ pub struct HttpResponseDetailState {
 
 /// State for the run-confirm modal. Carries the segment to re-run
 /// (the cursor may have moved in between) and the human reason
-/// shown to the user (e.g. "UPDATE without WHERE").
+
+/// Generic y/n confirm modal. Replaces the per-flow confirm structs
+/// (`DbConfirmRunState`, `ConnectionDeleteConfirmState`,
+/// `EnvDeleteConfirmState`, `VarDeleteConfirmState`, …): the modal owns
+/// only display strings + the actions to emit on `y`/`Enter` and
+/// `n`/`Esc`. Each flow's data lives in [`ConfirmPayload`] so action
+/// appliers can extract their context without resurrecting per-flow
+/// variants. Keeps [`crate::input::action::Action`] `Copy`.
+///
+/// `on_confirm` / `on_cancel` are `Copy` so the modal handler can
+/// emit them without consuming the state — the modal stays open until
+/// the applier runs and explicitly closes it (the usual pattern).
 #[derive(Debug)]
-pub struct DbConfirmRunState {
-    pub segment_idx: usize,
-    pub reason: String,
+pub struct ConfirmPromptState {
+    pub title: String,
+    pub body: String,
+    pub on_confirm: crate::input::action::Action,
+    pub on_cancel: crate::input::action::Action,
+    pub payload: ConfirmPayload,
 }
 
-/// V3 P4 (2026-05-23): confirm modal for deleting a connection
-/// from `<vault>/connections.toml`. Opened by `D` on the
-/// Connections page; `y`/`Enter` confirms (store.delete + page
-/// reload), `n`/`Esc` cancels (reopens the page unchanged).
+/// Per-flow context carried by a [`ConfirmPromptState`]. Each variant
+/// is read by exactly one confirm applier (e.g. `apply_confirm_db_run`
+/// matches `DbSegment(idx)`); appliers ignore the variant tag and trust
+/// the modal's `on_confirm` to land them on the right arm.
 #[derive(Debug)]
-pub struct ConnectionDeleteConfirmState {
-    pub name: String,
+pub enum ConfirmPayload {
+    DbSegment(usize),
+    ConnectionName(String),
+    EnvName(String),
+    Var { env_name: String, key: String },
+    HeaderRow(usize),
 }
 
 /// Open instance of the DB export-format picker. Anchored to the DB
@@ -652,13 +670,19 @@ mod tests {
     }
 
     #[test]
-    fn db_confirm_run_state_carries_segment_and_reason() {
-        let st = DbConfirmRunState {
-            segment_idx: 8,
-            reason: "UPDATE without WHERE".into(),
+    fn confirm_prompt_state_carries_actions_and_payload() {
+        let st = ConfirmPromptState {
+            title: "Confirm write".into(),
+            body: "UPDATE without WHERE".into(),
+            on_confirm: crate::input::action::Action::ConfirmDbRun,
+            on_cancel: crate::input::action::Action::CancelDbRun,
+            payload: ConfirmPayload::DbSegment(8),
         };
-        assert_eq!(st.segment_idx, 8);
-        assert_eq!(st.reason, "UPDATE without WHERE");
+        assert!(matches!(st.payload, ConfirmPayload::DbSegment(8)));
+        assert!(matches!(
+            st.on_confirm,
+            crate::input::action::Action::ConfirmDbRun
+        ));
     }
 
     #[test]

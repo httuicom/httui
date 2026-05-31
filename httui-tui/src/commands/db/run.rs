@@ -279,10 +279,13 @@ pub fn run_db_block_inner(
         } else {
             format!("{kind} mutates the database — confirm before running")
         };
-        app.modal = Some(crate::modal::Modal::DbConfirmRun(
-            crate::app::DbConfirmRunState {
-                segment_idx,
-                reason,
+        app.modal = Some(crate::modal::Modal::ConfirmPrompt(
+            crate::app::ConfirmPromptState {
+                title: "Confirm write".to_string(),
+                body: reason,
+                on_confirm: crate::input::action::Action::ConfirmDbRun,
+                on_cancel: crate::input::action::Action::CancelDbRun,
+                payload: crate::app::ConfirmPayload::DbSegment(segment_idx),
             },
         ));
         app.vim.mode = crate::vim::mode::Mode::Modal;
@@ -775,7 +778,7 @@ mod tests {
         seed_connection(&app.connections_store, "rw", false).await;
         run_db_block_inner(&mut app, idx, /*force_unscoped=*/ false, None, false);
         assert!(
-            matches!(app.modal, Some(crate::modal::Modal::DbConfirmRun(_))),
+            matches!(app.modal, Some(crate::modal::Modal::ConfirmPrompt(_))),
             "expected confirm modal"
         );
     }
@@ -787,10 +790,10 @@ mod tests {
         let (mut app, idx, _d, _v) = app_with_block(md).await;
         seed_connection(&app.connections_store, "rw", false).await;
         run_db_block_inner(&mut app, idx, false, None, false);
-        let Some(crate::modal::Modal::DbConfirmRun(state)) = app.modal.as_ref() else {
+        let Some(crate::modal::Modal::ConfirmPrompt(state)) = app.modal.as_ref() else {
             panic!("expected confirm modal");
         };
-        assert!(state.reason.contains("WHERE"), "got {:?}", state.reason);
+        assert!(state.body.contains("WHERE"), "got {:?}", state.body);
     }
 
     #[tokio::test(flavor = "multi_thread")]

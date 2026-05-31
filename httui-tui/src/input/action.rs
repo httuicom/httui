@@ -423,6 +423,28 @@ pub enum Action {
     /// NAV in HTTP `[2] Headers`: delete the current `block_row`.
     /// No-op when there are no rows. Cursor clamps to the row above.
     BlocksHeaderDeleteRow,
+    /// NAV in HTTP `[2] Headers`: toggle the current row on/off (`Space`).
+    /// A disabled row serializes with a `# ` prefix and is skipped on
+    /// dispatch. Hydrates the draft on first use.
+    BlocksHeaderToggleEnabled,
+    /// EDIT INSERT on a single-line HTTP cell (header key/value or URL):
+    /// `Enter`/`Tab` commit the current buffer and advance to the next field
+    /// (key→value, value→next row's key, last-row value→insert+new row).
+    /// Mirrors form-input conventions so Enter never injects a stray newline
+    /// into a single-line cell.
+    BlocksFieldAdvanceNext,
+    /// vim NORMAL on a single-line HTTP cell: `o` commits the current edit
+    /// and opens a new header row BELOW the current one, landing in INSERT
+    /// on its key. Same semantics as NAV `o` but accessible from inside EDIT.
+    BlocksFieldOpenBelow,
+    /// vim NORMAL on a single-line HTTP cell: `O` commits and opens a new
+    /// header row ABOVE the current one (mirror of [`BlocksFieldOpenBelow`]).
+    BlocksFieldOpenAbove,
+    /// `y`/`Enter` in the [`crate::modal::Modal::ConfirmPrompt`] opened by
+    /// `delete_header_row`: read `ConfirmPayload::HeaderRow` and drop it.
+    BlocksHeaderDeleteConfirm,
+    /// `n`/`Esc`/`Ctrl+C` in the same prompt: close without deleting.
+    BlocksHeaderDeleteCancel,
     /// Sidebar `n` while a `.md` file is focused (BLOCKS view) —
     /// append a new HTTP block to that file. Reuses existing tree.
     BlocksTreeNewBlock,

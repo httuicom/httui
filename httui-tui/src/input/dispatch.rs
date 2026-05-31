@@ -355,6 +355,12 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::BlocksCancelRun
         | Action::BlocksHeaderInsertRow
         | Action::BlocksHeaderDeleteRow
+        | Action::BlocksHeaderToggleEnabled
+        | Action::BlocksHeaderDeleteConfirm
+        | Action::BlocksHeaderDeleteCancel
+        | Action::BlocksFieldAdvanceNext
+        | Action::BlocksFieldOpenBelow
+        | Action::BlocksFieldOpenAbove
         | Action::BlocksResponseNextTab
         | Action::BlocksResponsePrevTab
         | Action::BlocksTreeNewBlock

@@ -2,8 +2,8 @@
 use super::*;
 use crate::app::{App, BlockExportFormat, CompletionPopupState};
 use crate::app::{
-    BlockHistoryState, BlockTemplatePickerState, ConnectionPickerState, ContentSearchState,
-    DbConfirmRunState, DbExportPickerState, DbRowDetailState, DbSettingsState,
+    BlockHistoryState, BlockTemplatePickerState, ConfirmPromptState, ConnectionPickerState,
+    ContentSearchState, DbExportPickerState, DbRowDetailState, DbSettingsState,
     EnvironmentPickerState, HttpResponseDetailState, SettingsField, TabPickerState,
 };
 use crate::buffer::{Cursor, Document};
@@ -416,9 +416,12 @@ async fn completion_popup_paints() {
 async fn db_confirm_run_modal_paints() {
     let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
     open_doc(&mut app, "x\n");
-    app.modal = Some(crate::modal::Modal::DbConfirmRun(DbConfirmRunState {
-        segment_idx: 0,
-        reason: "UPDATE without WHERE".into(),
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(ConfirmPromptState {
+        title: "Confirm write".into(),
+        body: "UPDATE without WHERE".into(),
+        on_confirm: crate::input::action::Action::ConfirmDbRun,
+        on_cancel: crate::input::action::Action::CancelDbRun,
+        payload: crate::app::ConfirmPayload::DbSegment(0),
     }));
     let (text, _c) = render(&mut app, 70, 14);
     assert!(
@@ -692,16 +695,24 @@ async fn render_with_active_search_buffer_paints_live_match() {
 async fn render_paints_env_var_delete_confirm_modals() {
     let (mut app, _d, _v) = app_with_files(&[]).await;
     open_doc(&mut app, "x\n");
-    app.modal = Some(crate::modal::Modal::EnvDeleteConfirm(
-        crate::app::EnvDeleteConfirmState { name: "dev".into() },
-    ));
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(ConfirmPromptState {
+        title: "Delete env".into(),
+        body: "Delete env \"dev\"?".into(),
+        on_confirm: crate::input::action::Action::ConfirmEnvOrVarDelete,
+        on_cancel: crate::input::action::Action::CancelEnvOrVarDelete,
+        payload: crate::app::ConfirmPayload::EnvName("dev".into()),
+    }));
     let _ = render(&mut app, 80, 20);
-    app.modal = Some(crate::modal::Modal::VarDeleteConfirm(
-        crate::app::VarDeleteConfirmState {
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(ConfirmPromptState {
+        title: "Delete var".into(),
+        body: "Delete var \"KEY\" from \"dev\"?".into(),
+        on_confirm: crate::input::action::Action::ConfirmEnvOrVarDelete,
+        on_cancel: crate::input::action::Action::CancelEnvOrVarDelete,
+        payload: crate::app::ConfirmPayload::Var {
             env_name: "dev".into(),
             key: "KEY".into(),
         },
-    ));
+    }));
     let _ = render(&mut app, 80, 20);
 }
 
@@ -787,8 +798,35 @@ async fn blocks_view_renders_http_block() {
     let sel = block_ref_of(&app, true);
     select_ref(&mut app, sel);
     let (text, _) = render(&mut app, 120, 40);
-    assert!(text.contains("Request"), "expected Request region: {text:?}");
+    assert!(
+        text.contains("Request"),
+        "expected Request region: {text:?}"
+    );
     assert!(text.contains("Response"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_header_checkboxes() {
+    let (mut app, _d, _v) = app_with_files(&[(
+        "api.md",
+        "# api\n\n```http alias=req1\nGET https://x.com\nAccept: application/json\n# X-Debug: on\n```\n",
+    )])
+    .await;
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::ToggleAppView,
+    );
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(
+        text.contains("[x]"),
+        "enabled header shows checked marker: {text:?}"
+    );
+    assert!(
+        text.contains("[ ]"),
+        "disabled header shows unchecked marker: {text:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -804,7 +842,10 @@ async fn blocks_view_renders_db_block() {
 async fn blocks_view_empty_selection_paints_placeholder() {
     let (mut app, _d, _v) = blocks_app().await;
     let (text, _) = render(&mut app, 120, 40);
-    assert!(text.contains("Select a block"), "expected placeholder: {text:?}");
+    assert!(
+        text.contains("Select a block"),
+        "expected placeholder: {text:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -815,7 +856,10 @@ async fn blocks_view_renders_vertical_split() {
     select_ref(&mut app, http);
     let active = app.tabs.active;
     let tab = app.tabs.tabs.get_mut(active).unwrap();
-    let old = std::mem::replace(&mut tab.root, crate::pane::PaneNode::Leaf(crate::pane::Pane::empty()));
+    let old = std::mem::replace(
+        &mut tab.root,
+        crate::pane::PaneNode::Leaf(crate::pane::Pane::empty()),
+    );
     let mut second = crate::pane::Pane::empty();
     second.block_selected = Some(db);
     tab.root = crate::pane::PaneNode::Split {
@@ -938,7 +982,9 @@ async fn blocks_view_renders_db_result_table() {
     let idx = doc
         .segments()
         .iter()
-        .position(|s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type.starts_with("db")))
+        .position(
+            |s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type.starts_with("db")),
+        )
         .unwrap();
     if let Some(b) = doc.block_at_mut(idx) {
         b.cached_result = Some(serde_json::json!({
@@ -957,7 +1003,10 @@ async fn blocks_view_renders_db_result_table() {
     let (text, _) = render(&mut app, 120, 40);
     // Rows rendered → not the empty placeholder, so the table-build
     // path in `render_db_result_region` executed.
-    assert!(!text.contains("no result"), "result table should render rows: {text:?}");
+    assert!(
+        !text.contains("no result"),
+        "result table should render rows: {text:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -980,8 +1029,12 @@ async fn render_modals_overlay_stack_dispatch() {
         crate::modal::Modal::Help,
         crate::modal::Modal::Connections(Default::default()),
         crate::modal::Modal::EnvsPage(Default::default()),
-        crate::modal::Modal::ConnectionDeleteConfirm(crate::app::ConnectionDeleteConfirmState {
-            name: "conn".into(),
+        crate::modal::Modal::ConfirmPrompt(crate::app::ConfirmPromptState {
+            title: "Delete connection".into(),
+            body: "Delete \"conn\"?".into(),
+            on_confirm: crate::input::action::Action::ConfirmConnectionDelete,
+            on_cancel: crate::input::action::Action::CancelConnectionDelete,
+            payload: crate::app::ConfirmPayload::ConnectionName("conn".into()),
         }),
         crate::modal::Modal::GitSetUpstreamConfirm(crate::git::GitSetUpstreamConfirmState {
             remote: "origin".into(),
@@ -1037,7 +1090,10 @@ async fn http_response_detail_renders_in_visual_mode() {
     );
     // Drive the detail modal's visual-overlay render arm.
     app.vim.mode = crate::vim::mode::Mode::Visual;
-    app.vim.visual_anchor = Some(crate::buffer::Cursor::InProse { segment_idx: 0, offset: 0 });
+    app.vim.visual_anchor = Some(crate::buffer::Cursor::InProse {
+        segment_idx: 0,
+        offset: 0,
+    });
     let _ = render(&mut app, 120, 40);
     app.vim.mode = crate::vim::mode::Mode::VisualLine;
     let _ = render(&mut app, 120, 40);

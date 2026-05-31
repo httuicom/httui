@@ -84,24 +84,32 @@ pub(super) fn render_modals(
         // resolves the cursor row to `cursor_y` inside
         // `compute_popup_rect` (it computes `cursor_y =
         // screen_top + 3 + anchor_line`, so we pre-subtract).
-        let anchor = if let Some((cx, cy)) = popup_cursor_cell {
-            let synth = crate::ui::BlockAnchor {
-                screen_top: cy.saturating_sub(3),
-                height: 1,
+        let (anchor, cursor_x_override, cursor_y_override) =
+            if let Some((cx, cy)) = popup_cursor_cell {
+                let synth = crate::ui::BlockAnchor {
+                    screen_top: cy.saturating_sub(3),
+                    height: 1,
+                };
+                // Pass the real caret cell so the popup sits exactly one row
+                // below the typing line under the focused pane (IDE-style).
+                // The synthetic anchor stays as a fallback if Y override is
+                // ever stripped, but the override is the source of truth.
+                (Some(synth), Some(cx), Some(cy))
+            } else {
+                (
+                    anchor::compute_block_anchor(app, editor_area, state.segment_idx),
+                    None,
+                    None,
+                )
             };
-            let _ = cx; // popup x derives from anchor_offset within editor_area
-            Some(synth)
-        } else {
-            anchor::compute_block_anchor(app, editor_area, state.segment_idx)
-        };
-        completion_popup::render(frame, editor_area, state, anchor);
-    }
-
-    // Run-confirm modal — painted last so it floats over everything
-    // else (including a stuck completion popup, though both being up
-    // simultaneously shouldn't happen in practice).
-    if let Some(crate::modal::Modal::DbConfirmRun(state)) = app.modal.as_ref() {
-        db_confirm_run::render(frame, editor_area, state);
+        completion_popup::render(
+            frame,
+            editor_area,
+            state,
+            anchor,
+            cursor_x_override,
+            cursor_y_override,
+        );
     }
 
     // Export-format picker — opened by `gx` over a DB block with
@@ -214,12 +222,6 @@ pub(super) fn render_modals(
         }
     }
 
-    // V3 P4: delete-confirm. Always painted last — sits above the
-    // Connections page (the prior modal); `n`/`Esc` reopens the page.
-    if let Some(crate::modal::Modal::ConnectionDeleteConfirm(state)) = app.modal.as_ref() {
-        connection_delete_confirm::render(frame, editor_area, state);
-    }
-
     if let Some(crate::modal::Modal::GitSetUpstreamConfirm(state)) = app.modal.as_ref() {
         git_set_upstream_confirm::render(frame, editor_area, state);
     }
@@ -256,12 +258,6 @@ pub(super) fn render_modals(
             frame.set_cursor_position((cx, cy));
         }
     }
-    if let Some(crate::modal::Modal::EnvDeleteConfirm(state)) = app.modal.as_ref() {
-        envs_page::render_env_delete_confirm(frame, editor_area, state);
-    }
-    if let Some(crate::modal::Modal::VarDeleteConfirm(state)) = app.modal.as_ref() {
-        envs_page::render_var_delete_confirm(frame, editor_area, state);
-    }
     if let Some(crate::modal::Modal::EnvCloneForm(state)) = app.modal.as_ref() {
         if let Some((cx, cy)) =
             crate::ui::envs_clone::render_env_clone_form(frame, editor_area, state)
@@ -283,5 +279,10 @@ pub(super) fn render_modals(
     // the file list + chip row sit over the workspace.
     if let Some(crate::modal::Modal::BlocksUnsavedPrompt(state)) = app.modal.as_ref() {
         blocks_unsaved_prompt::render(frame, editor_area, state);
+    }
+
+    // Generic y/n confirm — painted last so it floats over anything else.
+    if let Some(crate::modal::Modal::ConfirmPrompt(state)) = app.modal.as_ref() {
+        confirm_prompt::render(frame, editor_area, state);
     }
 }

@@ -32,8 +32,16 @@ pub fn render(
     editor_area: Rect,
     state: &CompletionPopupState,
     anchor: Option<BlockAnchor>,
+    cursor_x_override: Option<u16>,
+    cursor_y_override: Option<u16>,
 ) {
-    let popup = compute_popup_rect(editor_area, state, anchor);
+    let popup = compute_popup_rect(
+        editor_area,
+        state,
+        anchor,
+        cursor_x_override,
+        cursor_y_override,
+    );
     let bg_style = Style::default()
         .bg(crate::ui::palette::popup_bg())
         .fg(crate::ui::palette::foreground());
@@ -124,6 +132,8 @@ fn compute_popup_rect(
     editor_area: Rect,
     state: &CompletionPopupState,
     anchor: Option<BlockAnchor>,
+    cursor_x_override: Option<u16>,
+    cursor_y_override: Option<u16>,
 ) -> Rect {
     let body_rows = state.items.len().clamp(1, MAX_VISIBLE_ROWS) as u16;
     let popup_height = body_rows.saturating_add(2);
@@ -136,14 +146,28 @@ fn compute_popup_rect(
         // `anchor_line` and `anchor_offset` are body-relative; clamp
         // x so the popup never spills past the editor's right edge
         // (slides left), and so wide labels stay readable.
-        let cursor_x = editor_area
-            .x
-            .saturating_add(1)
-            .saturating_add(state.anchor_offset as u16);
-        let cursor_y = anchor
-            .screen_top
-            .saturating_add(3)
-            .saturating_add(state.anchor_line as u16);
+        //
+        // BLOCKS-view multi-pane EDIT publishes the real caret screen X
+        // (`cursor_x_override`) so the popup anchors under the focused
+        // pane instead of the editor area's left edge — without it,
+        // `editor_area.x + anchor_offset` lands inside whichever pane
+        // owns the leftmost column.
+        let cursor_x = cursor_x_override.unwrap_or_else(|| {
+            editor_area
+                .x
+                .saturating_add(1)
+                .saturating_add(state.anchor_offset as u16)
+        });
+        // BLOCKS-view multi-pane EDIT publishes the real caret screen Y
+        // (`cursor_y_override`) so the popup sits exactly one row below the
+        // typing line (IDE-style). The DOC-view fallback derives it from the
+        // anchor's screen_top + body-relative anchor_line.
+        let cursor_y = cursor_y_override.unwrap_or_else(|| {
+            anchor
+                .screen_top
+                .saturating_add(3)
+                .saturating_add(state.anchor_line as u16)
+        });
 
         // Right-edge clamp: shift the popup left until it fits.
         let popup_x = cursor_x.min(editor_right.saturating_sub(width));

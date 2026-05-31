@@ -1,8 +1,8 @@
 //! V4 P2-P4 (2026-05-23): Vars + Envs page handlers.
 
 use crate::app::{
-    App, EnvDeleteConfirmState, EnvFormState, EnvSummary, EnvsPageState, EnvsPaneFocus, StatusKind,
-    VarDeleteConfirmState, VarFormFocus, VarFormState, VarRow,
+    App, EnvFormState, EnvSummary, EnvsPageState, EnvsPaneFocus, StatusKind, VarFormFocus,
+    VarFormState, VarRow,
 };
 use crate::input::action::Action;
 use crate::vim::lineedit::LineEdit;
@@ -495,8 +495,14 @@ fn open_env_delete_confirm(app: &mut App) {
         None
     };
     let Some(name) = name else { return };
-    app.modal = Some(crate::modal::Modal::EnvDeleteConfirm(
-        EnvDeleteConfirmState { name },
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(
+        crate::app::ConfirmPromptState {
+            title: "Delete env".to_string(),
+            body: format!("Delete env \"{name}\"?"),
+            on_confirm: crate::input::action::Action::ConfirmEnvOrVarDelete,
+            on_cancel: crate::input::action::Action::CancelEnvOrVarDelete,
+            payload: crate::app::ConfirmPayload::EnvName(name),
+        },
     ));
 }
 
@@ -510,8 +516,14 @@ fn open_var_delete_confirm(app: &mut App) {
         None
     };
     let Some((env_name, key)) = pair else { return };
-    app.modal = Some(crate::modal::Modal::VarDeleteConfirm(
-        VarDeleteConfirmState { env_name, key },
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(
+        crate::app::ConfirmPromptState {
+            title: "Delete var".to_string(),
+            body: format!("Delete var \"{key}\" from \"{env_name}\"?"),
+            on_confirm: crate::input::action::Action::ConfirmEnvOrVarDelete,
+            on_cancel: crate::input::action::Action::CancelEnvOrVarDelete,
+            payload: crate::app::ConfirmPayload::Var { env_name, key },
+        },
     ));
 }
 
@@ -522,10 +534,13 @@ fn confirm_delete(app: &mut App) {
         Var(String, String),
     }
     let op = match app.modal.as_ref() {
-        Some(crate::modal::Modal::EnvDeleteConfirm(s)) => Op::Env(s.name.clone()),
-        Some(crate::modal::Modal::VarDeleteConfirm(s)) => {
-            Op::Var(s.env_name.clone(), s.key.clone())
-        }
+        Some(crate::modal::Modal::ConfirmPrompt(state)) => match &state.payload {
+            crate::app::ConfirmPayload::EnvName(name) => Op::Env(name.clone()),
+            crate::app::ConfirmPayload::Var { env_name, key } => {
+                Op::Var(env_name.clone(), key.clone())
+            }
+            _ => return,
+        },
         _ => return,
     };
     let (result, msg) = match op {

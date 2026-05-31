@@ -1,11 +1,10 @@
 use crate::app::{
     BlockHistoryState, BlockTemplatePickerState, BlocksUnsavedPromptState, CompletionPopupState,
-    ConnectionDeleteConfirmState, ConnectionFormState, ConnectionPickerState, ConnectionsPageState,
-    ContentSearchState, DbConfirmRunState, DbExportPickerState, DbRowDetailState, DbSettingsState,
-    EnvCloneFormState, EnvDeleteConfirmState, EnvFormState, EnvironmentPickerState, EnvsPageState,
-    HttpResponseDetailState, SettingsPageState, TabPickerState, VarDeleteConfirmState,
-    VarFormState, VaultCloneFormState, VaultCreateFormState, VaultMissingSecretsState,
-    VaultOpenPickerState, VaultPickerState,
+    ConfirmPromptState, ConnectionFormState, ConnectionPickerState, ConnectionsPageState,
+    ContentSearchState, DbExportPickerState, DbRowDetailState, DbSettingsState, EnvCloneFormState,
+    EnvFormState, EnvironmentPickerState, EnvsPageState, HttpResponseDetailState,
+    SettingsPageState, TabPickerState, VarFormState, VaultCloneFormState, VaultCreateFormState,
+    VaultMissingSecretsState, VaultOpenPickerState, VaultPickerState,
 };
 use crate::config::EditorMode;
 use crate::vim::state::VimState;
@@ -44,7 +43,6 @@ pub struct ModalKeyCtx<'a> {
 #[derive(Debug)]
 pub enum Modal {
     Help,
-    DbConfirmRun(DbConfirmRunState),
     BlockHistory(BlockHistoryState),
     DbExportPicker(DbExportPickerState),
     TabPicker(TabPickerState),
@@ -60,19 +58,12 @@ pub enum Modal {
     /// the Connections page. Submits to `ConnectionsStore::create`.
     ConnectionForm(ConnectionFormState),
     /// V3 P4 (2026-05-23): destructive confirm for `D` on the
-    /// Connections page. `y`/`Enter` runs store.delete; `n`/`Esc`
-    /// reopens the page unchanged.
-    ConnectionDeleteConfirm(ConnectionDeleteConfirmState),
     /// Vars + Envs page.
     EnvsPage(EnvsPageState),
     /// Create / edit env form.
     EnvForm(EnvFormState),
     /// Create / edit var form.
     VarForm(VarFormState),
-    /// Destructive confirm for env delete.
-    EnvDeleteConfirm(EnvDeleteConfirmState),
-    /// Destructive confirm for var delete.
-    VarDeleteConfirm(VarDeleteConfirmState),
     /// Clone-env form with checkboxes per var. Opened from EnvsPage
     /// (`c`, focus = Envs); creates target env + bulk set_var of the
     /// ticked vars only (default: all ON).
@@ -158,6 +149,10 @@ pub enum Modal {
     /// least one pane carrying a `BlockDraft`. Save commits every
     /// dirty pane + replays the deferred toggle; Discard drops them.
     BlocksUnsavedPrompt(BlocksUnsavedPromptState),
+    /// Generic y/n confirm. Owns its title + body + the actions to emit
+    /// for confirm/cancel — see [`ConfirmPromptState`]. The per-flow
+    /// data lives in `ConfirmPayload` so action appliers extract it.
+    ConfirmPrompt(ConfirmPromptState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -199,7 +194,6 @@ impl Modal {
     pub fn handle_key(&mut self, key: KeyEvent) -> ModalOutcome {
         match self {
             Modal::Help => help_handle_key(key),
-            Modal::DbConfirmRun(_) => db_confirm_run_handle_key(key),
             Modal::BlockHistory(_) => block_history_handle_key(key),
             Modal::DbExportPicker(_) => db_export_picker_handle_key(key),
             Modal::TabPicker(_) => tab_picker_handle_key(key),
@@ -208,13 +202,9 @@ impl Modal {
             Modal::ConnectionPicker(_) => connection_picker_handle_key(key),
             Modal::Connections(_) => connections_page_handle_key(key),
             Modal::ConnectionForm(s) => connection_form_handle_key(s, key),
-            Modal::ConnectionDeleteConfirm(_) => connection_delete_confirm_handle_key(key),
             Modal::EnvsPage(s) => envs_page_handle_key(s.focus, key),
             Modal::EnvForm(_) => env_form_handle_key(key),
             Modal::VarForm(s) => var_form_handle_key(s.focus, key),
-            Modal::EnvDeleteConfirm(_) | Modal::VarDeleteConfirm(_) => {
-                env_or_var_confirm_handle_key(key)
-            }
             Modal::EnvCloneForm(s) => clone_form::env_clone_form_handle_key(s.focus, key),
             Modal::VaultPicker(_) => vault_picker_handle_key(key),
             Modal::VaultCreateForm(s) => vault_create_form_handle_key(s.focus, key),
@@ -244,6 +234,7 @@ impl Modal {
             Modal::GitConflictResolver(_) => git::conflict_resolver_handle_key(key),
             Modal::Settings(s) => settings_page_handle_key(s.capture.is_some(), key),
             Modal::BlocksUnsavedPrompt(s) => blocks_unsaved_prompt_handle_key(s, key),
+            Modal::ConfirmPrompt(s) => confirm_prompt_handle_key(s, key),
         }
     }
 

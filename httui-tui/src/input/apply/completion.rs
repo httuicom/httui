@@ -281,19 +281,34 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
 /// have moved while the modal was up.
 pub(crate) fn apply_confirm_db_run(app: &mut App) {
     let segment_idx = match app.modal.take() {
-        Some(crate::modal::Modal::DbConfirmRun(state)) => state.segment_idx,
+        Some(crate::modal::Modal::ConfirmPrompt(state)) => match state.payload {
+            crate::app::ConfirmPayload::DbSegment(idx) => Some(idx),
+            other => {
+                // Wrong-payload prompt was open — re-store and bail.
+                app.modal = Some(crate::modal::Modal::ConfirmPrompt(
+                    crate::app::ConfirmPromptState {
+                        payload: other,
+                        ..state
+                    },
+                ));
+                None
+            }
+        },
         other => {
             app.modal = other;
-            app.vim.enter_normal();
-            return;
+            None
         }
+    };
+    let Some(segment_idx) = segment_idx else {
+        app.vim.enter_normal();
+        return;
     };
     app.vim.enter_normal();
     crate::commands::db::run_db_block_inner(app, segment_idx, true, None, false);
 }
 
 pub(crate) fn apply_cancel_db_run(app: &mut App) {
-    if matches!(app.modal, Some(crate::modal::Modal::DbConfirmRun(_))) {
+    if matches!(app.modal, Some(crate::modal::Modal::ConfirmPrompt(_))) {
         app.modal = None;
         app.set_status(StatusKind::Info, "run cancelled");
     }
@@ -324,10 +339,10 @@ pub(crate) fn apply_completion_prev(app: &mut App) {
     };
 }
 
-/// True when the active pane is editing a DB block's query field
-/// via the BLOCKS-view sub-document. SQL completion in EDIT only
-/// fires here — other fields (URL, header, HTTP body) have their
-/// own non-SQL semantics.
+/// True when any BLOCKS-view EDIT buffer is active. SQL completion only
+/// fires on DB query (gated downstream by `block_type.starts_with("db")`);
+/// `{{ref}}` completion works in every field — URL, header value, HTTP
+/// body, DB query — since refs are uniform across block kinds.
 fn blocks_edit_completion_active(app: &App) -> bool {
     if !matches!(app.view, crate::app::AppView::Blocks) {
         return false;
@@ -335,10 +350,7 @@ fn blocks_edit_completion_active(app: &App) -> bool {
     let Some(pane) = app.active_pane() else {
         return false;
     };
-    let Some(edit) = pane.block_edit.as_ref() else {
-        return false;
-    };
-    matches!(edit.field, crate::app::EditField::DbQuery)
+    pane.block_edit.is_some()
 }
 
 /// `rebuild_completion_popup` for BLOCKS view EDIT on a DB Query.

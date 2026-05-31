@@ -36,21 +36,58 @@ pub(crate) fn resolve_pane_key(app: &App, key: KeyEvent) -> Option<Action> {
         // us, so reading `edit.sub_mode` would lag behind. Standard
         // profile is always Insert.
         let sub_mode = effective_sub_mode(app);
+        // Single-line HTTP cells (header key/value, URL) reject any chord
+        // that would inject a newline: INSERT Enter/Tab advance to the next
+        // field; vim NORMAL `o`/`O` (which would "open below") map to the
+        // same advance. Multi-line fields fall through unchanged.
+        if let Some(action) = resolve_single_line_advance(app, sub_mode, key) {
+            return Some(action);
+        }
         return resolve_edit_key(key, sub_mode, vim);
     }
     // BLOCKS NAV — try the user's configured chords first (so a
     // remapped `blocks_run` reaches Run before the hardcoded letters
     // below capture it).
     if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {
-        if matches!(
-            action,
-            Action::BlocksRunFocused | Action::BlocksCancelRun
-        ) {
+        if matches!(action, Action::BlocksRunFocused | Action::BlocksCancelRun) {
             return Some(action);
         }
     }
     let in_headers = focused_region_is_http_headers(app);
     resolve_nav_key(key, vim, in_headers)
+}
+
+/// Single-line HTTP cells (header key/value, URL) forbid newlines, so any
+/// chord that would inject `\n` redirects to "advance to next field":
+/// - INSERT: `Enter`/`Tab` (form input style).
+/// - vim NORMAL: `o`/`O` (vim's "open below/above" — meaningless on a
+///   single-line cell, so we treat it as moving to the next row).
+/// Multi-line fields (HTTP body / DB query) and non-HTTP cells fall through.
+fn resolve_single_line_advance(
+    app: &App,
+    sub_mode: EditSubMode,
+    key: KeyEvent,
+) -> Option<Action> {
+    let edit = app.active_pane().and_then(|p| p.block_edit.as_ref())?;
+    if !matches!(
+        edit.field,
+        EditField::HttpHeaderKey(_) | EditField::HttpHeaderValue(_) | EditField::HttpUrl
+    ) {
+        return None;
+    }
+    match (sub_mode, key.modifiers, key.code) {
+        (EditSubMode::Insert, KeyModifiers::NONE, KeyCode::Enter)
+        | (EditSubMode::Insert, KeyModifiers::NONE, KeyCode::Tab) => {
+            Some(Action::BlocksFieldAdvanceNext)
+        }
+        (EditSubMode::Normal, KeyModifiers::NONE, KeyCode::Char('o')) => {
+            Some(Action::BlocksFieldOpenBelow)
+        }
+        (EditSubMode::Normal, KeyModifiers::NONE, KeyCode::Char('O')) => {
+            Some(Action::BlocksFieldOpenAbove)
+        }
+        _ => None,
+    }
 }
 
 /// Tree-mode chords specific to BLOCKS view. `n`/`N` on a `.md` file
@@ -202,14 +239,18 @@ pub(crate) fn resolve_nav_key(key: KeyEvent, vim: bool, in_headers: bool) -> Opt
         }
         // hjkl mirrors arrows in NAV for both profiles. The pane isn't
         // editing, so claiming the letters here can't shadow text input.
-        (KeyModifiers::NONE, KeyCode::Up)
-        | (KeyModifiers::NONE, KeyCode::Char('k')) => Some(Action::BlocksPaneRowUp),
-        (KeyModifiers::NONE, KeyCode::Down)
-        | (KeyModifiers::NONE, KeyCode::Char('j')) => Some(Action::BlocksPaneRowDown),
-        (KeyModifiers::NONE, KeyCode::Left)
-        | (KeyModifiers::NONE, KeyCode::Char('h')) => Some(Action::BlocksPaneColLeft),
-        (KeyModifiers::NONE, KeyCode::Right)
-        | (KeyModifiers::NONE, KeyCode::Char('l')) => Some(Action::BlocksPaneColRight),
+        (KeyModifiers::NONE, KeyCode::Up) | (KeyModifiers::NONE, KeyCode::Char('k')) => {
+            Some(Action::BlocksPaneRowUp)
+        }
+        (KeyModifiers::NONE, KeyCode::Down) | (KeyModifiers::NONE, KeyCode::Char('j')) => {
+            Some(Action::BlocksPaneRowDown)
+        }
+        (KeyModifiers::NONE, KeyCode::Left) | (KeyModifiers::NONE, KeyCode::Char('h')) => {
+            Some(Action::BlocksPaneColLeft)
+        }
+        (KeyModifiers::NONE, KeyCode::Right) | (KeyModifiers::NONE, KeyCode::Char('l')) => {
+            Some(Action::BlocksPaneColRight)
+        }
         (KeyModifiers::NONE, KeyCode::Enter) => Some(Action::BlocksRegionEnterEdit),
         // Vim-only NAV chords: `i`/`a`/`o` skip past NORMAL straight
         // into INSERT (`Enter` in vim lands in NORMAL).
@@ -219,17 +260,16 @@ pub(crate) fn resolve_nav_key(key: KeyEvent, vim: bool, in_headers: bool) -> Opt
         (KeyModifiers::NONE, KeyCode::Char('a')) if vim => {
             Some(Action::BlocksRegionEnterEditInsert)
         }
-        (KeyModifiers::NONE, KeyCode::Char('o')) if vim => {
+        // Headers table claims `o` for "insert row" before vim's "open below"
+        // gets a chance — otherwise the vim arm would shadow the table chord
+        // and try to enter EDIT on a possibly nonexistent row.
+        (KeyModifiers::NONE, KeyCode::Char('o')) if vim && !in_headers => {
             Some(Action::BlocksRegionEnterEditInsert)
         }
         // `]`/`[` step between blocks in the workspace (vim only —
         // standard uses PageDown/PageUp below).
-        (KeyModifiers::NONE, KeyCode::Char(']')) if vim => {
-            Some(Action::BlocksNextBlockMotion)
-        }
-        (KeyModifiers::NONE, KeyCode::Char('[')) if vim => {
-            Some(Action::BlocksPrevBlockMotion)
-        }
+        (KeyModifiers::NONE, KeyCode::Char(']')) if vim => Some(Action::BlocksNextBlockMotion),
+        (KeyModifiers::NONE, KeyCode::Char('[')) if vim => Some(Action::BlocksPrevBlockMotion),
         (KeyModifiers::NONE, KeyCode::PageDown) => Some(Action::BlocksNextBlockMotion),
         (KeyModifiers::NONE, KeyCode::PageUp) => Some(Action::BlocksPrevBlockMotion),
         // Table CRUD in `[2] Headers`. `o` mirrors vim's "open below",
@@ -239,14 +279,13 @@ pub(crate) fn resolve_nav_key(key: KeyEvent, vim: bool, in_headers: bool) -> Opt
         (KeyModifiers::NONE, KeyCode::Char('o')) if in_headers => {
             Some(Action::BlocksHeaderInsertRow)
         }
-        (KeyModifiers::NONE, KeyCode::Insert) if in_headers => {
-            Some(Action::BlocksHeaderInsertRow)
-        }
+        (KeyModifiers::NONE, KeyCode::Insert) if in_headers => Some(Action::BlocksHeaderInsertRow),
         (KeyModifiers::NONE, KeyCode::Char('d')) if in_headers => {
             Some(Action::BlocksHeaderDeleteRow)
         }
-        (KeyModifiers::NONE, KeyCode::Delete) if in_headers => {
-            Some(Action::BlocksHeaderDeleteRow)
+        (KeyModifiers::NONE, KeyCode::Delete) if in_headers => Some(Action::BlocksHeaderDeleteRow),
+        (KeyModifiers::NONE, KeyCode::Char(' ')) if in_headers => {
+            Some(Action::BlocksHeaderToggleEnabled)
         }
         (m, KeyCode::Char('s')) if m == KeyModifiers::CONTROL => Some(Action::BlocksSaveDraft),
         (m, KeyCode::Char('t')) if m == KeyModifiers::ALT => Some(Action::BlocksResponseNextTab),

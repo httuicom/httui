@@ -50,6 +50,14 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         }
         Action::BlocksHeaderInsertRow => insert_header_row(app),
         Action::BlocksHeaderDeleteRow => delete_header_row(app),
+        Action::BlocksHeaderToggleEnabled => toggle_header_enabled(app),
+        Action::BlocksHeaderDeleteConfirm => apply_header_delete_confirm(app),
+        Action::BlocksHeaderDeleteCancel => {
+            app.modal = None;
+        }
+        Action::BlocksFieldAdvanceNext => field_advance_next(app),
+        Action::BlocksFieldOpenBelow => field_open_below(app),
+        Action::BlocksFieldOpenAbove => field_open_above(app),
         Action::BlocksResponseNextTab => shift_response_subtab(app, 1),
         Action::BlocksResponsePrevTab => shift_response_subtab(app, -1),
         Action::BlocksTreeNewBlock => tree_new_block(app),
@@ -96,11 +104,7 @@ fn close_unsaved_prompt(app: &mut App) {
 }
 
 fn choose_picker(app: &mut App, leaf_idx: usize) {
-    let Some(target) = app
-        .blocks_workspace
-        .as_ref()
-        .and_then(|w| w.pane_picker)
-    else {
+    let Some(target) = app.blocks_workspace.as_ref().and_then(|w| w.pane_picker) else {
         return;
     };
     let Some(tab) = app.active_tab_mut() else {
@@ -249,7 +253,6 @@ fn exit_blocks(app: &mut App) {
         app.vim.enter_normal();
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -468,7 +471,10 @@ mod tests {
         apply_blocks_view(&mut app, Action::BlocksRegionCommitEdit);
         let pane = app.active_pane().unwrap();
         assert!(pane.block_edit.is_none(), "edit cleared after commit");
-        assert_eq!(pane.block_draft.as_ref().unwrap().url(), "https://x.com /test");
+        assert_eq!(
+            pane.block_draft.as_ref().unwrap().url(),
+            "https://x.com /test"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -494,16 +500,20 @@ mod tests {
         // The segment now carries the edited URL, so a run executes the
         // unsaved value instead of the stale on-disk one.
         let pane = app.active_pane().unwrap();
-        let url = pane.document.as_ref().unwrap().segments().iter().find_map(|s| {
-            match s {
+        let url = pane
+            .document
+            .as_ref()
+            .unwrap()
+            .segments()
+            .iter()
+            .find_map(|s| match s {
                 crate::buffer::Segment::Block(b) if b.block_type == "http" => b
                     .params
                     .get("url")
                     .and_then(|v| v.as_str())
                     .map(str::to_string),
                 _ => None,
-            }
-        });
+            });
         assert_eq!(url.as_deref(), Some("https://x.com/test"));
     }
 
@@ -638,13 +648,179 @@ mod tests {
             .and_then(|p| p.block_draft.as_ref())
             .unwrap()
             .header_count();
+        // `dd` now opens a confirm prompt; the actual delete fires on confirm.
         apply_blocks_view(&mut app, Action::BlocksHeaderDeleteRow);
+        assert!(
+            matches!(app.modal, Some(crate::modal::Modal::ConfirmPrompt(_))),
+            "delete row opens the confirm prompt"
+        );
+        apply_blocks_view(&mut app, Action::BlocksHeaderDeleteConfirm);
         let after_delete = app
             .active_pane()
             .and_then(|p| p.block_draft.as_ref())
             .unwrap()
             .header_count();
         assert_eq!(after_delete, after_insert - 1);
+        assert!(app.modal.is_none(), "modal closes on confirm");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn delete_header_row_cancel_keeps_row() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        let before = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .unwrap()
+            .header_count();
+        apply_blocks_view(&mut app, Action::BlocksHeaderDeleteRow);
+        apply_blocks_view(&mut app, Action::BlocksHeaderDeleteCancel);
+        let after = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .unwrap()
+            .header_count();
+        assert_eq!(after, before, "cancel keeps the row");
+        assert!(app.modal.is_none(), "modal closes on cancel");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn space_toggles_focused_header_enabled() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        let row = app.active_pane().unwrap().block_row;
+        apply_blocks_view(&mut app, Action::BlocksHeaderToggleEnabled);
+        let disabled = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .map(|d| {
+                d.block.params["headers"][row]
+                    .get("enabled")
+                    .and_then(|v| v.as_bool())
+            });
+        assert_eq!(disabled, Some(Some(false)), "row disabled after toggle");
+        // Second toggle re-enables → flag removed (omit-when-true).
+        apply_blocks_view(&mut app, Action::BlocksHeaderToggleEnabled);
+        let flag_absent = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .map(|d| d.block.params["headers"][row].get("enabled").is_none());
+        assert_eq!(flag_absent, Some(true), "flag removed after re-enable");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn enter_in_header_key_advances_to_value() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        // BlocksHeaderInsertRow creates a row + enters EDIT INSERT on key.
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        let field = app
+            .active_pane()
+            .and_then(|p| p.block_edit.as_ref())
+            .map(|e| e.field.clone());
+        assert!(
+            matches!(field, Some(crate::app::EditField::HttpHeaderKey(_))),
+            "started on header key: {field:?}"
+        );
+        // Advance: key → value, still in EDIT.
+        apply_blocks_view(&mut app, Action::BlocksFieldAdvanceNext);
+        let field = app
+            .active_pane()
+            .and_then(|p| p.block_edit.as_ref())
+            .map(|e| e.field.clone());
+        assert!(
+            matches!(field, Some(crate::app::EditField::HttpHeaderValue(_))),
+            "advanced to header value: {field:?}"
+        );
+        assert_eq!(app.active_pane().unwrap().block_col, 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn enter_in_last_header_value_appends_new_row() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow); // row 0 key
+        let count_before = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .map(|d| d.header_count())
+            .unwrap_or(0);
+        // Move to value cell on the same (last) row.
+        apply_blocks_view(&mut app, Action::BlocksFieldAdvanceNext);
+        // Advance from last-row value → appends a new row + INSERT on its key.
+        apply_blocks_view(&mut app, Action::BlocksFieldAdvanceNext);
+        let count_after = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .map(|d| d.header_count())
+            .unwrap_or(0);
+        assert_eq!(count_after, count_before + 1, "appended a new row");
+        let field = app
+            .active_pane()
+            .and_then(|p| p.block_edit.as_ref())
+            .map(|e| e.field.clone());
+        assert!(
+            matches!(field, Some(crate::app::EditField::HttpHeaderKey(_))),
+            "back on a key cell: {field:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn open_below_and_above_insert_new_rows_in_edit() {
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow); // row 0 key, EDIT
+        let count0 = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .map(|d| d.header_count())
+            .unwrap_or(0);
+        // vim `o` from EDIT: commit + new row below + INSERT on its key.
+        apply_blocks_view(&mut app, Action::BlocksFieldOpenBelow);
+        let count1 = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .map(|d| d.header_count())
+            .unwrap_or(0);
+        assert_eq!(count1, count0 + 1, "open below appended a row");
+        assert_eq!(app.active_pane().unwrap().block_col, 0, "on key cell");
+        assert!(app.active_pane().unwrap().block_edit.is_some(), "in EDIT");
+        // vim `O` from EDIT: commit + new row above + INSERT on its key. The
+        // cursor stays at the same index (the previous row is pushed down).
+        let row_before = app.active_pane().unwrap().block_row;
+        apply_blocks_view(&mut app, Action::BlocksFieldOpenAbove);
+        let count2 = app
+            .active_pane()
+            .and_then(|p| p.block_draft.as_ref())
+            .map(|d| d.header_count())
+            .unwrap_or(0);
+        assert_eq!(count2, count1 + 1, "open above also inserted");
+        assert_eq!(
+            app.active_pane().unwrap().block_row,
+            row_before,
+            "cursor index unchanged on `O` (now on the new row)"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn resolve_pane_key_routes_enter_in_header_key_to_advance() {
+        use crate::input::apply::blocks_view::keys::resolve_pane_key;
+        let (mut app, _d, _v) = enter_blocks_on_first_http().await;
+        apply_blocks_view(&mut app, Action::BlocksPaneJumpRegion(2));
+        apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
+        // Now in EDIT INSERT on a header key. Enter and Tab both advance.
+        assert!(matches!(
+            resolve_pane_key(&app, knone(KeyCode::Enter)),
+            Some(Action::BlocksFieldAdvanceNext)
+        ));
+        assert!(matches!(
+            resolve_pane_key(&app, knone(KeyCode::Tab)),
+            Some(Action::BlocksFieldAdvanceNext)
+        ));
+        // A plain character key still falls through to the engine (None here).
+        assert!(resolve_pane_key(&app, knone(KeyCode::Char('x'))).is_none());
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -675,44 +851,112 @@ mod tests {
     #[test]
     fn nav_keys_map_to_region_and_motion_actions() {
         use Action::*;
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Tab), false, false), Some(BlocksPaneNextRegion)));
         assert!(matches!(
-            resolve_nav_key(KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT), false, false),
+            resolve_nav_key(knone(KeyCode::Tab), false, false),
+            Some(BlocksPaneNextRegion)
+        ));
+        assert!(matches!(
+            resolve_nav_key(
+                KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT),
+                false,
+                false
+            ),
             Some(BlocksPanePrevRegion)
         ));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('2')), false, false), Some(BlocksPaneJumpRegion(2))));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('k')), false, false), Some(BlocksPaneRowUp)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('j')), false, false), Some(BlocksPaneRowDown)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('h')), false, false), Some(BlocksPaneColLeft)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('l')), false, false), Some(BlocksPaneColRight)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Enter), false, false), Some(BlocksRegionEnterEdit)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::PageDown), false, false), Some(BlocksNextBlockMotion)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::PageUp), false, false), Some(BlocksPrevBlockMotion)));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('2')), false, false),
+            Some(BlocksPaneJumpRegion(2))
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('k')), false, false),
+            Some(BlocksPaneRowUp)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('j')), false, false),
+            Some(BlocksPaneRowDown)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('h')), false, false),
+            Some(BlocksPaneColLeft)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('l')), false, false),
+            Some(BlocksPaneColRight)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Enter), false, false),
+            Some(BlocksRegionEnterEdit)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::PageDown), false, false),
+            Some(BlocksNextBlockMotion)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::PageUp), false, false),
+            Some(BlocksPrevBlockMotion)
+        ));
         assert!(resolve_nav_key(knone(KeyCode::Char('z')), false, false).is_none());
     }
 
     #[test]
     fn nav_vim_only_and_headers_table_chords() {
         use Action::*;
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('i')), true, false), Some(BlocksRegionEnterEditInsert)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('a')), true, false), Some(BlocksRegionEnterEditInsert)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char(']')), true, false), Some(BlocksNextBlockMotion)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('[')), true, false), Some(BlocksPrevBlockMotion)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('o')), false, true), Some(BlocksHeaderInsertRow)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Insert), false, true), Some(BlocksHeaderInsertRow)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Char('d')), false, true), Some(BlocksHeaderDeleteRow)));
-        assert!(matches!(resolve_nav_key(knone(KeyCode::Delete), false, true), Some(BlocksHeaderDeleteRow)));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('i')), true, false),
+            Some(BlocksRegionEnterEditInsert)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('a')), true, false),
+            Some(BlocksRegionEnterEditInsert)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char(']')), true, false),
+            Some(BlocksNextBlockMotion)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('[')), true, false),
+            Some(BlocksPrevBlockMotion)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('o')), false, true),
+            Some(BlocksHeaderInsertRow)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Insert), false, true),
+            Some(BlocksHeaderInsertRow)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char('d')), false, true),
+            Some(BlocksHeaderDeleteRow)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Delete), false, true),
+            Some(BlocksHeaderDeleteRow)
+        ));
+        assert!(matches!(
+            resolve_nav_key(knone(KeyCode::Char(' ')), false, true),
+            Some(BlocksHeaderToggleEnabled)
+        ));
+        assert!(resolve_nav_key(knone(KeyCode::Char(' ')), false, false).is_none());
     }
 
     #[test]
     fn nav_save_and_response_tab_chords() {
         use Action::*;
         assert!(matches!(
-            resolve_nav_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL), false, false),
+            resolve_nav_key(
+                KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL),
+                false,
+                false
+            ),
             Some(BlocksSaveDraft)
         ));
         assert!(matches!(
-            resolve_nav_key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::ALT), false, false),
+            resolve_nav_key(
+                KeyEvent::new(KeyCode::Char('t'), KeyModifiers::ALT),
+                false,
+                false
+            ),
             Some(BlocksResponseNextTab)
         ));
         assert!(matches!(
@@ -729,33 +973,64 @@ mod tests {
     fn edit_key_lifecycle_chords() {
         use Action::*;
         assert!(resolve_edit_key(knone(KeyCode::Esc), EditSubMode::Insert, true).is_none());
-        assert!(matches!(resolve_edit_key(knone(KeyCode::Esc), EditSubMode::Normal, true), Some(BlocksRegionCommitEdit)));
-        assert!(matches!(resolve_edit_key(knone(KeyCode::Esc), EditSubMode::Insert, false), Some(BlocksRegionCommitEdit)));
         assert!(matches!(
-            resolve_edit_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL), EditSubMode::Insert, false),
+            resolve_edit_key(knone(KeyCode::Esc), EditSubMode::Normal, true),
+            Some(BlocksRegionCommitEdit)
+        ));
+        assert!(matches!(
+            resolve_edit_key(knone(KeyCode::Esc), EditSubMode::Insert, false),
+            Some(BlocksRegionCommitEdit)
+        ));
+        assert!(matches!(
+            resolve_edit_key(
+                KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
+                EditSubMode::Insert,
+                false
+            ),
             Some(BlocksRegionCancelEdit)
         ));
         assert!(matches!(
-            resolve_edit_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL), EditSubMode::Insert, false),
+            resolve_edit_key(
+                KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL),
+                EditSubMode::Insert,
+                false
+            ),
             Some(BlocksSaveDraft)
         ));
         assert!(matches!(
-            resolve_edit_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::ALT), EditSubMode::Insert, false),
+            resolve_edit_key(
+                KeyEvent::new(KeyCode::Char('r'), KeyModifiers::ALT),
+                EditSubMode::Insert,
+                false
+            ),
             Some(BlocksRunFocused)
         ));
         assert!(matches!(
-            resolve_edit_key(KeyEvent::new(KeyCode::Char('.'), KeyModifiers::ALT), EditSubMode::Insert, false),
+            resolve_edit_key(
+                KeyEvent::new(KeyCode::Char('.'), KeyModifiers::ALT),
+                EditSubMode::Insert,
+                false
+            ),
             Some(BlocksCancelRun)
         ));
-        assert!(matches!(resolve_edit_key(knone(KeyCode::Char('r')), EditSubMode::Normal, true), Some(BlocksRunFocused)));
-        assert!(matches!(resolve_edit_key(knone(KeyCode::Char('.')), EditSubMode::Normal, true), Some(BlocksCancelRun)));
+        assert!(matches!(
+            resolve_edit_key(knone(KeyCode::Char('r')), EditSubMode::Normal, true),
+            Some(BlocksRunFocused)
+        ));
+        assert!(matches!(
+            resolve_edit_key(knone(KeyCode::Char('.')), EditSubMode::Normal, true),
+            Some(BlocksCancelRun)
+        ));
         assert!(resolve_edit_key(knone(KeyCode::Char('x')), EditSubMode::Insert, false).is_none());
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn resolve_pane_key_nav_modal_guard_and_submode() {
         let (mut app, _d, _v) = enter_blocks_on_first_http().await;
-        assert!(matches!(resolve_pane_key(&app, knone(KeyCode::Tab)), Some(Action::BlocksPaneNextRegion)));
+        assert!(matches!(
+            resolve_pane_key(&app, knone(KeyCode::Tab)),
+            Some(Action::BlocksPaneNextRegion)
+        ));
         assert_eq!(effective_sub_mode(&app), EditSubMode::Insert);
         app.modal = Some(Modal::Help);
         assert!(resolve_pane_key(&app, knone(KeyCode::Tab)).is_none());
@@ -834,7 +1109,12 @@ mod tests {
         }
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
         assert!(matches!(
-            app.active_pane().unwrap().block_edit.as_ref().unwrap().field,
+            app.active_pane()
+                .unwrap()
+                .block_edit
+                .as_ref()
+                .unwrap()
+                .field,
             EditField::HttpBody
         ));
         apply_blocks_view(&mut app, Action::BlocksRegionCancelEdit);
@@ -844,7 +1124,12 @@ mod tests {
         }
         apply_blocks_view(&mut app, Action::BlocksRegionEnterEdit);
         assert!(matches!(
-            app.active_pane().unwrap().block_edit.as_ref().unwrap().field,
+            app.active_pane()
+                .unwrap()
+                .block_edit
+                .as_ref()
+                .unwrap()
+                .field,
             EditField::HttpHeaderValue(_) | EditField::HttpHeaderKey(_)
         ));
     }
@@ -997,7 +1282,10 @@ mod tests {
         apply_blocks_view(&mut app, Action::BlocksSaveDraft);
         let api = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
         assert!(api.contains("/edited"), "save persisted the edit: {api}");
-        assert!(app.active_pane().unwrap().block_draft.is_none(), "draft cleared after save");
+        assert!(
+            app.active_pane().unwrap().block_draft.is_none(),
+            "draft cleared after save"
+        );
         // A second save with no draft is a no-op.
         apply_blocks_view(&mut app, Action::BlocksSaveDraft);
     }
@@ -1031,7 +1319,10 @@ mod tests {
             .expect("a block row");
         app.tree.selected = bidx2;
         apply_blocks_view(&mut app, Action::BlocksTreeDeleteBlock);
-        assert!(app.tree.prompt.is_some(), "delete-block confirm prompt opened");
+        assert!(
+            app.tree.prompt.is_some(),
+            "delete-block confirm prompt opened"
+        );
     }
 
     /// Load `data.md` into the focused pane with cached result rows on
@@ -1042,7 +1333,9 @@ mod tests {
         let idx = doc
             .segments()
             .iter()
-            .position(|s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type.starts_with("db")))
+            .position(
+                |s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type.starts_with("db")),
+            )
             .unwrap();
         if let Some(b) = doc.block_at_mut(idx) {
             b.cached_result = Some(serde_json::json!({
@@ -1115,7 +1408,11 @@ mod tests {
         apply_blocks_view(&mut app, Action::BlocksTreeReorderUp);
         let data = httui_core::fs::read_note(&v.path().to_string_lossy(), "data.md").unwrap();
         let parsed = httui_core::blocks::parse_blocks(&data);
-        assert_eq!(parsed[0].alias.as_deref(), Some("q1"), "top-edge reorder is a no-op");
+        assert_eq!(
+            parsed[0].alias.as_deref(),
+            Some("q1"),
+            "top-edge reorder is a no-op"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -1145,14 +1442,13 @@ mod tests {
             p.block_region = 1;
         }
         apply_blocks_view(&mut app, Action::BlocksHeaderInsertRow);
-        assert!(
-            app.active_pane()
-                .unwrap()
-                .block_draft
-                .as_ref()
-                .map(|d| d.header_count() >= 1)
-                .unwrap_or(false)
-        );
+        assert!(app
+            .active_pane()
+            .unwrap()
+            .block_draft
+            .as_ref()
+            .map(|d| d.header_count() >= 1)
+            .unwrap_or(false));
         apply_blocks_view(&mut app, Action::BlocksHeaderDeleteRow);
         // Deleting again on an empty list is a safe no-op.
         apply_blocks_view(&mut app, Action::BlocksHeaderDeleteRow);
@@ -1233,7 +1529,10 @@ mod tests {
             .iter()
             .filter_map(|p| p.alias.clone())
             .collect();
-        assert!(aliases.iter().any(|a| a == "untitled4"), "dedup skipped the collision: {aliases:?}");
+        assert!(
+            aliases.iter().any(|a| a == "untitled4"),
+            "dedup skipped the collision: {aliases:?}"
+        );
 
         // Reorder the two adjacent blocks (no prose between them).
         app.tree.expanded.insert("y.md".to_string());
