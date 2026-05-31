@@ -184,10 +184,13 @@ fn parse_legacy_http_body(body: &str) -> Option<serde_json::Value> {
 }
 
 /// Parse an HTTP-message-formatted body into the JSON shape expected by the
-/// executor: `{ method, url, params: [{key, value}], headers: [{key, value}], body, timeout_ms? }`.
+/// executor: `{ method, url, params: [{key, value, enabled?}], headers: [{key,
+/// value, enabled?}], body, timeout_ms? }`.
 ///
-/// Disabled rows (`# ` prefix) and descriptions (`# desc:` above a row) are
-/// stripped — the executor doesn't care about them.
+/// Disabled rows (`# ` prefix) are preserved with `enabled: false` so the
+/// editor can show them unchecked and the serializer round-trips the marker;
+/// the executor skips them. `enabled` is omitted when true. Descriptions
+/// (`# desc: ...`) are not modeled and are dropped.
 fn parse_http_message_body(body: &str, attrs: &HashMap<String, String>) -> serde_json::Value {
     let lines: Vec<&str> = body.split('\n').collect();
     let mut i = 0;
@@ -209,13 +212,18 @@ fn parse_http_message_body(body: &str, attrs: &HashMap<String, String>) -> serde
     let first_line = lines[i].trim().to_string();
     i += 1;
 
-    let (method, url, mut params) = match parse_http_first_line(&first_line) {
+    let (method, url, inline_params) = match parse_http_first_line(&first_line) {
         Some(v) => v,
         None => return empty_http_params(attrs),
     };
 
     // Phase 1: query continuations and headers, until first blank line.
-    let mut headers: Vec<(String, String)> = Vec::new();
+    // Rows carry an `enabled` flag; inline query params are always enabled.
+    let mut params: Vec<(String, String, bool)> = inline_params
+        .into_iter()
+        .map(|(k, v)| (k, v, true))
+        .collect();
+    let mut headers: Vec<(String, String, bool)> = Vec::new();
     let mut saw_header = false;
 
     while i < lines.len() {
@@ -227,29 +235,46 @@ fn parse_http_message_body(body: &str, attrs: &HashMap<String, String>) -> serde
             break;
         }
 
-        // Disabled marker (`# ` with space) — strip and treat the rest as a
-        // disabled row, which the executor ignores entirely.
+        // Descriptions are not modeled — drop them before the disabled-row
+        // check (a description line also starts with `# `).
+        if trimmed == "# desc:" || trimmed.starts_with("# desc: ") {
+            i += 1;
+            continue;
+        }
+
+        // Disabled row (`# ` prefix or bare `#`): preserve it as `enabled:
+        // false` so the editor shows it unchecked and the serializer keeps the
+        // marker. The executor skips disabled rows.
         if trimmed == "#" || trimmed.starts_with("# ") {
+            let inner = if trimmed == "#" { "" } else { &trimmed[2..] };
+            if !saw_header && (inner.starts_with('?') || inner.starts_with('&')) {
+                if let Some((k, v)) = split_query_segment(&inner[1..]) {
+                    params.push((k, v, false));
+                }
+            } else if let Some((k, v)) = split_header_line(inner) {
+                headers.push((k, v, false));
+                saw_header = true;
+            }
+            // else: free-form comment, dropped.
             i += 1;
             continue;
         }
         if trimmed.starts_with('#') {
-            // Free-form comment, ignored.
+            // `#xxx` (no space) → free-form comment, ignored.
             i += 1;
             continue;
         }
 
         if !saw_header && (trimmed.starts_with('?') || trimmed.starts_with('&')) {
-            let seg = &trimmed[1..];
-            if let Some((k, v)) = split_query_segment(seg) {
-                params.push((k, v));
+            if let Some((k, v)) = split_query_segment(&trimmed[1..]) {
+                params.push((k, v, true));
             }
             i += 1;
             continue;
         }
 
         if let Some((k, v)) = split_header_line(trimmed) {
-            headers.push((k, v));
+            headers.push((k, v, true));
             saw_header = true;
         }
         i += 1;
@@ -270,12 +295,7 @@ fn parse_http_message_body(body: &str, attrs: &HashMap<String, String>) -> serde
         serde_json::Value::Array(
             params
                 .into_iter()
-                .map(|(k, v)| {
-                    let mut m = serde_json::Map::new();
-                    m.insert("key".to_string(), serde_json::Value::String(k));
-                    m.insert("value".to_string(), serde_json::Value::String(v));
-                    serde_json::Value::Object(m)
-                })
+                .map(|(k, v, enabled)| http_kv_json(k, v, enabled))
                 .collect(),
         ),
     );
@@ -284,12 +304,7 @@ fn parse_http_message_body(body: &str, attrs: &HashMap<String, String>) -> serde
         serde_json::Value::Array(
             headers
                 .into_iter()
-                .map(|(k, v)| {
-                    let mut m = serde_json::Map::new();
-                    m.insert("key".to_string(), serde_json::Value::String(k));
-                    m.insert("value".to_string(), serde_json::Value::String(v));
-                    serde_json::Value::Object(m)
-                })
+                .map(|(k, v, enabled)| http_kv_json(k, v, enabled))
                 .collect(),
         ),
     );
@@ -305,6 +320,19 @@ fn parse_http_message_body(body: &str, attrs: &HashMap<String, String>) -> serde
     }
 
     serde_json::Value::Object(obj)
+}
+
+/// Build a `{key, value}` row, adding `enabled: false` only for disabled rows.
+/// Enabled rows omit the flag so the canonical shape (and parity fixtures)
+/// stay `{key, value}`; the executor defaults a missing `enabled` to `true`.
+fn http_kv_json(key: String, value: String, enabled: bool) -> serde_json::Value {
+    let mut m = serde_json::Map::new();
+    m.insert("key".to_string(), serde_json::Value::String(key));
+    m.insert("value".to_string(), serde_json::Value::String(value));
+    if !enabled {
+        m.insert("enabled".to_string(), serde_json::Value::Bool(false));
+    }
+    serde_json::Value::Object(m)
 }
 
 fn empty_http_params(attrs: &HashMap<String, String>) -> serde_json::Value {
@@ -432,6 +460,45 @@ fn parse_info_string(info: &str) -> (String, HashMap<String, String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_disabled_header_as_enabled_false() {
+        let md =
+            "```http alias=req\nGET https://api.test.com/x\nAccept: application/json\n# X-Debug: on\n```\n";
+        let blocks = parse_blocks(md);
+        let headers = blocks[0].params["headers"].as_array().unwrap();
+        assert_eq!(headers.len(), 2);
+        assert_eq!(headers[0]["key"], "Accept");
+        assert!(
+            headers[0].get("enabled").is_none(),
+            "enabled rows omit the flag"
+        );
+        assert_eq!(headers[1]["key"], "X-Debug");
+        assert_eq!(headers[1]["value"], "on");
+        assert_eq!(headers[1]["enabled"], false);
+    }
+
+    #[test]
+    fn drops_descriptions_and_freeform_comments() {
+        let md = "```http\nGET https://api.test.com/x\n# desc: human note\n#freeform\nAccept: text/plain\n```\n";
+        let blocks = parse_blocks(md);
+        let headers = blocks[0].params["headers"].as_array().unwrap();
+        assert_eq!(headers.len(), 1);
+        assert_eq!(headers[0]["key"], "Accept");
+    }
+
+    #[test]
+    fn parses_disabled_query_param() {
+        let md = "```http\nGET https://api.test.com/search\n?q=hello\n# &page=2\n```\n";
+        let blocks = parse_blocks(md);
+        let params = blocks[0].params["params"].as_array().unwrap();
+        assert_eq!(params.len(), 2);
+        assert_eq!(params[0]["key"], "q");
+        assert!(params[0].get("enabled").is_none());
+        assert_eq!(params[1]["key"], "page");
+        assert_eq!(params[1]["value"], "2");
+        assert_eq!(params[1]["enabled"], false);
+    }
 
     #[test]
     fn test_parse_http_block() {
@@ -827,7 +894,7 @@ Content-Type: application/json
     }
 
     #[test]
-    fn test_parse_http_new_format_disabled_rows_dropped_for_executor() {
+    fn test_parse_http_new_format_preserves_disabled_rows() {
         let md = r#"```http
 GET https://example.com
 ?page=1
@@ -837,14 +904,22 @@ Authorization: Bearer x
 ```
 "#;
         let blocks = parse_blocks(md);
-        // Disabled rows are stripped — the executor never sees them.
+        // Disabled rows survive as `enabled: false` so the editor can show them
+        // unchecked; the executor skips them at dispatch. Enabled rows omit the
+        // flag, keeping the canonical shape unchanged.
         assert_eq!(
             blocks[0].params["params"],
-            serde_json::json!([{"key": "page", "value": "1"}])
+            serde_json::json!([
+                {"key": "page", "value": "1"},
+                {"key": "cursor", "value": "abc", "enabled": false},
+            ])
         );
         assert_eq!(
             blocks[0].params["headers"],
-            serde_json::json!([{"key": "Authorization", "value": "Bearer x"}])
+            serde_json::json!([
+                {"key": "Authorization", "value": "Bearer x"},
+                {"key": "X-Debug", "value": "1", "enabled": false},
+            ])
         );
     }
 

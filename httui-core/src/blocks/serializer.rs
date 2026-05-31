@@ -80,13 +80,50 @@ fn serialize_http_block(block: &ParsedBlock) -> String {
     request_line.push_str(&method);
     request_line.push(' ');
     request_line.push_str(url);
-    let query_string = build_query_string(query);
-    if !query_string.is_empty() {
-        // Append `?` only when the URL doesn't already carry one;
-        // otherwise the params extend an existing query (`&`).
-        let sep = if url.contains('?') { '&' } else { '?' };
-        request_line.push(sep);
-        request_line.push_str(&query_string);
+
+    // When every param is enabled we inline them on the request line
+    // (`?a=1&b=2`). A single disabled param forces the continuation form — one
+    // `?`/`&` line per param — so the `# ` marker has a line to live on.
+    // Mirrors `canInlineQuery` in the desktop stringifier.
+    let any_disabled_param = query.iter().any(|p| {
+        !kv_enabled(p)
+            && !p
+                .get("key")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .is_empty()
+    });
+    let mut param_lines = String::new();
+    if any_disabled_param {
+        let mut first = true;
+        for p in query {
+            let key = p.get("key").and_then(|v| v.as_str()).unwrap_or("");
+            if key.is_empty() {
+                continue;
+            }
+            let value = p.get("value").and_then(|v| v.as_str()).unwrap_or("");
+            let seg = if value.is_empty() {
+                key.to_string()
+            } else {
+                format!("{key}={value}")
+            };
+            param_lines.push('\n');
+            if !kv_enabled(p) {
+                param_lines.push_str("# ");
+            }
+            param_lines.push(if first { '?' } else { '&' });
+            param_lines.push_str(&seg);
+            first = false;
+        }
+    } else {
+        let query_string = build_query_string(query);
+        if !query_string.is_empty() {
+            // Append `?` only when the URL doesn't already carry one;
+            // otherwise the params extend an existing query (`&`).
+            let sep = if url.contains('?') { '&' } else { '?' };
+            request_line.push(sep);
+            request_line.push_str(&query_string);
+        }
     }
 
     let mut header_lines = String::new();
@@ -97,6 +134,9 @@ fn serialize_http_block(block: &ParsedBlock) -> String {
             continue;
         }
         header_lines.push('\n');
+        if !kv_enabled(h) {
+            header_lines.push_str("# ");
+        }
         header_lines.push_str(key);
         header_lines.push_str(": ");
         header_lines.push_str(value);
@@ -109,7 +149,7 @@ fn serialize_http_block(block: &ParsedBlock) -> String {
         body_block.push_str(trimmed_body);
     }
 
-    format!("```{info}\n{request_line}{header_lines}{body_block}\n```")
+    format!("```{info}\n{request_line}{param_lines}{header_lines}{body_block}\n```")
 }
 
 /// Render a query-param array as `k1=v1&k2=v2`. Empty keys are
@@ -120,6 +160,12 @@ fn serialize_http_block(block: &ParsedBlock) -> String {
 /// `"hello%20world"`), so users author whatever they want on the URL
 /// and it round-trips literally. This matches the desktop / TS
 /// implementation in `src/lib/blocks/http-fence.ts:formatParam`.
+/// Read a row's `enabled` flag, defaulting to `true` when absent — matches the
+/// parser's omit-when-true convention and the executor's serde default.
+fn kv_enabled(row: &serde_json::Value) -> bool {
+    row.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true)
+}
+
 fn build_query_string(params: &[serde_json::Value]) -> String {
     let mut parts: Vec<String> = Vec::with_capacity(params.len());
     for p in params {
@@ -232,6 +278,44 @@ mod tests {
         let md = "```http alias=login\n{\"method\":\"POST\",\"url\":\"https://api.test.com/login\",\"params\":[],\"headers\":[],\"body\":\"\"}\n```\n";
         assert_semantic_roundtrip(md);
         assert_idempotent(md);
+    }
+
+    #[test]
+    fn roundtrip_http_disabled_header() {
+        let md = "```http alias=req\nGET https://api.test.com/x\nAccept: application/json\n# X-Debug: on\n```\n";
+        assert_semantic_roundtrip(md);
+        assert_idempotent(md);
+        let parsed = parse_blocks(md);
+        let out = serialize_block(&parsed[0]);
+        assert!(
+            out.contains("\n# X-Debug: on"),
+            "disabled header keeps `# ` marker: {out}"
+        );
+        assert!(
+            out.contains("\nAccept: application/json"),
+            "enabled header has no marker: {out}"
+        );
+    }
+
+    #[test]
+    fn roundtrip_http_disabled_param_uses_continuation() {
+        let md = "```http\nGET https://api.test.com/search\n?q=hello\n# &page=2\n```\n";
+        assert_semantic_roundtrip(md);
+        assert_idempotent(md);
+        let parsed = parse_blocks(md);
+        let out = serialize_block(&parsed[0]);
+        assert!(
+            out.contains("\n?q=hello"),
+            "first param on its own line: {out}"
+        );
+        assert!(
+            out.contains("\n# &page=2"),
+            "disabled param keeps `# &`: {out}"
+        );
+        assert!(
+            !out.contains("?q=hello&page=2"),
+            "must not inline when a param is disabled: {out}"
+        );
     }
 
     #[test]
