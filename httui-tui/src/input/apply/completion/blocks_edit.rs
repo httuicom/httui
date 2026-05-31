@@ -1,3 +1,8 @@
+// coverage:exclude file — extracted from completion/mod.rs which
+// already carries the same exclusion (legacy vim engine relocated by
+// tui-V1/Fase1, debt tracked in docs-llm/tui-v2/vim-coverage-debt.md).
+// Tests live in the surrounding stack (render_root_tests assert the
+// popup contents end-to-end).
 //! Completion popup driver for the BLOCKS-view EDIT buffer.
 //!
 //! Reads body + cursor from the active `pane.block_edit` sub-doc

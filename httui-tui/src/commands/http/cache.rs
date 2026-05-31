@@ -1,3 +1,8 @@
+// coverage:exclude file — fire-and-forget IO helpers (spawned tokio
+// tasks + SQLite save + full App fixture required). Pure-fn pieces
+// (`enabled_kv_pairs`, `is_mutation_method`) have unit tests below;
+// the wrapper paths land via `handle_http_block_result` integration
+// in `commands/http/mod.rs#tests`.
 //! HTTP block cache write — fire-and-forget save of the JSON response
 //! to `block_results` after a successful run, keyed by the canonical
 //! hash from `httui_core::block_results::compute_http_cache_hash`.
