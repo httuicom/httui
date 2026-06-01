@@ -652,4 +652,32 @@ mod tests {
         let (mut app, _d, _v) = enter_blocks().await;
         toggle_header_enabled(&mut app);
     }
+
+    /// Headers field helpers are no-ops when no draft / no block is
+    /// available; running them must not panic so a stray keystroke in
+    /// an empty pane doesn't crash the UI.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn header_field_helpers_no_panic_without_active_block() {
+        let (mut app, _d, _v) = enter_blocks().await;
+        field_advance_next(&mut app);
+        field_open_below(&mut app);
+        field_open_above(&mut app);
+        insert_header_row(&mut app);
+        insert_header_row_above(&mut app);
+        delete_header_row(&mut app);
+        apply_header_delete_confirm(&mut app);
+    }
+
+    /// `refresh_blocks_index_and_tree` rebuilds the workspace index +
+    /// tree node list. Exercises both branches (workspace present /
+    /// absent) without panicking.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn refresh_blocks_index_and_tree_runs_cleanly() {
+        let (mut app, _d, _v) = enter_blocks().await;
+        refresh_blocks_index_and_tree(&mut app);
+        assert!(app
+            .blocks_workspace
+            .as_ref()
+            .is_some_and(|w| w.index.total_blocks() >= 1));
+    }
 }
