@@ -21,6 +21,7 @@ mod git;
 mod input;
 mod modal;
 mod pane;
+mod pane_tabs;
 mod persist;
 mod schema;
 mod session_overrides;

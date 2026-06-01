@@ -14,7 +14,8 @@ pub struct Pane {
     pub viewport_top: u16,
     /// Height of the editor area allocated to this pane on the most
     /// recent frame. Updated by the renderer; read by motion code that
-    /// needs page-relative scroll amounts (e.g. `Ctrl+D`).
+    /// needs page-relative scroll amounts (e.g. `Ctrl+D`). Shared
+    /// across BLOCKS tabs — the renderer overwrites it every frame.
     pub viewport_height: u16,
     /// Currently-rendered block in BLOCKS view (`AppView::Blocks`).
     /// Ignored when the app is in DOC view; survives the round-trip so
@@ -44,7 +45,22 @@ pub struct Pane {
     /// Boxed for the same reason as `block_edit` — `ParsedBlock` carries
     /// a `serde_json::Value` whose worst case is non-trivial.
     pub block_draft: Option<Box<BlockDraft>>,
+    /// BLOCKS-view tab strip. Always non-empty — `block_tabs[block_tab_active]`
+    /// is the canonical home of the active tab's snapshot; the eight
+    /// fields above (document/document_path/viewport_top + the six
+    /// `block_*`) MIRROR that slot so the 200+ existing call sites that
+    /// read/write the pane directly keep working unchanged. Swapping tabs
+    /// commits the current pane state into the active slot, then restores
+    /// the target slot into the pane. DOC view ignores this strip.
+    pub block_tabs: Vec<BlockTab>,
+    pub block_tab_active: usize,
 }
+
+// `BlockTab` + the BLOCKS-view tab-strip helpers (`swap_to_tab`,
+// `push_blank_tab`, `close_active_tab`, …) live in `pane_tabs.rs` so
+// this module stays focused on the binary pane tree + per-tab pane
+// state.
+pub use crate::pane_tabs::BlockTab;
 
 impl Pane {
     pub fn empty() -> Self {
@@ -59,6 +75,8 @@ impl Pane {
             block_col: 1,
             block_edit: None,
             block_draft: None,
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
         }
     }
 
@@ -74,6 +92,10 @@ impl Pane {
             block_col: 1,
             block_edit: None,
             block_draft: None,
+            // The mirror IS the active tab's truth; the inactive slot
+            // starts empty and only gets populated on the first swap.
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
         }
     }
 
@@ -127,6 +149,11 @@ impl Pane {
             block_col: self.block_col,
             block_edit: None,
             block_draft: None,
+            // Splits start with a single empty inactive slot — the
+            // mirror carries the active tab's state. The new pane gets
+            // its own tab strip, independent from the source's.
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
         }
     }
 }
@@ -496,6 +523,8 @@ mod tests {
             block_col: 1,
             block_edit: None,
             block_draft: None,
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
         }
     }
 
@@ -529,6 +558,8 @@ mod tests {
             block_col: 0,
             block_edit: None,
             block_draft: None,
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
         };
         let clone = pane.snapshot_clone();
         let cloned_doc = clone.document.expect("doc cloned");
@@ -730,4 +761,5 @@ mod tests {
             panic!("root should be a split");
         }
     }
+
 }
