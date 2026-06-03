@@ -72,9 +72,24 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
                     }
                     return;
                 }
+                // Smart Enter: empty active tab → replace in place;
+                // populated tab → push a new tab and activate it. This
+                // matches the user's mental model (each Enter on the
+                // sidebar leaves a trail of open tabs without needing a
+                // separate `Ctrl+Enter` chord).
                 if let Some(pane) = app.active_pane_mut() {
-                    pane.block_selected = Some(target);
-                    pane.block_region = 0;
+                    let active_empty = pane.block_selected.is_none();
+                    if active_empty {
+                        pane.block_selected = Some(target);
+                        pane.block_region = 0;
+                    } else {
+                        let new_tab = crate::pane_tabs::BlockTab {
+                            block_selected: Some(target),
+                            block_region: 0,
+                            ..crate::pane_tabs::BlockTab::empty()
+                        };
+                        pane.push_block_tab(new_tab);
+                    }
                 }
                 app.vim.enter_normal();
                 return;
@@ -100,7 +115,74 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
                 Err(msg) => app.set_status(StatusKind::Error, msg),
             }
         }
+        Action::TreeActivateNewTab => {
+            // `Ctrl+Enter` on a block row → push the picked block as a
+            // NEW tab in the focused BLOCKS-view pane. Non-block rows
+            // fall through to the same as `TreeActivate` (toggle dir
+            // or open file in new editor tab).
+            let Some(node) = app.tree.current().cloned() else {
+                return;
+            };
+            if let Some(meta) = node.block.as_ref() {
+                let target = crate::app::BlockRef {
+                    file_idx: meta.file_idx,
+                    block_idx: meta.block_idx,
+                };
+                let leaves = app.active_tab().map(|t| t.leaf_count()).unwrap_or(1);
+                if leaves > 1 {
+                    if let Some(ws) = app.blocks_workspace.as_mut() {
+                        // No `OpenNewTab` picker variant yet — fall back
+                        // to the existing `Open` intent so the user can
+                        // still pick which pane. Adding the dedicated
+                        // intent variant is a follow-up.
+                        ws.pane_picker = Some(crate::app::PanePickerIntent {
+                            target,
+                            action: crate::app::PanePickerAction::Open,
+                        });
+                    }
+                    return;
+                }
+                if let Some(pane) = app.active_pane_mut() {
+                    let new_tab = crate::pane_tabs::BlockTab {
+                        block_selected: Some(target),
+                        block_region: 0,
+                        ..crate::pane_tabs::BlockTab::empty()
+                    };
+                    pane.push_block_tab(new_tab);
+                }
+                app.vim.enter_normal();
+                return;
+            }
+            // Non-block row → defer to `TreeActivate` semantics.
+            if node.is_dir || app.tree.block_index.is_some() {
+                if app.tree.toggle_expand() {
+                    let vault = app.vault_path.clone();
+                    app.tree.refresh(&vault);
+                }
+                return;
+            }
+            let path = std::path::PathBuf::from(&node.path);
+            match app.open_in_new_tab(path) {
+                Ok(msg) => {
+                    app.set_status(StatusKind::Info, msg);
+                    app.vim.enter_normal();
+                }
+                Err(msg) => app.set_status(StatusKind::Error, msg),
+            }
+        }
         Action::TabNext => {
+            // BLOCKS view with multi-tab pane: cycle the pane's block
+            // tabs (Ctrl+PgDn / gt). Single-tab BLOCKS panes fall
+            // through to the file-tab switch — there's nothing to
+            // cycle inside the pane.
+            if matches!(app.view, crate::app::AppView::Blocks) {
+                if let Some(p) = app.active_pane() {
+                    if p.tab_count() > 1 {
+                        crate::input::apply::blocks_view::tab_cycle(app, 1);
+                        return;
+                    }
+                }
+            }
             // Cursor on a block (request body or result row) cycles
             // the block's result-panel tab. Cursor in prose falls
             // through to editor-tab switch. Same for `gt`,
@@ -116,6 +198,14 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
             }
         }
         Action::TabPrev => {
+            if matches!(app.view, crate::app::AppView::Blocks) {
+                if let Some(p) = app.active_pane() {
+                    if p.tab_count() > 1 {
+                        crate::input::apply::blocks_view::tab_cycle(app, -1);
+                        return;
+                    }
+                }
+            }
             if matches!(
                 app.document().map(|d| d.cursor()),
                 Some(Cursor::InBlock { .. }) | Some(Cursor::InBlockResult { .. })

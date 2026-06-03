@@ -83,8 +83,74 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         Action::BlocksUnsavedPromptCancel => {
             close_unsaved_prompt(app);
         }
+        Action::BlocksTabNew => tab_new(app),
+        Action::BlocksTabClose => tab_close(app),
+        Action::BlocksTabNext => tab_cycle(app, 1),
+        Action::BlocksTabPrev => tab_cycle(app, -1),
         _ => {}
     }
+}
+
+/// `Ctrl+T` (BLOCKS view). Push a blank tab onto the focused pane's
+/// tab strip and activate it. The greeter region shows a hint until
+/// the user picks a block in the sidebar (Enter replaces the active
+/// tab in place; Ctrl+Enter would add another new tab).
+pub(crate) fn tab_new(app: &mut App) {
+    if !matches!(app.view, AppView::Blocks) {
+        return;
+    }
+    // Editing must be committed before a swap so the buffer doesn't
+    // get stranded on the now-inactive tab.
+    commit_edit(app);
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    pane.push_blank_tab();
+}
+
+/// `Ctrl+W` in standard BLOCKS view (also bound to `:bd` / `Ctrl+Q`
+/// in vim). Closes the focused pane's active tab. When the closed tab
+/// was the last one in the pane, the pane itself is collapsed via the
+/// same path as `Ctrl+W q`.
+pub(crate) fn tab_close(app: &mut App) {
+    if !matches!(app.view, AppView::Blocks) {
+        return;
+    }
+    commit_edit(app);
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    match pane.close_active_tab() {
+        crate::pane::CloseResult::Closed => {}
+        crate::pane::CloseResult::LastLeaf => {
+            // Last tab in the pane → collapse the pane itself. Reuses
+            // the same path as `Ctrl+W q` so layout invariants stay
+            // identical.
+            crate::input::apply::window::apply_window_cmd(
+                app,
+                crate::input::types::WindowCmd::Close,
+            );
+        }
+    }
+}
+
+/// `gt` / `gT` (vim NORMAL) and `Ctrl+PgDn` / `Ctrl+PgUp` (standard).
+/// `dir = 1` → next tab, `dir = -1` → previous. Wraps both ways.
+pub(crate) fn tab_cycle(app: &mut App, dir: i32) {
+    if !matches!(app.view, AppView::Blocks) {
+        return;
+    }
+    commit_edit(app);
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    let count = pane.tab_count();
+    if count <= 1 {
+        return;
+    }
+    let current = pane.block_tab_active as i32;
+    let next = (current + dir).rem_euclid(count as i32) as usize;
+    pane.swap_to_tab(next);
 }
 
 /// `Alt+M` entry point. If any pane carries a draft, open the
@@ -125,10 +191,22 @@ fn choose_picker(app: &mut App, leaf_idx: usize) {
     let idx = leaf_idx.min(leaves - 1);
     match intent.action {
         crate::app::PanePickerAction::Open => {
+            // Smart Enter, picker variant: an empty target tab takes
+            // the block in place; a populated target pushes it as a
+            // new tab so the user accumulates blocks per pane.
             let mut visited = 0usize;
             apply_to_nth_leaf(&mut tab.root, idx, &mut visited, &mut |pane| {
-                pane.block_selected = Some(intent.target);
-                pane.block_region = 0;
+                if pane.block_selected.is_none() {
+                    pane.block_selected = Some(intent.target);
+                    pane.block_region = 0;
+                } else {
+                    let new_tab = crate::pane_tabs::BlockTab {
+                        block_selected: Some(intent.target),
+                        block_region: 0,
+                        ..crate::pane_tabs::BlockTab::empty()
+                    };
+                    pane.push_block_tab(new_tab);
+                }
             });
             let mut path: Vec<u8> = Vec::new();
             if path_to_nth_leaf(&tab.root, idx, &mut 0, &mut path) {

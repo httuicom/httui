@@ -21,6 +21,7 @@ mod header;
 mod http;
 mod db;
 mod footer;
+mod tab_bar;
 
 pub(super) fn render_leaf(
     frame: &mut Frame,
@@ -127,18 +128,24 @@ fn render_block(
     let parsed = load_view(ctx.vault, file, block, pane);
     let footer_lines = footer::compute_footer_lines(ctx.vault, file, block, &parsed);
     let footer_h = footer_lines.len() as u16;
+    let multi_tab = pane.tab_count() > 1;
+    let tab_h: u16 = if multi_tab { 1 } else { 0 };
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(tab_h),
             Constraint::Length(1),
             Constraint::Min(1),
             Constraint::Length(footer_h),
         ])
         .split(area);
+    if multi_tab {
+        tab_bar::render_tab_bar(frame, chunks[0], pane, pane_focused, ctx);
+    }
     let region = pane.block_region;
     header::render_header(
         frame,
-        chunks[0],
+        chunks[1],
         block,
         &parsed,
         dirty,
@@ -153,7 +160,7 @@ fn render_block(
     if block.block_type == "http" {
         http::render_http_regions(
             frame,
-            chunks[1],
+            chunks[2],
             region,
             &parsed,
             &block.block_type,
@@ -168,7 +175,7 @@ fn render_block(
     } else if block.block_type.starts_with("db") {
         db::render_db_regions(
             frame,
-            chunks[1],
+            chunks[2],
             region,
             &parsed,
             &block.block_type,
@@ -180,11 +187,11 @@ fn render_block(
             ctx,
         );
     } else {
-        render_fallback(frame, chunks[1], &parsed.raw);
+        render_fallback(frame, chunks[2], &parsed.raw);
     }
 
     if footer_h > 0 {
-        footer::render_block_usage_footer(frame, chunks[2], &footer_lines);
+        footer::render_block_usage_footer(frame, chunks[3], &footer_lines);
     }
 }
 

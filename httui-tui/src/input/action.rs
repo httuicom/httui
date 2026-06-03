@@ -472,5 +472,27 @@ pub enum Action {
     BlocksUnsavedPromptDiscard,
     /// `Cancel` button (or Esc): close the modal, stay in BLOCKS.
     BlocksUnsavedPromptCancel,
+    /// Variant of [`Action::TreeActivate`] bound to `Ctrl+Enter` on a
+    /// block row in the sidebar (BLOCKS view): instead of replacing the
+    /// focused pane's active tab, open the picked block as a NEW tab
+    /// in the focused pane. Falls back to `TreeActivate` semantics for
+    /// non-block rows.
+    TreeActivateNewTab,
+    /// Open a new empty BLOCKS-view tab inside the focused pane (`Ctrl+T`).
+    /// The greeter mode kicks in until the user picks a block in the
+    /// sidebar (Enter replaces the active tab in place).
+    BlocksTabNew,
+    /// Close the active BLOCKS-view tab inside the focused pane. When
+    /// the closed tab was the last one in the pane, the pane itself is
+    /// collapsed via the same path as `Ctrl+W q`. Standard `Ctrl+W` in
+    /// BLOCKS view; vim `:bd` / `Ctrl+Q` cover the same semantic.
+    BlocksTabClose,
+    /// Activate the next BLOCKS-view tab in the focused pane, wrapping
+    /// from last → first. Bound to `gt` (vim NORMAL) and `Ctrl+PgDn`
+    /// (standard) by default; both bindings are keymap-configurable.
+    BlocksTabNext,
+    /// Activate the previous BLOCKS-view tab, wrapping first → last.
+    /// Bound to `gT` (vim NORMAL) and `Ctrl+PgUp` (standard) by default.
+    BlocksTabPrev,
     Noop,
 }

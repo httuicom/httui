@@ -371,7 +371,11 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::BlocksTreeOpenSplitHorizontal
         | Action::BlocksUnsavedPromptSave
         | Action::BlocksUnsavedPromptDiscard
-        | Action::BlocksUnsavedPromptCancel => {
+        | Action::BlocksUnsavedPromptCancel
+        | Action::BlocksTabNew
+        | Action::BlocksTabClose
+        | Action::BlocksTabNext
+        | Action::BlocksTabPrev => {
             crate::input::apply::blocks_view::apply_blocks_view(app, action)
         }
         Action::JumpNextBlock
@@ -405,6 +409,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::TabNext
         | Action::TabPrev
         | Action::TreeActivate
+        | Action::TreeActivateNewTab
         | Action::TreeCollapse
         | Action::TreeCreate
         | Action::TreeDelete

@@ -181,6 +181,14 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         spec("tab_next_key", "tab", Action::TabNext),
         spec("tab_prev_key", "shift+tab", Action::TabPrev),
         spec("save_all", "ctrl+alt+s", Action::WriteAll),
+        // BLOCKS-view tab strip. `blocks_tab_new` and `blocks_tab_close`
+        // are no-ops outside BLOCKS (the applier guards on `app.view`),
+        // so we can give them friendly defaults that wouldn't make sense
+        // in DOC. `blocks_tab_next`/`prev` reuse `Ctrl+PgDn`/`Up` —
+        // contextual routing in `apply::tree_nav::TabNext` decides
+        // between file-tab and block-tab cycling.
+        spec("blocks_tab_new", "ctrl+t", Action::BlocksTabNew),
+        spec("blocks_tab_close", "ctrl+q", Action::BlocksTabClose),
     ]
 }
 
@@ -294,6 +302,8 @@ pub fn is_editor_global_shortcut(action: Action) -> bool {
             | Action::TabPrev
             | Action::WriteAll
             | Action::ToggleAppView
+            | Action::BlocksTabNew
+            | Action::BlocksTabClose
     )
 }
 
