@@ -4,12 +4,13 @@
 use std::path::PathBuf;
 
 use httui_core::vault_config::{
-    BlockKey, BlockSelection, BlocksWorkspaceSnapshot, PaneLeafSnapshot, PaneSnapshot,
-    PaneSplitSnapshot, SidebarPos, TuiViewState, UserStore,
+    BlockKey, BlockSelection, BlockTabSnapshot, BlocksWorkspaceSnapshot, PaneLeafSnapshot,
+    PaneSnapshot, PaneSplitSnapshot, SidebarPos, TuiViewState, UserStore,
 };
 
 use crate::app::{App, AppView, BlockIndex, BlockMeta, BlockRef, BlocksWorkspace};
 use crate::pane::{Pane, PaneNode, SplitDir, TabState};
+use crate::pane_tabs::BlockTab;
 
 const VIEW_DOC: &str = "doc";
 const VIEW_BLOCKS: &str = "blocks";
@@ -65,16 +66,27 @@ fn sidebar_pos_for_cursor(ws: &BlocksWorkspace) -> Option<SidebarPos> {
 
 fn capture_pane(node: &PaneNode, index: &BlockIndex) -> PaneSnapshot {
     match node {
-        PaneNode::Leaf(pane) => PaneSnapshot::Leaf(PaneLeafSnapshot {
-            file: pane
-                .document_path
-                .as_ref()
-                .map(|p| p.to_string_lossy().into_owned()),
-            block: block_selection_from_pane(pane.block_selected, index),
-            region: pane.block_region as u32,
-            row: pane.block_row as u32,
-            col: pane.block_col as u32,
-        }),
+        PaneNode::Leaf(pane) => {
+            let tabs = capture_block_tabs(pane, index);
+            // `tabs` always contains at least the active tab (we
+            // synthesize it from the pane mirror). When there's only
+            // one tab and no draft, the legacy single-mirror snapshot
+            // is enough — emit an empty `tabs` so the diff against an
+            // old snapshot stays minimal.
+            let multi_tab = tabs.len() > 1;
+            PaneSnapshot::Leaf(PaneLeafSnapshot {
+                file: pane
+                    .document_path
+                    .as_ref()
+                    .map(|p| p.to_string_lossy().into_owned()),
+                block: block_selection_from_pane(pane.block_selected, index),
+                region: pane.block_region as u32,
+                row: pane.block_row as u32,
+                col: pane.block_col as u32,
+                tabs: if multi_tab { tabs } else { Vec::new() },
+                active_tab: pane.block_tab_active as u32,
+            })
+        }
         PaneNode::Split {
             direction,
             ratio,
@@ -105,6 +117,54 @@ fn block_selection_from_pane(
             alias: block.alias.clone(),
             line_start: block.line_start as u32,
         },
+    })
+}
+
+/// Build the per-tab snapshot list in left-to-right strip order. The
+/// pane mirror is the canonical source for the ACTIVE slot — inactive
+/// slots come straight from `pane.block_tabs[i]` (which we know is the
+/// truth for non-active entries by construction).
+fn capture_block_tabs(pane: &Pane, index: &BlockIndex) -> Vec<BlockTabSnapshot> {
+    (0..pane.tab_count())
+        .map(|i| {
+            if i == pane.block_tab_active {
+                BlockTabSnapshot {
+                    block: block_selection_from_pane(pane.block_selected, index),
+                    region: pane.block_region as u32,
+                    row: pane.block_row as u32,
+                    col: pane.block_col as u32,
+                }
+            } else {
+                let snap = pane.inactive_tab(i);
+                let (sel, region, row, col) = match snap {
+                    Some(t) => (t.block_selected, t.block_region, t.block_row, t.block_col),
+                    None => (None, 0usize, 0usize, 1usize),
+                };
+                BlockTabSnapshot {
+                    block: block_selection_from_pane(sel, index),
+                    region: region as u32,
+                    row: row as u32,
+                    col: col as u32,
+                }
+            }
+        })
+        .collect()
+}
+
+/// Resolve a snapshot's `BlockSelection` back to an in-memory `BlockRef`
+/// via the workspace index. Drops gracefully when the file/block no
+/// longer exists (typical after vault edits between sessions).
+fn block_ref_from_selection(
+    sel: Option<&BlockSelection>,
+    index: &BlockIndex,
+) -> Option<BlockRef> {
+    let sel = sel?;
+    let file_idx = index.files.iter().position(|f| f.display == sel.file)?;
+    let file = index.files.get(file_idx)?;
+    let block_idx = file.blocks.iter().position(|b| block_matches(b, &sel.key))?;
+    Some(BlockRef {
+        file_idx,
+        block_idx,
     })
 }
 
@@ -244,18 +304,45 @@ fn restore_leaf(
         },
         None => Pane::empty(),
     };
-    pane.block_selected = leaf.block.as_ref().and_then(|sel| {
-        let file_idx = index.files.iter().position(|f| f.display == sel.file)?;
-        let file = index.files.get(file_idx)?;
-        let block_idx = file.blocks.iter().position(|b| block_matches(b, &sel.key))?;
-        Some(BlockRef {
-            file_idx,
-            block_idx,
-        })
-    });
+    pane.block_selected = block_ref_from_selection(leaf.block.as_ref(), index);
     pane.block_region = leaf.region as usize;
     pane.block_row = leaf.row as usize;
     pane.block_col = leaf.col as usize;
+    // Multi-tab restore: drop the default single-empty strip and
+    // rebuild from the snapshot, then activate the persisted index.
+    // Snapshots from old TUIs leave `tabs` empty — the mirror
+    // assignments above already cover the single-tab case.
+    if !leaf.tabs.is_empty() {
+        pane.block_tabs.clear();
+        for snap in &leaf.tabs {
+            pane.block_tabs.push(BlockTab {
+                document: None,
+                document_path: None,
+                viewport_top: 0,
+                block_selected: block_ref_from_selection(snap.block.as_ref(), index),
+                block_region: snap.region as usize,
+                block_row: snap.row as usize,
+                block_col: snap.col as usize,
+                block_edit: None,
+                block_draft: None,
+            });
+        }
+        // Clamp the active index so a malformed snapshot can't panic.
+        let len = pane.block_tabs.len();
+        let target_idx = (leaf.active_tab as usize).min(len.saturating_sub(1));
+        pane.block_tab_active = target_idx;
+        // Pull the active tab's snapshot into the mirror (the
+        // restore loop above stuffed the active slot too; pull from
+        // there so the mirror == active slot invariant holds).
+        if let Some(active) = pane.block_tabs.get_mut(target_idx) {
+            let pulled = std::mem::replace(active, BlockTab::empty());
+            pane.block_selected = pulled.block_selected;
+            pane.block_region = pulled.block_region;
+            pane.block_row = pulled.block_row;
+            pane.block_col = pulled.block_col;
+            pane.viewport_top = pulled.viewport_top;
+        }
+    }
     pane
 }
 
@@ -460,6 +547,65 @@ mod tests {
         assert_eq!(pane.block_region, 1);
         let sel = pane.block_selected.expect("block selected");
         assert_eq!(sel.block_idx, 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn capture_and_restore_multi_tab_pane_strip() {
+        // Two blocks open as tabs in the same pane. After capture +
+        // restore in a fresh App, the strip should rebuild with the
+        // same tabs in the same order and the persisted active tab
+        // still active.
+        let body = "# api\n\n\
+            ```http alias=ping\nGET https://x.com\n```\n\n\
+            ```http alias=save\nPOST https://x.com\n```\n";
+        let (mut app, _d, _v) = app_with_blocks(body).await;
+        app.view = AppView::Blocks;
+        app.blocks_workspace = Some(BlocksWorkspace::new(BlockIndex::build(&app.vault_path)));
+        if let Some(pane) = app
+            .tabs
+            .tabs
+            .get_mut(app.tabs.active)
+            .map(|t| t.active_leaf_mut())
+        {
+            pane.block_selected = Some(BlockRef {
+                file_idx: 0,
+                block_idx: 0,
+            });
+            let new_tab = BlockTab {
+                block_selected: Some(BlockRef {
+                    file_idx: 0,
+                    block_idx: 1,
+                }),
+                block_region: 3,
+                block_row: 0,
+                block_col: 1,
+                ..BlockTab::empty()
+            };
+            pane.push_block_tab(new_tab);
+        }
+        let snap = capture(&app);
+
+        let data = TempDir::new().unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: app.vault_path.clone(),
+        };
+        let mut app2 = App::new(Config::default(), resolved, pool);
+        restore(&mut app2, &snap);
+
+        let pane = app2
+            .tabs
+            .tabs
+            .get(app2.tabs.active)
+            .map(|t| t.active_leaf())
+            .expect("active leaf");
+        assert_eq!(pane.tab_count(), 2, "tab strip restored");
+        assert_eq!(pane.block_tab_active, 1, "active tab persisted");
+        let active_sel = pane.block_selected.expect("active mirror block");
+        assert_eq!(active_sel.block_idx, 1);
+        // The inactive tab carries the original `ping` selection.
+        let inactive = pane.inactive_tab(0).expect("inactive slot 0");
+        assert_eq!(inactive.block_selected.map(|b| b.block_idx), Some(0));
     }
 
     #[tokio::test(flavor = "multi_thread")]

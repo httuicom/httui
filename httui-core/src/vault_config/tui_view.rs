@@ -97,6 +97,9 @@ impl Default for PaneSnapshot {
 
 /// Per-leaf state: file the pane has open + BLOCKS-view selection.
 /// Mirrors `httui_tui::pane::Pane` fields we care about for restore.
+/// The legacy `block/region/row/col` fields still describe the active
+/// tab so older TUIs can read this snapshot. When `tabs` is non-empty
+/// it takes precedence and restores the full strip.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct PaneLeafSnapshot {
     /// Vault-relative file path. `None` for an empty pane (no doc
@@ -118,6 +121,34 @@ pub struct PaneLeafSnapshot {
     pub row: u32,
     /// Column inside a table-shaped region: `0 = key`, `1 = value`.
     /// Default `1` matches `Pane::empty()`.
+    #[serde(default = "default_col")]
+    pub col: u32,
+    /// BLOCKS-view tab strip. Empty in snapshots written by pre-tabs
+    /// TUIs — the active tab is then reconstructed from the legacy
+    /// `block/region/row/col` fields alone. When present, ordering
+    /// matches the tab strip left-to-right and `active_tab` indexes
+    /// the entry that should land in the pane mirror.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tabs: Vec<BlockTabSnapshot>,
+    /// Index inside `tabs` of the active tab. Default `0` is safe even
+    /// when `tabs` is empty.
+    #[serde(default)]
+    pub active_tab: u32,
+}
+
+/// One tab inside [`PaneLeafSnapshot::tabs`]. Carries the same per-tab
+/// fields as the legacy mirror, minus `file` (a tab's file is implied
+/// by its block selection).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct BlockTabSnapshot {
+    /// Block this tab points at, if any. `None` for a blank tab —
+    /// e.g. the greeter state right after `Ctrl+T`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub block: Option<BlockSelection>,
+    #[serde(default)]
+    pub region: u32,
+    #[serde(default)]
+    pub row: u32,
     #[serde(default = "default_col")]
     pub col: u32,
 }
@@ -158,6 +189,8 @@ mod tests {
             region: 1,
             row: 0,
             col: 1,
+            tabs: Vec::new(),
+            active_tab: 0,
         }
     }
 
@@ -243,5 +276,70 @@ mod tests {
         let s = TuiViewState::default();
         assert_eq!(s.last_view, "");
         assert!(s.blocks.is_none());
+    }
+
+    #[test]
+    fn leaf_with_tabs_round_trips() {
+        let snap = PaneLeafSnapshot {
+            file: Some("api.md".into()),
+            block: Some(BlockSelection {
+                file: "api.md".into(),
+                key: BlockKey {
+                    alias: Some("ping".into()),
+                    line_start: 0,
+                },
+            }),
+            region: 0,
+            row: 0,
+            col: 1,
+            tabs: vec![
+                BlockTabSnapshot {
+                    block: Some(BlockSelection {
+                        file: "api.md".into(),
+                        key: BlockKey {
+                            alias: Some("ping".into()),
+                            line_start: 0,
+                        },
+                    }),
+                    region: 0,
+                    row: 0,
+                    col: 1,
+                },
+                BlockTabSnapshot {
+                    block: Some(BlockSelection {
+                        file: "db.md".into(),
+                        key: BlockKey {
+                            alias: Some("rows".into()),
+                            line_start: 4,
+                        },
+                    }),
+                    region: 2,
+                    row: 3,
+                    col: 0,
+                },
+            ],
+            active_tab: 1,
+        };
+        let raw = toml::to_string(&snap).unwrap();
+        let back: PaneLeafSnapshot = toml::from_str(&raw).unwrap();
+        assert_eq!(back, snap);
+        // Active-tab index must survive — that's the bit the user
+        // experiences as "the tab I was on stays focused on reopen".
+        assert_eq!(back.active_tab, 1);
+        assert_eq!(back.tabs.len(), 2);
+    }
+
+    #[test]
+    fn leaf_without_tabs_back_compat() {
+        // A snapshot from an older TUI omits both `tabs` and
+        // `active_tab`. Default to empty + 0 so deserialization
+        // doesn't reject the row.
+        let raw = "kind = \"leaf\"\nfile = \"api.md\"\nregion = 0\nrow = 0\ncol = 1\n";
+        let back: PaneSnapshot = toml::from_str(raw).unwrap();
+        let PaneSnapshot::Leaf(leaf) = back else {
+            panic!("expected leaf");
+        };
+        assert!(leaf.tabs.is_empty());
+        assert_eq!(leaf.active_tab, 0);
     }
 }
