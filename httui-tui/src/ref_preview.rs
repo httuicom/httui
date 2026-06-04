@@ -293,6 +293,130 @@ fn segment_text(seg: &Segment) -> String {
 }
 
 #[cfg(test)]
+mod applier_tests {
+    use super::*;
+    use crate::app::{App, AppView, BlockIndex, BlocksWorkspace};
+    use crate::buffer::block::{BlockId, BlockNode, ExecutionState};
+    use crate::buffer::{Document, Segment};
+    use crate::config::Config;
+    use crate::modal::Modal;
+    use crate::pane::Pane;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    /// Build an `App` rooted at a fresh vault containing `note.md`
+    /// (caller supplies the body) plus an isolated SQLite pool. The
+    /// initial active leaf carries that doc with its relative path,
+    /// mirroring the `open_in_new_tab` flow.
+    async fn app_with_note(body: &str) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        let rel = PathBuf::from("note.md");
+        std::fs::write(vault.path().join(&rel), body).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let mut app = App::new(Config::default(), resolved, pool);
+        let doc = Document::from_markdown(body).unwrap();
+        if let Some(leaf) = app.active_pane_mut() {
+            *leaf = Pane::new(doc, rel);
+        }
+        (app, data, vault)
+    }
+
+    fn cursor_inside_first_ref(app: &mut App) {
+        // Park the cursor between the `{{` and `}}` of the first ref
+        // we find. Lets `show_ref_preview` enter the resolver path
+        // without depending on visual layout maths.
+        let body = app
+            .document()
+            .and_then(|d| d.segments().first().map(segment_text))
+            .unwrap_or_default();
+        let open = body.find("{{").expect("body has a ref");
+        let close = body[open..].find("}}").expect("close found") + open;
+        let mid = (open + close + 2) / 2;
+        if let Some(doc) = app.tabs.active_document_mut() {
+            doc.set_cursor(crate::buffer::Cursor::InProse {
+                segment_idx: 0,
+                offset: mid,
+            });
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn show_ref_preview_opens_unresolved_modal_for_unknown_env_var() {
+        let (mut app, _d, _v) = app_with_note("Token: {{NO_SUCH_VAR}}\n").await;
+        cursor_inside_first_ref(&mut app);
+        show_ref_preview(&mut app);
+        match app.modal {
+            Some(Modal::RefPreview(state)) => {
+                assert_eq!(state.name, "NO_SUCH_VAR");
+                assert!(matches!(state.source, RefSource::Unknown));
+                assert!(state.value.is_empty());
+            }
+            _ => panic!("expected RefPreview modal"),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn show_ref_preview_skips_when_cursor_not_on_a_ref() {
+        let (mut app, _d, _v) = app_with_note("just prose, no refs\n").await;
+        // Cursor at offset 0 — definitely not inside any `{{`.
+        if let Some(doc) = app.tabs.active_document_mut() {
+            doc.set_cursor(crate::buffer::Cursor::InProse {
+                segment_idx: 0,
+                offset: 0,
+            });
+        }
+        show_ref_preview(&mut app);
+        assert!(app.modal.is_none(), "no ref under cursor → no modal");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn focused_block_segment_idx_returns_none_outside_blocks_view() {
+        let (mut app, _d, _v) = app_with_note("```http alias=a\nGET https://x\n```\n").await;
+        // DOC view → helper bails.
+        assert!(matches!(app.view, AppView::Doc));
+        assert!(focused_block_segment_idx(&app).is_none());
+        // BLOCKS view but no block_edit → also None.
+        app.view = AppView::Blocks;
+        app.blocks_workspace = Some(BlocksWorkspace::new(BlockIndex::build(&app.vault_path)));
+        assert!(focused_block_segment_idx(&app).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn pane_file_key_mirrors_document_path() {
+        let (app, _d, _v) = app_with_note("hi\n").await;
+        let key = pane_file_key(&app).expect("pane has path");
+        assert_eq!(key, PathBuf::from("note.md"));
+    }
+
+    #[test]
+    fn segment_text_returns_prose_string() {
+        let seg = Segment::Prose(ropey::Rope::from_str("hello world"));
+        assert_eq!(segment_text(&seg), "hello world");
+    }
+
+    #[test]
+    fn segment_text_returns_block_raw() {
+        let seg = Segment::Block(BlockNode {
+            id: BlockId(0),
+            raw: ropey::Rope::from_str("```http\nGET /\n```"),
+            block_type: "http".into(),
+            alias: None,
+            display_mode: None,
+            params: serde_json::json!({}),
+            state: ExecutionState::Idle,
+            cached_result: None,
+        });
+        assert!(segment_text(&seg).contains("GET /"));
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::buffer::block::{BlockId, BlockNode, ExecutionState};
