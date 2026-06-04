@@ -59,6 +59,33 @@ pub fn load_document(vault: &Path, file: &Path) -> TuiResult<Document> {
     Document::from_markdown(&raw)
 }
 
+/// Same as `load_document` but also rehydrates each block's
+/// `cached_result` from the `block_results` SQLite table, so opening
+/// a file restores the last successful response (HTTP/DB) the same
+/// way the desktop does. Best-effort: any backend error is logged
+/// and the document still returns, with `cached_result = None` on
+/// the affected blocks.
+pub fn load_and_hydrate(
+    vault: &Path,
+    file_rel: &Path,
+    pool: &sqlx::sqlite::SqlitePool,
+    env_store: &httui_core::vault_config::EnvironmentsStore,
+) -> TuiResult<Document> {
+    let mut doc = load_document(vault, file_rel)?;
+    let env_vars = if tokio::runtime::Handle::try_current().is_ok() {
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current()
+                .block_on(crate::commands::db::load_active_env_vars(env_store))
+        })
+        .unwrap_or_default()
+    } else {
+        std::collections::HashMap::new()
+    };
+    let abs = vault.join(file_rel);
+    crate::block_hydrate::hydrate_document_blocking(pool, &mut doc, &env_vars, &abs);
+    Ok(doc)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,5 +154,56 @@ mod tests {
         touch(v.path(), "n.md");
         let doc = load_document(v.path(), Path::new("n.md")).unwrap();
         assert!(doc.segment_count() >= 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn load_and_hydrate_restores_persisted_block_response() {
+        use crate::buffer::Segment;
+        let v = TempDir::new().unwrap();
+        let md = "```http alias=ping\nGET https://example.com/health\n```\n";
+        std::fs::write(v.path().join("api.md"), md).unwrap();
+
+        let data = TempDir::new().unwrap();
+        let pool = httui_core::db::init_db(data.path()).await.unwrap();
+        let user_cfg = v.path().join("user.toml");
+        let env_store =
+            httui_core::vault_config::EnvironmentsStore::new(v.path().to_path_buf(), user_cfg);
+
+        // Save a fake response under the canonical hash so the
+        // hydration step has something to find. File key is the
+        // absolute path — same shape used by the HTTP runner.
+        let abs = v.path().join("api.md").to_string_lossy().to_string();
+        let envs = std::collections::HashMap::new();
+        let hash = httui_core::block_results::compute_http_cache_hash(
+            "GET",
+            "https://example.com/health",
+            &[],
+            &[],
+            "",
+            &envs,
+        );
+        httui_core::block_results::save_block_result_with_alias(
+            &pool,
+            &abs,
+            &hash,
+            Some("ping"),
+            "success",
+            r#"{"status":200,"body":{"ok":true}}"#,
+            12,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let doc = load_and_hydrate(v.path(), Path::new("api.md"), &pool, &env_store).unwrap();
+        let cached = doc
+            .segments()
+            .iter()
+            .find_map(|s| match s {
+                Segment::Block(b) if b.alias.as_deref() == Some("ping") => b.cached_result.clone(),
+                _ => None,
+            })
+            .expect("cached_result populated by hydrate");
+        assert_eq!(cached.get("status").and_then(|v| v.as_i64()), Some(200));
     }
 }

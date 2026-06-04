@@ -86,10 +86,8 @@ mod tests {
 
     fn no_doc_pane(name: &str) -> Pane {
         Pane {
-            document: None,
             document_path: Some(PathBuf::from(name)),
-            viewport_top: 0,
-            viewport_height: 0,
+            ..Pane::empty()
         }
     }
 

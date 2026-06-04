@@ -10,6 +10,9 @@ use crate::buffer::{Cursor, Segment};
 use crate::commands::db::{load_active_env_vars, resolve_connection_id_sync};
 use crate::input::action::Action;
 
+mod blocks_edit;
+use blocks_edit::{blocks_edit_completion_active, rebuild_completion_popup_blocks_edit};
+
 /// Map a key event to a `CompletionPopup*` action, or `None` if the
 /// key isn't one the popup wants to claim. Caller (the dispatcher)
 /// only calls this when a popup is open; an unrecognized key falls
@@ -55,6 +58,15 @@ pub(crate) fn force_open_completion_popup(app: &mut App) {
 /// only knob is whether an empty prefix is acceptable — auto closes
 /// the popup, manual opens it with the full dialect listing.
 pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) {
+    // BLOCKS view EDIT: the doc redirect points at the sub-doc
+    // (`pane.block_edit.doc`), so the cursor is `InProse` not
+    // `InBlock`. Detect that here and route to the helper that
+    // knows how to extract body + line/col from the sub-doc plus
+    // pull the block node from the pane.
+    if blocks_edit_completion_active(app) {
+        rebuild_completion_popup_blocks_edit(app, allow_empty_prefix);
+        return;
+    }
     let Some(doc) = app.document() else {
         if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
             app.modal = None;
@@ -272,19 +284,34 @@ pub(crate) fn rebuild_completion_popup(app: &mut App, allow_empty_prefix: bool) 
 /// have moved while the modal was up.
 pub(crate) fn apply_confirm_db_run(app: &mut App) {
     let segment_idx = match app.modal.take() {
-        Some(crate::modal::Modal::DbConfirmRun(state)) => state.segment_idx,
+        Some(crate::modal::Modal::ConfirmPrompt(state)) => match state.payload {
+            crate::app::ConfirmPayload::DbSegment(idx) => Some(idx),
+            other => {
+                // Wrong-payload prompt was open — re-store and bail.
+                app.modal = Some(crate::modal::Modal::ConfirmPrompt(
+                    crate::app::ConfirmPromptState {
+                        payload: other,
+                        ..state
+                    },
+                ));
+                None
+            }
+        },
         other => {
             app.modal = other;
-            app.vim.enter_normal();
-            return;
+            None
         }
+    };
+    let Some(segment_idx) = segment_idx else {
+        app.vim.enter_normal();
+        return;
     };
     app.vim.enter_normal();
     crate::commands::db::run_db_block_inner(app, segment_idx, true, None, false);
 }
 
 pub(crate) fn apply_cancel_db_run(app: &mut App) {
-    if matches!(app.modal, Some(crate::modal::Modal::DbConfirmRun(_))) {
+    if matches!(app.modal, Some(crate::modal::Modal::ConfirmPrompt(_))) {
         app.modal = None;
         app.set_status(StatusKind::Info, "run cancelled");
     }
@@ -315,9 +342,23 @@ pub(crate) fn apply_completion_prev(app: &mut App) {
     };
 }
 
+pub(super) fn close_completion_popup_if_open(app: &mut App) {
+    if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
+        app.modal = None;
+    }
+}
+
 pub(crate) fn apply_completion_dismiss(app: &mut App) {
     if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
         app.modal = None;
+    }
+    // Mirror nvim: Esc on an open completion popup both dismisses
+    // the popup AND drops Insert → Normal. The user typed `<Esc>`
+    // intending "exit"; doing only half is jarring.
+    if app.config.editor.mode == crate::config::EditorMode::Vim
+        && matches!(app.vim.mode, crate::vim::mode::Mode::Insert)
+    {
+        app.vim.enter_normal();
     }
 }
 
@@ -337,7 +378,7 @@ pub(crate) fn apply_completion_accept(app: &mut App) {
         return;
     };
     let prefix_chars = state.prefix.chars().count();
-    let Some(doc) = app.tabs.active_document_mut() else {
+    let Some(doc) = app.document_mut() else {
         return;
     };
     doc.snapshot();

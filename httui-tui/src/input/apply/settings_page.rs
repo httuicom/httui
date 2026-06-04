@@ -14,9 +14,9 @@ use crate::vim::mode::Mode;
 /// `cfg.keymap` or to `cfg.editor.toggle_mode_key`.
 pub(crate) const TOGGLE_MODE_ROW_NAME: &str = "editor.toggle_mode";
 
-/// Default chord for the toggle row. Kept in sync (by test) with
-/// `crate::config::default_toggle_mode_key`.
-const TOGGLE_MODE_DEFAULT: &str = "alt+m";
+/// Empty string = unbound. Reset puts the row back here. Kept in
+/// sync with `crate::config::default_toggle_mode_key` (asserted by test).
+const TOGGLE_MODE_DEFAULT: &str = "";
 
 /// One row in the Keymaps section. The `name` is what the renderer
 /// shows on the left and what conflict-detection looks up; the
@@ -329,7 +329,12 @@ fn bool_label(on: bool) -> String {
 
 /// Built-in theme presets, in display order — also the cursor index
 /// space for the Theme section.
-pub const THEME_PRESETS: &[&str] = &["default-dark", "default-light", "terminal-native"];
+pub const THEME_PRESETS: &[&str] = &[
+    "default-dark",
+    "default-light",
+    "terminal-native",
+    "tokyo-night",
+];
 
 /// Resolved view of a single Theme row.
 #[derive(Debug, Clone)]

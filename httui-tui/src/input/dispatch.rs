@@ -158,6 +158,15 @@ fn handle_modal_key(app: &mut App, key: KeyEvent) {
         ModalOutcome::Emit(action) => {
             apply_action(app, action, false);
         }
+        ModalOutcome::CloseAndForward => {
+            // Only the scope walker uses this — direct dispatch (this
+            // path) re-dispatch isn't wired, so degrade to a plain
+            // close. RefPreview opens via the keymap which goes
+            // through `scope::route`, so this branch is unreachable
+            // in production today.
+            app.modal = None;
+            app.vim.enter_normal();
+        }
     }
 }
 
@@ -334,6 +343,49 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::SettingsResetBinding => {
             crate::input::apply::settings_page::apply_settings_page(app, action)
         }
+        Action::ToggleAppView
+        | Action::BlocksPaneNextRegion
+        | Action::BlocksPanePrevRegion
+        | Action::BlocksPaneJumpRegion(_)
+        | Action::BlocksPanePickerChoose(_)
+        | Action::BlocksPanePickerCancel
+        | Action::BlocksPaneRowUp
+        | Action::BlocksPaneRowDown
+        | Action::BlocksPaneColLeft
+        | Action::BlocksPaneColRight
+        | Action::BlocksRegionEnterEdit
+        | Action::BlocksRegionEnterEditInsert
+        | Action::BlocksRegionCommitEdit
+        | Action::BlocksRegionCancelEdit
+        | Action::BlocksSaveDraft
+        | Action::BlocksNextBlockMotion
+        | Action::BlocksPrevBlockMotion
+        | Action::BlocksRunFocused
+        | Action::BlocksCancelRun
+        | Action::BlocksHeaderInsertRow
+        | Action::BlocksHeaderDeleteRow
+        | Action::BlocksHeaderToggleEnabled
+        | Action::BlocksHeaderDeleteConfirm
+        | Action::BlocksHeaderDeleteCancel
+        | Action::BlocksFieldAdvanceNext
+        | Action::BlocksFieldOpenBelow
+        | Action::BlocksFieldOpenAbove
+        | Action::BlocksResponseNextTab
+        | Action::BlocksResponsePrevTab
+        | Action::BlocksTreeNewBlock
+        | Action::BlocksTreeReorderUp
+        | Action::BlocksTreeReorderDown
+        | Action::BlocksTreeDeleteBlock
+        | Action::BlocksTreeOpenSplitVertical
+        | Action::BlocksTreeOpenSplitHorizontal
+        | Action::BlocksUnsavedPromptSave
+        | Action::BlocksUnsavedPromptDiscard
+        | Action::BlocksUnsavedPromptCancel
+        | Action::BlocksTabNew
+        | Action::BlocksTabClose => {
+            crate::input::apply::blocks_view::apply_blocks_view(app, action)
+        }
+        Action::ShowRefPreview => crate::ref_preview::show_ref_preview(app),
         Action::JumpNextBlock
         | Action::JumpPrevBlock
         | Action::RerunLastBlock
@@ -365,6 +417,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::TabNext
         | Action::TabPrev
         | Action::TreeActivate
+        | Action::TreeActivateNewTab
         | Action::TreeCollapse
         | Action::TreeCreate
         | Action::TreeDelete

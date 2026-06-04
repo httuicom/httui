@@ -12,7 +12,6 @@ use std::time::Duration;
 use sqlx::SqlitePool;
 use tracing::{debug, info};
 
-use crate::buffer::Document;
 use crate::config::Config;
 use crate::error::TuiResult;
 use crate::event::{AppEvent, EventLoop};
@@ -35,6 +34,12 @@ pub async fn run(
     let mut events = EventLoop::start(Duration::from_millis(250))?;
     let mut app = App::new(config, resolved, app_pool);
     app.config_path = Some(config_path);
+    {
+        let store = httui_core::vault_config::UserStore::with_path(app.user_config_path.clone());
+        if let Some(snap) = crate::persist::load_snapshot(&store, &app.vault_path) {
+            crate::persist::restore(&mut app, &snap);
+        }
+    }
     // Spawned async tasks (currently the DB executor in
     // `vim::dispatch`) push their results back through this sender;
     // the main loop folds them into the app via `AppEvent` matches.
@@ -151,6 +156,9 @@ async fn main_loop(
 /// `super::autosave::flush_all_dirty`.
 fn flush_on_exit(app: &mut App) {
     super::autosave::flush_all_dirty(app);
+    let store = httui_core::vault_config::UserStore::with_path(app.user_config_path.clone());
+    let snap = crate::persist::capture(app);
+    crate::persist::save_snapshot(&store, &app.vault_path, snap);
 }
 
 /// Fold a single `AppEvent` into `app`. Extracted verbatim from the
@@ -331,14 +339,24 @@ fn handle_file_changed_externally(app: &mut App, path: std::path::PathBuf) {
         );
         return;
     }
-    // Clean buffer + disk diff → reload silently.
-    let new_doc = match Document::from_markdown(&disk) {
+    // Clean buffer + disk diff → reload silently. Go through
+    // `load_and_hydrate` so persisted `cached_result` rows are
+    // re-attached — without this, saving a block (which the watcher
+    // sees as an external mutation of the file we just wrote) would
+    // wipe the response card.
+    let new_doc = match crate::document_loader::load_and_hydrate(
+        &app.vault_path,
+        &rel,
+        app.pool_manager.app_pool(),
+        &app.environments_store,
+    ) {
         Ok(d) => d,
         Err(e) => {
             app.set_status(crate::app::StatusKind::Error, format!("reload failed: {e}"));
             return;
         }
     };
+    let _ = disk; // disk was only needed for the equality check above
     if let Some(pane) = app.active_pane_mut() {
         pane.document = Some(new_doc);
         pane.viewport_top = 0;
@@ -801,5 +819,14 @@ mod tests {
 
         let after = std::fs::read_to_string(vault.path().join("note.md")).unwrap();
         assert_eq!(before, after, "flush after clean save is a no-op");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn watcher_sync_and_change_handlers_run_without_panic() {
+        let (mut app, _d, _v) = app_fixture("# n\n").await;
+        sync_envs_dir_watcher(&mut app);
+        sync_connections_toml_watcher(&mut app);
+        handle_connections_toml_changed(&mut app);
+        handle_envs_dir_changed(&mut app);
     }
 }

@@ -88,22 +88,40 @@ pub struct HttpResponseDetailState {
     pub viewport_top: u16,
 }
 
-/// State for the run-confirm modal. Carries the segment to re-run
-/// (the cursor may have moved in between) and the human reason
-/// shown to the user (e.g. "UPDATE without WHERE").
+// State for the run-confirm modal. Carries the segment to re-run
+// (the cursor may have moved in between) and the human reason.
+
+/// Generic y/n confirm modal. Replaces the per-flow confirm structs
+/// (`DbConfirmRunState`, `ConnectionDeleteConfirmState`,
+/// `EnvDeleteConfirmState`, `VarDeleteConfirmState`, …): the modal owns
+/// only display strings + the actions to emit on `y`/`Enter` and
+/// `n`/`Esc`. Each flow's data lives in [`ConfirmPayload`] so action
+/// appliers can extract their context without resurrecting per-flow
+/// variants. Keeps [`crate::input::action::Action`] `Copy`.
+///
+/// `on_confirm` / `on_cancel` are `Copy` so the modal handler can
+/// emit them without consuming the state — the modal stays open until
+/// the applier runs and explicitly closes it (the usual pattern).
 #[derive(Debug)]
-pub struct DbConfirmRunState {
-    pub segment_idx: usize,
-    pub reason: String,
+pub struct ConfirmPromptState {
+    pub title: String,
+    pub body: String,
+    pub on_confirm: crate::input::action::Action,
+    pub on_cancel: crate::input::action::Action,
+    pub payload: ConfirmPayload,
 }
 
-/// V3 P4 (2026-05-23): confirm modal for deleting a connection
-/// from `<vault>/connections.toml`. Opened by `D` on the
-/// Connections page; `y`/`Enter` confirms (store.delete + page
-/// reload), `n`/`Esc` cancels (reopens the page unchanged).
+/// Per-flow context carried by a [`ConfirmPromptState`]. Each variant
+/// is read by exactly one confirm applier (e.g. `apply_confirm_db_run`
+/// matches `DbSegment(idx)`); appliers ignore the variant tag and trust
+/// the modal's `on_confirm` to land them on the right arm.
 #[derive(Debug)]
-pub struct ConnectionDeleteConfirmState {
-    pub name: String,
+pub enum ConfirmPayload {
+    DbSegment(usize),
+    ConnectionName(String),
+    EnvName(String),
+    Var { env_name: String, key: String },
+    HeaderRow(usize),
 }
 
 /// Open instance of the DB export-format picker. Anchored to the DB
@@ -309,6 +327,57 @@ pub struct DbSettingsState {
     /// Index into `fields`. Always within `0..fields.len()` while
     /// the modal is open; clamped by [`focus_next`]/[`focus_prev`].
     pub focus: usize,
+}
+
+/// Open state for the "you have unsaved blocks" prompt. Shown when the
+/// user attempts to toggle DOC↔BLOCKS with at least one pane carrying a
+/// `BlockDraft`. `dirty` is informational — the actual draft data still
+/// lives on each pane; this struct only records the file list so the
+/// modal can render "X files unsaved" without re-walking the tree.
+#[derive(Debug, Clone)]
+pub struct BlocksUnsavedPromptState {
+    pub dirty: Vec<std::path::PathBuf>,
+    /// What focus rests on. Save is the leftmost / safest action so
+    /// pressing Enter immediately commits and proceeds — matches the
+    /// vault picker / connections-page muscle memory.
+    pub focus: BlocksUnsavedPromptFocus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BlocksUnsavedPromptFocus {
+    #[default]
+    Save,
+    Discard,
+    Cancel,
+}
+
+impl BlocksUnsavedPromptFocus {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Save => Self::Discard,
+            Self::Discard => Self::Cancel,
+            Self::Cancel => Self::Save,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Self::Save => Self::Cancel,
+            Self::Discard => Self::Save,
+            Self::Cancel => Self::Discard,
+        }
+    }
+
+    /// Human label for chips / debug. Renderer reads chip text from a
+    /// fixed table so this is only used by tests / future surfaces.
+    #[allow(dead_code)]
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Save => "Save",
+            Self::Discard => "Discard",
+            Self::Cancel => "Cancel",
+        }
+    }
 }
 
 impl DbSettingsState {
@@ -601,13 +670,19 @@ mod tests {
     }
 
     #[test]
-    fn db_confirm_run_state_carries_segment_and_reason() {
-        let st = DbConfirmRunState {
-            segment_idx: 8,
-            reason: "UPDATE without WHERE".into(),
+    fn confirm_prompt_state_carries_actions_and_payload() {
+        let st = ConfirmPromptState {
+            title: "Confirm write".into(),
+            body: "UPDATE without WHERE".into(),
+            on_confirm: crate::input::action::Action::ConfirmDbRun,
+            on_cancel: crate::input::action::Action::CancelDbRun,
+            payload: ConfirmPayload::DbSegment(8),
         };
-        assert_eq!(st.segment_idx, 8);
-        assert_eq!(st.reason, "UPDATE without WHERE");
+        assert!(matches!(st.payload, ConfirmPayload::DbSegment(8)));
+        assert!(matches!(
+            st.on_confirm,
+            crate::input::action::Action::ConfirmDbRun
+        ));
     }
 
     #[test]

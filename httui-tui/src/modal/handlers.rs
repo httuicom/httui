@@ -1,13 +1,52 @@
 //! Per-surface key handlers extracted from `modal::mod`.
 
 use crate::app::{
-    ConnectionFormState, EnvsPaneFocus, VarFormFocus, VaultCloneFormFocus, VaultCreateFormFocus,
+    BlocksUnsavedPromptFocus, BlocksUnsavedPromptState, ConnectionFormState, EnvsPaneFocus,
+    VarFormFocus, VaultCloneFormFocus, VaultCreateFormFocus,
 };
 use crate::input::action::Action;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::util::digit_1_9;
 use super::{ModalOutcome, PromptKind};
+
+pub(super) fn blocks_unsaved_prompt_handle_key(
+    state: &mut BlocksUnsavedPromptState,
+    key: KeyEvent,
+) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(Action::BlocksUnsavedPromptCancel)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('s')) | (KeyModifiers::NONE, KeyCode::Char('S')) => {
+            ModalOutcome::Emit(Action::BlocksUnsavedPromptSave)
+        }
+        (KeyModifiers::NONE, KeyCode::Char('d')) | (KeyModifiers::NONE, KeyCode::Char('D')) => {
+            ModalOutcome::Emit(Action::BlocksUnsavedPromptDiscard)
+        }
+        (KeyModifiers::NONE, KeyCode::Right) | (_, KeyCode::Tab) => {
+            state.focus = state.focus.next();
+            ModalOutcome::Continue
+        }
+        (KeyModifiers::NONE, KeyCode::Left) | (_, KeyCode::BackTab) => {
+            state.focus = state.focus.prev();
+            ModalOutcome::Continue
+        }
+        (_, KeyCode::Enter) => match state.focus {
+            BlocksUnsavedPromptFocus::Save => ModalOutcome::Emit(Action::BlocksUnsavedPromptSave),
+            BlocksUnsavedPromptFocus::Discard => {
+                ModalOutcome::Emit(Action::BlocksUnsavedPromptDiscard)
+            }
+            BlocksUnsavedPromptFocus::Cancel => {
+                ModalOutcome::Emit(Action::BlocksUnsavedPromptCancel)
+            }
+        },
+        _ => ModalOutcome::Continue,
+    }
+}
 
 pub(super) fn vault_missing_secrets_handle_key(editing: bool, key: KeyEvent) -> ModalOutcome {
     let KeyEvent {
@@ -242,26 +281,6 @@ pub(super) fn connections_page_handle_key(key: KeyEvent) -> ModalOutcome {
     }
 }
 
-/// V3 P4: y/Enter → confirm delete; n/Esc/Ctrl-C → cancel; other → noop.
-pub(super) fn connection_delete_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-    match (modifiers, code) {
-        (_, KeyCode::Esc) => ModalOutcome::Emit(Action::CancelConnectionDelete),
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
-            ModalOutcome::Emit(Action::CancelConnectionDelete)
-        }
-        (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
-            ModalOutcome::Emit(Action::CancelConnectionDelete)
-        }
-        (KeyModifiers::NONE, KeyCode::Char('y'))
-        | (KeyModifiers::NONE, KeyCode::Char('Y'))
-        | (_, KeyCode::Enter) => ModalOutcome::Emit(Action::ConfirmConnectionDelete),
-        _ => ModalOutcome::Continue,
-    }
-}
-
 /// ConnectionPicker reusa o vocab `list_picker_key`, mas adiciona
 /// `Shift+D` para deletar a conexão highlighted (mantém o picker
 /// aberto com a lista recarregada).
@@ -370,6 +389,22 @@ pub(super) fn help_handle_key(key: KeyEvent) -> ModalOutcome {
         (KeyModifiers::CONTROL, KeyCode::Char('c')) => ModalOutcome::Close,
         (m, KeyCode::Char('q')) if !m.contains(KeyModifiers::CONTROL) => ModalOutcome::Close,
         _ => ModalOutcome::Continue,
+    }
+}
+
+/// Hover-tooltip dismissal: explicit-close chords swallow the key
+/// (Esc / `q` / Ctrl+C), everything else dismisses AND forwards so a
+/// motion like `j` closes the popup AND moves the cursor in the
+/// same tap — matches IDE tooltip behaviour.
+pub(super) fn ref_preview_handle_key(key: KeyEvent) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) => ModalOutcome::Close,
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => ModalOutcome::Close,
+        (m, KeyCode::Char('q')) if !m.contains(KeyModifiers::CONTROL) => ModalOutcome::Close,
+        _ => ModalOutcome::CloseAndForward,
     }
 }
 
@@ -501,39 +536,26 @@ pub(super) fn var_form_handle_key(focus: VarFormFocus, key: KeyEvent) -> ModalOu
     }
 }
 
-pub(super) fn env_or_var_confirm_handle_key(key: KeyEvent) -> ModalOutcome {
+/// Generic y/n confirm dispatcher. Emits the modal's stored
+/// `on_confirm` / `on_cancel` action so each flow's applier picks up
+/// its specific side effects (delete a connection, drop a header row, …).
+pub(super) fn confirm_prompt_handle_key(
+    state: &crate::app::ConfirmPromptState,
+    key: KeyEvent,
+) -> ModalOutcome {
     let KeyEvent {
         code, modifiers, ..
     } = key;
     match (modifiers, code) {
-        (_, KeyCode::Esc)
-        | (KeyModifiers::CONTROL, KeyCode::Char('c'))
-        | (KeyModifiers::NONE, KeyCode::Char('n'))
-        | (KeyModifiers::NONE, KeyCode::Char('N')) => {
-            ModalOutcome::Emit(Action::CancelEnvOrVarDelete)
+        (_, KeyCode::Esc) | (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
+            ModalOutcome::Emit(state.on_cancel)
         }
-        (_, KeyCode::Enter)
-        | (KeyModifiers::NONE, KeyCode::Char('y'))
-        | (KeyModifiers::NONE, KeyCode::Char('Y')) => {
-            ModalOutcome::Emit(Action::ConfirmEnvOrVarDelete)
-        }
-        _ => ModalOutcome::Continue,
-    }
-}
-
-pub(super) fn db_confirm_run_handle_key(key: KeyEvent) -> ModalOutcome {
-    let KeyEvent {
-        code, modifiers, ..
-    } = key;
-    match (modifiers, code) {
-        (_, KeyCode::Esc) => ModalOutcome::Emit(Action::CancelDbRun),
-        (KeyModifiers::CONTROL, KeyCode::Char('c')) => ModalOutcome::Emit(Action::CancelDbRun),
         (KeyModifiers::NONE, KeyCode::Char('n')) | (KeyModifiers::NONE, KeyCode::Char('N')) => {
-            ModalOutcome::Emit(Action::CancelDbRun)
+            ModalOutcome::Emit(state.on_cancel)
         }
         (KeyModifiers::NONE, KeyCode::Char('y'))
         | (KeyModifiers::NONE, KeyCode::Char('Y'))
-        | (_, KeyCode::Enter) => ModalOutcome::Emit(Action::ConfirmDbRun),
+        | (_, KeyCode::Enter) => ModalOutcome::Emit(state.on_confirm),
         _ => ModalOutcome::Continue,
     }
 }

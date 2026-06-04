@@ -6,6 +6,7 @@ use tracing_appender::rolling;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 mod app;
+mod block_hydrate;
 mod buffer;
 mod cli;
 mod clipboard;
@@ -20,6 +21,9 @@ mod git;
 mod input;
 mod modal;
 mod pane;
+mod pane_tabs;
+mod persist;
+mod ref_preview;
 mod schema;
 mod session_overrides;
 mod sql_completion;

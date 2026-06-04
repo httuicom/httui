@@ -123,9 +123,7 @@ mod tests {
         d.insert_char_at_cursor('X');
         let pane = Pane {
             document: Some(d),
-            document_path: None,
-            viewport_top: 0,
-            viewport_height: 0,
+            ..Pane::empty()
         };
         app.tabs.tabs.push(TabState::new(pane));
         flush_all_dirty(&mut app);

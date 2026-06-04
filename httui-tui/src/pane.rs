@@ -5,21 +5,62 @@
 
 use std::path::PathBuf;
 
+use crate::app::{BlockDraft, BlockRef, RegionEdit};
 use crate::buffer::Document;
 
-/// A single editor pane: one open document plus its viewport. Multiple
-/// panes can share the *same* file path but each has its own
-/// independent [`Document`] instance — saving in one pane will not
-/// reflect in the other until that other reloads.
 pub struct Pane {
     pub document: Option<Document>,
     pub document_path: Option<PathBuf>,
     pub viewport_top: u16,
     /// Height of the editor area allocated to this pane on the most
     /// recent frame. Updated by the renderer; read by motion code that
-    /// needs page-relative scroll amounts (e.g. `Ctrl+D`).
+    /// needs page-relative scroll amounts (e.g. `Ctrl+D`). Shared
+    /// across BLOCKS tabs — the renderer overwrites it every frame.
     pub viewport_height: u16,
+    /// Currently-rendered block in BLOCKS view (`AppView::Blocks`).
+    /// Ignored when the app is in DOC view; survives the round-trip so
+    /// re-entering BLOCKS restores the per-pane selection.
+    pub block_selected: Option<BlockRef>,
+    /// Focused region inside the displayed block (0-based; clamped to
+    /// the block kind's region count by the applier).
+    pub block_region: usize,
+    /// Row index inside a table-shaped region (Headers). Clamped by the
+    /// applier to the region's current row count. Ignored by regions
+    /// that aren't table-shaped (Request line, Connection, Body…).
+    pub block_row: usize,
+    /// Column index inside a table-shaped region: `0 = key`, `1 = value`.
+    /// Default `1` so a fresh focus into Headers lands on "value" — the
+    /// most-edited field in practice (Cenário 4 enters on `value`).
+    pub block_col: usize,
+    /// `Some` while a region field is being edited. The applier captures
+    /// every keystroke into the buffer until Esc (commit) or Ctrl+C
+    /// (discard); the renderer paints the buffer in place of the field
+    /// value plus an "EDIT" label on the focused region's border.
+    /// Boxed so an idle pane doesn't carry the multi-line buffer's
+    /// `Vec<String>` on the stack (keeps `PaneNode::Leaf` lean).
+    pub block_edit: Option<Box<RegionEdit>>,
+    /// `Some` once the pane has any committed-but-not-saved edit. Saving
+    /// (Ctrl+S) re-serializes the draft into the `.md` and clears this
+    /// field. The header shows `*` next to the alias while this is set.
+    /// Boxed for the same reason as `block_edit` — `ParsedBlock` carries
+    /// a `serde_json::Value` whose worst case is non-trivial.
+    pub block_draft: Option<Box<BlockDraft>>,
+    /// BLOCKS-view tab strip. Always non-empty — `block_tabs[block_tab_active]`
+    /// is the canonical home of the active tab's snapshot; the eight
+    /// fields above (document/document_path/viewport_top + the six
+    /// `block_*`) MIRROR that slot so the 200+ existing call sites that
+    /// read/write the pane directly keep working unchanged. Swapping tabs
+    /// commits the current pane state into the active slot, then restores
+    /// the target slot into the pane. DOC view ignores this strip.
+    pub block_tabs: Vec<BlockTab>,
+    pub block_tab_active: usize,
 }
+
+// `BlockTab` + the BLOCKS-view tab-strip helpers (`swap_to_tab`,
+// `push_blank_tab`, `close_active_tab`, …) live in `pane_tabs.rs` so
+// this module stays focused on the binary pane tree + per-tab pane
+// state.
+pub use crate::pane_tabs::BlockTab;
 
 impl Pane {
     pub fn empty() -> Self {
@@ -28,6 +69,14 @@ impl Pane {
             document_path: None,
             viewport_top: 0,
             viewport_height: 0,
+            block_selected: None,
+            block_region: 0,
+            block_row: 0,
+            block_col: 1,
+            block_edit: None,
+            block_draft: None,
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
         }
     }
 
@@ -37,23 +86,80 @@ impl Pane {
             document_path: Some(path),
             viewport_top: 0,
             viewport_height: 0,
+            block_selected: None,
+            block_region: 0,
+            block_row: 0,
+            block_col: 1,
+            block_edit: None,
+            block_draft: None,
+            // The mirror IS the active tab's truth; the inactive slot
+            // starts empty and only gets populated on the first swap.
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
         }
     }
 
     /// Snapshot the pane's state into a fresh independent pane via a
     /// markdown roundtrip. Used by `Ctrl+W v/s` so the new split shows
     /// the same content as the current one without sharing buffers.
-    /// Cursor returns to the document start; viewport is reset.
+    /// Cursor returns to the document start; viewport is reset. The
+    /// BLOCKS-view edit buffer and draft do NOT carry into the split —
+    /// each pane edits and saves independently (mirrors how unsaved
+    /// changes in DOC are tied to the source pane).
     pub fn snapshot_clone(&self) -> Self {
-        let document = self
-            .document
-            .as_ref()
-            .and_then(|d| Document::from_markdown(&d.to_markdown()).ok());
+        // Roundtrip via markdown rebuilds the segment tree fresh
+        // (cheap, deterministic). The roundtrip drops in-memory
+        // `BlockNode.cached_result` + `state`, so we re-attach them
+        // by index — the new doc has the same block ordering by
+        // construction since serialization is lossless.
+        let document = self.document.as_ref().and_then(|src| {
+            let mut new_doc = Document::from_markdown(&src.to_markdown()).ok()?;
+            let original_blocks: Vec<(
+                crate::buffer::block::ExecutionState,
+                Option<serde_json::Value>,
+            )> = src
+                .segments()
+                .iter()
+                .filter_map(|s| match s {
+                    crate::buffer::Segment::Block(b) => {
+                        Some((b.state.clone(), b.cached_result.clone()))
+                    }
+                    _ => None,
+                })
+                .collect();
+            let mut block_idx = 0usize;
+            for seg_idx in 0..new_doc.segments().len() {
+                if matches!(
+                    new_doc.segments().get(seg_idx),
+                    Some(crate::buffer::Segment::Block(_))
+                ) {
+                    if let Some((state, cached)) = original_blocks.get(block_idx).cloned() {
+                        if let Some(b) = new_doc.block_at_mut(seg_idx) {
+                            b.state = state;
+                            b.cached_result = cached;
+                        }
+                    }
+                    block_idx += 1;
+                }
+            }
+            Some(new_doc)
+        });
         Self {
             document,
             document_path: self.document_path.clone(),
             viewport_top: 0,
             viewport_height: 0,
+            block_selected: self.block_selected,
+            block_region: self.block_region,
+            block_row: self.block_row,
+            block_col: self.block_col,
+            block_edit: None,
+            block_draft: None,
+            // Splits start with a single empty inactive slot — the
+            // mirror carries the active tab's state. The new pane gets
+            // its own tab strip, independent from the source's.
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
         }
     }
 }
@@ -72,6 +178,12 @@ pub enum SplitDir {
 
 /// Node in a pane tree. Either a leaf carrying a [`Pane`] or an inner
 /// node holding two children separated by a [`SplitDir`].
+//
+// Story 5 grew `Pane` with the BLOCKS-view draft + edit fields (both
+// boxed), so the size delta between `Leaf` and `Split` is acceptable
+// — both variants live in `Box<PaneNode>` slots from the parent split
+// anyway, so the extra slack only hits the single root `PaneNode`.
+#[allow(clippy::large_enum_variant)]
 pub enum PaneNode {
     Leaf(Pane),
     Split {
@@ -148,10 +260,72 @@ impl PaneNode {
         }
     }
 
+    /// Extend `path` into the leaf nearest to the side we just came
+    /// from, given a motion `dir`. When the sibling subtree is itself
+    /// split, pick the child closest in the motion's axis so a
+    /// rightmost pane → Left lands on the immediate neighbour (not
+    /// the leftmost leaf of the entire layout). Transversal splits
+    /// (e.g. Horizontal split while moving Left) keep the default
+    /// `first` choice — neither child is "closer" along the motion.
+    fn descend_toward(&self, dir: FocusDir, path: &mut Vec<u8>) {
+        let mut node = self;
+        loop {
+            match node {
+                PaneNode::Leaf(_) => return,
+                PaneNode::Split {
+                    direction,
+                    first,
+                    second,
+                    ..
+                } => {
+                    let go_second = match (dir, *direction) {
+                        // Left motion into a Vertical sibling: pick its
+                        // right half — that's the column visually
+                        // adjacent to where we came from.
+                        (FocusDir::Left, SplitDir::Vertical) => true,
+                        (FocusDir::Right, SplitDir::Vertical) => false,
+                        // Up motion into a Horizontal sibling: pick its
+                        // bottom half (closest row to where we came
+                        // from).
+                        (FocusDir::Up, SplitDir::Horizontal) => true,
+                        (FocusDir::Down, SplitDir::Horizontal) => false,
+                        // Transversal: neither child is closer; keep
+                        // `first` for determinism.
+                        _ => false,
+                    };
+                    if go_second {
+                        path.push(1);
+                        node = second;
+                    } else {
+                        path.push(0);
+                        node = first;
+                    }
+                }
+            }
+        }
+    }
+
     fn leaf_count(&self) -> usize {
         match self {
             PaneNode::Leaf(_) => 1,
             PaneNode::Split { first, second, .. } => first.leaf_count() + second.leaf_count(),
+        }
+    }
+
+    /// Borrow every leaf pane in depth-first order.
+    pub fn leaf_panes(&self) -> Vec<&Pane> {
+        let mut out = Vec::new();
+        self.collect_leaf_panes(&mut out);
+        out
+    }
+
+    fn collect_leaf_panes<'a>(&'a self, out: &mut Vec<&'a Pane>) {
+        match self {
+            PaneNode::Leaf(p) => out.push(p),
+            PaneNode::Split { first, second, .. } => {
+                first.collect_leaf_panes(out);
+                second.collect_leaf_panes(out);
+            }
         }
     }
 }
@@ -288,7 +462,7 @@ impl TabState {
             let mut new_focused = parent_path.to_vec();
             new_focused.push(sibling);
             let target = self.root.walk(&new_focused).expect("sibling path stale");
-            target.descend_first(&mut new_focused);
+            target.descend_toward(dir, &mut new_focused);
             self.focused = new_focused;
             return true;
         }
@@ -349,7 +523,66 @@ mod tests {
             document_path: Some(PathBuf::from(name)),
             viewport_top: 0,
             viewport_height: 0,
+            block_selected: None,
+            block_region: 0,
+            block_row: 0,
+            block_col: 1,
+            block_edit: None,
+            block_draft: None,
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
         }
+    }
+
+    #[test]
+    fn snapshot_clone_preserves_cached_result_across_blocks() {
+        // Build a pane whose Document has two HTTP blocks, populate
+        // the second one's cached_result, then clone — the new pane
+        // must keep the cached_result on the same block (split must
+        // not wipe the response card).
+        use crate::buffer::Segment;
+        let md =
+            "```http alias=a\nGET https://x.com\n```\n\n```http alias=b\nGET https://y.com\n```\n";
+        let mut doc = Document::from_markdown(md).unwrap();
+        let cached = serde_json::json!({"status": 200, "body": {"ok": true}});
+        let target = doc
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(b) if b.alias.as_deref() == Some("b")))
+            .unwrap();
+        if let Some(b) = doc.block_at_mut(target) {
+            b.cached_result = Some(cached.clone());
+            b.state = crate::buffer::block::ExecutionState::Success;
+        }
+        let pane = Pane {
+            document: Some(doc),
+            document_path: Some(PathBuf::from("api.md")),
+            viewport_top: 0,
+            viewport_height: 0,
+            block_selected: None,
+            block_region: 0,
+            block_row: 0,
+            block_col: 0,
+            block_edit: None,
+            block_draft: None,
+            block_tabs: vec![BlockTab::empty()],
+            block_tab_active: 0,
+        };
+        let clone = pane.snapshot_clone();
+        let cloned_doc = clone.document.expect("doc cloned");
+        let cloned_b = cloned_doc
+            .segments()
+            .iter()
+            .find_map(|s| match s {
+                Segment::Block(b) if b.alias.as_deref() == Some("b") => Some(b),
+                _ => None,
+            })
+            .expect("block b present");
+        assert_eq!(cloned_b.cached_result.as_ref(), Some(&cached));
+        assert!(matches!(
+            cloned_b.state,
+            crate::buffer::block::ExecutionState::Success
+        ));
     }
 
     #[test]
@@ -407,6 +640,77 @@ mod tests {
         // From c, Left should walk past the H split and into a.
         assert!(tab.focus_dir(FocusDir::Left));
         assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("a.md")));
+    }
+
+    /// User's actual bug: three columns laid out as V[A, V[B, C]].
+    /// From C (rightmost), Ctrl+W h must land on B (immediate left
+    /// neighbour) — the old `descend_first` always went to A (leftmost
+    /// of the whole layout) by descending into the sibling's `first`
+    /// child no matter what direction we came from.
+    #[test]
+    fn focus_left_descends_toward_origin_in_nested_vertical_splits() {
+        let mut tab = TabState::new(pane_with_path("a.md"));
+        tab.split(SplitDir::Vertical, pane_with_path("b.md"));
+        // Now V[A, B], focused on B = [1].
+        tab.split(SplitDir::Vertical, pane_with_path("c.md"));
+        // Now V[A, V[B, C]], focused on C = [1, 1].
+        assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("c.md")));
+        assert!(tab.focus_dir(FocusDir::Left));
+        assert_eq!(
+            tab.active_leaf().document_path,
+            Some(PathBuf::from("b.md")),
+            "expected B (immediate left), got: focused path = {:?}",
+            tab.focused
+        );
+    }
+
+    /// Symmetric: H[A, H[B, C]] — from C (bottom) press Up, must
+    /// land on B (the row immediately above), not A (topmost leaf).
+    #[test]
+    fn focus_up_descends_toward_origin_in_nested_horizontal_splits() {
+        let mut tab = TabState::new(pane_with_path("a.md"));
+        tab.split(SplitDir::Horizontal, pane_with_path("b.md"));
+        tab.split(SplitDir::Horizontal, pane_with_path("c.md"));
+        assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("c.md")));
+        assert!(tab.focus_dir(FocusDir::Up));
+        assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("b.md")),);
+    }
+
+    /// Layout that matches the user's report: vertical root, left
+    /// column is a horizontal split (A top / B bottom), right is a
+    /// vertical split (C / D). From D, `Ctrl+W h` must land on C
+    /// (the adjacent left neighbour), not on A (leftmost leaf).
+    #[test]
+    fn focus_left_from_rightmost_in_4pane_layout_lands_on_immediate_neighbour() {
+        let mut tab = TabState::new(pane_with_path("a.md"));
+        // Build: V[ H[A, B], V[C, D] ].
+        // Start: just A. After split V → focus is on second leaf [1].
+        tab.split(SplitDir::Vertical, pane_with_path("c.md"));
+        // Now layout: V[A, C]. focused=[1] on C.
+        // Split V from C to create D (right of C) → V[A, V[C, D]],
+        // focused=[1,1] on D.
+        tab.split(SplitDir::Vertical, pane_with_path("d.md"));
+        assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("d.md")));
+        // Move focus to A and split horizontally to add B below.
+        assert!(tab.focus_dir(FocusDir::Left));
+        assert!(tab.focus_dir(FocusDir::Left));
+        assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("a.md")));
+        tab.split(SplitDir::Horizontal, pane_with_path("b.md"));
+        // Layout now: V[ H[A, B], V[C, D] ]; focus on B = [0,1].
+        assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("b.md")));
+        // Move focus back to D and test the failing motion.
+        assert!(tab.focus_dir(FocusDir::Right));
+        assert!(tab.focus_dir(FocusDir::Right));
+        assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("d.md")));
+        // Ctrl+W h from D → expect C (immediate neighbour), not A
+        // (which is the leftmost leaf of the whole layout).
+        assert!(tab.focus_dir(FocusDir::Left));
+        assert_eq!(
+            tab.active_leaf().document_path,
+            Some(PathBuf::from("c.md")),
+            "expected C, got: focused path = {:?}",
+            tab.focused
+        );
     }
 
     #[test]

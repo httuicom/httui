@@ -2,8 +2,8 @@
 use super::*;
 use crate::app::{App, BlockExportFormat, CompletionPopupState};
 use crate::app::{
-    BlockHistoryState, BlockTemplatePickerState, ConnectionPickerState, ContentSearchState,
-    DbConfirmRunState, DbExportPickerState, DbRowDetailState, DbSettingsState,
+    BlockHistoryState, BlockTemplatePickerState, ConfirmPromptState, ConnectionPickerState,
+    ContentSearchState, DbExportPickerState, DbRowDetailState, DbSettingsState,
     EnvironmentPickerState, HttpResponseDetailState, SettingsField, TabPickerState,
 };
 use crate::buffer::{Cursor, Document};
@@ -166,8 +166,8 @@ async fn git_panel_and_tree_share_body_with_editor_in_middle() {
     app.tree.visible = true;
     app.git_panel.visible = true;
     let (text, _c) = render(&mut app, 110, 16);
-    // All three columns coexist: tree title, editor content, panel title.
-    assert!(text.contains("Files"), "tree painted: {text:?}");
+    // All three columns coexist: tree hint, editor content, panel title.
+    assert!(text.contains("Jump"), "tree painted: {text:?}");
     assert!(text.contains("middle slot"), "editor painted: {text:?}");
     assert!(text.contains("Git"), "git panel painted: {text:?}");
 }
@@ -416,9 +416,12 @@ async fn completion_popup_paints() {
 async fn db_confirm_run_modal_paints() {
     let (mut app, _d, _v) = app_with_files(&[("a.md", "x\n")]).await;
     open_doc(&mut app, "x\n");
-    app.modal = Some(crate::modal::Modal::DbConfirmRun(DbConfirmRunState {
-        segment_idx: 0,
-        reason: "UPDATE without WHERE".into(),
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(ConfirmPromptState {
+        title: "Confirm write".into(),
+        body: "UPDATE without WHERE".into(),
+        on_confirm: crate::input::action::Action::ConfirmDbRun,
+        on_cancel: crate::input::action::Action::CancelDbRun,
+        payload: crate::app::ConfirmPayload::DbSegment(0),
     }));
     let (text, _c) = render(&mut app, 70, 14);
     assert!(
@@ -692,16 +695,24 @@ async fn render_with_active_search_buffer_paints_live_match() {
 async fn render_paints_env_var_delete_confirm_modals() {
     let (mut app, _d, _v) = app_with_files(&[]).await;
     open_doc(&mut app, "x\n");
-    app.modal = Some(crate::modal::Modal::EnvDeleteConfirm(
-        crate::app::EnvDeleteConfirmState { name: "dev".into() },
-    ));
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(ConfirmPromptState {
+        title: "Delete env".into(),
+        body: "Delete env \"dev\"?".into(),
+        on_confirm: crate::input::action::Action::ConfirmEnvOrVarDelete,
+        on_cancel: crate::input::action::Action::CancelEnvOrVarDelete,
+        payload: crate::app::ConfirmPayload::EnvName("dev".into()),
+    }));
     let _ = render(&mut app, 80, 20);
-    app.modal = Some(crate::modal::Modal::VarDeleteConfirm(
-        crate::app::VarDeleteConfirmState {
+    app.modal = Some(crate::modal::Modal::ConfirmPrompt(ConfirmPromptState {
+        title: "Delete var".into(),
+        body: "Delete var \"KEY\" from \"dev\"?".into(),
+        on_confirm: crate::input::action::Action::ConfirmEnvOrVarDelete,
+        on_cancel: crate::input::action::Action::CancelEnvOrVarDelete,
+        payload: crate::app::ConfirmPayload::Var {
             env_name: "dev".into(),
             key: "KEY".into(),
         },
-    ));
+    }));
     let _ = render(&mut app, 80, 20);
 }
 
@@ -737,4 +748,477 @@ async fn render_paints_env_form_and_var_form() {
         error: None,
     }));
     let _ = render(&mut app, 80, 20);
+}
+
+// ---- BLOCKS view render coverage -------------------------------
+
+async fn blocks_app() -> (App, TempDir, TempDir) {
+    let (mut app, data, vault) = app_with_files(&[
+        (
+            "api.md",
+            "# api\n\n```http alias=req1\nGET https://x.com\nAuthorization: Bearer {{TOKEN}}\n```\n",
+        ),
+        ("db.md", "# db\n\n```db-postgres alias=q1\nSELECT 1\n```\n"),
+    ])
+    .await;
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::ToggleAppView,
+    );
+    (app, data, vault)
+}
+
+fn block_ref_of(app: &App, want_http: bool) -> crate::app::BlockRef {
+    let ws = app.blocks_workspace.as_ref().expect("workspace built");
+    for (fi, f) in ws.index.files.iter().enumerate() {
+        for (bi, b) in f.blocks.iter().enumerate() {
+            if (b.block_type == "http") == want_http {
+                return crate::app::BlockRef {
+                    file_idx: fi,
+                    block_idx: bi,
+                };
+            }
+        }
+    }
+    panic!("no matching block in index");
+}
+
+fn select_ref(app: &mut App, sel: crate::app::BlockRef) {
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.selected = Some(sel);
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.block_selected = Some(sel);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_http_block() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(
+        text.contains("Request"),
+        "expected Request region: {text:?}"
+    );
+    assert!(text.contains("Response"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_header_checkboxes() {
+    let (mut app, _d, _v) = app_with_files(&[(
+        "api.md",
+        "# api\n\n```http alias=req1\nGET https://x.com\nAccept: application/json\n# X-Debug: on\n```\n",
+    )])
+    .await;
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::ToggleAppView,
+    );
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(
+        text.contains("[x]"),
+        "enabled header shows checked marker: {text:?}"
+    );
+    assert!(
+        text.contains("[ ]"),
+        "disabled header shows unchecked marker: {text:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_db_block() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, false);
+    select_ref(&mut app, sel);
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("Query"), "expected Query region: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_empty_selection_paints_placeholder() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(
+        text.contains("Select a block"),
+        "expected placeholder: {text:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_cross_block_usage_footer() {
+    let (mut app, _d, _v) = app_with_files(&[
+        (
+            "auth.md",
+            "# auth\n\n```http alias=createUser\nPOST https://x.com/users\n```\n",
+        ),
+        (
+            "downstream.md",
+            "# downstream\n\n```http alias=audit\nPOST https://x.com/log/{{createUser.body.id}}\n```\n",
+        ),
+    ])
+    .await;
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::ToggleAppView,
+    );
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let (text, _) = render(&mut app, 140, 40);
+    assert!(
+        text.contains("used by"),
+        "expected usage footer when another block references this alias: {text:?}"
+    );
+    assert!(text.contains("downstream.md"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_edit_completion_lists_block_alias_above() {
+    let (mut app, _d, _v) = app_with_files(&[(
+        "api.md",
+        "# api\n\n```http alias=req1\nGET https://x.com\n```\n\n```http alias=req2\nGET https://y.com\nAccept: */*\n```\n",
+    )])
+    .await;
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::ToggleAppView,
+    );
+
+    // Find req2 (the second http block) and select it as the focused
+    // pane's block.
+    let ws = app.blocks_workspace.as_ref().unwrap();
+    let (fi, bi) = ws
+        .index
+        .files
+        .iter()
+        .enumerate()
+        .find_map(|(fi, f)| {
+            f.blocks
+                .iter()
+                .enumerate()
+                .find_map(|(bi, b)| (b.alias.as_deref() == Some("req2")).then_some((fi, bi)))
+        })
+        .expect("req2 indexed");
+    let sel = crate::app::BlockRef {
+        file_idx: fi,
+        block_idx: bi,
+    };
+    select_ref(&mut app, sel);
+
+    // Mirror what `edit::open` does: load the file as the pane
+    // Document so the completion path has a real `Segment::Block`
+    // list to walk.
+    let abs = _v.path().join("api.md");
+    let text = std::fs::read_to_string(&abs).unwrap();
+    let doc = Document::from_markdown(&text).unwrap();
+    if let Some(p) = app.active_pane_mut() {
+        p.document = Some(doc);
+        p.document_path = Some(abs);
+    }
+
+    // Spawn EDIT on req2's header value with the `{{` trigger already
+    // typed and the caret at end.
+    if let Some(p) = app.active_pane_mut() {
+        let mut edit =
+            crate::app::RegionEdit::insert(crate::app::EditField::HttpHeaderValue(0), "{{");
+        edit.doc.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 2,
+        });
+        p.block_edit = Some(Box::new(edit));
+    }
+
+    crate::input::apply::completion::rebuild_completion_popup(&mut app, false);
+
+    let Some(crate::modal::Modal::CompletionPopup(state)) = app.modal.as_ref() else {
+        panic!("expected completion popup, got {:?}", app.modal);
+    };
+    assert!(
+        state.items.iter().any(|i| i.label == "req1"),
+        "popup must list `req1` alias from the block above: {:?}",
+        state.items
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_vertical_split() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let http = block_ref_of(&app, true);
+    let db = block_ref_of(&app, false);
+    select_ref(&mut app, http);
+    let active = app.tabs.active;
+    let tab = app.tabs.tabs.get_mut(active).unwrap();
+    let old = std::mem::replace(
+        &mut tab.root,
+        crate::pane::PaneNode::Leaf(crate::pane::Pane::empty()),
+    );
+    let mut second = crate::pane::Pane::empty();
+    second.block_selected = Some(db);
+    tab.root = crate::pane::PaneNode::Split {
+        direction: crate::pane::SplitDir::Vertical,
+        ratio: 0.5,
+        first: Box::new(old),
+        second: Box::new(crate::pane::PaneNode::Leaf(second)),
+    };
+    // Focus must point at a leaf, not the new split root.
+    tab.focused = vec![0];
+    let (text, _) = render(&mut app, 160, 40);
+    assert!(text.contains("Request"));
+    assert!(text.contains("Query"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_edit_buffer() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::BlocksRegionEnterEdit,
+    );
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("EDIT"), "edit chip expected: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_http_response_with_cached_result() {
+    let (mut app, _d, v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let text = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
+    let mut doc = Document::from_markdown(&text).unwrap();
+    let idx = doc
+        .segments()
+        .iter()
+        .position(|s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type == "http"))
+        .unwrap();
+    if let Some(b) = doc.block_at_mut(idx) {
+        b.cached_result = Some(serde_json::json!({
+            "status": 200, "status_text": "OK",
+            "headers": [{"key": "content-type", "value": "application/json"}],
+            "body": "{\"ok\":true}", "elapsed_ms": 12, "size_bytes": 11
+        }));
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.document = Some(doc);
+        p.document_path = Some(v.path().join("api.md"));
+        p.block_region = 3;
+    }
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("200"), "status badge expected: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_unsaved_prompt_renders_over_pane() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    app.modal = Some(crate::modal::Modal::BlocksUnsavedPrompt(
+        crate::app::BlocksUnsavedPromptState {
+            dirty: vec![std::path::PathBuf::from("api.md")],
+            focus: crate::app::BlocksUnsavedPromptFocus::default(),
+        },
+    ));
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(!text.trim().is_empty());
+}
+
+fn enter_edit_region(app: &mut App, region: usize) {
+    if let Some(p) = app.active_pane_mut() {
+        p.block_region = region;
+    }
+    crate::input::apply::blocks_view::apply_blocks_view(
+        app,
+        crate::input::action::Action::BlocksRegionEnterEdit,
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_http_headers_edit() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    enter_edit_region(&mut app, 1); // Headers value
+    let (text, cur) = render(&mut app, 120, 40);
+    assert!(text.contains("EDIT"));
+    assert!(cur.is_some(), "caret placed in edited header cell");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_http_body_edit() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    enter_edit_region(&mut app, 2); // Body
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("EDIT"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_db_query_edit() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, false);
+    select_ref(&mut app, sel);
+    enter_edit_region(&mut app, 1); // Query
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains("SELECT") || text.contains("EDIT"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_db_result_table() {
+    let (mut app, _d, v) = blocks_app().await;
+    let sel = block_ref_of(&app, false);
+    select_ref(&mut app, sel);
+    let text = httui_core::fs::read_note(&v.path().to_string_lossy(), "db.md").unwrap();
+    let mut doc = Document::from_markdown(&text).unwrap();
+    let idx = doc
+        .segments()
+        .iter()
+        .position(
+            |s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type.starts_with("db")),
+        )
+        .unwrap();
+    if let Some(b) = doc.block_at_mut(idx) {
+        b.cached_result = Some(serde_json::json!({
+            "results": [{
+                "kind": "select",
+                "columns": ["id", "name"],
+                "rows": [{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]
+            }]
+        }));
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.document = Some(doc);
+        p.document_path = Some(v.path().join("db.md"));
+        p.block_region = 2; // Result
+    }
+    let (text, _) = render(&mut app, 120, 40);
+    // Rows rendered → not the empty placeholder, so the table-build
+    // path in `render_db_result_region` executed.
+    assert!(
+        !text.contains("no result"),
+        "result table should render rows: {text:?}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_renders_pane_picker_overlay() {
+    let (mut app, _d, _v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.pane_picker = Some(crate::app::PanePickerIntent {
+            target: sel,
+            action: crate::app::PanePickerAction::Open,
+        });
+    }
+    let (text, _) = render(&mut app, 120, 40);
+    assert!(text.contains('A'), "picker label expected: {text:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn render_modals_overlay_stack_dispatch() {
+    let (mut app, _d, _v) = app_with_files(&[("a.md", "# a\n")]).await;
+    open_doc(&mut app, "# a\n");
+    let modals: Vec<crate::modal::Modal> = vec![
+        crate::modal::Modal::Help,
+        crate::modal::Modal::Connections(Default::default()),
+        crate::modal::Modal::EnvsPage(Default::default()),
+        crate::modal::Modal::ConfirmPrompt(crate::app::ConfirmPromptState {
+            title: "Delete connection".into(),
+            body: "Delete \"conn\"?".into(),
+            on_confirm: crate::input::action::Action::ConfirmConnectionDelete,
+            on_cancel: crate::input::action::Action::CancelConnectionDelete,
+            payload: crate::app::ConfirmPayload::ConnectionName("conn".into()),
+        }),
+        crate::modal::Modal::GitSetUpstreamConfirm(crate::git::GitSetUpstreamConfirmState {
+            remote: "origin".into(),
+            branch: "main".into(),
+        }),
+        crate::modal::Modal::GitBranchPicker(crate::git::GitBranchPickerState {
+            branches: vec![],
+            selected: 0,
+            error: None,
+        }),
+        crate::modal::Modal::VaultPicker(crate::app::VaultPickerState {
+            entries: vec!["vault".into()],
+            selected: 0,
+            active: None,
+        }),
+        crate::modal::Modal::VaultOpenPicker(crate::app::VaultOpenPickerState {
+            cwd: std::path::PathBuf::from("/tmp"),
+            entries: vec![],
+            selected: 0,
+        }),
+        crate::modal::Modal::VaultCreateForm(Default::default()),
+        crate::modal::Modal::VaultCloneForm(Default::default()),
+    ];
+    for m in modals {
+        app.modal = Some(m);
+        let _ = render(&mut app, 120, 40);
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn http_response_detail_renders_in_visual_mode() {
+    let (mut app, _d, v) = blocks_app().await;
+    let sel = block_ref_of(&app, true);
+    select_ref(&mut app, sel);
+    let text = httui_core::fs::read_note(&v.path().to_string_lossy(), "api.md").unwrap();
+    let mut doc = Document::from_markdown(&text).unwrap();
+    let idx = doc
+        .segments()
+        .iter()
+        .position(|s| matches!(s, crate::buffer::Segment::Block(b) if b.block_type == "http"))
+        .unwrap();
+    if let Some(b) = doc.block_at_mut(idx) {
+        b.cached_result = Some(serde_json::json!({"status": 200, "body": "ok", "headers": []}));
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.document = Some(doc);
+        p.document_path = Some(v.path().join("api.md"));
+        p.block_region = 3;
+    }
+    crate::input::apply::blocks_view::apply_blocks_view(
+        &mut app,
+        crate::input::action::Action::BlocksRegionEnterEdit,
+    );
+    // Drive the detail modal's visual-overlay render arm.
+    app.vim.mode = crate::vim::mode::Mode::Visual;
+    app.vim.visual_anchor = Some(crate::buffer::Cursor::InProse {
+        segment_idx: 0,
+        offset: 0,
+    });
+    let _ = render(&mut app, 120, 40);
+    app.vim.mode = crate::vim::mode::Mode::VisualLine;
+    let _ = render(&mut app, 120, 40);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn blocks_view_paint_missing_and_db_no_result_region() {
+    let (mut app, _d, v) = blocks_app().await;
+    // Out-of-range selection → paint_missing branch.
+    let bad = crate::app::BlockRef {
+        file_idx: 0,
+        block_idx: 99,
+    };
+    if let Some(ws) = app.blocks_workspace.as_mut() {
+        ws.selected = Some(bad);
+    }
+    if let Some(p) = app.active_pane_mut() {
+        p.block_selected = Some(bad);
+    }
+    let _ = render(&mut app, 120, 40);
+    // DB block whose file lost its block on disk → render_region "(no result)".
+    let dbsel = block_ref_of(&app, false);
+    select_ref(&mut app, dbsel);
+    std::fs::write(v.path().join("db.md"), "# db\n").unwrap();
+    if let Some(p) = app.active_pane_mut() {
+        p.block_region = 2;
+        p.document = None;
+    }
+    let _ = render(&mut app, 120, 40);
 }

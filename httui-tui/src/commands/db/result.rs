@@ -68,10 +68,12 @@ pub fn handle_db_block_result(
                 // error). Mirrors desktop behavior.
                 if !first_was_error {
                     if let (Some((file_path, hash)), Some(value)) = (cache_key, value) {
+                        let alias = history_meta.as_ref().map(|m| m.block_alias.clone());
                         save_db_cache_async(
                             app.pool_manager.app_pool().clone(),
                             file_path,
                             hash,
+                            alias,
                             value,
                             response.stats.elapsed_ms,
                             &response.results,
@@ -467,6 +469,7 @@ mod tests {
             kind: RunningKind::Run,
             cache_key: None,
             bytes_received: 0,
+            http_cache_meta: None,
         }
     }
 
@@ -672,6 +675,7 @@ mod tests {
             kind: RunningKind::Run,
             cache_key: None,
             bytes_received: 0,
+            http_cache_meta: None,
         });
         assert!(cancel_running_query(&mut app));
         assert!(token.is_cancelled());

@@ -109,9 +109,103 @@ fn handle_scope(kind: ScopeKind, app: &mut App, key: KeyEvent) -> KeyOutcome {
 /// (`Ctrl+B` = tree). We dispatch through the per-mode parser
 /// directly without the global pre-empt so the panel wins.
 fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
+    if app
+        .blocks_workspace
+        .as_ref()
+        .is_some_and(|w| w.pane_picker.is_some())
+    {
+        use crossterm::event::{KeyCode, KeyModifiers};
+        if key.code == KeyCode::Esc
+            || (key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c'))
+        {
+            return KeyOutcome::Effect(crate::input::action::Action::BlocksPanePickerCancel);
+        }
+        if let KeyCode::Char(c) = key.code {
+            let lower = c.to_ascii_lowercase();
+            if lower.is_ascii_lowercase() {
+                let n = (lower as u8 - b'a' + 1) as usize;
+                let leaves = app.active_tab().map(|t| t.leaf_count()).unwrap_or(0);
+                if n <= leaves {
+                    return KeyOutcome::Effect(
+                        crate::input::action::Action::BlocksPanePickerChoose(n),
+                    );
+                }
+            }
+        }
+        return KeyOutcome::Consumed;
+    }
     if app.vim.mode == crate::vim::mode::Mode::Git {
         crate::input::dispatch::dispatch(app, key);
         return KeyOutcome::Consumed;
+    }
+    if matches!(
+        app.vim.mode,
+        crate::vim::mode::Mode::Tree | crate::vim::mode::Mode::TreePrompt
+    ) {
+        use crate::input::action::Action;
+        use crate::input::types::WindowCmd;
+        use crossterm::event::{KeyCode, KeyModifiers};
+        // Treat the sidebar as a navigable window for `Ctrl+W` chords.
+        // Without this, `Ctrl+W l` from the tree was dropped because
+        // `parse_tree` ignores Ctrl+W and the vim engine never sees
+        // the chord either. Re-uses the standard mode's flag so the
+        // existing apply path (`Action::Window(FocusLeft/...)`) takes
+        // care of the actual movement (which already knows the tree↔
+        // pane bridge via `apply::window::focus_dir`).
+        if app.standard.pending_window_chord {
+            app.standard.pending_window_chord = false;
+            let cmd = match (key.modifiers, key.code) {
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char('h')) => {
+                    Some(WindowCmd::FocusLeft)
+                }
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char('l')) => {
+                    Some(WindowCmd::FocusRight)
+                }
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char('j')) => {
+                    Some(WindowCmd::FocusDown)
+                }
+                (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char('k')) => {
+                    Some(WindowCmd::FocusUp)
+                }
+                _ => None,
+            };
+            if let Some(c) = cmd {
+                return KeyOutcome::Effect(Action::Window(c));
+            }
+            return KeyOutcome::Consumed;
+        }
+        if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('w')) {
+            app.standard.pending_window_chord = true;
+            return KeyOutcome::Consumed;
+        }
+        // BLOCKS-view sidebar chords (`n` create, `d`/`Delete`,
+        // `Shift+arrow` reorder) take precedence over the generic
+        // tree input. Restricted to `Mode::Tree` so they only fire
+        // when the sidebar actually has focus — the vim engine in
+        // the pane (NAV / EDIT) keeps `d`, `dw`, `dd` etc. for its
+        // own operators.
+        if matches!(app.view, crate::app::AppView::Blocks) {
+            if let Some(action) = crate::input::apply::blocks_view::resolve_tree_key(app, key) {
+                return KeyOutcome::Effect(action);
+            }
+        }
+        if let Some(action) = crate::input::keymap::lookup(&app.standard_keymap, key) {
+            if crate::input::keymap::is_editor_global_shortcut(action) {
+                return KeyOutcome::Effect(action);
+            }
+        }
+        crate::input::dispatch::dispatch(app, key);
+        return KeyOutcome::Consumed;
+    }
+    if matches!(app.view, crate::app::AppView::Blocks) {
+        if let Some(action) = crate::input::apply::blocks_view::resolve_pane_key(app, key) {
+            return KeyOutcome::Effect(action);
+        }
+        // EDIT lifecycle chords (Esc, Ctrl+C, Ctrl+S) were claimed by
+        // `resolve_pane_key` above. Anything else falls through to the
+        // editor engine below — `App::document_mut` redirects it to
+        // the field's sub-Document, so every vim motion / operator /
+        // count / search / undo lands on the buffer transparently.
     }
     match app.config.editor.mode {
         crate::config::EditorMode::Vim => {
@@ -174,6 +268,10 @@ fn handle_modal(app: &mut App, key: KeyEvent) -> KeyOutcome {
         }
         crate::modal::ModalOutcome::Emit(action) => KeyOutcome::Effect(action),
         crate::modal::ModalOutcome::Forward => KeyOutcome::Forward,
+        crate::modal::ModalOutcome::CloseAndForward => {
+            app.modal = None;
+            KeyOutcome::Forward
+        }
     }
 }
 
@@ -342,6 +440,30 @@ mod tests {
         assert!(
             matches!(app.modal, Some(crate::modal::Modal::GitBranchPicker(_))),
             "Ctrl+B in Mode::Git must open the branch picker"
+        );
+    }
+
+    /// `Ctrl+W` while focused on the sidebar (`Mode::Tree`) must set
+    /// the pending-window-chord flag so the next `h/j/k/l` can route
+    /// to the tree↔pane bridge in `apply::window::focus_dir`.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn ctrl_w_in_tree_mode_sets_pending_chord_then_routes_focus() {
+        let (mut app, _d, _v) = app_fixture(EditorMode::Standard).await;
+        app.vim.mode = crate::vim::mode::Mode::Tree;
+        // First Ctrl+W: arms the chord, no action yet.
+        dispatch(
+            &mut app,
+            KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL),
+        );
+        assert!(
+            app.standard.pending_window_chord,
+            "Ctrl+W in Mode::Tree should arm the chord"
+        );
+        // Second key `l`: consumes chord + dispatches Window(FocusRight).
+        dispatch(&mut app, key(KeyCode::Char('l')));
+        assert!(
+            !app.standard.pending_window_chord,
+            "chord should be cleared after the follow-up key"
         );
     }
 }

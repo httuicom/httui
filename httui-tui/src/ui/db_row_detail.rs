@@ -49,6 +49,11 @@ pub fn render(
             for x in modal.x..modal.x.saturating_add(modal.width) {
                 if let Some(cell) = buf.cell_mut((x, y)) {
                     cell.set_symbol(" ");
+                    // Reset before styling: `set_style` PATCHES, so a
+                    // leftover modifier from the pane underneath (an
+                    // UNDERLINED active result-tab cell) would survive
+                    // on the blank cell and render as a ghost line.
+                    cell.set_style(Style::reset());
                     cell.set_style(bg_style);
                 }
             }

@@ -491,6 +491,10 @@ pub fn parse_normal(state: &mut VimState, key: KeyEvent) -> Action {
         (_, KeyCode::Char('D')) => Action::OperatorMotion(Operator::Delete, Motion::LineEnd, count),
         (_, KeyCode::Char('C')) => Action::OperatorMotion(Operator::Change, Motion::LineEnd, count),
         (_, KeyCode::Char('Y')) => Action::OperatorLinewise(Operator::Yank, count),
+        // `K` (vim's "lookup" chord) opens the `{{ref}}` hover preview.
+        // Mirrors neovim's `K` mapping to `:help`/LSP-hover — the
+        // canonical chord for "tell me what this symbol means."
+        (KeyModifiers::NONE | KeyModifiers::SHIFT, KeyCode::Char('K')) => Action::ShowRefPreview,
         (_, KeyCode::Char('x')) => Action::OperatorMotion(Operator::Delete, Motion::Right, count),
         (_, KeyCode::Char('X')) => Action::OperatorMotion(Operator::Delete, Motion::Left, count),
         (_, KeyCode::Char('s')) => Action::OperatorMotion(Operator::Change, Motion::Right, count),

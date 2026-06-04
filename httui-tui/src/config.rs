@@ -76,14 +76,11 @@ pub enum EditorMode {
     Vim,
 }
 
-/// Default chord for the vim↔standard toggle. `Alt+M` ("M for mode")
-/// — reachable in every terminal with Option-as-Meta enabled. The
-/// earlier `F2` default (tui-V03 input fix) was rejected on UX
-/// grounds; `Ctrl+Shift+<letter>` and `Ctrl+Enter` still collapse on
-/// terminals without the kitty keyboard protocol, so those remain
-/// off-limits. Parsed by `crate::input::keychord::parse_key_chord`.
+/// Default is empty: the toggle lives in Settings → Editor → Mode
+/// (Enter activates). Users can still bind a chord via Settings →
+/// Keymaps → `[ vim ↔ standard toggle ]`.
 fn default_toggle_mode_key() -> String {
-    "alt+m".to_string()
+    String::new()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -237,7 +234,11 @@ const LEGACY_KEYMAP_DEFAULTS: &[(&str, &str, &str)] = &[
     ("open_block_template_picker", "f10", "alt+n"),
 ];
 
-const LEGACY_TOGGLE_MODE_KEY: &str = "f2";
+/// Past defaults for `editor.toggle_mode_key`. A user still on one
+/// of these (= never rebound) migrates to the unset default so the
+/// chord doesn't shadow newer global bindings. Custom chords are
+/// preserved.
+const LEGACY_TOGGLE_MODE_KEYS: &[&str] = &["f2", "alt+m"];
 
 /// Keymap-entry renames. Each pair carries the user's customised
 /// chord across the rename: someone who set the old name to the old
@@ -264,7 +265,7 @@ pub(crate) fn migrate_legacy_keymap(cfg: &mut Config) {
             cfg.keymap.set(name, (*new).to_string());
         }
     }
-    if cfg.editor.toggle_mode_key == LEGACY_TOGGLE_MODE_KEY {
+    if LEGACY_TOGGLE_MODE_KEYS.contains(&cfg.editor.toggle_mode_key.as_str()) {
         cfg.editor.toggle_mode_key = default_toggle_mode_key();
     }
 }
@@ -439,7 +440,7 @@ mod tests {
         for (name, old, _) in LEGACY_KEYMAP_DEFAULTS {
             cfg.keymap.set(name, (*old).to_string());
         }
-        cfg.editor.toggle_mode_key = LEGACY_TOGGLE_MODE_KEY.to_string();
+        cfg.editor.toggle_mode_key = "f2".to_string();
         migrate_legacy_keymap(&mut cfg);
         for (name, _, new) in LEGACY_KEYMAP_DEFAULTS {
             assert_eq!(
@@ -449,6 +450,14 @@ mod tests {
             );
         }
         assert_eq!(cfg.editor.toggle_mode_key, default_toggle_mode_key());
+    }
+
+    #[test]
+    fn migrate_wipes_alt_m_toggle_default() {
+        let mut cfg = Config::default();
+        cfg.editor.toggle_mode_key = "alt+m".to_string();
+        migrate_legacy_keymap(&mut cfg);
+        assert_eq!(cfg.editor.toggle_mode_key, "");
     }
 
     #[test]
@@ -475,7 +484,7 @@ mod tests {
         for (name, old, _) in LEGACY_KEYMAP_DEFAULTS {
             cfg.keymap.set(name, (*old).to_string());
         }
-        cfg.editor.toggle_mode_key = LEGACY_TOGGLE_MODE_KEY.to_string();
+        cfg.editor.toggle_mode_key = "f2".to_string();
         migrate_legacy_keymap(&mut cfg);
         let after_first = cfg.clone();
         migrate_legacy_keymap(&mut cfg);
@@ -541,12 +550,11 @@ mod tests {
         )
         .unwrap();
         let cfg = load_or_init(&path).unwrap();
-        assert_eq!(cfg.editor.toggle_mode_key, "alt+m");
+        assert_eq!(cfg.editor.toggle_mode_key, "");
         assert_eq!(cfg.keymap.chord_for("run_block"), Some("alt+r"));
         let on_disk = std::fs::read_to_string(&path).unwrap();
         assert!(
-            on_disk.contains("toggle_mode_key = \"alt+m\"")
-                && on_disk.contains("run_block = \"alt+r\""),
+            on_disk.contains("toggle_mode_key = \"\"") && on_disk.contains("run_block = \"alt+r\""),
             "load must persist the migrated chords:\n{on_disk}"
         );
     }

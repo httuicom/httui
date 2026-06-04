@@ -362,5 +362,141 @@ pub enum Action {
     SettingsCommitCapture(crossterm::event::KeyEvent),
     /// Restore the row under the cursor to its built-in default.
     SettingsResetBinding,
+    ToggleAppView,
+    BlocksPaneNextRegion,
+    BlocksPanePrevRegion,
+    /// 1-based; clamps to the block kind's region count.
+    BlocksPaneJumpRegion(usize),
+    /// 1-based pane index — used when the sidebar's pane-picker
+    /// overlay is open. Closes the overlay either way.
+    BlocksPanePickerChoose(usize),
+    BlocksPanePickerCancel,
+    /// NAV-mode row/col motion inside a table-shaped region (Headers).
+    /// No-op when the focused region isn't a table.
+    BlocksPaneRowUp,
+    BlocksPaneRowDown,
+    BlocksPaneColLeft,
+    BlocksPaneColRight,
+    /// Enter on the focused region: open the field at
+    /// `(block_region, block_row, block_col)` for inline editing.
+    /// Allocates the per-pane `BlockDraft` on first edit. Sub-mode
+    /// resolves via the active profile (standard → INSERT, vim →
+    /// NORMAL).
+    BlocksRegionEnterEdit,
+    /// Vim `i`/`a`/`o` from NAV: open the field already in INSERT,
+    /// skipping the NORMAL transit. No-op in standard profile.
+    BlocksRegionEnterEditInsert,
+    /// Esc (standard, or vim NORMAL): commit the sub-Document into
+    /// `BlockDraft` and return to NAV.
+    BlocksRegionCommitEdit,
+    /// Ctrl+C: discard the sub-Document without writing.
+    BlocksRegionCancelEdit,
+    /// Ctrl+S on the focused pane (BLOCKS view): serialize every dirty
+    /// draft into its `.md` via `write_note`. No-op when nothing dirty.
+    BlocksSaveDraft,
+    /// `]` (vim) / `PageDown` (any profile) — select the next block
+    /// in the workspace's flattened block list (cross-file, wrap).
+    BlocksNextBlockMotion,
+    /// `[` (vim) / `PageUp` (any profile) — previous block, wrap.
+    BlocksPrevBlockMotion,
+    /// BLOCKS NAV run: execute the block currently selected in the
+    /// focused pane. Default chord `r`. Maps internally to
+    /// [`Action::RunBlock`] after re-anchoring the executor on the
+    /// pane's selected block. Routed only from BLOCKS view — in DOC
+    /// the action is no-op so the chord can stay bound globally
+    /// without shadowing standard typing.
+    BlocksRunFocused,
+    /// BLOCKS NAV cancel: stop the in-flight run started from this
+    /// pane. Default chord `.`. Wraps `cancel_running_query`.
+    BlocksCancelRun,
+    /// Cycle response sub-tabs (Body / Headers / Cookies / Timing /
+    /// History) inside the focused HTTP block's `[N] Response`
+    /// region. Default chord `Alt+T`. No-op for DB / non-HTTP blocks.
+    BlocksResponseNextTab,
+    /// Reverse of [`Action::BlocksResponseNextTab`]. Default chord
+    /// `Alt+Shift+T`.
+    BlocksResponsePrevTab,
+    /// NAV in HTTP `[2] Headers`: insert an empty row after the
+    /// current `block_row`, advance cursor to the new row's key cell.
+    /// Hydrates the draft on first use.
+    BlocksHeaderInsertRow,
+    /// NAV in HTTP `[2] Headers`: delete the current `block_row`.
+    /// No-op when there are no rows. Cursor clamps to the row above.
+    BlocksHeaderDeleteRow,
+    /// NAV in HTTP `[2] Headers`: toggle the current row on/off (`Space`).
+    /// A disabled row serializes with a `# ` prefix and is skipped on
+    /// dispatch. Hydrates the draft on first use.
+    BlocksHeaderToggleEnabled,
+    /// EDIT INSERT on a single-line HTTP cell (header key/value or URL):
+    /// `Enter`/`Tab` commit the current buffer and advance to the next field
+    /// (key→value, value→next row's key, last-row value→insert+new row).
+    /// Mirrors form-input conventions so Enter never injects a stray newline
+    /// into a single-line cell.
+    BlocksFieldAdvanceNext,
+    /// vim NORMAL on a single-line HTTP cell: `o` commits the current edit
+    /// and opens a new header row BELOW the current one, landing in INSERT
+    /// on its key. Same semantics as NAV `o` but accessible from inside EDIT.
+    BlocksFieldOpenBelow,
+    /// vim NORMAL on a single-line HTTP cell: `O` commits and opens a new
+    /// header row ABOVE the current one (mirror of [`BlocksFieldOpenBelow`]).
+    BlocksFieldOpenAbove,
+    /// `y`/`Enter` in the [`crate::modal::Modal::ConfirmPrompt`] opened by
+    /// `delete_header_row`: read `ConfirmPayload::HeaderRow` and drop it.
+    BlocksHeaderDeleteConfirm,
+    /// `n`/`Esc`/`Ctrl+C` in the same prompt: close without deleting.
+    BlocksHeaderDeleteCancel,
+    /// Sidebar `n` while a `.md` file is focused (BLOCKS view) —
+    /// append a new HTTP block to that file. Reuses existing tree.
+    BlocksTreeNewBlock,
+    /// `Ctrl+Shift+↑` on a block in the sidebar — swap with the
+    /// block immediately above in the same file.
+    BlocksTreeReorderUp,
+    /// `Ctrl+Shift+↓` on a block in the sidebar — swap with the
+    /// block immediately below in the same file.
+    BlocksTreeReorderDown,
+    /// `d`/`Delete` on a block in the sidebar — remove the block
+    /// from its file. Intercepts before the generic tree-delete so
+    /// a block-row chord can't accidentally delete the parent file.
+    BlocksTreeDeleteBlock,
+    /// `v` on a block in the sidebar — split the focused pane
+    /// vertically and open the selected block in the new half.
+    BlocksTreeOpenSplitVertical,
+    /// `s` on a block in the sidebar — split the focused pane
+    /// horizontally and open the selected block in the new half.
+    BlocksTreeOpenSplitHorizontal,
+    /// `Save` button on the unsaved-prompt modal: write every dirty
+    /// pane, close the modal, replay the deferred `ToggleAppView`.
+    BlocksUnsavedPromptSave,
+    /// `Discard` button: drop every pane draft, close the modal,
+    /// replay the deferred `ToggleAppView`.
+    BlocksUnsavedPromptDiscard,
+    /// `Cancel` button (or Esc): close the modal, stay in BLOCKS.
+    BlocksUnsavedPromptCancel,
+    /// Variant of [`Action::TreeActivate`] bound to `Ctrl+Enter` on a
+    /// block row in the sidebar (BLOCKS view): instead of replacing the
+    /// focused pane's active tab, open the picked block as a NEW tab
+    /// in the focused pane. Falls back to `TreeActivate` semantics for
+    /// non-block rows.
+    TreeActivateNewTab,
+    /// Open a new empty BLOCKS-view tab inside the focused pane (`Ctrl+T`).
+    /// The greeter mode kicks in until the user picks a block in the
+    /// sidebar (Enter replaces the active tab in place).
+    BlocksTabNew,
+    /// Close the active BLOCKS-view tab inside the focused pane. When
+    /// the closed tab was the last one in the pane, the pane itself is
+    /// collapsed via the same path as `Ctrl+W q`. Standard `Ctrl+W` in
+    /// BLOCKS view; vim `:bd` / `Ctrl+Q` cover the same semantic.
+    BlocksTabClose,
+    // Tab cycling for the BLOCKS-view strip is routed via the existing
+    // `Action::TabNext` / `Action::TabPrev` (contextual handler in
+    // `tree_nav` forwards to `tab_cycle` when the pane has >1 tab),
+    // so no dedicated `BlocksTabNext` / `BlocksTabPrev` variants live
+    // here — both `gt`/`gT` and `Ctrl+PgDn`/`Ctrl+PgUp` re-use the
+    // unified action.
+    /// `K` (vim NORMAL) / `Alt+K` (standard): show the hover-preview
+    /// popup for the `{{ref}}` token under the cursor. Resolves
+    /// against the same env vars + previous blocks the runtime uses.
+    /// No-op when the cursor isn't on a complete `{{ref}}`.
+    ShowRefPreview,
     Noop,
 }

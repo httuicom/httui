@@ -172,11 +172,15 @@ pub fn db_summary_from_value(value: Option<&serde_json::Value>, elapsed: u64) ->
 }
 
 /// Fire-and-forget save to the on-disk cache. Failure is logged but
-/// never surfaces — cache writes are best-effort.
+/// never surfaces — cache writes are best-effort. `alias` is optional
+/// — anonymous blocks still get a hash-keyed row but won't be findable
+/// by `get_latest_block_result_by_alias`.
+#[allow(clippy::too_many_arguments)]
 pub fn save_db_cache_async(
     pool: sqlx::SqlitePool,
     file_path: String,
     hash: String,
+    alias: Option<String>,
     value: serde_json::Value,
     elapsed_ms: u64,
     results: &[httui_core::executor::db::types::DbResult],
@@ -191,10 +195,11 @@ pub fn save_db_cache_async(
         Err(_) => return,
     };
     tokio::spawn(async move {
-        let _ = httui_core::block_results::save_block_result(
+        let _ = httui_core::block_results::save_block_result_with_alias(
             &pool,
             &file_path,
             &hash,
+            alias.as_deref(),
             "success",
             &response_str,
             elapsed_ms as i64,

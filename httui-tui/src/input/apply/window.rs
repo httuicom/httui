@@ -57,8 +57,38 @@ pub(crate) fn split_focused(app: &mut App, dir: SplitDir) {
 }
 
 pub(crate) fn focus_dir(app: &mut App, dir: FocusDir) {
-    if let Some(tab) = app.active_tab_mut() {
-        tab.focus_dir(dir);
+    use crate::vim::mode::Mode;
+    // Sidebar (tree) is treated as a virtual pane glued to the left:
+    // `Ctrl+W l` from the tree jumps into the leftmost pane, `Ctrl+W h`
+    // from the leftmost pane jumps into the tree (when visible). The
+    // reflex is the same as nvim-tree / vim's quickfix windows.
+    let in_tree = matches!(app.vim.mode, Mode::Tree | Mode::TreePrompt);
+    if in_tree {
+        match dir {
+            FocusDir::Right => {
+                app.vim.enter_normal();
+                app.refresh_viewport_for_cursor();
+            }
+            // Sidebar has no neighbour above/below/further-left.
+            FocusDir::Left | FocusDir::Up | FocusDir::Down => {}
+        }
+        return;
+    }
+    // Ctrl+W h/j/k/l while a BLOCKS-view EDIT buffer is open should
+    // commit it before moving the focus — otherwise the cursor stays
+    // attached to the old pane's sub-doc, the user can't tell the new
+    // pane is focused, and subsequent keystrokes still hit the buffer.
+    if app.active_pane().is_some_and(|p| p.block_edit.is_some()) {
+        crate::input::apply::blocks_view::commit_edit(app);
+    }
+    let moved = app
+        .active_tab_mut()
+        .map(|tab| tab.focus_dir(dir))
+        .unwrap_or(false);
+    // No pane neighbour in that direction + heading left + sidebar
+    // open → cross into the tree.
+    if !moved && matches!(dir, FocusDir::Left) && app.tree.visible {
+        app.vim.mode = Mode::Tree;
     }
     app.refresh_viewport_for_cursor();
 }

@@ -159,6 +159,7 @@ pub fn parse_tree(key: KeyEvent) -> Action {
         (_, KeyCode::Char('k')) | (_, KeyCode::Up) => Action::TreeSelectPrev,
         (_, KeyCode::Char('G')) => Action::TreeSelectLast,
         (_, KeyCode::Char('g')) => Action::TreeSelectFirst,
+        (KeyModifiers::CONTROL, KeyCode::Enter) => Action::TreeActivateNewTab,
         (_, KeyCode::Char('l')) | (_, KeyCode::Right) | (_, KeyCode::Enter) => Action::TreeActivate,
         (_, KeyCode::Char('h')) | (_, KeyCode::Left) => Action::TreeCollapse,
         (_, KeyCode::Char('R')) => Action::TreeRefresh,

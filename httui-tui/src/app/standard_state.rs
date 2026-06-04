@@ -30,4 +30,9 @@ pub struct StandardState {
     /// opens a fresh group (forces a snapshot). Reset by any
     /// non-textual action so undo granularity stays sane.
     pub edit_group: Option<EditGroupKind>,
+    /// `true` after `Ctrl+W` was pressed and we're waiting for the
+    /// next key to decode as a `WindowCmd` suffix (vim-style chord).
+    /// Cleared after the next keystroke regardless of whether it
+    /// decoded.
+    pub pending_window_chord: bool,
 }

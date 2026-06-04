@@ -45,6 +45,18 @@ impl App {
         if let Some(state) = self.http_response_detail() {
             return Some(&state.doc);
         }
+        // BLOCKS EDIT: when the focused pane is editing a field, the
+        // engine should see the field's sub-Document — vim motions,
+        // search, visual, undo, every read pathway. Mirrors the
+        // detail-modal redirect above. The redirect only activates
+        // when `App.view` is `Blocks` so DOC view stays untouched.
+        if matches!(self.view, crate::app::AppView::Blocks) {
+            if let Some(pane) = self.active_pane() {
+                if let Some(edit) = pane.block_edit.as_ref() {
+                    return Some(&edit.doc);
+                }
+            }
+        }
         self.active_pane().and_then(|p| p.document.as_ref())
     }
 
@@ -63,6 +75,17 @@ impl App {
         }
         if self.http_response_detail().is_some() {
             return self.http_response_detail_mut().map(|s| &mut s.doc);
+        }
+        // BLOCKS EDIT redirect — same logic as the read-only `document`
+        // getter; the engine writes into the field's sub-Document,
+        // commit flushes that into the draft on Esc.
+        if matches!(self.view, crate::app::AppView::Blocks)
+            && self.active_pane().is_some_and(|p| p.block_edit.is_some())
+        {
+            return self
+                .active_pane_mut()
+                .and_then(|p| p.block_edit.as_mut())
+                .map(|e| &mut e.doc);
         }
         self.active_pane_mut().and_then(|p| p.document.as_mut())
     }

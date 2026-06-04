@@ -194,7 +194,7 @@ pub(super) fn render_db_footer_bar(
         ExecutionState::Running => (Color::Yellow, "running"),
         ExecutionState::Cached => (Color::Green, "connected"),
         ExecutionState::Success => (Color::Green, "connected"),
-        ExecutionState::Error(_) => (Color::Red, "error"),
+        ExecutionState::Error(_) => (crate::ui::palette::error(), "error"),
     };
 
     let dim = bg.fg(crate::ui::palette::muted());

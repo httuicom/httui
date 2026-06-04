@@ -25,6 +25,7 @@ pub mod migration;
 pub mod missing_secrets;
 pub mod scaffold;
 pub mod secret_resolver;
+pub mod tui_view;
 pub mod user;
 pub mod user_store;
 pub mod validate;
@@ -40,6 +41,10 @@ pub use environments_store::{
 };
 pub use envs::{EnvFile, EnvMeta};
 pub use error::{ConnectionsError, VaultConfigError};
+pub use tui_view::{
+    BlockKey, BlockSelection, BlockTabSnapshot, BlocksWorkspaceSnapshot, PaneLeafSnapshot,
+    PaneSnapshot, PaneSplitSnapshot, SidebarPos, TuiViewState, TuiViewStateMap,
+};
 pub use user::UserFile;
 pub use user_store::UserStore;
 pub use workspace::{

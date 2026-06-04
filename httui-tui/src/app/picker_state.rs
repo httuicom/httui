@@ -279,17 +279,6 @@ pub struct EnvCloneFormState {
     pub error: Option<String>,
 }
 
-#[derive(Debug)]
-pub struct EnvDeleteConfirmState {
-    pub name: String,
-}
-
-#[derive(Debug)]
-pub struct VarDeleteConfirmState {
-    pub env_name: String,
-    pub key: String,
-}
-
 /// Full detail of one connection — superset of `ConnectionEntry`
 /// (which carries only the picker's needs). The Connections page
 /// shows every public field in the right pane.

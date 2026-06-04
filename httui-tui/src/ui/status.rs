@@ -39,6 +39,9 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
                 TreePromptKind::Delete { target } => {
                     format!("delete {target}? (y/N) ")
                 }
+                TreePromptKind::DeleteBlock { label, .. } => {
+                    format!("delete block {label}? (y/N) ")
+                }
             };
             let line = Line::from(vec![
                 Span::styled(
@@ -186,10 +189,22 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     } else {
         Vec::new()
     };
-    spans.extend(running_chip);
+    spans.extend(blocks_view_chips(app));
+    // In BLOCKS view the running indicator lives inside the pane (on
+    // the focused block's `[4] Response` / `[3] Result` title) so the
+    // bytes/elapsed sit next to where the response will land. Skip it
+    // in the global footer to avoid duplication.
+    if !matches!(app.view, crate::app::AppView::Blocks) {
+        spans.extend(running_chip);
+    }
     spans.extend(git_chip);
     spans.extend(env_chip);
-    spans.extend(conn_chip);
+    // The connection is a per-block property (shown in each block's
+    // header). A single global chip is misleading when panes hold
+    // blocks on different connections, so skip it in BLOCKS view.
+    if !matches!(app.view, crate::app::AppView::Blocks) {
+        spans.extend(conn_chip);
+    }
     // pending-secrets badge. Only emits when the active
     // vault has refs without a keychain entry; clicking is replaced
     // by the `s` chord inside the vault picker (Alt+; → s reopens
@@ -204,12 +219,34 @@ pub fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
                 .add_modifier(Modifier::BOLD),
         ));
     }
-    spans.push(Span::raw(format!(
-        " {file}{dirty_marker} · {block_count} blocks · {cursor_label} · vault: {vault} · theme: {}",
-        app.config.theme
-    )));
+    if matches!(app.view, crate::app::AppView::Blocks) {
+        // Push the version tail flush-right so the mode/context group on
+        // the left gets room to breathe instead of all crowding the edge.
+        let right = blocks_view_status_tail();
+        let left_w: usize = spans.iter().map(|s| s.content.chars().count()).sum();
+        let right_w: usize = right.iter().map(|s| s.content.chars().count()).sum();
+        let total = area.width as usize;
+        if total > left_w + right_w {
+            spans.push(Span::raw(" ".repeat(total - left_w - right_w)));
+        }
+        spans.extend(right);
+    } else {
+        spans.push(Span::raw(format!(
+            " {file}{dirty_marker} · {block_count} blocks · {cursor_label} · vault: {vault} · theme: {}",
+            app.config.theme
+        )));
+    }
     let line = Line::from(spans);
     frame.render_widget(Paragraph::new(line), area);
+}
+
+/// Trailing status segment for BLOCKS view — just the binary version.
+/// Open-block count and split shape were dropped: the split is obvious
+/// from the layout and the count added noise.
+fn blocks_view_status_tail() -> Vec<Span<'static>> {
+    let muted = Style::default().fg(crate::ui::palette::muted());
+    let version = env!("CARGO_PKG_VERSION");
+    vec![Span::styled(format!(" httui {version}"), muted)]
 }
 
 /// Render a compact form of the vault path for the status bar.
@@ -242,6 +279,78 @@ fn compact_vault_path(path: &std::path::Path) -> String {
     format!("…/{tail}")
 }
 
+/// BLOCKS-view-only chips: `NAV · Region` while navigating, or
+/// `EDIT · field` once a buffer is open. The view is already obvious
+/// from the split layout, so no `BLOCKS` chip. Empty in DOC view.
+fn blocks_view_chips(app: &App) -> Vec<Span<'static>> {
+    if !matches!(app.view, crate::app::AppView::Blocks) {
+        return Vec::new();
+    }
+    let fg = crate::ui::palette::popup_bg();
+    let mut out: Vec<Span<'static>> = Vec::new();
+    let Some(pane) = app.active_pane() else {
+        return out;
+    };
+    let block_type = pane.block_selected.and_then(|sel| {
+        app.blocks_workspace.as_ref().and_then(|ws| {
+            ws.index
+                .files
+                .get(sel.file_idx)
+                .and_then(|f| f.blocks.get(sel.block_idx))
+                .map(|b| b.block_type.clone())
+        })
+    });
+    let region_idx = pane.block_region;
+    let region_name = block_type
+        .as_deref()
+        .map(|bt| crate::app::region_label(bt, region_idx))
+        .unwrap_or("");
+    if let Some(edit) = pane.block_edit.as_ref() {
+        let field = field_label(&edit.field);
+        let chip = Style::default()
+            .bg(crate::ui::palette::amber())
+            .fg(fg)
+            .add_modifier(Modifier::BOLD);
+        let chip_label = match (
+            app.config.editor.mode,
+            crate::input::apply::blocks_view::effective_sub_mode(app),
+        ) {
+            (crate::config::EditorMode::Vim, crate::app::EditSubMode::Normal) => " vim NORMAL ",
+            (crate::config::EditorMode::Vim, crate::app::EditSubMode::Insert) => " vim INSERT ",
+            _ => " EDIT ",
+        };
+        out.push(Span::raw(" "));
+        out.push(Span::styled(chip_label, chip));
+        out.push(Span::raw(" "));
+        out.push(Span::styled(
+            format!("{region_name} · {field}"),
+            Style::default().fg(crate::ui::palette::muted()),
+        ));
+    } else {
+        out.push(Span::raw(" "));
+        out.push(Span::styled(
+            "NAV",
+            Style::default().fg(crate::ui::palette::accent()),
+        ));
+        out.push(Span::raw(" "));
+        out.push(Span::styled(
+            region_name.to_string(),
+            Style::default().fg(crate::ui::palette::muted()),
+        ));
+    }
+    out
+}
+
+fn field_label(field: &crate::app::EditField) -> &'static str {
+    match field {
+        crate::app::EditField::HttpUrl => "url",
+        crate::app::EditField::HttpHeaderKey(_) => "header key",
+        crate::app::EditField::HttpHeaderValue(_) => "header value",
+        crate::app::EditField::HttpBody => "body",
+        crate::app::EditField::DbQuery => "query",
+    }
+}
+
 /// Build the running-indicator chip label, or `None` when no
 /// query / HTTP request is in flight. Format: `▶ DB · 2.3s` or
 /// `▶ HTTP · 1.1s`. Block-type comes from the source block at
@@ -249,7 +358,7 @@ fn compact_vault_path(path: &std::path::Path) -> String {
 /// the in-flight task and the segment isn't a block anymore, we
 /// fall back to a generic `▶ running · Xs` so the user still sees
 /// "something is happening".
-fn running_chip_label(app: &App) -> Option<String> {
+pub(crate) fn running_chip_label(app: &App) -> Option<String> {
     let rq = app.running_query.as_ref()?;
     let elapsed = rq.started_at.elapsed().as_secs_f32();
     let kind = app
@@ -679,6 +788,7 @@ mod tests {
             kind: RunningKind::Run,
             cache_key: None,
             bytes_received: 0,
+            http_cache_meta: None,
         });
     }
 

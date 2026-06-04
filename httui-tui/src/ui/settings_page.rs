@@ -256,6 +256,8 @@ fn render_keymaps(
         let name_pad = " ".repeat(name_width.saturating_sub(row.display.chars().count()));
         let chord_disp = if Some(row.name.as_str()) == capture_target {
             "press the new chord (Esc to cancel)".to_string()
+        } else if row.chord.is_empty() {
+            "(unbound)".to_string()
         } else {
             row.chord.clone()
         };

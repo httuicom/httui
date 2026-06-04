@@ -64,10 +64,43 @@ pub(crate) fn toggle_editor_mode(app: &mut App) {
 /// Invoked by the `Editor` scope handler in `input::scope`; preempting
 /// scopes (modal, popup, query cancel, etc.) already had their chance.
 pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
+    use crate::input::action::Action;
+    use crossterm::event::{KeyCode, KeyModifiers};
+
+    if app.standard.pending_window_chord {
+        app.standard.pending_window_chord = false;
+        if let Some(cmd) = decode_window_suffix(key) {
+            crate::input::dispatch::apply_action(app, Action::Window(cmd), true);
+        }
+        return;
+    }
+    if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('w') {
+        app.standard.pending_window_chord = true;
+        return;
+    }
+
     let Some(action) = crate::input::standard::resolve(&app.standard_keymap, key) else {
         return;
     };
-    use crate::input::action::Action;
+
+    // BLOCKS-NAV chords (`r` / `.`) bind to dedicated actions
+    // (`BlocksRunFocused`, `BlocksCancelRun`) so they appear in
+    // Settings → Keymaps without shadowing standard typing in DOC.
+    // Outside BLOCKS view we drop them here so the keystroke falls
+    // back to the printable-char fallback (`r` types `r`, `.` types `.`).
+    if matches!(action, Action::BlocksRunFocused | Action::BlocksCancelRun)
+        && !matches!(app.view, crate::app::AppView::Blocks)
+    {
+        if let crossterm::event::KeyCode::Char(c) = key.code {
+            if !key
+                .modifiers
+                .contains(crossterm::event::KeyModifiers::CONTROL)
+            {
+                crate::input::dispatch::apply_action(app, Action::InsertChar(c), true);
+            }
+        }
+        return;
+    }
 
     // Ctrl+C is contextual in Standard mode: with an active selection
     // it copies; with no selection it quits the TUI (Windows-Terminal
@@ -107,6 +140,7 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
     // dedicated (fully-covered) `standard_sel` module, with a real
     // clipboard injected here. The vim path never reaches this — it
     // never decodes into these `Action`s — so Cenário 2 is untouched.
+    let action_for_refresh = action;
     match action {
         Action::SelectExtend(_)
         | Action::ClearSelection
@@ -130,6 +164,40 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
             crate::input::dispatch::apply_action(app, action, /* recording = */ true);
         }
         _ => crate::input::dispatch::apply_action(app, action, /* recording = */ true),
+    }
+    // Mirror the vim dispatcher's post-action refresh so SQL/ref
+    // completion works in standard mode too. The popup engine itself
+    // is profile-agnostic.
+    if matches!(
+        action_for_refresh,
+        Action::InsertChar(_) | Action::DeleteBackward | Action::DeleteForward
+    ) {
+        crate::input::apply::completion::refresh_completion_popup(app);
+    }
+}
+
+/// Decode a key as the suffix after `Ctrl+W` (vim-style window chord).
+/// Returns `None` for anything that isn't a recognized command — the
+/// caller drops the pending state regardless.
+fn decode_window_suffix(key: crossterm::event::KeyEvent) -> Option<crate::input::types::WindowCmd> {
+    use crate::input::types::WindowCmd;
+    use crossterm::event::{KeyCode, KeyModifiers};
+    let mods = key.modifiers;
+    let allows_letter = mods == KeyModifiers::NONE || mods == KeyModifiers::CONTROL;
+    if !allows_letter {
+        return None;
+    }
+    match key.code {
+        KeyCode::Char('v') => Some(WindowCmd::SplitVertical),
+        KeyCode::Char('s') => Some(WindowCmd::SplitHorizontal),
+        KeyCode::Char('h') => Some(WindowCmd::FocusLeft),
+        KeyCode::Char('l') => Some(WindowCmd::FocusRight),
+        KeyCode::Char('k') => Some(WindowCmd::FocusUp),
+        KeyCode::Char('j') => Some(WindowCmd::FocusDown),
+        KeyCode::Char('w') => Some(WindowCmd::Cycle),
+        KeyCode::Char('c') | KeyCode::Char('q') => Some(WindowCmd::Close),
+        KeyCode::Char('=') => Some(WindowCmd::Equalize),
+        _ => None,
     }
 }
 
@@ -187,6 +255,9 @@ mod tests {
         };
         let mut cfg = Config::default();
         cfg.editor.mode = mode;
+        // Factory default is unbound; these tests drive the hot-toggle
+        // path, so opt in explicitly.
+        cfg.editor.toggle_mode_key = "alt+m".to_string();
         let app = App::new(cfg, resolved, pool);
         (app, data, vault)
     }
@@ -472,6 +543,7 @@ mod tests {
             kind: crate::app::RunningKind::Run,
             cache_key: None,
             bytes_received: 0,
+            http_cache_meta: None,
         }
     }
 

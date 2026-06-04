@@ -32,6 +32,26 @@ pub struct RunningQuery {
     /// streaming executor; the status bar reads this to paint a
     /// download progress hint while a request is in flight.
     pub bytes_received: u64,
+    /// Pre-spawn snapshot used to persist the HTTP response cache on
+    /// success. Carried on the running query (not re-derived in the
+    /// completion handler) because the user may have moved focus to
+    /// another pane between dispatch and completion — `app.document()`
+    /// at completion time could point at a different block.
+    pub http_cache_meta: Option<HttpRunCacheMeta>,
+}
+
+/// Snapshot of everything needed to write a `block_results` row for an
+/// HTTP run that's in flight: where to key it, the alias to attach,
+/// and the canonical inputs that produce the hash.
+#[derive(Clone)]
+pub struct HttpRunCacheMeta {
+    pub file_path: String,
+    pub alias: Option<String>,
+    pub method: String,
+    pub url: String,
+    pub params: Vec<(String, String)>,
+    pub headers: Vec<(String, String)>,
+    pub body: String,
 }
 
 #[derive(Debug, Clone, Copy)]

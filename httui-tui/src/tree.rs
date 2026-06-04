@@ -15,6 +15,8 @@ use std::path::Path;
 
 use httui_core::fs::FileEntry;
 
+use crate::app::BlockIndex;
+
 #[derive(Debug, Default)]
 pub struct FileTree {
     /// Whether the sidebar is rendered. Independent of focus — focus
@@ -31,6 +33,10 @@ pub struct FileTree {
     /// app is in [`crate::vim::mode::Mode::TreePrompt`] and the input
     /// runs through a tree-specific parser, not cmdline.
     pub prompt: Option<TreePrompt>,
+    /// Some(idx) switches the tree to "blocks" rendering: each file
+    /// shows its executable blocks as expandable children. None = the
+    /// classic filesystem rendering.
+    pub block_index: Option<BlockIndex>,
 }
 
 /// Inline prompt for tree-driven file ops. Each kind has a different
@@ -73,6 +79,14 @@ pub enum TreePromptKind {
     /// "delete <target>? (y/N)" — `buffer` accumulates the answer; we
     /// commit on Enter when buffer is `y` or `Y`.
     Delete { target: String },
+    /// BLOCKS-view destructive confirm for a block (NOT a file).
+    /// Carries the vault-relative `.md` path + block index inside that
+    /// file + a human label (alias or line number) shown to the user.
+    DeleteBlock {
+        rel_path: String,
+        block_idx: usize,
+        label: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -83,17 +97,33 @@ pub struct TreeNode {
     pub is_dir: bool,
     /// Indentation level, 0 = vault root.
     pub depth: usize,
+    /// When `Some`, this row represents an executable block under its
+    /// host `.md` (rendered as a child row). File / dir rows leave it
+    /// `None`.
+    pub block: Option<TreeBlockMeta>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TreeBlockMeta {
+    pub file_idx: usize,
+    pub block_idx: usize,
+    pub block_type: String,
+    pub label: String,
 }
 
 impl FileTree {
     /// Re-scan the vault and rebuild `entries`. Called on toggle,
-    /// expand/collapse, and explicit refresh (`R`).
+    /// expand/collapse, and explicit refresh (`R`). When
+    /// `block_index` is set, the tree paints executable blocks as
+    /// children of each `.md` instead of the raw filesystem layout.
     pub fn refresh(&mut self, vault: &Path) {
-        let raw = httui_core::fs::list_workspace(&vault.to_string_lossy()).unwrap_or_default();
         self.entries.clear();
-        flatten(&raw, 0, &self.expanded, &mut self.entries);
-        // Keep the selection inside bounds — the underlying entry may
-        // have disappeared (file deleted, folder collapsed).
+        if let Some(index) = self.block_index.clone() {
+            flatten_blocks(&index, &self.expanded, &mut self.entries);
+        } else {
+            let raw = httui_core::fs::list_workspace(&vault.to_string_lossy()).unwrap_or_default();
+            flatten(&raw, 0, &self.expanded, &mut self.entries);
+        }
         if self.selected >= self.entries.len() {
             self.selected = self.entries.len().saturating_sub(1);
         }
@@ -125,14 +155,19 @@ impl FileTree {
         self.entries.get(self.selected)
     }
 
-    /// Toggle expansion of the selected directory. No-op when the
-    /// current entry is a file. Returns `true` when the tree changed
-    /// (so the caller knows to call `refresh`).
+    /// Toggle expansion of the selected entry. In filesystem mode this
+    /// only acts on directories; in block mode it also expands files
+    /// (revealing their blocks as children). Block rows are not
+    /// expandable. Returns `true` when the tree changed.
     pub fn toggle_expand(&mut self) -> bool {
         let Some(node) = self.entries.get(self.selected) else {
             return false;
         };
-        if !node.is_dir {
+        if node.block.is_some() {
+            return false;
+        }
+        let is_block_mode = self.block_index.is_some();
+        if !node.is_dir && !is_block_mode {
             return false;
         }
         let path = node.path.clone();
@@ -186,11 +221,42 @@ fn flatten(
             path: e.path.clone(),
             is_dir: e.is_dir,
             depth,
+            block: None,
         });
         if e.is_dir && expanded.contains(&e.path) {
             if let Some(children) = e.children.as_deref() {
                 flatten(children, depth + 1, expanded, out);
             }
+        }
+    }
+}
+
+fn flatten_blocks(index: &BlockIndex, expanded: &HashSet<String>, out: &mut Vec<TreeNode>) {
+    for (file_idx, file) in index.files.iter().enumerate() {
+        let path = file.display.clone();
+        out.push(TreeNode {
+            name: file.display.clone(),
+            path: path.clone(),
+            is_dir: false,
+            depth: 0,
+            block: None,
+        });
+        if !expanded.contains(&path) {
+            continue;
+        }
+        for (block_idx, block) in file.blocks.iter().enumerate() {
+            out.push(TreeNode {
+                name: block.label(),
+                path: path.clone(),
+                is_dir: false,
+                depth: 1,
+                block: Some(TreeBlockMeta {
+                    file_idx,
+                    block_idx,
+                    block_type: block.block_type.clone(),
+                    label: block.label(),
+                }),
+            });
         }
     }
 }

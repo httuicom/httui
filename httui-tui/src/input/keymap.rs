@@ -133,6 +133,13 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         spec("rerun_last_block", "alt+.", Action::RerunLastBlock),
         spec("jump_next_block", "alt+down", Action::JumpNextBlock),
         spec("jump_prev_block", "alt+up", Action::JumpPrevBlock),
+        // BLOCKS-view-only chords. Distinct actions from `run_block` /
+        // cancel so the bare-letter defaults can't shadow typing in
+        // DOC view: `BlocksRunFocused` / `BlocksCancelRun` are no-ops
+        // outside BLOCKS, and `resolve_pane_key` is the only path
+        // that consumes them.
+        spec("blocks_run", "r", Action::BlocksRunFocused),
+        spec("blocks_cancel", ".", Action::BlocksCancelRun),
         // Panels & pickers.
         spec("open_help", "alt+?", Action::OpenHelp),
         spec("open_tab_picker", "alt+t", Action::OpenTabPicker),
@@ -159,6 +166,7 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         ),
         spec("open_envs_page", "alt+i", Action::OpenEnvsPage),
         spec("open_vault_picker", "alt+;", Action::OpenVaultPicker),
+        spec("toggle_app_view", "alt+m", Action::ToggleAppView),
         spec("quick_open", "ctrl+p", Action::EnterQuickOpen),
         spec("content_search", "ctrl+f", Action::OpenContentSearch),
         // Workspace.
@@ -173,6 +181,19 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         spec("tab_next_key", "tab", Action::TabNext),
         spec("tab_prev_key", "shift+tab", Action::TabPrev),
         spec("save_all", "ctrl+alt+s", Action::WriteAll),
+        // BLOCKS-view tab strip. `blocks_tab_new` and `blocks_tab_close`
+        // are no-ops outside BLOCKS (the applier guards on `app.view`),
+        // so we can give them friendly defaults that wouldn't make sense
+        // in DOC. `blocks_tab_next`/`prev` reuse `Ctrl+PgDn`/`Up` —
+        // contextual routing in `apply::tree_nav::TabNext` decides
+        // between file-tab and block-tab cycling.
+        spec("blocks_tab_new", "ctrl+t", Action::BlocksTabNew),
+        spec("blocks_tab_close", "ctrl+q", Action::BlocksTabClose),
+        // `K` / `Alt+K` hover-preview for `{{ref}}` under the cursor.
+        // Vim's `K` is bound directly in the normal parser (it's the
+        // canonical chord); the standard binding here is what shows
+        // up in Settings → Keymaps for non-vim users.
+        spec("show_ref_preview", "alt+k", Action::ShowRefPreview),
     ]
 }
 
@@ -285,6 +306,10 @@ pub fn is_editor_global_shortcut(action: Action) -> bool {
             | Action::TabNext
             | Action::TabPrev
             | Action::WriteAll
+            | Action::ToggleAppView
+            | Action::BlocksTabNew
+            | Action::BlocksTabClose
+            | Action::ShowRefPreview
     )
 }
 

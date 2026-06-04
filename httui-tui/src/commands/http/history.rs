@@ -131,9 +131,7 @@ mod tests {
             Some(p) => Pane::new(doc, p),
             None => Pane {
                 document: Some(doc),
-                document_path: None,
-                viewport_top: 0,
-                viewport_height: 0,
+                ..Pane::empty()
             },
         };
         // App::new auto-loads an initial pane; replace it with ours so

@@ -9,10 +9,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{
-    EnvDeleteConfirmState, EnvFormState, EnvsPageState, EnvsPaneFocus, VarDeleteConfirmState,
-    VarFormFocus, VarFormState,
-};
+use crate::app::{EnvFormState, EnvsPageState, EnvsPaneFocus, VarFormFocus, VarFormState};
 
 const POPUP_WIDTH: u16 = 76;
 const POPUP_HEIGHT: u16 = 30;
@@ -508,27 +505,11 @@ pub fn render_var_form(
     }
 }
 
-pub fn render_env_delete_confirm(frame: &mut Frame, area: Rect, state: &EnvDeleteConfirmState) {
-    confirm_popup(
-        frame,
-        area,
-        " Delete env ",
-        &format!("Delete env \"{}\"?", state.name),
-    );
-}
-
-pub fn render_var_delete_confirm(frame: &mut Frame, area: Rect, state: &VarDeleteConfirmState) {
-    confirm_popup(
-        frame,
-        area,
-        " Delete var ",
-        &format!("Delete \"{}\" from {}?", state.key, state.env_name),
-    );
-}
-
 // V4 P5: render_env_clone_form e render_clone_var_list moved to
-// `ui/envs_clone.rs` (size limit).
+// `ui/envs_clone.rs` (size limit). Env/var delete confirms moved to the
+// generic `ui/confirm_prompt.rs`.
 
+#[allow(dead_code)]
 fn confirm_popup(frame: &mut Frame, editor_area: Rect, title: &str, prompt: &str) {
     let area = centered(editor_area, 56, 7);
     let bg = Style::default()
@@ -829,38 +810,6 @@ mod tests {
             assert!(cursor.is_some(), "Value focus returns cursor");
         })
         .unwrap();
-    }
-
-    #[test]
-    fn render_env_delete_confirm_displays_name() {
-        let mut t = term(100, 20);
-        let state = EnvDeleteConfirmState {
-            name: "staging".into(),
-        };
-        t.draw(|f| {
-            render_env_delete_confirm(f, Rect::new(0, 0, 100, 20), &state);
-        })
-        .unwrap();
-        let frame = dump(&t);
-        assert!(frame.contains("Delete env"), "expected title");
-        assert!(frame.contains("staging"), "expected name in prompt");
-    }
-
-    #[test]
-    fn render_var_delete_confirm_displays_key_and_env() {
-        let mut t = term(100, 20);
-        let state = VarDeleteConfirmState {
-            env_name: "prod".into(),
-            key: "API_KEY".into(),
-        };
-        t.draw(|f| {
-            render_var_delete_confirm(f, Rect::new(0, 0, 100, 20), &state);
-        })
-        .unwrap();
-        let frame = dump(&t);
-        assert!(frame.contains("Delete var"), "expected title");
-        assert!(frame.contains("API_KEY"), "expected var key");
-        assert!(frame.contains("prod"), "expected env name");
     }
 
     #[test]

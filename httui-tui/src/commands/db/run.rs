@@ -180,9 +180,27 @@ pub fn run_db_block_inner(
         tokio::runtime::Handle::current().block_on(load_active_env_vars(&app.environments_store))
     })
     .unwrap_or_default();
-    let resolved = match app.document() {
-        Some(d) => resolve_block_refs(d.segments(), segment_idx, &raw_query, &env_vars),
-        None => Ok((raw_query.clone(), Vec::new())),
+    // Refresh cached_result on upstream blocks from SQLite so the
+    // resolver sees the latest persisted response (alias-keyed). The
+    // local `pane.document` may be stale if another pane just re-ran
+    // a sibling alias.
+    let abs_path = app.active_pane().and_then(|p| p.document_path.clone());
+    let mut segments_snapshot: Vec<crate::buffer::Segment> = app
+        .document()
+        .map(|d| d.segments().to_vec())
+        .unwrap_or_default();
+    if let Some(abs) = abs_path.as_ref() {
+        crate::block_hydrate::hydrate_segments_blocking(
+            app.pool_manager.app_pool(),
+            &mut segments_snapshot,
+            &env_vars,
+            abs,
+        );
+    }
+    let resolved = if segments_snapshot.is_empty() {
+        Ok((raw_query.clone(), Vec::new()))
+    } else {
+        resolve_block_refs(&segments_snapshot, segment_idx, &raw_query, &env_vars)
     };
     let (query, bind_values) = match resolved {
         Ok(qb) => qb,
@@ -279,10 +297,13 @@ pub fn run_db_block_inner(
         } else {
             format!("{kind} mutates the database — confirm before running")
         };
-        app.modal = Some(crate::modal::Modal::DbConfirmRun(
-            crate::app::DbConfirmRunState {
-                segment_idx,
-                reason,
+        app.modal = Some(crate::modal::Modal::ConfirmPrompt(
+            crate::app::ConfirmPromptState {
+                title: "Confirm write".to_string(),
+                body: reason,
+                on_confirm: crate::input::action::Action::ConfirmDbRun,
+                on_cancel: crate::input::action::Action::CancelDbRun,
+                payload: crate::app::ConfirmPayload::DbSegment(segment_idx),
             },
         ));
         app.vim.mode = crate::vim::mode::Mode::Modal;
@@ -452,6 +473,7 @@ pub fn spawn_db_query(
         kind,
         cache_key,
         bytes_received: 0,
+        http_cache_meta: None,
     });
     // Anchor for `gr` (rerun). Only Run / Explain set this — LoadMore
     // is a transparent pagination follow-up, not a fresh user dispatch,
@@ -775,7 +797,7 @@ mod tests {
         seed_connection(&app.connections_store, "rw", false).await;
         run_db_block_inner(&mut app, idx, /*force_unscoped=*/ false, None, false);
         assert!(
-            matches!(app.modal, Some(crate::modal::Modal::DbConfirmRun(_))),
+            matches!(app.modal, Some(crate::modal::Modal::ConfirmPrompt(_))),
             "expected confirm modal"
         );
     }
@@ -787,10 +809,10 @@ mod tests {
         let (mut app, idx, _d, _v) = app_with_block(md).await;
         seed_connection(&app.connections_store, "rw", false).await;
         run_db_block_inner(&mut app, idx, false, None, false);
-        let Some(crate::modal::Modal::DbConfirmRun(state)) = app.modal.as_ref() else {
+        let Some(crate::modal::Modal::ConfirmPrompt(state)) = app.modal.as_ref() else {
             panic!("expected confirm modal");
         };
-        assert!(state.reason.contains("WHERE"), "got {:?}", state.reason);
+        assert!(state.body.contains("WHERE"), "got {:?}", state.body);
     }
 
     #[tokio::test(flavor = "multi_thread")]
