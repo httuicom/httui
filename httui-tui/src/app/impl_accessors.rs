@@ -80,9 +80,7 @@ impl App {
         // getter; the engine writes into the field's sub-Document,
         // commit flushes that into the draft on Esc.
         if matches!(self.view, crate::app::AppView::Blocks)
-            && self
-                .active_pane()
-                .is_some_and(|p| p.block_edit.is_some())
+            && self.active_pane().is_some_and(|p| p.block_edit.is_some())
         {
             return self
                 .active_pane_mut()

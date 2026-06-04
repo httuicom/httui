@@ -121,8 +121,7 @@ impl FileTree {
         if let Some(index) = self.block_index.clone() {
             flatten_blocks(&index, &self.expanded, &mut self.entries);
         } else {
-            let raw =
-                httui_core::fs::list_workspace(&vault.to_string_lossy()).unwrap_or_default();
+            let raw = httui_core::fs::list_workspace(&vault.to_string_lossy()).unwrap_or_default();
             flatten(&raw, 0, &self.expanded, &mut self.entries);
         }
         if self.selected >= self.entries.len() {
@@ -232,11 +231,7 @@ fn flatten(
     }
 }
 
-fn flatten_blocks(
-    index: &BlockIndex,
-    expanded: &HashSet<String>,
-    out: &mut Vec<TreeNode>,
-) {
+fn flatten_blocks(index: &BlockIndex, expanded: &HashSet<String>, out: &mut Vec<TreeNode>) {
     for (file_idx, file) in index.files.iter().enumerate() {
         let path = file.display.clone();
         out.push(TreeNode {

@@ -184,9 +184,7 @@ pub fn run_db_block_inner(
     // resolver sees the latest persisted response (alias-keyed). The
     // local `pane.document` may be stale if another pane just re-ran
     // a sibling alias.
-    let abs_path = app
-        .active_pane()
-        .and_then(|p| p.document_path.clone());
+    let abs_path = app.active_pane().and_then(|p| p.document_path.clone());
     let mut segments_snapshot: Vec<crate::buffer::Segment> = app
         .document()
         .map(|d| d.segments().to_vec())
@@ -475,7 +473,7 @@ pub fn spawn_db_query(
         kind,
         cache_key,
         bytes_received: 0,
-            http_cache_meta: None,
+        http_cache_meta: None,
     });
     // Anchor for `gr` (rerun). Only Run / Explain set this — LoadMore
     // is a transparent pagination follow-up, not a fresh user dispatch,

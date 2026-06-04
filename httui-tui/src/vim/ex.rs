@@ -618,7 +618,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn run_goto_line_is_accepted() {
         let (mut app, _d, _v) = app_with_doc("l1\nl2\nl3\n").await;
-        assert!(matches!(run(&mut app, "2"), ExResult::Ok(_) | ExResult::Empty));
+        assert!(matches!(
+            run(&mut app, "2"),
+            ExResult::Ok(_) | ExResult::Empty
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -633,7 +636,10 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn run_write_and_wq_dispatch() {
         let (mut app, _d, _v) = app_with_doc("save me\n").await;
-        assert!(matches!(run(&mut app, "w"), ExResult::Ok(_) | ExResult::Err(_)));
+        assert!(matches!(
+            run(&mut app, "w"),
+            ExResult::Ok(_) | ExResult::Err(_)
+        ));
         let _ = run(&mut app, "wq");
     }
 

@@ -23,7 +23,7 @@ pub(crate) fn tree_new_block(app: &mut App) {
         node.path.clone()
     };
     let vault = app.vault_path.to_string_lossy().to_string();
-    let Ok(text) = httui_core::fs::read_note(&vault, &rel_path) else {
+    let Ok(text) = httui_core::fs::read_note(&vault, rel_path.as_str()) else {
         app.set_status(StatusKind::Error, "could not read file");
         return;
     };
@@ -43,7 +43,7 @@ pub(crate) fn tree_new_block(app: &mut App) {
     } else {
         format!("{text}\n\n```http alias={alias}\nGET https://example.com\n```\n")
     };
-    if let Err(e) = httui_core::fs::write_note(&vault, &rel_path, &appended) {
+    if let Err(e) = httui_core::fs::write_note(&vault, rel_path.as_str(), &appended) {
         app.set_status(StatusKind::Error, format!("write failed: {e}"));
         return;
     }
@@ -88,7 +88,7 @@ pub(crate) fn tree_delete_block(app: &mut App) {
 /// trailing blank line), writes back, refreshes the index.
 pub(crate) fn tree_delete_block_confirmed(app: &mut App, rel_path: &str, block_idx: usize) {
     let vault = app.vault_path.to_string_lossy().to_string();
-    let Ok(text) = httui_core::fs::read_note(&vault, &rel_path) else {
+    let Ok(text) = httui_core::fs::read_note(&vault, rel_path) else {
         return;
     };
     let parsed = httui_core::blocks::parse_blocks(&text);
@@ -119,7 +119,7 @@ pub(crate) fn tree_delete_block_confirmed(app: &mut App, rel_path: &str, block_i
     if !text.ends_with('\n') && out.ends_with('\n') {
         out.pop();
     }
-    if let Err(e) = httui_core::fs::write_note(&vault, &rel_path, &out) {
+    if let Err(e) = httui_core::fs::write_note(&vault, rel_path, &out) {
         app.set_status(StatusKind::Error, format!("write failed: {e}"));
         return;
     }
@@ -172,10 +172,10 @@ pub(crate) fn tree_reorder_block(app: &mut App, delta: isize) {
     }
     let rel_path = file.path.to_string_lossy().to_string();
     let vault = app.vault_path.to_string_lossy().to_string();
-    let Ok(text) = httui_core::fs::read_note(&vault, &rel_path) else {
+    let Ok(text) = httui_core::fs::read_note(&vault, rel_path.as_str()) else {
         return;
     };
-    let mut parsed = httui_core::blocks::parse_blocks(&text);
+    let parsed = httui_core::blocks::parse_blocks(&text);
     if block_idx >= parsed.len() || target_idx as usize >= parsed.len() {
         return;
     }
@@ -219,7 +219,7 @@ pub(crate) fn tree_reorder_block(app: &mut App, delta: isize) {
     if !text.ends_with('\n') && out.ends_with('\n') {
         out.pop();
     }
-    if let Err(e) = httui_core::fs::write_note(&vault, &rel_path, &out) {
+    if let Err(e) = httui_core::fs::write_note(&vault, rel_path.as_str(), &out) {
         app.set_status(StatusKind::Error, format!("write failed: {e}"));
         return;
     }
@@ -530,12 +530,8 @@ pub(crate) fn tree_open_in_split(app: &mut App, dir: crate::pane::SplitDir) {
         // chosen leaf.
         if let Some(ws) = app.blocks_workspace.as_mut() {
             let action = match dir {
-                crate::pane::SplitDir::Vertical => {
-                    crate::app::PanePickerAction::SplitVertical
-                }
-                crate::pane::SplitDir::Horizontal => {
-                    crate::app::PanePickerAction::SplitHorizontal
-                }
+                crate::pane::SplitDir::Vertical => crate::app::PanePickerAction::SplitVertical,
+                crate::pane::SplitDir::Horizontal => crate::app::PanePickerAction::SplitHorizontal,
             };
             ws.pane_picker = Some(crate::app::PanePickerIntent { target, action });
         }

@@ -52,8 +52,11 @@ pub(super) fn render_header(
             .add_modifier(Modifier::BOLD),
     ));
     left.push(Span::raw("  "));
-    let url_start_x =
-        inner.x + left.iter().map(|s| s.content.chars().count()).sum::<usize>() as u16;
+    let url_start_x = inner.x
+        + left
+            .iter()
+            .map(|s| s.content.chars().count())
+            .sum::<usize>() as u16;
     if is_http {
         if let Some(edit) = url_edit {
             // Verbatim while editing so the caret maps 1:1 to bytes.
@@ -199,7 +202,6 @@ fn run_summary(
         Some((label, crate::ui::palette::popup_border_accent(), latency))
     }
 }
-
 
 #[cfg(test)]
 mod tests {

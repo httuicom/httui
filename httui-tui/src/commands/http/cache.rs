@@ -107,8 +107,7 @@ pub(super) fn persist_http_cache_async(
     elapsed_ms: i64,
 ) {
     let env_vars: HashMap<String, String> = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(load_active_env_vars(&app.environments_store))
+        tokio::runtime::Handle::current().block_on(load_active_env_vars(&app.environments_store))
     })
     .unwrap_or_default();
     let pool = app.pool_manager.app_pool().clone();
@@ -265,7 +264,9 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn persist_http_cache_async_writes_a_block_results_row() {
-        use httui_core::block_results::{compute_http_cache_hash, get_latest_block_result_by_alias};
+        use httui_core::block_results::{
+            compute_http_cache_hash, get_latest_block_result_by_alias,
+        };
 
         let md = "```http alias=ping\nGET https://example.com/health\n```\n";
         let (app, _idx, _d, v) = app_with_block(md).await;
@@ -284,14 +285,8 @@ mod tests {
         // hangs the suite.
         let pool = app.pool_manager.app_pool().clone();
         let envs = std::collections::HashMap::new();
-        let hash = compute_http_cache_hash(
-            "GET",
-            "https://example.com/health",
-            &[],
-            &[],
-            "",
-            &envs,
-        );
+        let hash =
+            compute_http_cache_hash("GET", "https://example.com/health", &[], &[], "", &envs);
         let _ = hash;
         for _ in 0..50 {
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;

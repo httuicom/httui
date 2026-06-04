@@ -9,9 +9,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{
-    EnvFormState, EnvsPageState, EnvsPaneFocus, VarFormFocus, VarFormState,
-};
+use crate::app::{EnvFormState, EnvsPageState, EnvsPaneFocus, VarFormFocus, VarFormState};
 
 const POPUP_WIDTH: u16 = 76;
 const POPUP_HEIGHT: u16 = 30;
@@ -813,7 +811,6 @@ mod tests {
         })
         .unwrap();
     }
-
 
     #[test]
     fn truncate_under_and_over_limit() {

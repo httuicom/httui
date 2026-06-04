@@ -348,7 +348,6 @@ pub(super) fn close_completion_popup_if_open(app: &mut App) {
     }
 }
 
-
 pub(crate) fn apply_completion_dismiss(app: &mut App) {
     if matches!(app.modal, Some(crate::modal::Modal::CompletionPopup(_))) {
         app.modal = None;

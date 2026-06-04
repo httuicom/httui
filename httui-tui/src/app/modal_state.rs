@@ -88,8 +88,8 @@ pub struct HttpResponseDetailState {
     pub viewport_top: u16,
 }
 
-/// State for the run-confirm modal. Carries the segment to re-run
-/// (the cursor may have moved in between) and the human reason
+// State for the run-confirm modal. Carries the segment to re-run
+// (the cursor may have moved in between) and the human reason.
 
 /// Generic y/n confirm modal. Replaces the per-flow confirm structs
 /// (`DbConfirmRunState`, `ConnectionDeleteConfirmState`,

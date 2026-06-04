@@ -62,12 +62,9 @@ pub(crate) fn resolve_pane_key(app: &App, key: KeyEvent) -> Option<Action> {
 /// - INSERT: `Enter`/`Tab` (form input style).
 /// - vim NORMAL: `o`/`O` (vim's "open below/above" — meaningless on a
 ///   single-line cell, so we treat it as moving to the next row).
+///
 /// Multi-line fields (HTTP body / DB query) and non-HTTP cells fall through.
-fn resolve_single_line_advance(
-    app: &App,
-    sub_mode: EditSubMode,
-    key: KeyEvent,
-) -> Option<Action> {
+fn resolve_single_line_advance(app: &App, sub_mode: EditSubMode, key: KeyEvent) -> Option<Action> {
     let edit = app.active_pane().and_then(|p| p.block_edit.as_ref())?;
     if !matches!(
         edit.field,

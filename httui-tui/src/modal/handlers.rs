@@ -281,7 +281,6 @@ pub(super) fn connections_page_handle_key(key: KeyEvent) -> ModalOutcome {
     }
 }
 
-
 /// ConnectionPicker reusa o vocab `list_picker_key`, mas adiciona
 /// `Shift+D` para deletar a conexão highlighted (mantém o picker
 /// aberto com a lista recarregada).

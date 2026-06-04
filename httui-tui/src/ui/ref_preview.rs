@@ -99,7 +99,9 @@ pub(super) fn render(
             lines.push(Line::from(Span::styled(l, value_style)));
         }
     }
-    let value_para = Paragraph::new(lines).style(bg_style).wrap(Wrap { trim: false });
+    let value_para = Paragraph::new(lines)
+        .style(bg_style)
+        .wrap(Wrap { trim: false });
     frame.render_widget(value_para, inner);
 }
 
@@ -136,7 +138,12 @@ fn source_label(state: &RefPreviewState) -> (String, Style) {
                 Some(name) => format!("from env: {name}"),
                 None => "from env".to_string(),
             };
-            (label, Style::default().fg(crate::ui::palette::success()).bg(popup_bg))
+            (
+                label,
+                Style::default()
+                    .fg(crate::ui::palette::success())
+                    .bg(popup_bg),
+            )
         }
         RefSource::Block { alias, cached } => {
             let label = if *cached {
@@ -144,11 +151,18 @@ fn source_label(state: &RefPreviewState) -> (String, Style) {
             } else {
                 format!("from block: {alias} · no result")
             };
-            (label, Style::default().fg(crate::ui::palette::accent()).bg(popup_bg))
+            (
+                label,
+                Style::default()
+                    .fg(crate::ui::palette::accent())
+                    .bg(popup_bg),
+            )
         }
         RefSource::Unknown => (
             "unresolved".to_string(),
-            Style::default().fg(crate::ui::palette::amber()).bg(popup_bg),
+            Style::default()
+                .fg(crate::ui::palette::amber())
+                .bg(popup_bg),
         ),
     }
 }
@@ -211,10 +225,7 @@ mod tests {
         paint_at(state, None)
     }
 
-    fn paint_at(
-        state: &RefPreviewState,
-        caret: Option<(u16, u16)>,
-    ) -> ratatui::buffer::Buffer {
+    fn paint_at(state: &RefPreviewState, caret: Option<(u16, u16)>) -> ratatui::buffer::Buffer {
         let backend = TestBackend::new(80, 12);
         let mut term = Terminal::new(backend).unwrap();
         term.draw(|f| {

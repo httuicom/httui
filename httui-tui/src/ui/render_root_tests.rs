@@ -922,10 +922,8 @@ async fn blocks_edit_completion_lists_block_alias_above() {
     // Spawn EDIT on req2's header value with the `{{` trigger already
     // typed and the caret at end.
     if let Some(p) = app.active_pane_mut() {
-        let mut edit = crate::app::RegionEdit::insert(
-            crate::app::EditField::HttpHeaderValue(0),
-            "{{",
-        );
+        let mut edit =
+            crate::app::RegionEdit::insert(crate::app::EditField::HttpHeaderValue(0), "{{");
         edit.doc.set_cursor(Cursor::InProse {
             segment_idx: 0,
             offset: 2,

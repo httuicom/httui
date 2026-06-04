@@ -68,9 +68,7 @@ pub fn handle_db_block_result(
                 // error). Mirrors desktop behavior.
                 if !first_was_error {
                     if let (Some((file_path, hash)), Some(value)) = (cache_key, value) {
-                        let alias = history_meta
-                            .as_ref()
-                            .map(|m| m.block_alias.clone());
+                        let alias = history_meta.as_ref().map(|m| m.block_alias.clone());
                         save_db_cache_async(
                             app.pool_manager.app_pool().clone(),
                             file_path,

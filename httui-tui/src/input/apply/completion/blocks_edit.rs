@@ -97,11 +97,13 @@ pub(super) fn rebuild_completion_popup_blocks_edit(app: &mut App, allow_empty_pr
                 let segs: Vec<crate::buffer::Segment> = doc.segments().to_vec();
                 let idx = segs
                     .iter()
-                    .position(|s| matches!(
-                        s,
-                        crate::buffer::Segment::Block(b)
-                            if b.block_type == block_type && b.alias == alias
-                    ))
+                    .position(|s| {
+                        matches!(
+                            s,
+                            crate::buffer::Segment::Block(b)
+                                if b.block_type == block_type && b.alias == alias
+                        )
+                    })
                     .unwrap_or(segs.len());
                 (segs, idx)
             })
@@ -180,15 +182,15 @@ pub(super) fn rebuild_completion_popup_blocks_edit(app: &mut App, allow_empty_pr
         close_completion_popup_if_open(app);
         return;
     }
-    let (anchor_offset, prefix) =
-        match crate::sql_completion::prefix_at_cursor(&body, line, offset) {
-            Some(p) => p,
-            None if allow_empty_prefix => (offset, String::new()),
-            None => {
-                close_completion_popup_if_open(app);
-                return;
-            }
-        };
+    let (anchor_offset, prefix) = match crate::sql_completion::prefix_at_cursor(&body, line, offset)
+    {
+        Some(p) => p,
+        None if allow_empty_prefix => (offset, String::new()),
+        None => {
+            close_completion_popup_if_open(app);
+            return;
+        }
+    };
     let dialect = crate::sql_completion::Dialect::from_block_type(&block_type);
     let context = crate::sql_completion::detect_context(&body, line, anchor_offset);
     let conn_id = conn_raw
@@ -233,8 +235,7 @@ fn read_block_connection(
     file: &std::path::Path,
     line_start: usize,
 ) -> Option<String> {
-    let text =
-        httui_core::fs::read_note(&vault.to_string_lossy(), &file.to_string_lossy()).ok()?;
+    let text = httui_core::fs::read_note(&vault.to_string_lossy(), &file.to_string_lossy()).ok()?;
     let parsed = httui_core::blocks::parse_blocks(&text);
     let p = parsed.iter().find(|p| p.line_start == line_start)?;
     p.params

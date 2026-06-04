@@ -59,10 +59,7 @@ pub fn render(
         .split(inner);
     frame.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled(
-                " Ctrl+P",
-                Style::default().fg(crate::ui::palette::accent()),
-            ),
+            Span::styled(" Ctrl+P", Style::default().fg(crate::ui::palette::accent())),
             Span::styled("  Jump…", Style::default().fg(crate::ui::palette::muted())),
         ])),
         rows[0],

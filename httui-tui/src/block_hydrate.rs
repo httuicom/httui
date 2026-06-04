@@ -64,6 +64,7 @@ pub async fn hydrate_document(
     }
 }
 
+#[allow(dead_code)]
 fn compute_hash_for(
     block: &crate::buffer::block::BlockNode,
     env_vars: &HashMap<String, String>,
@@ -115,6 +116,7 @@ fn compute_hash_for(
     None
 }
 
+#[allow(dead_code)]
 fn enabled_pairs(value: Option<&serde_json::Value>) -> Vec<(String, String)> {
     let Some(arr) = value.and_then(|v| v.as_array()) else {
         return Vec::new();
@@ -207,8 +209,7 @@ pub fn hydrate_document_blocking(
         return;
     }
     tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(hydrate_document(pool, doc, env_vars, file_path))
+        tokio::runtime::Handle::current().block_on(hydrate_document(pool, doc, env_vars, file_path))
     });
 }
 
@@ -235,14 +236,8 @@ mod tests {
 
         // Pre-save a fake response keyed by alias so hydration's
         // latest-by-alias lookup has something to find.
-        let hash = compute_http_cache_hash(
-            "GET",
-            "https://example.com/health",
-            &[],
-            &[],
-            "",
-            &envs,
-        );
+        let hash =
+            compute_http_cache_hash("GET", "https://example.com/health", &[], &[], "", &envs);
         save_block_result_with_alias(
             &pool,
             "api.md",
@@ -262,9 +257,7 @@ mod tests {
             .segments()
             .iter()
             .find_map(|s| match s {
-                Segment::Block(b) if b.alias.as_deref() == Some("ping") => {
-                    b.cached_result.clone()
-                }
+                Segment::Block(b) if b.alias.as_deref() == Some("ping") => b.cached_result.clone(),
                 _ => None,
             })
             .expect("cached result populated");
@@ -321,14 +314,8 @@ mod tests {
         let envs: HashMap<String, String> = HashMap::new();
         let md = "```http alias=ping\nGET https://example.com/health\n```\n";
         let mut doc = Document::from_markdown(md).unwrap();
-        let hash = compute_http_cache_hash(
-            "GET",
-            "https://example.com/health",
-            &[],
-            &[],
-            "",
-            &envs,
-        );
+        let hash =
+            compute_http_cache_hash("GET", "https://example.com/health", &[], &[], "", &envs);
         save_block_result_with_alias(
             &pool,
             "api.md",
@@ -341,13 +328,7 @@ mod tests {
         )
         .await
         .unwrap();
-        hydrate_document(
-            &pool,
-            &mut doc,
-            &envs,
-            std::path::Path::new("api.md"),
-        )
-        .await;
+        hydrate_document(&pool, &mut doc, &envs, std::path::Path::new("api.md")).await;
         let has_cache = doc.segments().iter().any(|s| match s {
             Segment::Block(b) => b.cached_result.is_some(),
             _ => false,

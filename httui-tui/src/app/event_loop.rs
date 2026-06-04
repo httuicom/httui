@@ -35,8 +35,7 @@ pub async fn run(
     let mut app = App::new(config, resolved, app_pool);
     app.config_path = Some(config_path);
     {
-        let store =
-            httui_core::vault_config::UserStore::with_path(app.user_config_path.clone());
+        let store = httui_core::vault_config::UserStore::with_path(app.user_config_path.clone());
         if let Some(snap) = crate::persist::load_snapshot(&store, &app.vault_path) {
             crate::persist::restore(&mut app, &snap);
         }

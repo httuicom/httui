@@ -166,10 +166,8 @@ mod tests {
         let data = TempDir::new().unwrap();
         let pool = httui_core::db::init_db(data.path()).await.unwrap();
         let user_cfg = v.path().join("user.toml");
-        let env_store = httui_core::vault_config::EnvironmentsStore::new(
-            v.path().to_path_buf(),
-            user_cfg,
-        );
+        let env_store =
+            httui_core::vault_config::EnvironmentsStore::new(v.path().to_path_buf(), user_cfg);
 
         // Save a fake response under the canonical hash so the
         // hydration step has something to find. File key is the
@@ -197,15 +195,12 @@ mod tests {
         .await
         .unwrap();
 
-        let doc =
-            load_and_hydrate(v.path(), Path::new("api.md"), &pool, &env_store).unwrap();
+        let doc = load_and_hydrate(v.path(), Path::new("api.md"), &pool, &env_store).unwrap();
         let cached = doc
             .segments()
             .iter()
             .find_map(|s| match s {
-                Segment::Block(b) if b.alias.as_deref() == Some("ping") => {
-                    b.cached_result.clone()
-                }
+                Segment::Block(b) if b.alias.as_deref() == Some("ping") => b.cached_result.clone(),
                 _ => None,
             })
             .expect("cached_result populated by hydrate");

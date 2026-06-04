@@ -213,13 +213,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
                 running: running_snap,
                 popup_cursor_cell: &mut popup_cursor_cell,
             };
-            crate::ui::blocks_view::render(
-                frame,
-                editor_area,
-                &mut tab.root,
-                &focused,
-                &mut ctx,
-            );
+            crate::ui::blocks_view::render(frame, editor_area, &mut tab.root, &focused, &mut ctx);
         }
     } else if let Some(tab) = app.tabs.tabs.get_mut(active_idx) {
         let focused = tab.focused.clone();

@@ -52,20 +52,6 @@ impl BlockTab {
             block_draft: None,
         }
     }
-
-    pub fn for_document(document: Document, path: PathBuf) -> Self {
-        Self {
-            document: Some(document),
-            document_path: Some(path),
-            viewport_top: 0,
-            block_selected: None,
-            block_region: 0,
-            block_row: 0,
-            block_col: 1,
-            block_edit: None,
-            block_draft: None,
-        }
-    }
 }
 
 impl Pane {
@@ -152,10 +138,12 @@ impl Pane {
         self.block_tab_active
     }
 
-    /// Replace the active tab's state with `tab`. Used by tree `Enter`
-    /// so picking a block in the sidebar updates the focused tab in
-    /// place without spawning a new one. The previous mirror is
-    /// dropped.
+    /// Replace the active tab's state with `tab`. Originally wired to
+    /// tree `Enter`; Smart Enter inlines the mirror assignment now,
+    /// so this stays as a typed helper for future surfaces
+    /// (template paste, etc) that want the same swap-in-place
+    /// semantics without juggling the mirror by hand.
+    #[allow(dead_code)]
     pub fn replace_active_tab(&mut self, tab: BlockTab) {
         let _ = self.drain_mirror();
         self.restore_mirror_from(tab);
@@ -207,7 +195,10 @@ mod tests {
 
     #[test]
     fn new_pane_has_one_tab() {
-        let p = Pane::new(Document::from_markdown("x\n").unwrap(), PathBuf::from("a.md"));
+        let p = Pane::new(
+            Document::from_markdown("x\n").unwrap(),
+            PathBuf::from("a.md"),
+        );
         assert_eq!(p.tab_count(), 1);
         assert_eq!(p.block_tab_active, 0);
         assert!(

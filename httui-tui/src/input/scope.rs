@@ -116,8 +116,7 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
     {
         use crossterm::event::{KeyCode, KeyModifiers};
         if key.code == KeyCode::Esc
-            || (key.modifiers.contains(KeyModifiers::CONTROL)
-                && key.code == KeyCode::Char('c'))
+            || (key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c'))
         {
             return KeyOutcome::Effect(crate::input::action::Action::BlocksPanePickerCancel);
         }
@@ -143,9 +142,9 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
         app.vim.mode,
         crate::vim::mode::Mode::Tree | crate::vim::mode::Mode::TreePrompt
     ) {
-        use crossterm::event::{KeyCode, KeyModifiers};
         use crate::input::action::Action;
         use crate::input::types::WindowCmd;
+        use crossterm::event::{KeyCode, KeyModifiers};
         // Treat the sidebar as a navigable window for `Ctrl+W` chords.
         // Without this, `Ctrl+W l` from the tree was dropped because
         // `parse_tree` ignores Ctrl+W and the vim engine never sees
@@ -175,9 +174,7 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
             }
             return KeyOutcome::Consumed;
         }
-        if key.modifiers.contains(KeyModifiers::CONTROL)
-            && matches!(key.code, KeyCode::Char('w'))
-        {
+        if key.modifiers.contains(KeyModifiers::CONTROL) && matches!(key.code, KeyCode::Char('w')) {
             app.standard.pending_window_chord = true;
             return KeyOutcome::Consumed;
         }
@@ -188,9 +185,7 @@ fn handle_editor(app: &mut App, key: KeyEvent) -> KeyOutcome {
         // the pane (NAV / EDIT) keeps `d`, `dw`, `dd` etc. for its
         // own operators.
         if matches!(app.view, crate::app::AppView::Blocks) {
-            if let Some(action) =
-                crate::input::apply::blocks_view::resolve_tree_key(app, key)
-            {
+            if let Some(action) = crate::input::apply::blocks_view::resolve_tree_key(app, key) {
                 return KeyOutcome::Effect(action);
             }
         }

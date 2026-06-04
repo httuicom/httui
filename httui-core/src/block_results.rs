@@ -68,7 +68,8 @@ pub fn compute_http_cache_hash(
         .collect::<Vec<_>>()
         .join("\n");
 
-    let full_text = [method_up, canonical_url, headers_joined, body.to_string()].join("\n__SEP__\n");
+    let full_text =
+        [method_up, canonical_url, headers_joined, body.to_string()].join("\n__SEP__\n");
 
     let mut used: Vec<(&String, &String)> = env_vars
         .iter()
@@ -520,7 +521,10 @@ mod tests {
 
     #[test]
     fn encode_uri_component_keeps_js_unreserved_chars_literal() {
-        assert_eq!(encode_uri_component("a-b_c.d~e!f*g'h(i)j"), "a-b_c.d~e!f*g'h(i)j");
+        assert_eq!(
+            encode_uri_component("a-b_c.d~e!f*g'h(i)j"),
+            "a-b_c.d~e!f*g'h(i)j"
+        );
     }
 
     #[tokio::test]

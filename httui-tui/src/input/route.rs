@@ -88,10 +88,8 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
     // Settings → Keymaps without shadowing standard typing in DOC.
     // Outside BLOCKS view we drop them here so the keystroke falls
     // back to the printable-char fallback (`r` types `r`, `.` types `.`).
-    if matches!(
-        action,
-        Action::BlocksRunFocused | Action::BlocksCancelRun
-    ) && !matches!(app.view, crate::app::AppView::Blocks)
+    if matches!(action, Action::BlocksRunFocused | Action::BlocksCancelRun)
+        && !matches!(app.view, crate::app::AppView::Blocks)
     {
         if let crossterm::event::KeyCode::Char(c) = key.code {
             if !key
@@ -142,7 +140,7 @@ pub(crate) fn route_standard(app: &mut App, key: KeyEvent) {
     // dedicated (fully-covered) `standard_sel` module, with a real
     // clipboard injected here. The vim path never reaches this — it
     // never decodes into these `Action`s — so Cenário 2 is untouched.
-    let action_for_refresh = action.clone();
+    let action_for_refresh = action;
     match action {
         Action::SelectExtend(_)
         | Action::ClearSelection

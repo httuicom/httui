@@ -57,8 +57,8 @@ pub(super) fn render_tab_bar(
     frame.render_widget(Paragraph::new(line), area);
 }
 
-/// One tab cell: `{method} {alias}{ •}` text with chip-like padding
-/// + background on the active tab. The active chip uses the same
+/// One tab cell: `{method} {alias}{ •}` text with chip-like padding +
+/// background on the active tab. The active chip uses the same
 /// `block_active_bg` palette token as the focused-region rail so the
 /// language is consistent across the editor.
 fn build_tab_cell(
@@ -192,7 +192,7 @@ mod tests {
     use crate::pane::Pane;
     use ratatui::{backend::TestBackend, buffer::Buffer, Terminal};
     use std::collections::HashMap;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
 
     fn workspace_with_blocks(blocks: Vec<(&str, &str)>) -> BlocksWorkspace {
         let block_metas: Vec<BlockMeta> = blocks
@@ -208,9 +208,7 @@ mod tests {
             display: "note.md".to_string(),
             blocks: block_metas,
         };
-        BlocksWorkspace::new(BlockIndex {
-            files: vec![file],
-        })
+        BlocksWorkspace::new(BlockIndex { files: vec![file] })
     }
 
     fn make_draft() -> Box<crate::app::BlockDraft> {
@@ -287,8 +285,7 @@ mod tests {
 
     #[test]
     fn render_tab_bar_prints_alias_for_each_tab() {
-        let ws =
-            workspace_with_blocks(vec![("http", "ping"), ("db-postgres", "rows")]);
+        let ws = workspace_with_blocks(vec![("http", "ping"), ("db-postgres", "rows")]);
         let mut pane = Pane::empty();
         pane.block_selected = Some(crate::app::BlockRef {
             file_idx: 0,
@@ -318,8 +315,7 @@ mod tests {
 
     #[test]
     fn render_tab_bar_marks_dirty_with_dot() {
-        let ws =
-            workspace_with_blocks(vec![("http", "ping"), ("http", "save")]);
+        let ws = workspace_with_blocks(vec![("http", "ping"), ("http", "save")]);
         let mut pane = Pane::empty();
         pane.block_selected = Some(crate::app::BlockRef {
             file_idx: 0,

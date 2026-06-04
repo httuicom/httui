@@ -382,9 +382,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::BlocksUnsavedPromptDiscard
         | Action::BlocksUnsavedPromptCancel
         | Action::BlocksTabNew
-        | Action::BlocksTabClose
-        | Action::BlocksTabNext
-        | Action::BlocksTabPrev => {
+        | Action::BlocksTabClose => {
             crate::input::apply::blocks_view::apply_blocks_view(app, action)
         }
         Action::ShowRefPreview => crate::ref_preview::show_ref_preview(app),

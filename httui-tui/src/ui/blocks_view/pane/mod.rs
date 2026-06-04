@@ -17,10 +17,10 @@ use view::{
     ParsedView,
 };
 
-mod header;
-mod http;
 mod db;
 mod footer;
+mod header;
+mod http;
 mod tab_bar;
 
 pub(super) fn render_leaf(
@@ -263,7 +263,11 @@ fn render_region_tabs(
         vec![Span::styled(format!("{title}  "), title_style)]
     };
     for (i, label) in labels.iter().enumerate() {
-        let style = if i == active { active_style } else { idle_style };
+        let style = if i == active {
+            active_style
+        } else {
+            idle_style
+        };
         spans.push(Span::styled(format!(" {label} "), style));
         spans.push(Span::raw(" "));
     }
@@ -284,10 +288,8 @@ fn field_style(focused: bool) -> Style {
 /// DOC view uses, so refs paint identically across views. Underlines
 /// every span when the field carries the NAV cursor.
 fn refs_spans(text: &str, focused: bool) -> Vec<Span<'static>> {
-    let mut spans = crate::ui::blocks::ref_highlight::highlight_refs(
-        text,
-        &std::collections::HashSet::new(),
-    );
+    let mut spans =
+        crate::ui::blocks::ref_highlight::highlight_refs(text, &std::collections::HashSet::new());
     if focused {
         for s in &mut spans {
             s.style = s.style.add_modifier(Modifier::UNDERLINED);
@@ -315,10 +317,7 @@ fn render_multiline_region(
     if inner.width == 0 || inner.height == 0 {
         return None;
     }
-    let active_edit = pane
-        .block_edit
-        .as_ref()
-        .filter(|e| field_matches(&e.field));
+    let active_edit = pane.block_edit.as_ref().filter(|e| field_matches(&e.field));
     let (text, caret): (String, Option<(u16, u16)>) = if let Some(edit) = active_edit {
         let text = edit.current_text();
         let (row, col) = edit_cursor_row_col(edit);
@@ -368,10 +367,7 @@ fn render_fallback(frame: &mut Frame, area: Rect, raw: &str) {
         .lines()
         .map(|l| Line::from(Span::raw(l.to_string())))
         .collect();
-    frame.render_widget(
-        Paragraph::new(lines).wrap(Wrap { trim: false }),
-        area,
-    );
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
 }
 
 pub(super) fn paint_picker_overlay(frame: &mut Frame, area: Rect, n: usize) {
@@ -415,10 +411,7 @@ mod tests {
             .iter()
             .find(|s| s.content == "{{id}}")
             .expect("ref chip span");
-        assert_eq!(
-            chip.style,
-            crate::ui::blocks::ref_highlight::normal_style()
-        );
+        assert_eq!(chip.style, crate::ui::blocks::ref_highlight::normal_style());
     }
 
     #[test]
@@ -437,4 +430,3 @@ mod tests {
             .all(|s| s.style.add_modifier.contains(Modifier::UNDERLINED)));
     }
 }
-

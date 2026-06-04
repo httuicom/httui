@@ -172,8 +172,7 @@ impl UserStore {
             return Err("vault_path must not be empty".to_string());
         }
         let mut file = self.load().await?;
-        file.tui_view_state
-            .insert(vault_path.to_string(), snapshot);
+        file.tui_view_state.insert(vault_path.to_string(), snapshot);
         self.persist(file).await
     }
 
@@ -442,7 +441,9 @@ mod tests {
                 focused: vec![],
             }),
         };
-        s.set_tui_view_state("/vault/a", snap.clone()).await.unwrap();
+        s.set_tui_view_state("/vault/a", snap.clone())
+            .await
+            .unwrap();
         let back = s.tui_view_state("/vault/a").await.unwrap().unwrap();
         assert_eq!(back, snap);
         // Another vault returns None — entries are keyed.

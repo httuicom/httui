@@ -16,7 +16,15 @@ pub(super) fn render(
     }
     let picker_active = ctx.workspace.is_some_and(|w| w.pane_picker.is_some());
     let mut counter = 0usize;
-    render_inner(frame, area, node, focused_path, picker_active, ctx, &mut counter);
+    render_inner(
+        frame,
+        area,
+        node,
+        focused_path,
+        picker_active,
+        ctx,
+        &mut counter,
+    );
 }
 
 fn render_inner(
@@ -35,12 +43,12 @@ fn render_inner(
         PaneNode::Leaf(leaf) => {
             leaf.viewport_height = area.height;
             let is_focused = matches!(focused_path, Some(p) if p.is_empty());
-            let leaf_overlay = if is_focused {
-                ctx.visual_overlay
+            let leaf_overlay = if is_focused { ctx.visual_overlay } else { None };
+            let leaf_running = if is_focused {
+                ctx.running.clone()
             } else {
                 None
             };
-            let leaf_running = if is_focused { ctx.running.clone() } else { None };
             pane::render_leaf(
                 frame,
                 area,
@@ -77,8 +85,24 @@ fn render_inner(
                 }
                 _ => (None, None),
             };
-            render_inner(frame, rect_a, first, path_first, picker_active, ctx, counter);
-            render_inner(frame, rect_b, second, path_second, picker_active, ctx, counter);
+            render_inner(
+                frame,
+                rect_a,
+                first,
+                path_first,
+                picker_active,
+                ctx,
+                counter,
+            );
+            render_inner(
+                frame,
+                rect_b,
+                second,
+                path_second,
+                picker_active,
+                ctx,
+                counter,
+            );
         }
     }
 }

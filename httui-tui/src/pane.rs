@@ -114,7 +114,10 @@ impl Pane {
         // construction since serialization is lossless.
         let document = self.document.as_ref().and_then(|src| {
             let mut new_doc = Document::from_markdown(&src.to_markdown()).ok()?;
-            let original_blocks: Vec<(crate::buffer::block::ExecutionState, Option<serde_json::Value>)> = src
+            let original_blocks: Vec<(
+                crate::buffer::block::ExecutionState,
+                Option<serde_json::Value>,
+            )> = src
                 .segments()
                 .iter()
                 .filter_map(|s| match s {
@@ -126,7 +129,10 @@ impl Pane {
                 .collect();
             let mut block_idx = 0usize;
             for seg_idx in 0..new_doc.segments().len() {
-                if matches!(new_doc.segments().get(seg_idx), Some(crate::buffer::Segment::Block(_))) {
+                if matches!(
+                    new_doc.segments().get(seg_idx),
+                    Some(crate::buffer::Segment::Block(_))
+                ) {
                     if let Some((state, cached)) = original_blocks.get(block_idx).cloned() {
                         if let Some(b) = new_doc.block_at_mut(seg_idx) {
                             b.state = state;
@@ -535,7 +541,8 @@ mod tests {
         // must keep the cached_result on the same block (split must
         // not wipe the response card).
         use crate::buffer::Segment;
-        let md = "```http alias=a\nGET https://x.com\n```\n\n```http alias=b\nGET https://y.com\n```\n";
+        let md =
+            "```http alias=a\nGET https://x.com\n```\n\n```http alias=b\nGET https://y.com\n```\n";
         let mut doc = Document::from_markdown(md).unwrap();
         let cached = serde_json::json!({"status": 200, "body": {"ok": true}});
         let target = doc
@@ -666,10 +673,7 @@ mod tests {
         tab.split(SplitDir::Horizontal, pane_with_path("c.md"));
         assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("c.md")));
         assert!(tab.focus_dir(FocusDir::Up));
-        assert_eq!(
-            tab.active_leaf().document_path,
-            Some(PathBuf::from("b.md")),
-        );
+        assert_eq!(tab.active_leaf().document_path, Some(PathBuf::from("b.md")),);
     }
 
     /// Layout that matches the user's report: vertical root, left
@@ -761,5 +765,4 @@ mod tests {
             panic!("root should be a split");
         }
     }
-
 }

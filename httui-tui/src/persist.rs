@@ -154,14 +154,14 @@ fn capture_block_tabs(pane: &Pane, index: &BlockIndex) -> Vec<BlockTabSnapshot> 
 /// Resolve a snapshot's `BlockSelection` back to an in-memory `BlockRef`
 /// via the workspace index. Drops gracefully when the file/block no
 /// longer exists (typical after vault edits between sessions).
-fn block_ref_from_selection(
-    sel: Option<&BlockSelection>,
-    index: &BlockIndex,
-) -> Option<BlockRef> {
+fn block_ref_from_selection(sel: Option<&BlockSelection>, index: &BlockIndex) -> Option<BlockRef> {
     let sel = sel?;
     let file_idx = index.files.iter().position(|f| f.display == sel.file)?;
     let file = index.files.get(file_idx)?;
-    let block_idx = file.blocks.iter().position(|b| block_matches(b, &sel.key))?;
+    let block_idx = file
+        .blocks
+        .iter()
+        .position(|b| block_matches(b, &sel.key))?;
     Some(BlockRef {
         file_idx,
         block_idx,
@@ -268,7 +268,9 @@ fn restore_pane(
     env_store: &std::sync::Arc<httui_core::vault_config::EnvironmentsStore>,
 ) -> PaneNode {
     match snap {
-        PaneSnapshot::Leaf(leaf) => PaneNode::Leaf(restore_leaf(leaf, vault, index, pool, env_store)),
+        PaneSnapshot::Leaf(leaf) => {
+            PaneNode::Leaf(restore_leaf(leaf, vault, index, pool, env_store))
+        }
         PaneSnapshot::Split(split) => {
             let direction = if split.direction == SPLIT_HORIZONTAL {
                 SplitDir::Horizontal
@@ -434,7 +436,8 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn capture_records_doc_view_by_default() {
-        let (app, _d, _v) = app_with_blocks("# api\n\n```http alias=login\nGET https://x.com\n```\n").await;
+        let (app, _d, _v) =
+            app_with_blocks("# api\n\n```http alias=login\nGET https://x.com\n```\n").await;
         let snap = capture(&app);
         assert_eq!(snap.last_view, "doc");
         assert!(snap.blocks.is_none());

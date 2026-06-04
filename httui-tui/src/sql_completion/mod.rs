@@ -449,7 +449,6 @@ fn is_word_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

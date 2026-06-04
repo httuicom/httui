@@ -78,10 +78,7 @@ pub(crate) fn focus_dir(app: &mut App, dir: FocusDir) {
     // commit it before moving the focus — otherwise the cursor stays
     // attached to the old pane's sub-doc, the user can't tell the new
     // pane is focused, and subsequent keystrokes still hit the buffer.
-    if app
-        .active_pane()
-        .is_some_and(|p| p.block_edit.is_some())
-    {
+    if app.active_pane().is_some_and(|p| p.block_edit.is_some()) {
         crate::input::apply::blocks_view::commit_edit(app);
     }
     let moved = app

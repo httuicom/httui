@@ -85,8 +85,6 @@ pub(crate) fn apply_blocks_view(app: &mut App, action: Action) {
         }
         Action::BlocksTabNew => tab_new(app),
         Action::BlocksTabClose => tab_close(app),
-        Action::BlocksTabNext => tab_cycle(app, 1),
-        Action::BlocksTabPrev => tab_cycle(app, -1),
         _ => {}
     }
 }
@@ -222,9 +220,7 @@ fn choose_picker(app: &mut App, leaf_idx: usize) {
                 tab.focused = path;
             }
             let dir = match intent.action {
-                crate::app::PanePickerAction::SplitVertical => {
-                    crate::pane::SplitDir::Vertical
-                }
+                crate::app::PanePickerAction::SplitVertical => crate::pane::SplitDir::Vertical,
                 _ => crate::pane::SplitDir::Horizontal,
             };
             let mut new_pane = tab.active_leaf().snapshot_clone();

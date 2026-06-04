@@ -49,10 +49,7 @@ pub(super) fn compute_footer_lines(
         Some(a) if !a.trim().is_empty() => a.trim(),
         _ => return Vec::new(),
     };
-    let entries = match httui_core::var_uses::grep_var_uses(
-        &vault.to_string_lossy(),
-        alias,
-    ) {
+    let entries = match httui_core::var_uses::grep_var_uses(&vault.to_string_lossy(), alias) {
         Ok(e) => e,
         Err(_) => return Vec::new(),
     };
@@ -94,16 +91,11 @@ pub(super) fn compute_footer_lines(
     out
 }
 
-pub(super) fn render_block_usage_footer(
-    frame: &mut Frame,
-    area: Rect,
-    lines: &[UsageLine],
-) {
+pub(super) fn render_block_usage_footer(frame: &mut Frame, area: Rect, lines: &[UsageLine]) {
     if lines.is_empty() || area.height == 0 || area.width == 0 {
         return;
     }
-    let constraints: Vec<Constraint> =
-        (0..lines.len()).map(|_| Constraint::Length(1)).collect();
+    let constraints: Vec<Constraint> = (0..lines.len()).map(|_| Constraint::Length(1)).collect();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(constraints)
@@ -136,10 +128,7 @@ pub(super) fn render_block_usage_footer(
         let shown_count = ul.consumers.len().min(MAX_CONSUMERS);
         let mut joined = ul.consumers[..shown_count].join(" · ");
         if ul.consumers.len() > MAX_CONSUMERS {
-            joined.push_str(&format!(
-                " · +{} more",
-                ul.consumers.len() - MAX_CONSUMERS
-            ));
+            joined.push_str(&format!(" · +{} more", ul.consumers.len() - MAX_CONSUMERS));
         }
         spans.push(Span::raw(" used by ".to_string()));
         spans.push(Span::styled(
@@ -297,7 +286,10 @@ mod tests {
     #[test]
     fn excludes_refs_inside_own_file() {
         let v = TempVault::new("self");
-        v.write("self.md", "{{createUser.body.id}}\nfiller\n{{createUser}}\n");
+        v.write(
+            "self.md",
+            "{{createUser.body.id}}\nfiller\n{{createUser}}\n",
+        );
         let lines = compute_footer_lines(
             &v.path,
             &file("self.md"),
@@ -341,16 +333,9 @@ mod tests {
     #[test]
     fn caps_paths_at_three() {
         let v = TempVault::new("cap-paths");
-        v.write(
-            "u.md",
-            "{{a.p1}} {{a.p2}}\n{{a.p3}}\n{{a.p4}}\n{{a.p5}}\n",
-        );
-        let lines = compute_footer_lines(
-            &v.path,
-            &file("self.md"),
-            &block("a"),
-            &ParsedView::empty(),
-        );
+        v.write("u.md", "{{a.p1}} {{a.p2}}\n{{a.p3}}\n{{a.p4}}\n{{a.p5}}\n");
+        let lines =
+            compute_footer_lines(&v.path, &file("self.md"), &block("a"), &ParsedView::empty());
         assert_eq!(lines.len(), MAX_PATHS);
     }
 

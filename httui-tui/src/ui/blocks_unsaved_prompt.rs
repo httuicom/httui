@@ -48,10 +48,10 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &BlocksUnsavedPromptS
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),                                  // heading
-            Constraint::Min(1),                                     // file list
-            Constraint::Length(1),                                  // blank
-            Constraint::Length(1),                                  // chip row
+            Constraint::Length(1), // heading
+            Constraint::Min(1),    // file list
+            Constraint::Length(1), // blank
+            Constraint::Length(1), // chip row
         ])
         .split(inner);
 
@@ -105,9 +105,7 @@ pub fn render(frame: &mut Frame, editor_area: Rect, state: &BlocksUnsavedPromptS
 fn compute_popup_rect(editor_area: Rect, file_count: usize) -> Rect {
     let list_height = (file_count as u16).clamp(1, 6);
     let height: u16 = 2 /* borders */ + 1 /* heading */ + list_height + 1 /* blank */ + 1 /* chips */;
-    let width = POPUP_WIDTH
-        .min(editor_area.width.saturating_sub(2))
-        .max(28);
+    let width = POPUP_WIDTH.min(editor_area.width.saturating_sub(2)).max(28);
     let x = editor_area
         .x
         .saturating_add(editor_area.width.saturating_sub(width) / 2);

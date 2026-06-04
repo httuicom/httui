@@ -101,10 +101,7 @@ fn render_db_result_region(
                 .split(inner);
             render_region_tabs(frame, parts[0], "Result", &labels, 0, focused);
             if parts[1].height > 0 {
-                frame.render_widget(
-                    Paragraph::new("(no result — press r to run)"),
-                    parts[1],
-                );
+                frame.render_widget(Paragraph::new("(no result — press r to run)"), parts[1]);
             }
             return;
         }
@@ -153,10 +150,7 @@ fn render_db_result_region(
             {
                 frame.render_widget(Paragraph::new(lines), chunks[1]);
             } else {
-                frame.render_widget(
-                    Paragraph::new("(no result — press r to run)"),
-                    chunks[1],
-                );
+                frame.render_widget(Paragraph::new("(no result — press r to run)"), chunks[1]);
             }
         }
         ResultPanelTab::Messages => {
@@ -178,4 +172,3 @@ fn render_db_result_region(
         }
     }
 }
-

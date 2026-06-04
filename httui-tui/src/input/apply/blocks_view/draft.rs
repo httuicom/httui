@@ -49,7 +49,10 @@ pub(crate) fn save_draft(app: &mut App) {
         }
     }
     if !failed.is_empty() {
-        app.set_status(StatusKind::Error, format!("save failed: {}", failed.join("; ")));
+        app.set_status(
+            StatusKind::Error,
+            format!("save failed: {}", failed.join("; ")),
+        );
     } else if saved > 0 {
         // Rebuild the index so the sidebar reflects fresh aliases /
         // header counts after the save. Keep selection by ref.
@@ -144,12 +147,7 @@ pub(crate) fn restore_draft(
         let matches = pane
             .block_selected
             .map(|sel| {
-                pane.block_draft.is_none()
-                    && pane
-                        .document_path
-                        .as_ref()
-                        .map(|_| sel)
-                        .is_some()
+                pane.block_draft.is_none() && pane.document_path.as_ref().map(|_| sel).is_some()
             })
             .unwrap_or(false);
         if matches {

@@ -72,9 +72,7 @@ pub fn ref_under_cursor(text: &str, byte_offset: usize) -> Option<String> {
     let mut start = 0;
     while let Some(open_rel) = text[start..].find("{{") {
         let body_start = start + open_rel + 2;
-        let Some(close_rel) = text[body_start..].find("}}") else {
-            return None;
-        };
+        let close_rel = text[body_start..].find("}}")?;
         let body_end = body_start + close_rel;
         if byte_offset >= start + open_rel && byte_offset < body_end + 2 {
             let body = text[body_start..body_end].trim();
@@ -201,8 +199,14 @@ fn truncate_for_preview(s: &str) -> String {
 /// chord doesn't feel silently dropped.
 pub fn show_ref_preview(app: &mut App) {
     let (segment_idx, offset) = match app.document().map(|d| d.cursor()) {
-        Some(Cursor::InProse { segment_idx, offset }) => (segment_idx, offset),
-        Some(Cursor::InBlock { segment_idx, offset }) => (segment_idx, offset),
+        Some(Cursor::InProse {
+            segment_idx,
+            offset,
+        }) => (segment_idx, offset),
+        Some(Cursor::InBlock {
+            segment_idx,
+            offset,
+        }) => (segment_idx, offset),
         _ => {
             app.set_status(StatusKind::Info, "No {{ref}} under cursor");
             return;
@@ -268,9 +272,7 @@ fn focused_block_segment_idx(app: &App) -> Option<usize> {
     let alias = meta.alias.as_deref();
     let doc = pane.document.as_ref()?;
     doc.segments().iter().position(|s| match s {
-        Segment::Block(b) => {
-            b.block_type.as_str() == block_type && b.alias.as_deref() == alias
-        }
+        Segment::Block(b) => b.block_type.as_str() == block_type && b.alias.as_deref() == alias,
         _ => false,
     })
 }
@@ -448,10 +450,7 @@ mod tests {
         let text = "Authorization: {{TOKEN}}";
         // Cursor sits on `K` of TOKEN — should resolve.
         let token_k = text.find('K').unwrap();
-        assert_eq!(
-            ref_under_cursor(text, token_k),
-            Some("TOKEN".to_string())
-        );
+        assert_eq!(ref_under_cursor(text, token_k), Some("TOKEN".to_string()));
     }
 
     #[test]
@@ -580,12 +579,7 @@ mod tests {
             block_with_cached("auth", json!({"body": {"token": "first"}})),
             block_with_cached("auth", json!({"body": {"token": "second"}})),
         ];
-        let state = resolve_ref(
-            "auth.response.body.token",
-            &segments,
-            &HashMap::new(),
-            None,
-        );
+        let state = resolve_ref("auth.response.body.token", &segments, &HashMap::new(), None);
         assert_eq!(state.value, "first");
     }
 }

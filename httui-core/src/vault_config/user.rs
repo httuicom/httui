@@ -48,9 +48,7 @@ pub struct UserFile {
     pub tui_view_state: TuiViewStateMap,
 }
 
-fn deserialize_tui_view_state_lossy<'de, D>(
-    deserializer: D,
-) -> Result<TuiViewStateMap, D::Error>
+fn deserialize_tui_view_state_lossy<'de, D>(deserializer: D) -> Result<TuiViewStateMap, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -285,7 +283,10 @@ alias = "old"
 line_start = 0
 "#;
         let f: UserFile = toml::from_str(raw).unwrap();
-        assert_eq!(f.active_envs.get("/vault").map(String::as_str), Some("staging"));
+        assert_eq!(
+            f.active_envs.get("/vault").map(String::as_str),
+            Some("staging")
+        );
         assert!(f.tui_view_state.contains_key("/vault/good"));
         assert!(!f.tui_view_state.contains_key("/vault/bad"));
     }

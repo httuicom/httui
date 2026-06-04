@@ -39,6 +39,7 @@ pub struct BlockIndex {
 }
 
 impl BlockIndex {
+    #[allow(dead_code)]
     pub fn total_blocks(&self) -> usize {
         self.files.iter().map(|f| f.blocks.len()).sum()
     }
@@ -134,6 +135,7 @@ pub struct BlocksWorkspace {
     pub pane_picker: Option<PanePickerIntent>,
 }
 
+#[allow(dead_code)]
 impl BlocksWorkspace {
     pub fn new(index: BlockIndex) -> Self {
         let expanded = if index.files.len() == 1 {

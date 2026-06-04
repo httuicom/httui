@@ -736,7 +736,11 @@ mod tests {
         apply_open_connection_delete_confirm(&mut app);
         match &app.modal {
             Some(crate::modal::Modal::ConfirmPrompt(state)) => {
-                assert!(state.body.contains("to-go"), "body has name: {}", state.body);
+                assert!(
+                    state.body.contains("to-go"),
+                    "body has name: {}",
+                    state.body
+                );
                 assert!(matches!(
                     state.payload,
                     crate::app::ConfirmPayload::ConnectionName(ref n) if n == "to-go"

@@ -52,10 +52,7 @@ pub fn apply_run_http_block(app: &mut App, segment_idx: usize) {
     // response — without this, a sibling pane (or another session) that
     // just re-ran the alias would be invisible here. Same alias-keyed
     // lookup the ref popup uses.
-    if let Some(abs) = app
-        .active_pane()
-        .and_then(|p| p.document_path.clone())
-    {
+    if let Some(abs) = app.active_pane().and_then(|p| p.document_path.clone()) {
         crate::block_hydrate::hydrate_segments_blocking(
             app.pool_manager.app_pool(),
             &mut segments_snapshot,
@@ -141,25 +138,26 @@ pub fn apply_run_http_block(app: &mut App, segment_idx: usize) {
     // points at the originating pane and the block's segment_idx is
     // still valid in that pane's document. By the time the response
     // event lands, the user may have moved focus.
-    let http_cache_meta = http_block_cache_inputs(app, segment_idx).map(|(method, url, params, headers, body)| {
-        let file_path = active_file_path_string(app).unwrap_or_default();
-        let alias = app
-            .document()
-            .and_then(|d| d.segments().get(segment_idx))
-            .and_then(|s| match s {
-                Segment::Block(b) => b.alias.clone(),
-                _ => None,
-            });
-        crate::app::HttpRunCacheMeta {
-            file_path,
-            alias,
-            method,
-            url,
-            params,
-            headers,
-            body,
-        }
-    });
+    let http_cache_meta =
+        http_block_cache_inputs(app, segment_idx).map(|(method, url, params, headers, body)| {
+            let file_path = active_file_path_string(app).unwrap_or_default();
+            let alias = app
+                .document()
+                .and_then(|d| d.segments().get(segment_idx))
+                .and_then(|s| match s {
+                    Segment::Block(b) => b.alias.clone(),
+                    _ => None,
+                });
+            crate::app::HttpRunCacheMeta {
+                file_path,
+                alias,
+                method,
+                url,
+                params,
+                headers,
+                body,
+            }
+        });
 
     app.running_query = Some(RunningQuery {
         segment_idx,
@@ -202,10 +200,7 @@ pub fn handle_http_block_result(
     // Take the running query (clears the running slot) and consume
     // the pre-spawn cache snapshot — that's the source of truth for
     // file_path/alias/inputs at the moment the run was dispatched.
-    let http_cache_meta = app
-        .running_query
-        .take()
-        .and_then(|rq| rq.http_cache_meta);
+    let http_cache_meta = app.running_query.take().and_then(|rq| rq.http_cache_meta);
 
     // History insert still uses live `app` state — alias/url/size
     // here are for the run-history table, not the response cache.

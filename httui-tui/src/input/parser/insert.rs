@@ -47,7 +47,10 @@ mod tests {
 
     #[test]
     fn arrow_keys_move_cursor_in_insert() {
-        assert_eq!(parse_insert(k(KeyCode::Left)), Action::Motion(Motion::Left, 1));
+        assert_eq!(
+            parse_insert(k(KeyCode::Left)),
+            Action::Motion(Motion::Left, 1)
+        );
         assert_eq!(
             parse_insert(k(KeyCode::Right)),
             Action::Motion(Motion::Right, 1)

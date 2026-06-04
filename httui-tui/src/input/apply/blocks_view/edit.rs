@@ -55,7 +55,9 @@ pub(crate) fn enter_edit(app: &mut App, mode: EnterMode) {
     // arrive at the right parser (`parse_normal` for NORMAL,
     // `parse_insert` for INSERT). Standard profile ignores vim.mode.
     let mode = if matches!(
-        app.active_pane().and_then(|p| p.block_edit.as_ref()).map(|e| e.sub_mode),
+        app.active_pane()
+            .and_then(|p| p.block_edit.as_ref())
+            .map(|e| e.sub_mode),
         Some(EditSubMode::Insert)
     ) {
         Mode::Insert
@@ -111,7 +113,9 @@ pub(crate) fn run_focused_block(app: &mut App) {
     // the EDIT buffer. The user expects `r` mid-edit to run the
     // current text and return them to keep typing, like a REPL.
     sync_edit_to_doc_in_memory(app);
-    let Some(pane) = app.active_pane() else { return };
+    let Some(pane) = app.active_pane() else {
+        return;
+    };
     let Some(sel) = pane.block_selected else {
         app.set_status(StatusKind::Error, "no block selected");
         return;
@@ -170,8 +174,12 @@ pub(crate) fn run_focused_block(app: &mut App) {
     // sub-doc (a prose-only field buffer with zero blocks), so the
     // block lookup would always miss.
     let segment_idx = {
-        let Some(pane) = app.active_pane() else { return };
-        let Some(doc) = pane.document.as_ref() else { return };
+        let Some(pane) = app.active_pane() else {
+            return;
+        };
+        let Some(doc) = pane.document.as_ref() else {
+            return;
+        };
         let mut found = None;
         for (idx, seg) in doc.segments().iter().enumerate() {
             if let crate::buffer::Segment::Block(b) = seg {
@@ -222,8 +230,12 @@ pub(crate) fn run_focused_block(app: &mut App) {
 /// while the EDIT buffer stays open (REPL-like).
 pub(crate) fn sync_edit_to_doc_in_memory(app: &mut App) {
     let (field, text) = {
-        let Some(pane) = app.active_pane() else { return };
-        let Some(edit) = pane.block_edit.as_ref() else { return };
+        let Some(pane) = app.active_pane() else {
+            return;
+        };
+        let Some(edit) = pane.block_edit.as_ref() else {
+            return;
+        };
         (edit.field.clone(), edit.current_text())
     };
     // Update the draft so the next `Ctrl+S` writes the right text.
@@ -255,14 +267,26 @@ pub(crate) fn sync_edit_to_doc_in_memory(app: &mut App) {
     // Find the matching segment in pane.document by (type, alias) —
     // same key apply_run_block uses to identify the block.
     let target = {
-        let Some(ws) = app.blocks_workspace.as_ref() else { return };
-        let Some(sel) = app.active_pane().and_then(|p| p.block_selected) else { return };
-        let Some(file) = ws.index.files.get(sel.file_idx) else { return };
-        let Some(meta) = file.blocks.get(sel.block_idx) else { return };
+        let Some(ws) = app.blocks_workspace.as_ref() else {
+            return;
+        };
+        let Some(sel) = app.active_pane().and_then(|p| p.block_selected) else {
+            return;
+        };
+        let Some(file) = ws.index.files.get(sel.file_idx) else {
+            return;
+        };
+        let Some(meta) = file.blocks.get(sel.block_idx) else {
+            return;
+        };
         (meta.block_type.clone(), meta.alias.clone())
     };
-    let Some(pane) = app.active_pane_mut() else { return };
-    let Some(doc) = pane.document.as_mut() else { return };
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    let Some(doc) = pane.document.as_mut() else {
+        return;
+    };
     let segment_idx = doc.segments().iter().position(|s| {
         matches!(s, crate::buffer::Segment::Block(b)
             if b.block_type == target.0 && b.alias == target.1)
@@ -270,10 +294,7 @@ pub(crate) fn sync_edit_to_doc_in_memory(app: &mut App) {
     let Some(idx) = segment_idx else { return };
     if let Some(b) = doc.block_at_mut(idx) {
         if let Some(obj) = b.params.as_object_mut() {
-            obj.insert(
-                field_key.to_string(),
-                serde_json::Value::String(text),
-            );
+            obj.insert(field_key.to_string(), serde_json::Value::String(text));
         }
     }
 }
@@ -284,16 +305,24 @@ pub(crate) fn sync_edit_to_doc_in_memory(app: &mut App) {
 /// on a separate field, so it survives. No-op without a draft.
 pub(crate) fn sync_draft_to_doc_in_memory(app: &mut App) {
     let (bt, alias, params) = {
-        let Some(pane) = app.active_pane() else { return };
-        let Some(draft) = pane.block_draft.as_ref() else { return };
+        let Some(pane) = app.active_pane() else {
+            return;
+        };
+        let Some(draft) = pane.block_draft.as_ref() else {
+            return;
+        };
         (
             draft.block.block_type.clone(),
             draft.block.alias.clone(),
             draft.block.params.clone(),
         )
     };
-    let Some(pane) = app.active_pane_mut() else { return };
-    let Some(doc) = pane.document.as_mut() else { return };
+    let Some(pane) = app.active_pane_mut() else {
+        return;
+    };
+    let Some(doc) = pane.document.as_mut() else {
+        return;
+    };
     let idx = doc.segments().iter().position(|s| {
         matches!(s, crate::buffer::Segment::Block(b)
             if b.block_type == bt && b.alias == alias)
@@ -400,4 +429,74 @@ pub(crate) fn hydrate_draft(app: &mut App) -> bool {
         return true;
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::{App, AppView, BlockIndex, BlocksWorkspace};
+    use crate::config::Config;
+    use crate::pane::Pane;
+    use crate::vault::ResolvedVault;
+    use httui_core::db::init_db;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    async fn fixture(body: &str) -> (App, TempDir, TempDir) {
+        let data = TempDir::new().unwrap();
+        let vault = TempDir::new().unwrap();
+        std::fs::write(vault.path().join("note.md"), body).unwrap();
+        let pool = init_db(data.path()).await.unwrap();
+        let resolved = ResolvedVault {
+            vault: vault.path().to_path_buf(),
+        };
+        let mut app = App::new(Config::default(), resolved, pool);
+        let doc = crate::buffer::Document::from_markdown(body).unwrap();
+        if let Some(leaf) = app.active_pane_mut() {
+            *leaf = Pane::new(doc, PathBuf::from("note.md"));
+        }
+        app.view = AppView::Blocks;
+        app.blocks_workspace = Some(BlocksWorkspace::new(BlockIndex::build(&app.vault_path)));
+        (app, data, vault)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_edit_clears_buffer_and_returns_to_normal() {
+        let (mut app, _d, _v) = fixture("```http alias=a\nGET https://x.com\n```\n").await;
+        cancel_edit(&mut app);
+        assert!(app.active_pane().unwrap().block_edit.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn field_for_focus_returns_none_without_selection() {
+        let (app, _d, _v) = fixture("```http alias=a\nGET https://x.com\n```\n").await;
+        assert!(field_for_focus(&app).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn current_field_value_returns_none_without_draft() {
+        let (app, _d, _v) = fixture("```http alias=a\nGET https://x.com\n```\n").await;
+        assert!(current_field_value(&app, &EditField::HttpBody).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn hydrate_draft_returns_false_without_block_selection() {
+        let (mut app, _d, _v) = fixture("just prose\n").await;
+        assert!(!hydrate_draft(&mut app));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn run_focused_block_skips_in_doc_view() {
+        let (mut app, _d, _v) = fixture("hello\n").await;
+        app.view = AppView::Doc;
+        run_focused_block(&mut app);
+        // No panic — DOC view bails out before touching the runner.
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn enter_edit_no_op_without_block_selection() {
+        let (mut app, _d, _v) = fixture("plain\n").await;
+        enter_edit(&mut app, EnterMode::Auto);
+        assert!(app.active_pane().unwrap().block_edit.is_none());
+    }
 }

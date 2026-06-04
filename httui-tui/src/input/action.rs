@@ -487,13 +487,12 @@ pub enum Action {
     /// collapsed via the same path as `Ctrl+W q`. Standard `Ctrl+W` in
     /// BLOCKS view; vim `:bd` / `Ctrl+Q` cover the same semantic.
     BlocksTabClose,
-    /// Activate the next BLOCKS-view tab in the focused pane, wrapping
-    /// from last → first. Bound to `gt` (vim NORMAL) and `Ctrl+PgDn`
-    /// (standard) by default; both bindings are keymap-configurable.
-    BlocksTabNext,
-    /// Activate the previous BLOCKS-view tab, wrapping first → last.
-    /// Bound to `gT` (vim NORMAL) and `Ctrl+PgUp` (standard) by default.
-    BlocksTabPrev,
+    // Tab cycling for the BLOCKS-view strip is routed via the existing
+    // `Action::TabNext` / `Action::TabPrev` (contextual handler in
+    // `tree_nav` forwards to `tab_cycle` when the pane has >1 tab),
+    // so no dedicated `BlocksTabNext` / `BlocksTabPrev` variants live
+    // here — both `gt`/`gT` and `Ctrl+PgDn`/`Ctrl+PgUp` re-use the
+    // unified action.
     /// `K` (vim NORMAL) / `Alt+K` (standard): show the hover-preview
     /// popup for the `{{ref}}` token under the cursor. Resolves
     /// against the same env vars + previous blocks the runtime uses.
