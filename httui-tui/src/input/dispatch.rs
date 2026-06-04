@@ -158,6 +158,15 @@ fn handle_modal_key(app: &mut App, key: KeyEvent) {
         ModalOutcome::Emit(action) => {
             apply_action(app, action, false);
         }
+        ModalOutcome::CloseAndForward => {
+            // Only the scope walker uses this — direct dispatch (this
+            // path) re-dispatch isn't wired, so degrade to a plain
+            // close. RefPreview opens via the keymap which goes
+            // through `scope::route`, so this branch is unreachable
+            // in production today.
+            app.modal = None;
+            app.vim.enter_normal();
+        }
     }
 }
 
@@ -378,6 +387,7 @@ pub(crate) fn apply_action(app: &mut App, action: Action, recording: bool) {
         | Action::BlocksTabPrev => {
             crate::input::apply::blocks_view::apply_blocks_view(app, action)
         }
+        Action::ShowRefPreview => crate::ref_preview::show_ref_preview(app),
         Action::JumpNextBlock
         | Action::JumpPrevBlock
         | Action::RerunLastBlock

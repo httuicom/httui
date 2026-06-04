@@ -182,6 +182,16 @@ pub(super) fn render_modals(
         help::render(frame, editor_area);
     }
 
+    // Ref hover-preview popup — opened by `K` (vim) / `Alt+K` (std)
+    // when the cursor sits inside a `{{ref}}`. Anchors at the caret
+    // cell (same source the SQL-completion popup uses) so the popup
+    // sits one row below the ref the user is hovering. Falls back to
+    // a centered overlay when no caret cell is published (DOC view).
+    // Esc / `q` / Ctrl-C close.
+    if let Some(crate::modal::Modal::RefPreview(state)) = app.modal.as_ref() {
+        ref_preview::render(frame, editor_area, state, popup_cursor_cell);
+    }
+
     // Block-template picker — opened by `gN`. Centered popup with
     // a fixed list of fence templates; confirm splices the picked
     // template into the prose at the cursor and re-parses.

@@ -189,6 +189,11 @@ pub fn standard_actions() -> Vec<ActionSpec> {
         // between file-tab and block-tab cycling.
         spec("blocks_tab_new", "ctrl+t", Action::BlocksTabNew),
         spec("blocks_tab_close", "ctrl+q", Action::BlocksTabClose),
+        // `K` / `Alt+K` hover-preview for `{{ref}}` under the cursor.
+        // Vim's `K` is bound directly in the normal parser (it's the
+        // canonical chord); the standard binding here is what shows
+        // up in Settings → Keymaps for non-vim users.
+        spec("show_ref_preview", "alt+k", Action::ShowRefPreview),
     ]
 }
 
@@ -304,6 +309,7 @@ pub fn is_editor_global_shortcut(action: Action) -> bool {
             | Action::ToggleAppView
             | Action::BlocksTabNew
             | Action::BlocksTabClose
+            | Action::ShowRefPreview
     )
 }
 

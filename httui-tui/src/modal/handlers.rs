@@ -393,6 +393,22 @@ pub(super) fn help_handle_key(key: KeyEvent) -> ModalOutcome {
     }
 }
 
+/// Hover-tooltip dismissal: explicit-close chords swallow the key
+/// (Esc / `q` / Ctrl+C), everything else dismisses AND forwards so a
+/// motion like `j` closes the popup AND moves the cursor in the
+/// same tap — matches IDE tooltip behaviour.
+pub(super) fn ref_preview_handle_key(key: KeyEvent) -> ModalOutcome {
+    let KeyEvent {
+        code, modifiers, ..
+    } = key;
+    match (modifiers, code) {
+        (_, KeyCode::Esc) => ModalOutcome::Close,
+        (KeyModifiers::CONTROL, KeyCode::Char('c')) => ModalOutcome::Close,
+        (m, KeyCode::Char('q')) if !m.contains(KeyModifiers::CONTROL) => ModalOutcome::Close,
+        _ => ModalOutcome::CloseAndForward,
+    }
+}
+
 // V4 P2-P4 handlers ----------
 
 pub(super) fn envs_page_handle_key(focus: EnvsPaneFocus, key: KeyEvent) -> ModalOutcome {

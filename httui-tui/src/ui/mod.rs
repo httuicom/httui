@@ -37,6 +37,7 @@ pub(crate) mod palette;
 mod pane_tree;
 mod prose;
 mod quickopen;
+mod ref_preview;
 mod render_modals;
 mod render_root;
 /// Settings page (Keymaps / Theme / Editor).

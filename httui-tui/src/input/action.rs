@@ -494,5 +494,10 @@ pub enum Action {
     /// Activate the previous BLOCKS-view tab, wrapping first → last.
     /// Bound to `gT` (vim NORMAL) and `Ctrl+PgUp` (standard) by default.
     BlocksTabPrev,
+    /// `K` (vim NORMAL) / `Alt+K` (standard): show the hover-preview
+    /// popup for the `{{ref}}` token under the cursor. Resolves
+    /// against the same env vars + previous blocks the runtime uses.
+    /// No-op when the cursor isn't on a complete `{{ref}}`.
+    ShowRefPreview,
     Noop,
 }

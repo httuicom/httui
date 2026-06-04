@@ -273,6 +273,10 @@ fn handle_modal(app: &mut App, key: KeyEvent) -> KeyOutcome {
         }
         crate::modal::ModalOutcome::Emit(action) => KeyOutcome::Effect(action),
         crate::modal::ModalOutcome::Forward => KeyOutcome::Forward,
+        crate::modal::ModalOutcome::CloseAndForward => {
+            app.modal = None;
+            KeyOutcome::Forward
+        }
     }
 }
 

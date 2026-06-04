@@ -153,6 +153,11 @@ pub enum Modal {
     /// for confirm/cancel — see [`ConfirmPromptState`]. The per-flow
     /// data lives in `ConfirmPayload` so action appliers extract it.
     ConfirmPrompt(ConfirmPromptState),
+    /// `K` (vim NORMAL) / `Alt+K` (standard): hover-preview of the
+    /// `{{ref}}` under the cursor — shows the resolved value plus
+    /// where it came from (env var / block alias). Esc / q / Ctrl-C
+    /// close. Read-only, so no key gets forwarded back to the editor.
+    RefPreview(crate::ref_preview::RefPreviewState),
 }
 
 /// Tag for the open [`Modal::Prompt`]. Carries the per-kind context
@@ -183,6 +188,11 @@ pub enum ModalOutcome {
     /// which then operates on `app.document_mut()` (redirected to the
     /// modal's sub-doc by [`crate::app::App::document_mut`]).
     Forward,
+    /// Close the modal AND let the same keystroke reach the editor
+    /// scope underneath. Used by transient hover popups (RefPreview)
+    /// so motion keys like `hjkl` dismiss the popup and move the
+    /// cursor in a single tap — same UX as IDE tooltips.
+    CloseAndForward,
 }
 
 impl Modal {
@@ -235,6 +245,7 @@ impl Modal {
             Modal::Settings(s) => settings_page_handle_key(s.capture.is_some(), key),
             Modal::BlocksUnsavedPrompt(s) => blocks_unsaved_prompt_handle_key(s, key),
             Modal::ConfirmPrompt(s) => confirm_prompt_handle_key(s, key),
+            Modal::RefPreview(_) => ref_preview_handle_key(key),
         }
     }
 
