@@ -138,70 +138,34 @@ fn compute_popup_rect(
     let body_rows = state.items.len().clamp(1, MAX_VISIBLE_ROWS) as u16;
     let popup_height = body_rows.saturating_add(2);
     let width = POPUP_WIDTH.min(editor_area.width.saturating_sub(2)).max(20);
-    let editor_right = editor_area.x.saturating_add(editor_area.width);
-    let editor_bottom = editor_area.y.saturating_add(editor_area.height);
-
-    if let Some(anchor) = anchor {
-        // Cursor cell inside the block (1-cell border on every side).
-        // `anchor_line` and `anchor_offset` are body-relative; clamp
-        // x so the popup never spills past the editor's right edge
-        // (slides left), and so wide labels stay readable.
-        //
-        // BLOCKS-view multi-pane EDIT publishes the real caret screen X
-        // (`cursor_x_override`) so the popup anchors under the focused
-        // pane instead of the editor area's left edge — without it,
-        // `editor_area.x + anchor_offset` lands inside whichever pane
-        // owns the leftmost column.
+    // Resolve the caret screen cell. With an anchor, derive the
+    // (cursor_x, cursor_y) the same way the pre-helper code did; the
+    // overrides take precedence so BLOCKS-view multi-pane EDIT can
+    // publish the real caret position. Without an anchor → no caret
+    // → `place_near_caret` will center.
+    let caret = anchor.map(|anchor| {
         let cursor_x = cursor_x_override.unwrap_or_else(|| {
             editor_area
                 .x
                 .saturating_add(1)
                 .saturating_add(state.anchor_offset as u16)
         });
-        // BLOCKS-view multi-pane EDIT publishes the real caret screen Y
-        // (`cursor_y_override`) so the popup sits exactly one row below the
-        // typing line (IDE-style). The DOC-view fallback derives it from the
-        // anchor's screen_top + body-relative anchor_line.
         let cursor_y = cursor_y_override.unwrap_or_else(|| {
             anchor
                 .screen_top
                 .saturating_add(3)
                 .saturating_add(state.anchor_line as u16)
         });
-
-        // Right-edge clamp: shift the popup left until it fits.
-        let popup_x = cursor_x.min(editor_right.saturating_sub(width));
-
-        // Always render below the cursor, clipping the popup height
-        // if there isn't full room left. Going above tends to cover
-        // the prose/headers the user is referencing — keeping it
-        // strictly below + truncated is the desktop's behaviour and
-        // what the user expects (issue 2026-05-23).
-        let below_top = cursor_y.saturating_add(1);
-        let avail = editor_bottom.saturating_sub(below_top);
-        // Need at least the border (top + bottom = 2) + 1 row.
-        if avail >= 3 {
-            let h = popup_height.min(avail);
-            return Rect {
-                x: popup_x,
-                y: below_top,
-                width,
-                height: h,
-            };
-        }
-    }
-
-    // No anchor or no room above/below — center on the editor area.
-    let x = editor_area
-        .x
-        .saturating_add((editor_area.width.saturating_sub(width)) / 2);
-    let y = editor_area
-        .y
-        .saturating_add((editor_area.height.saturating_sub(popup_height)) / 2);
-    Rect {
-        x,
-        y,
+        (cursor_x, cursor_y)
+    });
+    // `TruncateBelow` mirrors the pre-helper policy: never flip above
+    // (would cover the prose the user is referencing — 2026-05-23
+    // decision); shrink the popup or center when there's no room.
+    crate::ui::anchor::place_near_caret(
+        editor_area,
         width,
-        height: popup_height,
-    }
+        popup_height,
+        caret,
+        crate::ui::anchor::CaretPlacement::TruncateBelow,
+    )
 }

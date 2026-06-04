@@ -53,6 +53,97 @@ pub(crate) struct BlockAnchor {
     pub height: u16,
 }
 
+/// Fallback policy when a popup of fixed `(w, h)` won't fit one row
+/// below the caret. Different popups want different trade-offs:
+///
+/// - `FlipAbove`: when there isn't room below, place the popup above
+///   the caret instead. Used by hover overlays (ref preview) where
+///   it's OK if the popup briefly covers the source row.
+/// - `TruncateBelow`: keep the popup below; clip the height to
+///   whatever fits. Used by the completion popup so the dropdown
+///   never obscures the text being completed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CaretPlacement {
+    FlipAbove,
+    TruncateBelow,
+}
+
+/// Place a `(w, h)` popup near `caret` (screen-coordinate `(col, row)`),
+/// clamped horizontally to `area` so it never spills past the right
+/// edge. When `caret` is `None`, centers the popup in `area` — used
+/// when neither call site can derive a caret position (DOC view's
+/// ref preview, completion popup without an anchor).
+pub(crate) fn place_near_caret(
+    area: Rect,
+    w: u16,
+    h: u16,
+    caret: Option<(u16, u16)>,
+    policy: CaretPlacement,
+) -> Rect {
+    let Some((cx, cy)) = caret else {
+        return center_in(area, w, h);
+    };
+    let right_edge = area.x.saturating_add(area.width);
+    let bottom_edge = area.y.saturating_add(area.height);
+    // Horizontal: prefer aligning the popup's left edge with the
+    // caret; slide left when the right edge would overflow.
+    let max_x = right_edge.saturating_sub(w);
+    let x = cx.min(max_x).max(area.x);
+    // Vertical: one row below the caret is the canonical IDE
+    // tooltip / completion position.
+    let below_y = cy.saturating_add(1);
+    let avail_below = bottom_edge.saturating_sub(below_y);
+    match policy {
+        CaretPlacement::FlipAbove => {
+            if avail_below >= h {
+                Rect {
+                    x,
+                    y: below_y,
+                    width: w,
+                    height: h,
+                }
+            } else {
+                // Bottom edge of the popup lands one row above the
+                // caret. Clamp to `area.y` so we never go negative
+                // on a tiny screen.
+                let y = cy.saturating_sub(h).max(area.y);
+                Rect {
+                    x,
+                    y,
+                    width: w,
+                    height: h,
+                }
+            }
+        }
+        CaretPlacement::TruncateBelow => {
+            // Mirrors completion popup's pre-existing policy (2026-
+            // 05-23 decision): never flip above; centering is the
+            // fallback when truncation can't yield a usable height
+            // (less than border + 1 row).
+            if avail_below >= 3 {
+                let truncated = h.min(avail_below);
+                Rect {
+                    x,
+                    y: below_y,
+                    width: w,
+                    height: truncated,
+                }
+            } else {
+                center_in(area, w, h)
+            }
+        }
+    }
+}
+
+fn center_in(area: Rect, w: u16, h: u16) -> Rect {
+    Rect {
+        x: area.x.saturating_add((area.width.saturating_sub(w)) / 2),
+        y: area.y.saturating_add((area.height.saturating_sub(h)) / 2),
+        width: w,
+        height: h,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -199,5 +290,83 @@ mod tests {
         assert_eq!(a.screen_top, 4);
         assert_eq!(b.height, 9);
         assert!(format!("{a:?}").contains("BlockAnchor"));
+    }
+
+    fn ar(x: u16, y: u16, w: u16, h: u16) -> Rect {
+        Rect::new(x, y, w, h)
+    }
+
+    #[test]
+    fn place_near_caret_centers_without_caret() {
+        let r = place_near_caret(ar(0, 0, 80, 20), 30, 4, None, CaretPlacement::FlipAbove);
+        assert_eq!(r.x, 25, "(80 - 30) / 2");
+        assert_eq!(r.y, 8, "(20 - 4) / 2");
+    }
+
+    #[test]
+    fn place_near_caret_flips_above_lands_below_when_room_fits() {
+        let r = place_near_caret(
+            ar(0, 0, 80, 24),
+            30,
+            3,
+            Some((20, 4)),
+            CaretPlacement::FlipAbove,
+        );
+        assert_eq!(r.x, 20);
+        assert_eq!(r.y, 5, "one row below caret");
+    }
+
+    #[test]
+    fn place_near_caret_flips_above_when_no_room_below() {
+        let r = place_near_caret(
+            ar(0, 0, 80, 10),
+            30,
+            3,
+            Some((10, 9)),
+            CaretPlacement::FlipAbove,
+        );
+        assert_eq!(r.y, 6, "caret_y - height = 9 - 3");
+    }
+
+    #[test]
+    fn place_near_caret_clamps_right_edge() {
+        let r = place_near_caret(
+            ar(0, 0, 50, 24),
+            40,
+            3,
+            Some((40, 2)),
+            CaretPlacement::FlipAbove,
+        );
+        assert_eq!(r.x, 10, "right edge = area.x + area.w - popup.w = 10");
+    }
+
+    #[test]
+    fn place_near_caret_truncate_keeps_below_and_shrinks_height() {
+        // Caret near the bottom: not enough room for the full popup
+        // height, but `avail_below >= 3` so we truncate instead of
+        // flipping.
+        let r = place_near_caret(
+            ar(0, 0, 80, 10),
+            30,
+            6,
+            Some((0, 5)),
+            CaretPlacement::TruncateBelow,
+        );
+        assert_eq!(r.y, 6);
+        assert_eq!(r.height, 4, "10 - 6 = 4 rows below the caret");
+    }
+
+    #[test]
+    fn place_near_caret_truncate_falls_back_to_center_when_no_room() {
+        // Caret at the bottom row: avail_below < 3 → centers.
+        let r = place_near_caret(
+            ar(0, 0, 80, 10),
+            30,
+            4,
+            Some((0, 9)),
+            CaretPlacement::TruncateBelow,
+        );
+        assert_eq!(r.x, 25);
+        assert_eq!(r.y, 3, "(10 - 4) / 2");
     }
 }
