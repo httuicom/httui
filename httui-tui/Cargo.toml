@@ -15,7 +15,7 @@ name = "notes-tui"
 path = "src/main.rs"
 
 [dependencies]
-httui-core = { path = "../httui-core" }
+httui-core = { git = "https://github.com/httuicom/httui-core", rev = "af75dbea47d59c195081469e096b33b8d231ecf9" }
 ropey = "1"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "tls-rustls"] }
 ratatui = "0.29"

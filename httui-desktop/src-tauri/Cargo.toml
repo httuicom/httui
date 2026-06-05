@@ -17,7 +17,7 @@ documentation.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-httui-core = { path = "../../httui-core" }
+httui-core = { git = "https://github.com/httuicom/httui-core", rev = "af75dbea47d59c195081469e096b33b8d231ecf9" }
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
