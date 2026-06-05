@@ -1,0 +1,15 @@
+{
+  "blocks": [
+    {
+      "block_type": "db-postgres",
+      "alias": "users",
+      "display_mode": "split",
+      "params": {
+        "query": "SELECT id, email\nFROM users\nWHERE created_at > now() - interval '7 days'",
+        "connection_id": "prod",
+        "limit": 100,
+        "timeout_ms": 30000
+      }
+    }
+  ]
+}

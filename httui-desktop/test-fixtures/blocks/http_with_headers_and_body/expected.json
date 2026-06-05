@@ -1,0 +1,19 @@
+{
+  "blocks": [
+    {
+      "block_type": "http",
+      "alias": "login",
+      "display_mode": "split",
+      "params": {
+        "method": "POST",
+        "url": "https://api.example.com/login",
+        "params": [],
+        "headers": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Accept", "value": "application/json"}
+        ],
+        "body": "{\"user\":\"alice\",\"pw\":\"secret\"}"
+      }
+    }
+  ]
+}

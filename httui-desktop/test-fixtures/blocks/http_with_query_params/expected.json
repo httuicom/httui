@@ -1,0 +1,21 @@
+{
+  "blocks": [
+    {
+      "block_type": "http",
+      "alias": "search",
+      "display_mode": null,
+      "params": {
+        "method": "GET",
+        "url": "https://api.example.com/search",
+        "params": [
+          {"key": "q", "value": "hello%20world"},
+          {"key": "page", "value": "2"}
+        ],
+        "headers": [
+          {"key": "Accept", "value": "application/json"}
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

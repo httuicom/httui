@@ -1,11 +1,11 @@
 /**
  * Parity runner for the TS side of the block parser/serializer.
  *
- * Loads every fixture under `httui-core/tests/parity-fixtures/blocks/`,
- * parses the `input.md`, and asserts the result matches `expected.json`
- * — the same fixtures the Rust runner at `httui-core/tests/block_parity.rs`
- * consumes. When the two parsers diverge, one of them is wrong; the
- * fixture is the contract.
+ * Loads every fixture under `httui-desktop/test-fixtures/blocks/`,
+ * parses the `input.md`, and asserts the result matches `expected.json`.
+ * The Rust runner consumes a mirror copy of these fixtures from the
+ * httui-core repository. When the two parsers diverge, one of them is
+ * wrong; the fixture is the contract.
  *
  * The TS surface is split into multiple functions
  * (`parseHttpFenceInfo` + `parseHttpMessageBody` for http,
@@ -31,7 +31,7 @@ import { parseDbFenceInfo } from "../db-fence";
 // Rust runner.
 const FIXTURES_DIR = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
-  "../../../../../httui-core/tests/parity-fixtures/blocks",
+  "../../../../test-fixtures/blocks",
 );
 
 interface CanonicalBlock {

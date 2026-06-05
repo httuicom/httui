@@ -1,0 +1,16 @@
+{
+  "blocks": [
+    {
+      "block_type": "http",
+      "alias": "ping",
+      "display_mode": null,
+      "params": {
+        "method": "GET",
+        "url": "https://api.example.com/health",
+        "params": [],
+        "headers": [],
+        "body": ""
+      }
+    }
+  ]
+}
