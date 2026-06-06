@@ -134,7 +134,7 @@ npm test               # Frontend (vitest, runs against httui-desktop)
 cargo test --workspace # Backend (all Rust crates)
 ```
 
-The repo is a Cargo + npm workspace. Top-level layout: `httui-core/`, `httui-desktop/`, `httui-tui/`, `httui-mcp/`, `httui-web/`, `httui-sidecar/`. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full breakdown.
+The repo is a Cargo + npm workspace. Top-level layout: `httui-core/`, `httui-desktop/`, `httui-tui/`, `httui-mcp/`, `httui-sidecar/`. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full breakdown. The marketing landing and end-user docs live in [httui-site](https://github.com/httuicom/httui-site) and are deployed to [httui.com](https://httui.com).
 
 ## Security
 

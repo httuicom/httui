@@ -11,7 +11,6 @@ httui-desktop/    Tauri v2 desktop app
   src-tauri/      Rust backend (commands, fs, keychain, sidecar bridge)
 httui-tui/        Terminal UI (ratatui)
 httui-mcp/        MCP server exposing notes/connections to LLM agents
-httui-web/        Marketing landing (deployed to httui.com)
 httui-sidecar/    Node.js sidecar for the Claude Agent SDK
 ```
 
@@ -48,7 +47,7 @@ make tui              # run the terminal binary
 make sidecar          # rebuild the Node.js sidecar bundle
 make test             # cargo workspace + tui tests + vitest unit project
 make check            # tsc --noEmit + cargo fmt --check + cargo clippy --all-targets -D warnings
-make lint             # eslint across httui-desktop and httui-web
+make lint             # eslint across httui-desktop
 make fmt              # cargo fmt --all + prettier --write across all source dirs
 make size-check       # touched-files size gate (≤600 lines per file)
 make coverage-check   # touched-files coverage gate (≥80% per file changed)

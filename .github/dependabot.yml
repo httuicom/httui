@@ -30,8 +30,7 @@ updates:
       - dependency-name: "tauri-plugin-*"
         update-types: [version-update:semver-major]
 
-  # npm workspaces — root package.json + httui-desktop / httui-web /
-  # httui-sidecar.
+  # npm workspaces — root package.json + httui-desktop + httui-sidecar.
   - package-ecosystem: npm
     directory: /
     schedule:
