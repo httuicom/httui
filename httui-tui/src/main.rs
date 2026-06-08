@@ -81,11 +81,11 @@ async fn run(cli: Cli) -> TuiResult<()> {
 fn init_tracing(level: &str) -> TuiResult<tracing_appender::non_blocking::WorkerGuard> {
     let log_dir = config::log_dir()?;
     std::fs::create_dir_all(&log_dir)?;
-    let file_appender = rolling::daily(&log_dir, "notes-tui.log");
+    let file_appender = rolling::daily(&log_dir, "httui-tui.log");
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     let filter = EnvFilter::try_from_default_env()
-        .or_else(|_| EnvFilter::try_new(format!("notes_tui={level},httui_tui={level}")))
+        .or_else(|_| EnvFilter::try_new(format!("httui_tui={level}")))
         .map_err(|e| TuiError::Config(format!("invalid log level: {e}")))?;
 
     tracing_subscriber::registry()

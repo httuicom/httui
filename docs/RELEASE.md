@@ -116,6 +116,72 @@ sudo rpm -i  httui-0.4.0-1.x86_64.rpm     # Fedora/RHEL
 chmod +x httui_0.4.0_amd64.AppImage && ./httui_0.4.0_amd64.AppImage
 ```
 
+## 7a. TUI distribution & unified `httui` launcher
+
+Every release ships **three** binaries side by side inside the same
+bundle:
+
+| Binary | Role |
+|---|---|
+| `httui` | Launcher exposed on the `PATH`. Routes to the TUI by default; `httui desktop [args]` opens the desktop app. |
+| `httui-tui` | Terminal UI binary (formerly `notes-tui`). |
+| `httui-desktop` | Desktop main binary (Tauri). What the `.app` / `.exe` runs when launched from Finder / Start menu. |
+
+How the launcher reaches the siblings: `httui` resolves
+`current_exe().parent()` and looks for `httui-tui` (default) or
+`httui-desktop` (`httui desktop`) in the same directory.
+
+**Pipeline integration:** the `Stage TUI + launcher binaries for the
+bundle` step in `release.yml` runs `scripts/prepare-bundle-bins.sh`
+once per matrix entry. The script builds `httui-tui` + `httui-launcher`
+in release mode for the target triple (matrix `target`, falling back to
+the host triple when empty) and copies them to
+`httui-desktop/src-tauri/binaries/<name>-<triple>` — the layout Tauri's
+`bundle.externalBin` expects. The Tauri bundler then drops the suffix
+on the destination side (`Contents/MacOS/httui-tui`, `/usr/bin/httui`).
+
+**Per-platform install layout:**
+
+- **macOS `.dmg` / cask:** all three binaries land in
+  `httui.app/Contents/MacOS/`. The cask declares `binary
+  "#{appdir}/httui.app/Contents/MacOS/httui", target: "httui"`, so
+  `brew install --cask httui` creates `/usr/local/bin/httui`
+  automatically — no postinstall needed.
+- **Linux `.deb` / `.rpm`:** Tauri places all three under `/usr/bin/`
+  (no PATH change required).
+- **Linux `.AppImage`:** the `httui` launcher inside the AppImage
+  expects siblings in `usr/bin/` of the squashed FS; running the
+  AppImage executes the desktop main entry, so the TUI is reachable
+  only by extracting the AppImage. Documented limitation —
+  installation via `.deb`/`.rpm` is the supported path for terminal
+  use.
+- **Windows `.msi` / `.exe`:** the three binaries install to
+  `%LOCALAPPDATA%\Programs\httui\`. Adding `%LOCALAPPDATA%\Programs\httui`
+  to the user `PATH` automatically is **out of scope for v1** — users
+  who want the terminal command run `httui` from that directory or add
+  the folder to `PATH` manually. Follow-up issue tracks NSIS PATH
+  injection.
+
+**Local install (without Homebrew):**
+
+```bash
+make install        # builds bundle and copies httui.app to /Applications
+make install-tui    # ln -s /Applications/httui.app/Contents/MacOS/httui /usr/local/bin/httui
+```
+
+**Smoke test (post-install)**
+
+```bash
+httui --help                    # launcher help
+httui                           # opens the TUI
+httui desktop                   # opens the desktop app
+open /Applications/httui.app    # double-click equivalent
+```
+
+Opening the `.app` from the GUI keeps the original behavior
+(`CFBundleExecutable` → `httui-desktop`); the launcher does not
+intercept that path.
+
 ## 8. Homebrew
 
 Prerequisite: the tap repo **`httuicom/homebrew-httui`** must exist

@@ -9,7 +9,7 @@ use std::path::PathBuf;
 /// (mirrors the desktop). On the very first run you'll be prompted for
 /// a path on stdin.
 #[derive(Debug, Parser)]
-#[command(name = "notes-tui", version, about)]
+#[command(name = "httui-tui", version, about)]
 pub struct Cli {
     /// Override the config file location.
     #[arg(long, value_name = "FILE")]

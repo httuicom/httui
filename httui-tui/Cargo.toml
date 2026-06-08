@@ -11,7 +11,7 @@ homepage.workspace = true
 documentation.workspace = true
 
 [[bin]]
-name = "notes-tui"
+name = "httui-tui"
 path = "src/main.rs"
 
 [dependencies]

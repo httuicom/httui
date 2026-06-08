@@ -241,7 +241,7 @@ pub(crate) fn render_empty_state_inline(frame: &mut Frame, area: Rect, vault: &s
             Style::default().add_modifier(Modifier::DIM),
         )),
     ];
-    let block = Block::default().borders(Borders::ALL).title("notes-tui");
+    let block = Block::default().borders(Borders::ALL).title("httui-tui");
     frame.render_widget(Paragraph::new(lines).block(block), area);
 }
 
@@ -521,6 +521,6 @@ mod tests {
             "hint missing: {text:?}"
         );
         assert!(text.contains("/tmp/vault"), "vault path missing: {text:?}");
-        assert!(text.contains("notes-tui"), "title missing: {text:?}");
+        assert!(text.contains("httui-tui"), "title missing: {text:?}");
     }
 }

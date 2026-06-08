@@ -1,5 +1,5 @@
 [workspace]
-members = ["httui-desktop/src-tauri", "httui-mcp", "httui-tui"]
+members = ["httui-desktop/src-tauri", "httui-launcher", "httui-mcp", "httui-tui"]
 resolver = "2"
 
 [workspace.package]
