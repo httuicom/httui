@@ -15,6 +15,3 @@ name = "httui"
 path = "src/main.rs"
 
 [dependencies]
-
-[dev-dependencies]
-tempfile = "3"

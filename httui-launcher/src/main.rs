@@ -3,13 +3,18 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 mod dispatch;
-use dispatch::Action;
+use dispatch::{resolve_sibling, Action};
 
 const TUI_BIN: &str = "httui-tui";
 #[cfg(not(target_os = "macos"))]
 const DESKTOP_BIN: &str = "httui-desktop";
 #[cfg(target_os = "macos")]
 const MACOS_APP: &str = "httui";
+
+#[cfg(windows)]
+const EXE_SUFFIX: &str = ".exe";
+#[cfg(not(windows))]
+const EXE_SUFFIX: &str = "";
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -23,19 +28,27 @@ fn main() -> ExitCode {
     }
 }
 
+// `HTTUI_TUI_BIN` / `HTTUI_DESKTOP_BIN` are integration-test escape
+// hatches that let tests point the launcher at a known-missing path
+// without copying the launcher itself anywhere (which trips Linux's
+// ETXTBSY when the freshly-copied file is execve'd).
+fn lookup_sibling(name: &'static str, env_override: &str) -> Result<PathBuf, String> {
+    let override_val = env::var(env_override).ok();
+    let dir = sibling_dir();
+    resolve_sibling(
+        name,
+        override_val.as_deref(),
+        dir.as_deref(),
+        |p| p.exists(),
+        EXE_SUFFIX,
+    )
+}
+
 fn run_tui(args: &[String]) -> ExitCode {
-    let Some(dir) = sibling_dir() else {
-        return fail("could not resolve installation directory");
+    let bin = match lookup_sibling(TUI_BIN, "HTTUI_TUI_BIN") {
+        Ok(p) => p,
+        Err(msg) => return fail(&msg),
     };
-    let bin = dir.join(with_exe_suffix(TUI_BIN));
-    if !bin.exists() {
-        return fail(&format!(
-            "{} not found next to launcher (looked at {}).\n\
-             In development, run `cargo run -p httui-tui` instead.",
-            TUI_BIN,
-            bin.display()
-        ));
-    }
     spawn(Command::new(&bin).args(args))
 }
 
@@ -61,17 +74,10 @@ fn run_desktop(args: &[String]) -> ExitCode {
 
 #[cfg(not(target_os = "macos"))]
 fn run_desktop(args: &[String]) -> ExitCode {
-    let Some(dir) = sibling_dir() else {
-        return fail("could not resolve installation directory");
+    let bin = match lookup_sibling(DESKTOP_BIN, "HTTUI_DESKTOP_BIN") {
+        Ok(p) => p,
+        Err(msg) => return fail(&msg),
     };
-    let bin = dir.join(with_exe_suffix(DESKTOP_BIN));
-    if !bin.exists() {
-        return fail(&format!(
-            "{} not found next to launcher (looked at {}).",
-            DESKTOP_BIN,
-            bin.display()
-        ));
-    }
     spawn(Command::new(&bin).args(args))
 }
 
@@ -81,16 +87,6 @@ fn sibling_dir() -> Option<PathBuf> {
         .as_deref()
         .and_then(Path::parent)
         .map(Path::to_path_buf)
-}
-
-#[cfg(windows)]
-fn with_exe_suffix(name: &str) -> String {
-    format!("{name}.exe")
-}
-
-#[cfg(not(windows))]
-fn with_exe_suffix(name: &str) -> String {
-    name.to_string()
 }
 
 fn spawn(cmd: &mut Command) -> ExitCode {
