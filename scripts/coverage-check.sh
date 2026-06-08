@@ -125,6 +125,7 @@ if [ "$HAS_RS" -eq 1 ]; then
             httui-desktop/src-tauri/*) PACKAGES+=("httui-notes") ;;
             httui-tui/*) PACKAGES+=("httui-tui") ;;
             httui-mcp/*) PACKAGES+=("httui-mcp") ;;
+            httui-launcher/*) PACKAGES+=("httui-launcher") ;;
         esac
     done
     # Dedupe

@@ -27,7 +27,7 @@ pub async fn run(
     resolved: ResolvedVault,
     app_pool: SqlitePool,
 ) -> TuiResult<()> {
-    info!(vault = %resolved.vault.display(), "starting notes-tui");
+    info!(vault = %resolved.vault.display(), "starting httui-tui");
 
     terminal::install_panic_hook();
     let mut terminal = terminal::setup(config.mouse_enabled)?;

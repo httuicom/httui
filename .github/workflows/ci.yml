@@ -39,6 +39,18 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      # tauri.conf.json → bundle.externalBin lists httui-tui + the
+      # httui launcher. tauri-build's resource validator checks the
+      # files exist before letting `cargo check/test` proceed. CI
+      # doesn't bundle, so 0-byte placeholders satisfy the gate without
+      # the cost of a full release compile of those crates.
+      - name: Stage bundle binary placeholders
+        run: |
+          triple=$(rustc -vV | sed -n 's|host: ||p')
+          mkdir -p httui-desktop/src-tauri/binaries
+          touch "httui-desktop/src-tauri/binaries/httui-tui-$triple" \
+                "httui-desktop/src-tauri/binaries/httui-$triple"
+
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
 
@@ -152,6 +164,14 @@ jobs:
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+
+      # Same reason as the rust job — bundle.externalBin gate.
+      - name: Stage bundle binary placeholders
+        run: |
+          triple=$(rustc -vV | sed -n 's|host: ||p')
+          mkdir -p httui-desktop/src-tauri/binaries
+          touch "httui-desktop/src-tauri/binaries/httui-tui-$triple" \
+                "httui-desktop/src-tauri/binaries/httui-$triple"
 
       - uses: actions/setup-node@v6
         with:

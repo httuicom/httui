@@ -62,6 +62,21 @@ brew install --cask httui
 `.deb`/`.rpm`/`.AppImage` (Linux) from
 [Releases](https://github.com/httuicom/httui/releases).
 
+### Terminal mode
+
+Every install also ships the TUI and a unified `httui` command:
+
+```sh
+httui                   # opens the terminal UI
+httui desktop           # opens the desktop app
+httui --help
+```
+
+Double-clicking the app icon still opens the desktop directly. macOS
+(Homebrew) and Linux (`.deb`/`.rpm`) put `httui` on the `PATH`
+automatically; on Windows add `%LOCALAPPDATA%\Programs\httui` to your
+PATH or run `httui.exe` from that folder.
+
 > The macOS build is an unsigned developer build. The install script
 > and the Homebrew cask both clear the Gatekeeper quarantine for you.
 > A manually downloaded `.dmg` needs a one-time

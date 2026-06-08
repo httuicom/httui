@@ -144,6 +144,16 @@ jobs:
         run: |
           cd httui-sidecar && bun install && bun run build
 
+      - name: Stage TUI + launcher binaries for the bundle
+        shell: bash
+        run: |
+          # tauri.conf.json → bundle.externalBin expects pre-built
+          # files at httui-desktop/src-tauri/binaries/<name>-<triple>.
+          # Matrix entries with an explicit --target pass it through;
+          # entries without one (Linux/Windows today) detect the host
+          # triple inside the script.
+          scripts/prepare-bundle-bins.sh "${{ matrix.target }}"
+
       - name: Read release body
         id: body
         shell: bash
@@ -236,6 +246,7 @@ jobs:
             auto_updates true
 
             app "httui.app"
+            binary "#{appdir}/httui.app/Contents/MacOS/httui", target: "httui"
           end
           RUBY
 

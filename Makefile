@@ -1,4 +1,4 @@
-.PHONY: dev build release install install-deps install-app uninstall lint fmt check clean wipe-config test test-rust test-front test-tui front icons sidecar tui tui-build tui-help coverage-check coverage-rust coverage-fe size-check quality-check setup-hooks
+.PHONY: dev build release install install-deps install-app install-tui uninstall lint fmt check clean wipe-config test test-rust test-front test-tui front icons sidecar bundle-bins tui tui-build tui-help coverage-check coverage-rust coverage-fe size-check quality-check setup-hooks
 
 # Development — frontend (Vite HMR) + backend (Rust rebuild on change).
 # Trims Rust artifacts not touched in the last 7 days before each session
@@ -36,8 +36,13 @@ sidecar:
 	@mkdir -p httui-desktop/src-tauri/resources
 	cd httui-sidecar && bun install && bun run build
 
+# Stage TUI + launcher binaries under httui-desktop/src-tauri/binaries/
+# so the Tauri bundler picks them up via bundle.externalBin.
+bundle-bins:
+	./scripts/prepare-bundle-bins.sh
+
 # Build de producao (com bundle .app para macOS)
-build: sidecar
+build: sidecar bundle-bins
 	npm run tauri build -- --bundles app
 
 # Instalar dependencias
@@ -59,10 +64,25 @@ install: build
 	@cp -R "$(APP_BUNDLE)" "/Applications/$(APP_NAME).app"
 	@echo "Done. Open with: open '/Applications/$(APP_NAME).app'"
 
-# Remover app de /Applications
+# Symlinka o launcher unificado em /usr/local/bin/httui (mesma coisa
+# que o cask do Homebrew faz). Roda DEPOIS de `make install`.
+# Requer sudo se /usr/local/bin não for writable. Após isso:
+#   httui            → abre o TUI
+#   httui desktop    → abre o .app
+install-tui:
+	@if [ ! -x "/Applications/$(APP_NAME).app/Contents/MacOS/httui" ]; then \
+		echo "Error: /Applications/$(APP_NAME).app/Contents/MacOS/httui missing — run 'make install' first."; \
+		exit 1; \
+	fi
+	@echo "Symlinking httui launcher to /usr/local/bin/httui..."
+	@ln -sf "/Applications/$(APP_NAME).app/Contents/MacOS/httui" /usr/local/bin/httui
+	@echo "Done. Run 'httui' in a new terminal."
+
+# Remover app de /Applications (e o symlink do launcher, se existir)
 uninstall:
 	@echo "Removing $(APP_NAME) from /Applications..."
 	@rm -rf "/Applications/$(APP_NAME).app"
+	@[ -L /usr/local/bin/httui ] && rm -f /usr/local/bin/httui || true
 	@echo "Done."
 
 # Type check + clippy + fmt-check + prettier-check. Mirrors the CI gate.

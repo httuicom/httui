@@ -38,7 +38,20 @@ cargo clippy --workspace           # Rust linter (all crates)
 make wipe-config                   # Apaga config persistente do app (notes.db, user.toml, WebKit cache).
                                    # Mantém keychain. Útil pra voltar ao empty state entre testes manuais.
 make setup-hooks                   # Install local git hooks (pre-commit / pre-push / commit-msg).
+
+# TUI / launcher (post-install — `make install && make install-tui` on macOS,
+# or via the cask/.deb/.rpm)
+httui                              # opens the TUI (terminal mode)
+httui desktop                      # opens the desktop app
+httui --help
 ```
+
+> **Bundle layout:** the release ships three binaries together —
+> `httui` (launcher on the PATH), `httui-tui` (terminal binary, was
+> `notes-tui`), `httui-desktop` (Tauri main, the one Finder runs).
+> The launcher dispatches to a sibling via `current_exe()`. See
+> `httui-launcher/`, `scripts/prepare-bundle-bins.sh`, and
+> `docs/RELEASE.md §7a`.
 
 ## Commit style
 
