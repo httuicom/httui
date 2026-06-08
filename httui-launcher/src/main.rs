@@ -82,11 +82,14 @@ fn run_desktop(args: &[String]) -> ExitCode {
 }
 
 fn sibling_dir() -> Option<PathBuf> {
-    env::current_exe()
-        .ok()
-        .as_deref()
-        .and_then(Path::parent)
-        .map(Path::to_path_buf)
+    // current_exe() returns the symlink path itself on macOS (and on
+    // Windows when invoked through a junction), so resolving it first
+    // is required for `httui` to find its siblings when installed via
+    // a symlinked shim — e.g. `brew install --cask httui` symlinking
+    // /usr/local/bin/httui → /Applications/httui.app/Contents/MacOS/httui.
+    let exe = env::current_exe().ok()?;
+    let resolved = std::fs::canonicalize(&exe).unwrap_or(exe);
+    resolved.parent().map(Path::to_path_buf)
 }
 
 fn spawn(cmd: &mut Command) -> ExitCode {

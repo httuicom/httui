@@ -43,6 +43,13 @@ SRC_DIR="$REPO_ROOT/target/$TARGET/release"
 cp "$SRC_DIR/httui-tui$SUFFIX" "$OUT_DIR/httui-tui-$TARGET$SUFFIX"
 cp "$SRC_DIR/httui$SUFFIX"     "$OUT_DIR/httui-$TARGET$SUFFIX"
 
+# Belt + suspenders: Tauri's bundler propagates the source file mode
+# into Contents/MacOS/ (and /usr/bin/ on Linux). If the staged file
+# loses its exec bit for any reason (interrupted build, tarball
+# extraction, etc.) the launcher in the final bundle ships
+# non-executable and `httui` in $PATH errors with "Permission denied".
+chmod +x "$OUT_DIR/httui-tui-$TARGET$SUFFIX" "$OUT_DIR/httui-$TARGET$SUFFIX"
+
 echo "staged:"
 echo "  $OUT_DIR/httui-tui-$TARGET$SUFFIX"
 echo "  $OUT_DIR/httui-$TARGET$SUFFIX"
