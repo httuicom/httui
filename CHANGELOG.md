@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Post-0.4.2 work lands here.
+Post-0.4.3 work lands here.
+
+## [0.4.3] - 2026-06-08
+
+### Fixed
+
+- **Auto-update gap**: the desktop now self-links the `httui` terminal launcher into `~/.local/bin/httui` on launch. Users who upgraded from 0.4.1/0.4.2 via Tauri's in-app updater (which can't touch `/usr/local/bin`) get `httui` on `PATH` the next time they open the app, without re-running the installer. Idempotent and never overrides a working `httui` already on `PATH`.
 
 ## [0.4.2] - 2026-06-08
 
