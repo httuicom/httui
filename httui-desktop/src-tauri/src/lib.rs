@@ -22,6 +22,7 @@ pub mod preflight_commands;
 pub mod run_body_commands;
 pub mod tag_commands;
 pub mod templates_commands;
+pub mod terminal_launcher;
 pub mod vault_config_commands;
 
 pub use httui_core::vault_config;
