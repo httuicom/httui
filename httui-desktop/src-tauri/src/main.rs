@@ -303,6 +303,8 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            httui_notes::terminal_launcher::ensure_launcher_in_path();
+
             let app_data_dir =
                 httui_core::paths::default_data_dir().expect("failed to resolve data dir");
 
