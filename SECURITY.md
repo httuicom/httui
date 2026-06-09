@@ -43,8 +43,10 @@ In scope:
 - `httui-core` (shared Rust crate)
 - `httui-mcp` (MCP server)
 - `httui-sidecar` (Node.js Claude Agent SDK bridge)
-- `httui-web` (marketing landing — only for issues in the deployed
-  site or its build output)
+
+The marketing landing and end-user docs live in the separate
+[`httuicom/httui-site`](https://github.com/httuicom/httui-site)
+repo — issues with the deployed site itself should be filed there.
 
 Out of scope:
 

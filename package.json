@@ -6,7 +6,6 @@
   "homepage": "https://httui.com",
   "workspaces": [
     "httui-desktop",
-    "httui-web",
     "httui-sidecar"
   ],
   "scripts": {
@@ -18,8 +17,6 @@
     "test": "npm --workspace httui-desktop run test",
     "test:watch": "npm --workspace httui-desktop run test:watch",
     "test:coverage": "npm --workspace httui-desktop run test:coverage",
-    "web:dev": "npm --workspace httui-web run dev",
-    "web:build": "npm --workspace httui-web run build",
     "sidecar:build": "npm --workspace httui-sidecar run build"
   }
 }

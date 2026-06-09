@@ -104,7 +104,7 @@ jobs:
         run: npm ci
 
       - name: prettier --check
-        run: ./node_modules/.bin/prettier --check 'httui-desktop/src/**/*.{ts,tsx,js,jsx,css,md}' 'httui-web/src/**/*.{ts,tsx,js,jsx,css,md}' 'httui-sidecar/src/**/*.{ts,tsx,js,jsx}'
+        run: ./node_modules/.bin/prettier --check 'httui-desktop/src/**/*.{ts,tsx,js,jsx,css,md}' 'httui-sidecar/src/**/*.{ts,tsx,js,jsx}'
 
       - name: tsc --noEmit (httui-desktop)
         if: ${{ !cancelled() }}
@@ -114,20 +114,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run lint --workspace httui-desktop
 
-      - name: eslint (httui-web)
-        if: ${{ !cancelled() }}
-        run: npm run lint --workspace httui-web
-
       # Runs the `unit` project only (jsdom). The `browser` project uses
       # @vitest/browser-playwright and would require installing chromium
       # in CI; skip until browser-test coverage is needed in the gate.
       - name: vitest (httui-desktop, unit)
         if: ${{ !cancelled() }}
         run: npm run test --workspace httui-desktop -- --project unit
-
-      - name: Build httui-web (smoke)
-        if: ${{ !cancelled() }}
-        run: npm run build --workspace httui-web
 
       - name: Build httui-sidecar (smoke)
         if: ${{ !cancelled() }}

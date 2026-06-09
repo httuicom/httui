@@ -91,15 +91,14 @@ check:
 	cargo fmt --all -- --check
 	cargo clippy --workspace --all-targets -- -D warnings
 
-# Lint TS/TSX in both frontend workspaces (eslint, not tsc).
+# Lint TS/TSX in the desktop workspace (eslint, not tsc).
 lint:
 	npm run lint --workspace httui-desktop
-	npm run lint --workspace httui-web
 
 # Format Rust + frontend in place.
 fmt:
 	cargo fmt --all
-	./node_modules/.bin/prettier --write 'httui-desktop/src/**/*.{ts,tsx,js,jsx,css,md}' 'httui-web/src/**/*.{ts,tsx,js,jsx,css,md}' 'httui-sidecar/src/**/*.{ts,tsx,js,jsx}'
+	./node_modules/.bin/prettier --write 'httui-desktop/src/**/*.{ts,tsx,js,jsx,css,md}' 'httui-sidecar/src/**/*.{ts,tsx,js,jsx}'
 
 # Pre-release validation: every gate the CI runs, then the release build.
 # Use this before tagging a version to catch regressions locally.

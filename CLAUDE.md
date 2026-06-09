@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Notes — desktop markdown editor with executable blocks (HTTP client, DB query runner) inline in documents. Built with Tauri v2 (Rust backend) + React + TypeScript + CodeMirror 6 (`@uiw/react-codemirror`) + Chakra UI v3.
 
-> **Repo layout (post epic 00):** the desktop app lives in `httui-desktop/` (`httui-desktop/src/` for the React frontend, `httui-desktop/src-tauri/` for the Rust backend). The marketing landing is `httui-web/`, the Claude sidecar is `httui-sidecar/`. The shared Rust crate is `httui-core/`, the terminal binary `httui-tui/`, the MCP server `httui-mcp/`. **Path references like `src/components/...` in this doc are relative to `httui-desktop/`** unless otherwise prefixed.
+> **Repo layout:** the desktop app lives in `httui-desktop/` (`httui-desktop/src/` for the React frontend, `httui-desktop/src-tauri/` for the Rust backend). The Claude sidecar is `httui-sidecar/`. The shared Rust crate is `httui-core/`, the terminal binary `httui-tui/`, the MCP server `httui-mcp/`. **Path references like `src/components/...` in this doc are relative to `httui-desktop/`** unless otherwise prefixed. The marketing landing and end-user docs live in a separate repo, [`httuicom/httui-site`](https://github.com/httuicom/httui-site) (deployed to [httui.com](https://httui.com)) — they are intentionally out of this repo to keep AI context lean.
 
 > **Recent migrations:** TipTap and the E2E block were removed (commits `7aa97e8`, `0aa2868`, `9124ad4`). The editor is now CodeMirror 6 only. State is managed by Zustand stores, not React Contexts (the only legacy *domain* context left is `WorkspaceContext`; small CM6/UI-scoped contexts like `BlockContext` and the doc-header context also exist by design). Older docs may still reference the old architecture.
 
@@ -94,7 +94,7 @@ Mounted in `AppShell` when `vaultPath === null`:
 
 ## Architecture
 
-Full details in `docs/ARCHITECTURE.md` (some sections may be outdated — code is source of truth).
+Full architecture write-up lives at [httui.com/docs/architecture](https://httui.com/docs/architecture) (some sections may be outdated — code is source of truth).
 
 **Block model — OCP closed (refactor 2026-05-19/20, audit 03 #2):**
 - *Public contract*: `BlockTypeSpec` (`src/lib/blocks/block-registry.ts`)
@@ -376,9 +376,8 @@ PermissionBanner (`src/components/chat/PermissionBanner.tsx`): scope selector (O
 
 ## Docs
 
-- `docs/SPEC.md` — Full product specification (features, data models, Tauri commands, UI details). Some references to TipTap/E2E may be stale.
-- `docs/ARCHITECTURE.md` — Plugin architecture description (aspirational in places — see Architecture section above).
-- `docs/chat-design.md` — Chat system technical design (1000 lines): protocol spec, session lifecycle, streaming, permissions, MCP integration.
+- **Public end-user docs:** [httui.com/docs](https://httui.com/docs) (source: [`httuicom/httui-site`](https://github.com/httuicom/httui-site)).
+- **Internal / AI-only references:** `docs-llm/` (gitignored; spec, architecture deep-dives, chat-design, audits).
 
 ## Compact Instructions
 

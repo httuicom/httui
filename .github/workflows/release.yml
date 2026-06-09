@@ -32,7 +32,7 @@ jobs:
 
           # Pre-release detection. Accept both the
           # semver-canonical `-rc.N` and the bare `-rcN` form so the
-          # tag conventions in docs/RELEASE.md stay flexible.
+          # tag conventions in https://httui.com/docs/releases stay flexible.
           if [[ "$VERSION" =~ -(rc|beta|alpha)\.?[0-9]+$ ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
@@ -52,7 +52,7 @@ jobs:
           elif grep -qE "^## \[${BASE}\]" CHANGELOG.md; then
             echo "Found CHANGELOG section: ## [${BASE}] (base for pre-release)"
           else
-            echo "::error::No CHANGELOG.md section for [${VERSION}] or [${BASE}]. Add a curated entry before tagging — see docs/RELEASE.md."
+            echo "::error::No CHANGELOG.md section for [${VERSION}] or [${BASE}]. Add a curated entry before tagging — see https://httui.com/docs/releases."
             exit 1
           fi
 
@@ -179,7 +179,7 @@ jobs:
           # `${{ }}` expression: tauri-action does ad-hoc signing and
           # ships an unsigned dev build (Homebrew cask strips quarantine
           # + the documented Gatekeeper bypass cover it, see
-          # docs/RELEASE.md §5). A broken/lingering org-level
+          # https://httui.com/docs/releases §5). A broken/lingering org-level
           # APPLE_CERTIFICATE secret previously failed every macOS job
           # at `security import` precisely because it was referenced
           # here. To enable real signing once a Developer ID exists:
@@ -199,7 +199,7 @@ jobs:
   # Stable releases only. Gated on HOMEBREW_TAP_TOKEN (a PAT with
   # write access to the tap) — without it the step is skipped so the
   # release still succeeds for contributors. Prerequisite: the tap
-  # repo must exist (see docs/RELEASE.md). Not exercisable in CI
+  # repo must exist (see https://httui.com/docs/releases). Not exercisable in CI
   # until both exist — CI-bound.
   homebrew:
     needs: [validate, release]
