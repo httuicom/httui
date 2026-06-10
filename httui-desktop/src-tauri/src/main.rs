@@ -511,6 +511,8 @@ fn main() {
             get_usage_stats,
             force_reload_file,
             query_internal_db,
+            httui_notes::lsp_sidecar::lsp_start,
+            httui_notes::lsp_sidecar::lsp_send,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

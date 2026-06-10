@@ -44,6 +44,7 @@ import {
 } from "./markdown-vim-motions";
 import { containerCss } from "./markdown-highlight-style";
 import { buildExtensions } from "./markdown-extensions";
+import { createLspExtension } from "@/lib/codemirror/cm-lsp";
 
 installDocLineVimMotions();
 
@@ -107,6 +108,10 @@ export function MarkdownEditor({
         getActiveVariables: () =>
           useEnvironmentStore.getState().getActiveVariables(),
       }),
+      // Language-server features (diagnostics/hover/completion served
+      // by httui-lsp). The local ref autocomplete stays active alongside
+      // until the server path is the proven source.
+      ...createLspExtension(filePath),
       // Focus/destroy-driven active-editor registry. CM owns the
       // listener lifecycle (auto-removed on view destroy), so there is
       // no manual addEventListener to leak.
