@@ -67,6 +67,21 @@ pub async fn execute_block(
     registry.execute(req).await.map_err(|e| e.to_string())
 }
 
+/// Latest cached result for `(file_path, alias)` regardless of content
+/// hash. Read-side resolution (`{{alias.response.…}}` hover/autocomplete)
+/// must use this: the write side keys HTTP rows by a request+env hash
+/// the document scanner cannot reproduce.
+#[tauri::command]
+pub async fn get_latest_block_result_by_alias(
+    pool: State<'_, SqlitePool>,
+    file_path: String,
+    alias: String,
+) -> Result<Option<CachedBlockResult>, String> {
+    block_results::get_latest_block_result_by_alias(&pool, &file_path, &alias)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// Look up a previously cached `BlockResult` by `(file_path, block_hash)`.
 /// Returns `None` if no cached row matches.
 #[tauri::command]
@@ -82,20 +97,25 @@ pub async fn get_block_result(
 
 /// Persist the terminal outcome of a block execution into the cache so
 /// the next run with the same content + env context can short-circuit.
+/// When `alias` is present, a successful save also refreshes the
+/// inferred response shape that ref resolution reads.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn save_block_result(
     pool: State<'_, SqlitePool>,
     file_path: String,
     block_hash: String,
+    alias: Option<String>,
     status: String,
     response: String,
     elapsed_ms: i64,
     total_rows: Option<i64>,
 ) -> Result<(), String> {
-    block_results::save_block_result(
+    block_results::save_block_result_with_alias(
         &pool,
         &file_path,
         &block_hash,
+        alias.as_deref(),
         &status,
         &response,
         elapsed_ms,

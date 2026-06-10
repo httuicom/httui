@@ -20,6 +20,16 @@ export function resetLspClient() {
   client = null;
 }
 
+/**
+ * Tell the server a block ran: the inferred response shapes may have
+ * changed, so it republishes diagnostics for every open document.
+ * No-op while no editor has created the client — with no documents open
+ * there is nothing to republish.
+ */
+export function notifyBlockRan() {
+  client?.notification("httui/refresh", {});
+}
+
 export function fileUri(vaultPath: string, filePath: string): string {
   const joined = `${vaultPath}/${filePath}`.replace(/\/+/g, "/");
   return `file://${encodeURI(joined)}`;

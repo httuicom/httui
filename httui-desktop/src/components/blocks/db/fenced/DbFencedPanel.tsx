@@ -37,6 +37,7 @@ import {
 } from "@/components/blocks/db/types";
 import { computeDbCacheHash } from "@/lib/blocks/hash";
 import { getBlockResult, saveBlockResult } from "@/lib/tauri/commands";
+import { notifyBlockRan } from "@/lib/lsp/client";
 import { listConnections, type Connection } from "@/lib/tauri/connections";
 import { resolveRefsToBindParams } from "@/lib/blocks/references";
 import { collectBlocksAboveCM } from "@/lib/blocks/document";
@@ -360,7 +361,11 @@ export const DbFencedPanel = memo(function DbFencedPanel({
           JSON.stringify(outcome.response),
           outcome.response.stats.elapsed_ms || elapsed,
           sel ? sel.rows.length : null,
+          block.metadata.alias ?? null,
         );
+        // An aliased success refreshes the inferred shape — let the
+        // language server republish field diagnostics against it.
+        if (block.metadata.alias) notifyBlockRan();
       } catch {
         // Cache write is best-effort.
       }
