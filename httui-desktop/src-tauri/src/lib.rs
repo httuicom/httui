@@ -18,6 +18,7 @@ pub mod chat;
 pub mod commands;
 pub mod executions;
 pub mod git_commands;
+pub mod lsp_sidecar;
 pub mod preflight_commands;
 pub mod run_body_commands;
 pub mod tag_commands;
