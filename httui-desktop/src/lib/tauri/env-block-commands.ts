@@ -149,6 +149,22 @@ export function getBlockResult(
   });
 }
 
+/**
+ * Latest cached result for `(filePath, alias)` regardless of content
+ * hash. Read-side `{{alias…}}` resolution must use this for HTTP blocks:
+ * the write side keys rows by a request+env hash the document scanner
+ * cannot reproduce.
+ */
+export function getLatestBlockResultByAlias(
+  filePath: string,
+  alias: string,
+): Promise<CachedBlockResult | null> {
+  return invoke<CachedBlockResult | null>("get_latest_block_result_by_alias", {
+    filePath,
+    alias,
+  });
+}
+
 export function saveBlockResult(
   filePath: string,
   blockHash: string,
@@ -156,10 +172,12 @@ export function saveBlockResult(
   response: string,
   elapsedMs: number,
   totalRows?: number | null,
+  alias?: string | null,
 ): Promise<void> {
   return invoke<void>("save_block_result", {
     filePath,
     blockHash,
+    alias: alias ?? null,
     status,
     response,
     elapsedMs,

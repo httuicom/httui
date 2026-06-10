@@ -23,7 +23,6 @@ import {
   type DbPortalEntry,
 } from "@/lib/codemirror/cm-db-block";
 import {
-  parseLegacyDbBody,
   stringifyDbFenceInfo,
   type DbBlockMetadata,
 } from "@/lib/blocks/db-fence";
@@ -36,7 +35,8 @@ import {
   type DbResponse,
 } from "@/components/blocks/db/types";
 import { computeDbCacheHash } from "@/lib/blocks/hash";
-import { getBlockResult, saveBlockResult } from "@/lib/tauri/commands";
+import { saveBlockResult } from "@/lib/tauri/commands";
+import { notifyBlockRan } from "@/lib/lsp/client";
 import { listConnections, type Connection } from "@/lib/tauri/connections";
 import { resolveRefsToBindParams } from "@/lib/blocks/references";
 import { collectBlocksAboveCM } from "@/lib/blocks/document";
@@ -62,6 +62,10 @@ import { DbStatusBar } from "./DbStatusBar";
 import { DbResult } from "./DbResultTabs";
 import { DbSettingsDrawer as DbDrawer } from "./DbSettingsDrawer";
 import { ConfirmRunDialog } from "./ConfirmRunDialog";
+import { useDbLegacyMigration } from "./useDbLegacyMigration";
+import { useDbCacheHydrate } from "./useDbCacheHydrate";
+import { useDbExplain } from "./useDbExplain";
+import { useDbLoadMore } from "./useDbLoadMore";
 
 // ───── Main panel ─────
 
@@ -97,10 +101,6 @@ export const DbFencedPanel = memo(function DbFencedPanel({
   const [resolvedBindings, setResolvedBindings] = useState<
     { placeholder: string; raw: string; value: unknown }[]
   >([]);
-  // Load-more dedup guard. A ref (not state) so clicking the button does
-  // not trigger a re-render of the panel — the setResponse that appends
-  // the new rows is the only render needed.
-  const loadingMoreRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const activeConnection = useMemo(
@@ -172,90 +172,21 @@ export const DbFencedPanel = memo(function DbFencedPanel({
     };
   }, [executionState]);
 
-  // ── Legacy JSON body conversion ──
-  // Vaults written before stage 4 store a JSON object in the body instead
-  // of raw SQL. Convert the block in-place on the document: replace the
-  // body with the extracted query and merge connection/limit/timeout into
-  // the info string. This runs at most once per (blockId + body-hash)
-  // combination to prevent re-entry after the dispatch mutates the doc.
-  const migratedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (migratedRef.current === block.body) return;
-    const legacy = parseLegacyDbBody(block.body);
-    if (!legacy) return;
-    migratedRef.current = block.body;
-
-    const mergedMetadata: DbBlockMetadata = { ...block.metadata };
-    if (legacy.connectionId && !mergedMetadata.connection) {
-      mergedMetadata.connection = legacy.connectionId;
-    }
-    if (legacy.limit !== undefined && mergedMetadata.limit === undefined) {
-      mergedMetadata.limit = legacy.limit;
-    }
-    if (
-      legacy.timeoutMs !== undefined &&
-      mergedMetadata.timeoutMs === undefined
-    ) {
-      mergedMetadata.timeoutMs = legacy.timeoutMs;
-    }
-
-    const newInfoLine = "```" + stringifyDbFenceInfo(mergedMetadata);
-    const openLine = view.state.doc.lineAt(block.openLineFrom);
-
-    // Replace the open fence (to update info) AND the body (to turn JSON
-    // into raw SQL), leaving fence close untouched.
-    view.dispatch({
-      changes: [
-        {
-          from: openLine.from,
-          to: openLine.to,
-          insert: newInfoLine,
-        },
-        {
-          from: block.bodyFrom,
-          to: block.bodyTo,
-          insert: legacy.query,
-        },
-      ],
-    });
-  }, [
-    block.body,
-    block.bodyFrom,
-    block.bodyTo,
-    block.metadata,
-    block.openLineFrom,
-    view,
-  ]);
+  // Legacy JSON body conversion (pre-redesign vaults) — sibling hook.
+  useDbLegacyMigration(block, view);
 
   // Load cached result on mount / when block body + connection change
-  useEffect(() => {
-    if (!filePath) return;
-    const connId = activeConnection?.id ?? block.metadata.connection ?? "";
-    if (!connId || !block.body.trim()) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const envVars = await useEnvironmentStore
-          .getState()
-          .getActiveVariables();
-        const hash = await computeDbCacheHash(block.body, connId, envVars);
-        const row = await getBlockResult(filePath, hash);
-        if (cancelled || !row) return;
-        const parsed = JSON.parse(row.response) as DbResponse;
-        setResponse(parsed);
-        setDurationMs(row.elapsed_ms ?? null);
-        setCached(true);
-        if (row.status === "success") setExecutionState("success");
-        else setExecutionState("error");
-      } catch {
-        // Cache miss or corrupt — stay idle.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [filePath, block.body, activeConnection?.id, block.metadata.connection]);
+  useDbCacheHydrate({
+    filePath,
+    body: block.body,
+    connId: activeConnection?.id ?? block.metadata.connection ?? "",
+    onHit: ({ response: parsed, elapsedMs, state }) => {
+      setResponse(parsed);
+      setDurationMs(elapsedMs);
+      setCached(true);
+      setExecutionState(state);
+    },
+  });
 
   // ── Execution ──
   // Internal: actually dispatches the backend call. `runBlock` (below)
@@ -360,7 +291,11 @@ export const DbFencedPanel = memo(function DbFencedPanel({
           JSON.stringify(outcome.response),
           outcome.response.stats.elapsed_ms || elapsed,
           sel ? sel.rows.length : null,
+          block.metadata.alias ?? null,
         );
+        // An aliased success refreshes the inferred shape — let the
+        // language server republish field diagnostics against it.
+        if (block.metadata.alias) notifyBlockRan();
       } catch {
         // Cache write is best-effort.
       }
@@ -415,251 +350,34 @@ export const DbFencedPanel = memo(function DbFencedPanel({
     void cancelBlockExecution(`db_${blockId}`);
   }, [blockId]);
 
-  // ── EXPLAIN ──
-  // Runs ONLY the first SQL statement wrapped in an EXPLAIN prefix, as a
-  // one-off (no cache), and folds the plan rows into the current
-  // response's `plan` field so the Plan tab lights up.
-  //
-  // Why only the first statement: backend splits on `;` and treats each
-  // chunk as its own driver call. If we prefix the whole body with
-  // `EXPLAIN ` only the first chunk is explained — the rest run for real.
-  // That's a footgun on multi-statement bodies, so we drop everything
-  // after the first `;` for the EXPLAIN run only. Body is unchanged.
-  //
-  // ANALYZE is intentionally omitted: in Postgres it executes the query
-  // for real, which would make clicking ▦ on an UPDATE/DELETE a latent
-  // footgun. The non-analyze plan is enough for 90% of debugging.
-  const runExplain = useCallback(async () => {
-    if (executionState === "running") return;
-    const connId = activeConnection?.id;
-    if (!connId) return;
-    const body = block.body.trim();
-    if (!body) return;
-
-    // First non-empty statement only. Naive `;` split is good enough for
-    // EXPLAIN — strings/identifiers containing `;` are vanishingly rare in
-    // a query someone is debugging.
-    const firstStatement =
-      body
-        .split(";")
-        .map((s) => s.trim())
-        .find((s) => s.length > 0) ?? body;
-
-    // Pick the EXPLAIN flavour from the actual driver, falling back to
-    // the fence dialect, then to plain `EXPLAIN`. The fence dialect alone
-    // is unreliable: a `db` (generic) fence pointing at a SQLite
-    // connection would otherwise emit `EXPLAIN <sql>` and return raw VDBE
-    // bytecode, which is useless for 99% of users debugging a query.
-    // For SQLite we want `EXPLAIN QUERY PLAN` (SCAN/SEARCH/USING INDEX).
-    // Postgres/MySQL plain `EXPLAIN` returns the human plan already.
-    const dialect = block.metadata.dialect;
-    const driver = activeConnection?.driver;
-    const isSqlite = driver === "sqlite" || dialect === "sqlite";
-    const prefix = isSqlite ? "EXPLAIN QUERY PLAN " : "EXPLAIN ";
-    // Skip wrapping if the user already typed EXPLAIN themselves — double
-    // EXPLAIN is a syntax error everywhere.
-    const alreadyExplain = /^\s*EXPLAIN\b/i.test(firstStatement);
-
-    setError(null);
-    setExecutionState("running");
-    const abort = new AbortController();
-    abortRef.current = abort;
-    const executionId = `db_${blockId}_explain_${Date.now()}`;
-    const startedAt = performance.now();
-
-    try {
-      const blocksAbove = await collectBlocksAboveCM(
-        view.state.doc,
-        block.from,
-        filePath,
-      );
-      const envVars = await useEnvironmentStore.getState().getActiveVariables();
-      const {
-        sql: resolvedBody,
-        bindValues,
-        errors: refErrors,
-      } = resolveRefsToBindParams(
-        firstStatement,
-        blocksAbove,
-        block.from,
-        envVars,
-      );
-      if (refErrors.length > 0) {
-        setError(`Reference errors:\n${refErrors.join("\n")}`);
-        setExecutionState("error");
-        return;
-      }
-      const finalSql = alreadyExplain ? resolvedBody : prefix + resolvedBody;
-
-      const params: Record<string, unknown> = {
-        connection_id: connId,
-        query: finalSql,
-        bind_values: bindValues,
-        offset: 0,
-        fetch_size: 1000,
-      };
-      if (block.metadata.timeoutMs !== undefined) {
-        params.timeout_ms = block.metadata.timeoutMs;
-      }
-
-      const outcome = await executeDbStreamed({
-        executionId,
-        params,
-        signal: abort.signal,
-      });
-      const elapsed = Math.round(performance.now() - startedAt);
-
-      if (outcome.status === "cancelled") {
-        setExecutionState("cancelled");
-        setDurationMs(elapsed);
-        return;
-      }
-      if (outcome.status === "error") {
-        setError(outcome.message);
-        setExecutionState("error");
-        setDurationMs(elapsed);
-        return;
-      }
-
-      // Surface SQL-level errors (kind: "error" inside a result) the same
-      // way as a regular run — they belong in the error state, not stuffed
-      // into the Plan tab as JSON noise.
-      const firstResult = outcome.response.results[0];
-      if (firstResult && firstResult.kind === "error") {
-        setError(firstResult.message);
-        setExecutionState("error");
-        setDurationMs(outcome.response.stats.elapsed_ms || elapsed);
-        return;
-      }
-
-      // Only populate plan when we actually have plan rows to show.
-      // SELECT result with rows = real plan output (sqlite EXPLAIN returns
-      // bytecode rows, postgres EXPLAIN returns a single text-column
-      // table, etc — all selectable). Anything else (mutation? empty?)
-      // means the driver didn't return a plan; fall through to "no plan".
-      const explainResult =
-        firstResult && firstResult.kind === "select" ? firstResult : null;
-      if (!explainResult || explainResult.rows.length === 0) {
-        setError(
-          "EXPLAIN didn't return a plan — the driver may not support EXPLAIN for this query.",
-        );
-        setExecutionState("error");
-        setDurationMs(outcome.response.stats.elapsed_ms || elapsed);
-        return;
-      }
-
-      setResponse((prev) => {
-        const base: DbResponse = prev ?? {
-          results: [],
-          messages: [],
-          stats: { elapsed_ms: 0 },
-        };
-        return {
-          ...base,
-          plan: explainResult.rows,
-          stats: {
-            ...base.stats,
-            elapsed_ms: outcome.response.stats.elapsed_ms || elapsed,
-          },
-        };
-      });
-      setDurationMs(outcome.response.stats.elapsed_ms || elapsed);
-      setCached(false);
-      setExecutionState("success");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setExecutionState("error");
-    } finally {
-      abortRef.current = null;
-    }
-  }, [
-    activeConnection?.id,
-    activeConnection?.driver,
-    block.body,
-    block.from,
-    block.metadata.dialect,
-    block.metadata.timeoutMs,
-    blockId,
+  // EXPLAIN (first statement only, no cache) — sibling hook.
+  const runExplain = useDbExplain({
     executionState,
-    filePath,
-    view,
-  ]);
-
-  // ── Load more: append the next page of rows to the current select
-  // result. Uses the same query + bindings as the initial run, but with
-  // offset = rows already fetched. The in-flight guard is a ref (not
-  // state); ResultTable runs its own local loading state for the button
-  // spinner so this callback doesn't force a panel re-render on click.
-  const loadMore = useCallback(async () => {
-    if (loadingMoreRef.current) return;
-    const connId = activeConnection?.id;
-    if (!connId || !response) return;
-    const first = firstSelectResult(response);
-    if (!first || !first.has_more) return;
-
-    loadingMoreRef.current = true;
-    try {
-      const blocksAbove = await collectBlocksAboveCM(
-        view.state.doc,
-        block.from,
-        filePath,
-      );
-      const envVars = await useEnvironmentStore.getState().getActiveVariables();
-      const { sql, bindValues } = resolveRefsToBindParams(
-        block.body,
-        blocksAbove,
-        block.from,
-        envVars,
-      );
-
-      const params: Record<string, unknown> = {
-        connection_id: connId,
-        query: sql,
-        bind_values: bindValues,
-        offset: first.rows.length,
-        fetch_size: block.metadata.limit ?? 100,
-      };
-      if (block.metadata.timeoutMs !== undefined) {
-        params.timeout_ms = block.metadata.timeoutMs;
-      }
-
-      const outcome = await executeDbStreamed({
-        executionId: `db_${blockId}_more_${Date.now()}`,
-        params,
-      });
-      if (outcome.status !== "success") return;
-
-      const next = firstSelectResult(outcome.response);
-      if (!next) return;
-
-      setResponse((prev) => {
-        if (!prev) return outcome.response;
-        const prevFirst = firstSelectResult(prev);
-        if (!prevFirst) return outcome.response;
-        const idx = prev.results.findIndex((r) => r.kind === "select");
-        const mergedFirst = {
-          ...prevFirst,
-          rows: [...prevFirst.rows, ...next.rows],
-          has_more: next.has_more,
-        };
-        const mergedResults = [...prev.results];
-        mergedResults[idx] = mergedFirst;
-        return { ...prev, results: mergedResults };
-      });
-    } finally {
-      loadingMoreRef.current = false;
-    }
-  }, [
-    activeConnection?.id,
-    block.body,
-    block.from,
-    block.metadata.limit,
-    block.metadata.timeoutMs,
+    activeConnection,
+    block,
     blockId,
+    view,
+    filePath,
+    abortRef,
+    setters: {
+      setExecutionState,
+      setError,
+      setDurationMs,
+      setResponse,
+      setCached,
+    },
+  });
+
+  // Next-page append for the current select result — sibling hook.
+  const loadMore = useDbLoadMore({
+    activeConnection,
+    block,
+    blockId,
+    view,
     filePath,
     response,
-    view,
-  ]);
+    setResponse,
+  });
 
   // Register actions with the registry so ⌘↵ / ⌘. / ⌘⇧E can dispatch
   useEffect(() => {

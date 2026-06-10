@@ -60,7 +60,17 @@ jobs:
 
       - name: cargo test
         if: ${{ !cancelled() }}
-        run: cargo test --workspace
+        # tauri-build copies the staged sidecar placeholder over
+        # target/debug/httui — the launcher's own output. With a warm
+        # cache the launcher is not relinked afterwards, so its
+        # integration tests would spawn the 0-byte placeholder
+        # (EACCES). Relink it after the workspace build so the tests
+        # spawn the real binary.
+        run: |
+          cargo build --workspace --all-targets
+          touch httui-launcher/src/main.rs
+          cargo build -p httui-launcher
+          cargo test --workspace
 
       - name: cargo check (all targets)
         if: ${{ !cancelled() }}

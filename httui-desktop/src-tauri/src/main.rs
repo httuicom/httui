@@ -411,6 +411,7 @@ fn main() {
             httui_notes::commands::blocks::delete_block_example,
             httui_notes::commands::blocks::purge_block_examples,
             httui_notes::commands::blocks::get_block_result,
+            httui_notes::commands::blocks::get_latest_block_result_by_alias,
             httui_notes::commands::blocks::save_block_result,
             httui_notes::commands::blocks::compute_block_hash,
             httui_notes::commands::settings::get_config,

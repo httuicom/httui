@@ -65,6 +65,7 @@ import { computeHttpCacheHash } from "@/lib/blocks/hash";
 import { EditorView } from "@codemirror/view";
 
 import { saveBlockResult } from "@/lib/tauri/commands";
+import { notifyBlockRan } from "@/lib/lsp/client";
 import type { BlockContext } from "@/lib/blocks/references";
 
 interface HttpFencedPanelProps {
@@ -223,9 +224,13 @@ export const HttpFencedPanel = memo(function HttpFencedPanel({
         JSON.stringify(resp),
         elapsed,
         null,
+        block.metadata.alias ?? null,
       );
+      // An aliased success refreshes the inferred shape — let the
+      // language server republish field diagnostics against it.
+      if (block.metadata.alias) notifyBlockRan();
     },
-    [parsed, filePath],
+    [parsed, filePath, block.metadata.alias],
   );
 
   const onOutcome = useCallback(

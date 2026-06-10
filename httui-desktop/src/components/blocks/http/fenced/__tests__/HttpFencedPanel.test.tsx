@@ -186,6 +186,11 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: (opts: unknown) => openDialogMock(opts),
 }));
 
+const notifyBlockRanMock = vi.fn();
+vi.mock("@/lib/lsp/client", () => ({
+  notifyBlockRan: () => notifyBlockRanMock(),
+}));
+
 vi.mock("@/components/ui/toaster", () => ({
   toaster: { create: vi.fn() },
 }));
@@ -447,6 +452,52 @@ describe("HttpFencedPanel — adapter callbacks", () => {
       { envVars: {} },
     );
     expect(saveBlockResult).toHaveBeenCalled();
+  });
+
+  it("persist with alias forwards it and pings the language server", async () => {
+    const view = makeView("");
+    const { block, entry, filePath } = makeEntry(view, { alias: "req1" });
+    renderWithProviders(
+      <HttpFencedPanel
+        blockId="http_idx_0"
+        block={block}
+        entry={entry}
+        view={view}
+        filePath={filePath}
+      />,
+    );
+    vi.mocked(saveBlockResult).mockClear();
+    notifyBlockRanMock.mockClear();
+    await cap.persist!(
+      { status_code: 200, size_bytes: 0, elapsed_ms: 5, headers: {}, body: "" },
+      5,
+      { envVars: {} },
+    );
+    expect(vi.mocked(saveBlockResult).mock.calls[0][6]).toBe("req1");
+    expect(notifyBlockRanMock).toHaveBeenCalled();
+  });
+
+  it("persist without alias saves a null alias and stays quiet", async () => {
+    const view = makeView("");
+    const { block, entry, filePath } = makeEntry(view);
+    renderWithProviders(
+      <HttpFencedPanel
+        blockId="http_idx_0"
+        block={block}
+        entry={entry}
+        view={view}
+        filePath={filePath}
+      />,
+    );
+    vi.mocked(saveBlockResult).mockClear();
+    notifyBlockRanMock.mockClear();
+    await cap.persist!(
+      { status_code: 200, size_bytes: 0, elapsed_ms: 5, headers: {}, body: "" },
+      5,
+      { envVars: {} },
+    );
+    expect(vi.mocked(saveBlockResult).mock.calls[0][6]).toBeNull();
+    expect(notifyBlockRanMock).not.toHaveBeenCalled();
   });
 
   it("onOutcome — success path triggers recordHistory with success outcome", () => {
