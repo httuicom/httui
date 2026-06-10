@@ -11,7 +11,7 @@ homepage.workspace = true
 documentation.workspace = true
 
 [dependencies]
-httui-core = { git = "https://github.com/httuicom/httui-core", rev = "af75dbea47d59c195081469e096b33b8d231ecf9" }
+httui-core = { git = "https://github.com/httuicom/httui-core", rev = "6e2f97db9f3201d931c59fe1c4da93904355f73f" }
 rmcp = { version = "1", features = ["server", "macros", "transport-io"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
