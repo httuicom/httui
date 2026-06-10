@@ -1,7 +1,10 @@
 import type { Text as CMText } from "@codemirror/state";
 import type { BlockContext } from "./references";
-import { getBlockResult } from "@/lib/tauri/commands";
-import { hashBlockContent, computeDbCacheHash } from "./hash";
+import {
+  getBlockResult,
+  getLatestBlockResultByAlias,
+} from "@/lib/tauri/commands";
+import { computeDbCacheHash } from "./hash";
 import { findFencedBlocks } from "@/lib/codemirror/cm-block-widgets";
 import { findDbBlocks } from "@/lib/codemirror/cm-db-block";
 import {
@@ -40,12 +43,13 @@ interface CollectedBlock extends BlockContext {
 }
 
 /**
- * Populate cached results for a list of collected blocks. For http/e2e
- * blocks the cache key is just `hashBlockContent(content)` (same as what
- * the write side computes). For DB blocks the key is `computeDbCacheHash`
- * which folds in the resolved connection UUID and a snapshot of the env
- * vars referenced by the query — both sides MUST match or the lookup
- * silently misses every cached row.
+ * Populate cached results for a list of collected blocks. HTTP blocks
+ * resolve by `(filePath, alias)` — the write side keys rows by a
+ * request+env hash this scanner cannot reproduce, so a hash lookup here
+ * would miss every row. DB blocks replicate the write-side key
+ * (`computeDbCacheHash` folds in the resolved connection UUID and a
+ * snapshot of the env vars referenced by the query); on a miss they
+ * also fall back to the alias row.
  */
 async function populateCachedResults(
   blocks: CollectedBlock[],
@@ -69,18 +73,24 @@ async function populateCachedResults(
     blocks.map(async (block) => {
       if (!block.content) return;
       try {
-        let hash: string;
+        let cached = null;
         if (block.blockType === "db") {
           const conn = resolveConnectionIdentifier(
             connections,
             block._dbConnectionIdentifier,
           );
-          if (!conn) return;
-          hash = await computeDbCacheHash(block.content, conn.id, envVars);
-        } else {
-          hash = await hashBlockContent(block.content);
+          if (conn) {
+            const hash = await computeDbCacheHash(
+              block.content,
+              conn.id,
+              envVars,
+            );
+            cached = await getBlockResult(filePath, hash);
+          }
         }
-        const cached = await getBlockResult(filePath, hash);
+        if (!cached) {
+          cached = await getLatestBlockResultByAlias(filePath, block.alias);
+        }
         if (cached) {
           block.cachedResult = {
             status: cached.status,
