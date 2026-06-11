@@ -217,6 +217,10 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
                 doc.insert_char_at_cursor(c);
             }
             app.vim.insert_session.push_char(c);
+            // Typing past the pane edge must pan the viewport like a
+            // motion would — without this the caret walks off-screen
+            // until the next motion refreshes.
+            app.refresh_viewport_for_cursor();
         }
         Action::InsertNewline => {
             if let Some(doc) = app.document_mut() {
@@ -230,11 +234,13 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
                 doc.delete_char_before_cursor();
             }
             app.vim.insert_session.pop_char();
+            app.refresh_viewport_for_cursor();
         }
         Action::DeleteForward => {
             if let Some(doc) = app.document_mut() {
                 doc.delete_char_at_cursor();
             }
+            app.refresh_viewport_for_cursor();
         }
         Action::EnterCmdline => {
             app.modal = Some(crate::modal::Modal::Prompt(
@@ -535,3 +541,7 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
         _ => unreachable!("apply_misc: variante fora do grupo"),
     }
 }
+
+#[cfg(test)]
+#[path = "misc_tests.rs"]
+mod tests;

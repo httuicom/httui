@@ -47,6 +47,7 @@ pub fn render_block_with_selection(
     viewport_top: Option<&mut u16>,
     names: &ConnectionNames,
     result_tab: crate::app::ResultPanelTab,
+    body_left: u16,
 ) {
     // Bordered card with state-colored border. Inside, sections
     // stack top-to-bottom: header bar → (fence header if selected)
@@ -159,6 +160,7 @@ pub fn render_block_with_selection(
             names,
             result_tab,
             selected,
+            body_left,
         );
         return;
     }
@@ -171,7 +173,15 @@ pub fn render_block_with_selection(
         // when entering the response, since HTTP doesn't have a
         // selected-row highlight like DB tables do.
         let cursor_in_result = selected_row.is_some();
-        http_panel::render_http_inner(frame, middle, b, result_tab, selected, cursor_in_result);
+        http_panel::render_http_inner(
+            frame,
+            middle,
+            b,
+            result_tab,
+            selected,
+            cursor_in_result,
+            body_left,
+        );
         return;
     }
 
@@ -191,7 +201,7 @@ pub fn render_block_with_selection(
                 .map(|l| Line::from(Span::raw(l.to_string())))
                 .collect()
         };
-        frame.render_widget(Paragraph::new(lines), middle);
+        frame.render_widget(Paragraph::new(lines).scroll((0, body_left)), middle);
         return;
     }
 

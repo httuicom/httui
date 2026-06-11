@@ -31,6 +31,21 @@ describe("referenceHighlight", () => {
     view.destroy();
   });
 
+  it("gives grammar tokens their own classes", () => {
+    const view = mount("{{req1.response.results.0.id}} {{$prev.body}}");
+    expect(view.dom.querySelectorAll(".cm-ref-name").length).toBe(1);
+    expect(view.dom.querySelectorAll(".cm-ref-prev").length).toBe(1);
+    expect(view.dom.querySelectorAll(".cm-ref-index").length).toBe(1);
+    view.destroy();
+  });
+
+  it("still highlights a half-typed ref's parsed prefix", () => {
+    const view = mount("{{req1.respo");
+    // error recovery keeps the alias token painted even mid-typing
+    expect(view.dom.querySelectorAll(".cm-ref-name").length).toBe(1);
+    view.destroy();
+  });
+
   it("leaves plain text and single braces unmarked", () => {
     const view = mount("plain { not a ref }");
     expect(view.dom.querySelectorAll(".cm-reference-highlight").length).toBe(0);

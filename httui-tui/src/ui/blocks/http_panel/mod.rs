@@ -226,6 +226,7 @@ pub(super) fn render_http_inner(
     result_tab: crate::app::ResultPanelTab,
     selected: bool,
     cursor_in_result: bool,
+    body_left: u16,
 ) {
     if inner.width == 0 || inner.height == 0 {
         return;
@@ -293,7 +294,13 @@ pub(super) fn render_http_inner(
             .style(ratatui::style::Style::default().bg(crate::ui::palette::block_body_bg())),
         chunks[idx],
     );
-    frame.render_widget(Paragraph::new(request_lines), chunks[idx]);
+    // Pan only the raw editable text (cursor-on); the formatted
+    // off-cursor view never pans, and the chrome/response stay put.
+    let request_left = if selected { body_left } else { 0 };
+    frame.render_widget(
+        Paragraph::new(request_lines).scroll((0, request_left)),
+        chunks[idx],
+    );
     idx += 1;
     if closer_height > 0 {
         render_fence_closer_row(frame, chunks[idx], b);

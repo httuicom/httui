@@ -225,6 +225,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
             render_empty_state_inline(frame, editor_area, &vault);
             if let PaneNode::Leaf(ref mut p) = tab.root {
                 p.viewport_height = editor_area.height;
+                p.viewport_width = editor_area.width;
             }
         } else {
             render_pane_tree(

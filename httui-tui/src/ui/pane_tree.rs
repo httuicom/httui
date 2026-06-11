@@ -45,6 +45,7 @@ pub(crate) fn render_pane_tree(
     match node {
         PaneNode::Leaf(pane) => {
             pane.viewport_height = area.height;
+            pane.viewport_width = area.width;
             let is_focused = matches!(focused_path, Some(p) if p.is_empty());
             match pane.document.as_ref() {
                 Some(doc) => {
@@ -54,6 +55,7 @@ pub(crate) fn render_pane_tree(
                             area,
                             doc,
                             pane.viewport_top,
+                            pane.viewport_left,
                             search_pattern,
                             connection_names,
                             result_viewport_top,
@@ -65,6 +67,7 @@ pub(crate) fn render_pane_tree(
                             area,
                             doc,
                             pane.viewport_top,
+                            pane.viewport_left,
                             search_pattern,
                             connection_names,
                             result_viewport_top,
@@ -80,6 +83,7 @@ pub(crate) fn render_pane_tree(
                                 area,
                                 doc,
                                 pane.viewport_top,
+                                pane.viewport_left,
                                 overlay,
                             );
                         }

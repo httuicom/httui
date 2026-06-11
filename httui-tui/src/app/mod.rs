@@ -51,7 +51,7 @@ pub use settings_page::*;
 pub use standard_state::*;
 pub use status::*;
 pub use tabbar::*;
-pub(crate) use viewport::{clamp_viewport, cursor_y};
+pub(crate) use viewport::{clamp_viewport, cursor_y, follow_cursor_x};
 
 /// Global application state.
 pub struct App {

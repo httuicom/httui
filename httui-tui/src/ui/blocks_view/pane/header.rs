@@ -57,11 +57,19 @@ pub(super) fn render_header(
             .iter()
             .map(|s| s.content.chars().count())
             .sum::<usize>() as u16;
+    let url_field_w = inner
+        .x
+        .saturating_add(inner.width)
+        .saturating_sub(url_start_x);
     if is_http {
         if let Some(edit) = url_edit {
-            // Verbatim while editing so the caret maps 1:1 to bytes.
+            // Verbatim while editing so the caret maps 1:1 to chars;
+            // windowed to the field so a long URL pans with the caret
+            // instead of truncating at the right edge.
+            let pan = url_edit_pan(edit, url_field_w);
             left.push(Span::styled(
-                edit.current_text(),
+                crate::buffer::viewport2d::window_slice(&edit.current_text(), pan, url_field_w)
+                    .to_string(),
                 Style::default()
                     .fg(crate::ui::palette::foreground())
                     .add_modifier(Modifier::UNDERLINED),
@@ -143,8 +151,11 @@ pub(super) fn render_header(
 
     if let Some(edit) = url_edit {
         let (_row, col) = edit_cursor_row_col(edit);
-        let cx = url_start_x.saturating_add(col as u16);
-        if cx < inner.x + inner.width {
+        let pan = url_edit_pan(edit, url_field_w);
+        let cursor_x = crate::buffer::viewport2d::display_col(edit.current_text().chars(), col);
+        if let Some(cx) =
+            crate::buffer::viewport2d::project_x(cursor_x, pan, url_start_x, url_field_w)
+        {
             frame.set_cursor_position((cx, inner.y));
             // Publish the caret cell so the completion popup anchors under
             // this pane's URL field (not the editor area's left edge in
@@ -155,12 +166,21 @@ pub(super) fn render_header(
             let text_area = Rect {
                 x: url_start_x,
                 y: inner.y,
-                width: inner.width.saturating_sub(url_start_x - inner.x),
+                width: url_field_w,
                 height: 1,
             };
-            crate::ui::overlay_visual_selection(frame, text_area, &edit.doc, 0, overlay);
+            crate::ui::overlay_visual_selection(frame, text_area, &edit.doc, 0, pan, overlay);
         }
     }
+}
+
+/// Stateless per-frame pan for the URL field: with `left = 0` the
+/// follow math degenerates to keep-the-caret-visible-with-a-right-
+/// margin, so no scroll state needs to live anywhere.
+fn url_edit_pan(edit: &crate::app::RegionEdit, field_w: u16) -> u16 {
+    let (_row, col) = edit_cursor_row_col(edit);
+    let cursor_x = crate::buffer::viewport2d::display_col(edit.current_text().chars(), col);
+    crate::buffer::viewport2d::follow_x(0, field_w, cursor_x)
 }
 
 fn method_chip_color(method: &str) -> ratatui::style::Color {

@@ -180,6 +180,27 @@ fn render_headers_region(
         EditField::HttpHeaderValue(r) => Some((r, 1usize)),
         _ => None,
     });
+    // Stateless per-frame pan for the edited cell: keeps the caret
+    // visible inside the cell instead of letting a long value wrap to
+    // the next visual row (which would desync the caret's row math).
+    let leading = 4u16; // `[x] ` marker
+    let cell_width = |col: usize| -> u16 {
+        if col == 0 {
+            key_w
+        } else {
+            inner.width.saturating_sub(leading + key_w + 2)
+        }
+    };
+    let edit_pan = pane
+        .block_edit
+        .as_ref()
+        .zip(edit_row_col)
+        .map(|(e, (_row, col))| {
+            let (_dr, dc) = edit_cursor_row_col(e);
+            let cursor_x = crate::buffer::viewport2d::display_col(e.current_text().chars(), dc);
+            crate::buffer::viewport2d::follow_x(0, cell_width(col), cursor_x)
+        })
+        .unwrap_or(0);
     let mut lines: Vec<Line<'static>> = Vec::with_capacity(parsed.headers.len());
     for (i, (k, v, enabled)) in parsed.headers.iter().enumerate() {
         let mut key_text = k.clone();
@@ -191,6 +212,11 @@ fn render_headers_region(
                     .as_ref()
                     .map(|e| e.current_text())
                     .unwrap_or_default();
+                // Window the edited cell to its width so the caret pan
+                // and the painted text stay in lock-step (Wrap ignores
+                // Paragraph::scroll, so the slice happens here).
+                let buf = crate::buffer::viewport2d::window_slice(&buf, edit_pan, cell_width(col))
+                    .to_string();
                 if col == 0 {
                     key_text = buf;
                 } else {
@@ -280,16 +306,16 @@ fn render_headers_region(
             return;
         }
         // Marker (`[x] `) + key column precede the value cell.
-        let leading = 4u16;
         let (_doc_row, doc_col) = edit_cursor_row_col(edit);
-        let cell_col = doc_col as u16;
+        let cursor_x = crate::buffer::viewport2d::display_col(edit.current_text().chars(), doc_col);
         let base_x = if col == 0 {
             inner.x + leading
         } else {
             inner.x + leading + key_w + 2
         };
-        let cx = base_x.saturating_add(cell_col);
-        if cx < inner.x + inner.width {
+        if let Some(cx) =
+            crate::buffer::viewport2d::project_x(cursor_x, edit_pan, base_x, cell_width(col))
+        {
             frame.set_cursor_position((cx, row_y));
             // Publish the cell so the completion popup anchors under THIS
             // pane's header value (not the editor area's leftmost column).
@@ -297,18 +323,13 @@ fn render_headers_region(
         }
         // Visual selection overlay over the edited field's cell.
         if let Some(overlay) = visual_overlay {
-            let cell_w = if col == 0 {
-                key_w
-            } else {
-                inner.width.saturating_sub(leading + key_w + 2)
-            };
             let cell_area = ratatui::layout::Rect {
                 x: base_x,
                 y: row_y,
-                width: cell_w,
+                width: cell_width(col),
                 height: 1,
             };
-            crate::ui::overlay_visual_selection(frame, cell_area, &edit.doc, 0, overlay);
+            crate::ui::overlay_visual_selection(frame, cell_area, &edit.doc, 0, edit_pan, overlay);
         }
     }
 }

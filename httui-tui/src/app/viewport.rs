@@ -93,6 +93,50 @@ pub(crate) fn clamp_viewport(viewport_top: u16, height: u16, cursor_y: u16) -> u
     }
 }
 
+/// New horizontal pan for the cursor's segment. Pans only where a
+/// caret can actually sit on a long text line: prose lines and block
+/// BODY lines. Fence header / closer rows and result tables stay at
+/// 0 — their cursor clamps to the card edge as before.
+pub(crate) fn follow_cursor_x(doc: &Document, left: u16, width: u16) -> u16 {
+    use crate::buffer::viewport2d::{display_col, follow_x};
+    match doc.cursor() {
+        Cursor::InProse {
+            segment_idx,
+            offset,
+        } => {
+            let Some(Segment::Prose(rope)) = doc.segments().get(segment_idx) else {
+                return 0;
+            };
+            let off = offset.min(rope.len_chars());
+            let line = rope.char_to_line(off);
+            let col = off - rope.line_to_char(line);
+            let cursor_x = display_col(rope.line(line).chars(), col);
+            follow_x(left, width, cursor_x)
+        }
+        Cursor::InBlock {
+            segment_idx,
+            offset,
+        } => {
+            use crate::buffer::block::{raw_section_at, RawSection};
+            let Some(Segment::Block(b)) = doc.segments().get(segment_idx) else {
+                return 0;
+            };
+            let raw = &b.raw;
+            let off = offset.min(raw.len_chars());
+            if !matches!(raw_section_at(raw, off), RawSection::Body { .. }) {
+                return 0;
+            }
+            let line = raw.char_to_line(off);
+            let col = off - raw.line_to_char(line);
+            let cursor_x = display_col(raw.line(line).chars(), col);
+            // Body text sits one cell inside the card's left border and
+            // one short of the right border (see render_inblock_cursor).
+            follow_x(left, width.saturating_sub(2), cursor_x)
+        }
+        Cursor::InBlockResult { .. } => 0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -268,6 +312,76 @@ mod tests {
             offset: 0,
         });
         assert_eq!(cursor_y(&doc, &[]), 0);
+    }
+
+    #[test]
+    fn follow_cursor_x_pans_for_long_prose_line() {
+        let line = format!("{}end", "x".repeat(97));
+        let mut d = Document::from_markdown(&format!("{line}\n")).unwrap();
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 99,
+        });
+        // width 40, cursor_x 99 → lower = 99 + 4 - 40 = 63.
+        assert_eq!(follow_cursor_x(&d, 0, 40), 63);
+        // Back to column 0 → pan returns to 0.
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        assert_eq!(follow_cursor_x(&d, 63, 40), 0);
+    }
+
+    #[test]
+    fn follow_cursor_x_zero_width_keeps_left() {
+        let mut d = Document::from_markdown("abc\n").unwrap();
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 2,
+        });
+        assert_eq!(follow_cursor_x(&d, 7, 0), 7);
+    }
+
+    #[test]
+    fn follow_cursor_x_pans_block_body_with_border_allowance() {
+        let url = format!("https://example.com/{}", "p".repeat(90));
+        let md = format!("```http alias=a\nGET {url}\n```\n");
+        let mut d = Document::from_markdown(&md).unwrap();
+        let blk = block_segment_idx(&d);
+        let raw = match &d.segments()[blk] {
+            Segment::Block(b) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        // Cursor at the end of the GET line (a Body section offset).
+        let line_start = raw.find("GET ").unwrap();
+        let line_len = raw[line_start..].find('\n').unwrap();
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: blk,
+            offset: line_start + line_len - 1,
+        });
+        let left = follow_cursor_x(&d, 0, 40);
+        // Effective width is 40 - 2 (card borders); the pan must put
+        // the cursor inside that window.
+        let cursor_col = (line_len - 1) as u16;
+        assert!(left > 0, "long body line must pan");
+        assert!(cursor_col - left < 38, "cursor inside the body window");
+    }
+
+    #[test]
+    fn follow_cursor_x_is_zero_on_fence_header_and_result() {
+        let mut d = doc_with_block();
+        let blk = block_segment_idx(&d);
+        // Offset 0 → fence header → no pan even with stale left.
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: blk,
+            offset: 0,
+        });
+        assert_eq!(follow_cursor_x(&d, 9, 40), 0);
+        d.set_cursor(Cursor::InBlockResult {
+            segment_idx: blk,
+            row: 0,
+        });
+        assert_eq!(follow_cursor_x(&d, 9, 40), 0);
     }
 
     #[test]

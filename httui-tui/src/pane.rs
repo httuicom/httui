@@ -12,11 +12,22 @@ pub struct Pane {
     pub document: Option<Document>,
     pub document_path: Option<PathBuf>,
     pub viewport_top: u16,
+    /// Horizontal pan, in display columns, applied to the segment the
+    /// cursor lives in (other segments always render unpanned).
+    /// Follows the cursor on refresh; never persisted — it is
+    /// recomputed on the next cursor move, so a stale value is never
+    /// visible.
+    pub viewport_left: u16,
     /// Height of the editor area allocated to this pane on the most
     /// recent frame. Updated by the renderer; read by motion code that
     /// needs page-relative scroll amounts (e.g. `Ctrl+D`). Shared
     /// across BLOCKS tabs — the renderer overwrites it every frame.
     pub viewport_height: u16,
+    /// Width of the editor area on the most recent frame. Updated by
+    /// the renderer like `viewport_height`; read by the horizontal
+    /// cursor-follow, which runs in the update path before render and
+    /// would otherwise have to guess the pane width.
+    pub viewport_width: u16,
     /// Currently-rendered block in BLOCKS view (`AppView::Blocks`).
     /// Ignored when the app is in DOC view; survives the round-trip so
     /// re-entering BLOCKS restores the per-pane selection.
@@ -68,7 +79,9 @@ impl Pane {
             document: None,
             document_path: None,
             viewport_top: 0,
+            viewport_left: 0,
             viewport_height: 0,
+            viewport_width: 0,
             block_selected: None,
             block_region: 0,
             block_row: 0,
@@ -85,7 +98,9 @@ impl Pane {
             document: Some(document),
             document_path: Some(path),
             viewport_top: 0,
+            viewport_left: 0,
             viewport_height: 0,
+            viewport_width: 0,
             block_selected: None,
             block_region: 0,
             block_row: 0,
@@ -148,7 +163,9 @@ impl Pane {
             document,
             document_path: self.document_path.clone(),
             viewport_top: 0,
+            viewport_left: 0,
             viewport_height: 0,
+            viewport_width: 0,
             block_selected: self.block_selected,
             block_region: self.block_region,
             block_row: self.block_row,
@@ -522,7 +539,9 @@ mod tests {
             document: None,
             document_path: Some(PathBuf::from(name)),
             viewport_top: 0,
+            viewport_left: 0,
             viewport_height: 0,
+            viewport_width: 0,
             block_selected: None,
             block_region: 0,
             block_row: 0,
@@ -558,7 +577,9 @@ mod tests {
             document: Some(doc),
             document_path: Some(PathBuf::from("api.md")),
             viewport_top: 0,
+            viewport_left: 0,
             viewport_height: 0,
+            viewport_width: 0,
             block_selected: None,
             block_region: 0,
             block_row: 0,
