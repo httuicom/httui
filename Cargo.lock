@@ -2368,6 +2368,7 @@ dependencies = [
  "tracing-subscriber",
  "tree-sitter",
  "tree-sitter-sequel",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]

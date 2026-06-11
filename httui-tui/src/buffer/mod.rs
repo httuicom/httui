@@ -17,6 +17,7 @@ pub mod cursor;
 pub mod document;
 pub mod layout;
 pub mod segment;
+pub mod viewport2d;
 
 pub use cursor::Cursor;
 pub use document::Document;
