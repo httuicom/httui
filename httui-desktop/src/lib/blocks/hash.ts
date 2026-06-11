@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 /**
  * Compute block hash server-side, including environment + connection context.
- * T31: Hash includes active environment ID and connection ID for cache isolation.
- * T35: Hash computed server-side so frontend cannot spoof it.
+ * The hash covers the active environment ID and connection ID for cache
+ * isolation, and is computed server-side so the frontend cannot spoof it.
  */
 export async function hashBlockContent(
   content: string,
