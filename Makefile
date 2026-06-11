@@ -41,9 +41,10 @@ sidecar:
 bundle-bins:
 	./scripts/prepare-bundle-bins.sh
 
-# Build de producao (com bundle .app para macOS)
+# Production build (.app bundle on macOS). Direct workspace invocation:
+# nested `npm run` layers swallow --bundles.
 build: sidecar bundle-bins
-	npm run tauri build -- --bundles app
+	npm --workspace httui-desktop run tauri -- build --bundles app
 
 # Instalar dependencias
 install-deps:
