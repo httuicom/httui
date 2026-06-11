@@ -105,7 +105,10 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: release-${{ matrix.target || 'host' }}
+          # Falls back to the bare 'release' key when the matrix entry
+          # passes no explicit target (Linux/Windows) so the caches
+          # already saved under that key stay warm.
+          shared-key: ${{ matrix.target && format('release-{0}', matrix.target) || 'release' }}
           cache-on-failure: true
 
       - name: Install Linux dependencies
