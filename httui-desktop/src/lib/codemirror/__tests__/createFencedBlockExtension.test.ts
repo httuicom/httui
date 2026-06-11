@@ -21,7 +21,6 @@ import {
   cursorInsideBlock,
   makeFencedKeymap,
   makeFencedScanner,
-  makeRefCompletionSource,
 } from "@/lib/codemirror/createFencedBlockExtension";
 import {
   WidgetPortalRegistry,
@@ -409,48 +408,5 @@ describe("createFencedBlockExtension", () => {
     });
     // Extra field's value should be readable from the state.
     expect(state.field(extraField)).toBe(0);
-  });
-});
-
-describe("makeRefCompletionSource", () => {
-  it("returns null when the cursor is outside any block body", async () => {
-    const source = makeRefCompletionSource<FakeBlock>(
-      () => [],
-      () => "x.md",
-    );
-    const ctx = {
-      state: EditorState.create({ doc: "no blocks" }),
-      pos: 0,
-      explicit: true,
-    } as unknown as Parameters<typeof source>[0];
-    expect(await source(ctx)).toBeNull();
-  });
-
-  it("returns null when getFilePath returns undefined", async () => {
-    const findBlocks = vi.fn(() => [
-      {
-        from: 0,
-        to: 30,
-        info: "",
-        openLineFrom: 0,
-        openLineTo: 5,
-        bodyFrom: 6,
-        bodyTo: 20,
-        closeLineFrom: 21,
-        closeLineTo: 30,
-        body: "x",
-        metadata: {},
-      } as FakeBlock,
-    ]);
-    const source = makeRefCompletionSource<FakeBlock>(
-      findBlocks,
-      () => undefined,
-    );
-    const ctx = {
-      state: EditorState.create({ doc: "x".repeat(30) }),
-      pos: 10,
-      explicit: true,
-    } as unknown as Parameters<typeof source>[0];
-    expect(await source(ctx)).toBeNull();
   });
 });

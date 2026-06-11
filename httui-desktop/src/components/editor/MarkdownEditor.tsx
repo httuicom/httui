@@ -21,7 +21,6 @@ import { EditorView } from "@codemirror/view";
 import { vim } from "@replit/codemirror-vim";
 
 import { createDocHeaderExtension } from "@/lib/codemirror/cm-doc-header";
-import { useEnvironmentStore } from "@/stores/environment";
 import { BlockContextProvider } from "@/components/blocks/BlockContext";
 import {
   activeEditorTracker,
@@ -105,8 +104,6 @@ export function MarkdownEditor({
         entriesRef,
         handleFileSelectRef,
         docHeaderHandle,
-        getActiveVariables: () =>
-          useEnvironmentStore.getState().getActiveVariables(),
       }),
       // Language-server features (diagnostics/hover/completion served
       // by httui-lsp). The local ref autocomplete stays active alongside

@@ -17,7 +17,6 @@ import { EditorView } from "@codemirror/view";
 
 import {
   createDbBlockExtension,
-  createDbBlockCompletionSource,
   findDbBlocks,
   setDbBlockErrors,
 } from "../cm-db-block";
@@ -267,37 +266,6 @@ describe("setDbBlockErrors → dbErrorsField → error mark decorations", () => 
     } finally {
       unmount(view, container);
     }
-  });
-});
-
-// ─────────────── createDbBlockCompletionSource ───────────────
-
-describe("createDbBlockCompletionSource — ref autocomplete", () => {
-  it("returns null outside a db block (no {{ context)", async () => {
-    const doc = "plain text {{";
-    const state = EditorState.create({ doc });
-    const source = createDbBlockCompletionSource(() => undefined);
-    const ctx = {
-      state,
-      pos: doc.length,
-      explicit: true,
-      matchBefore: (re: RegExp) => {
-        const before = doc;
-        const m = before.match(re);
-        if (!m) return null;
-        const text = m[0];
-        return { from: before.length - text.length, to: before.length, text };
-      },
-      aborted: false,
-    } as unknown as import("@codemirror/autocomplete").CompletionContext;
-    const result = await source(ctx);
-    // Outside a fenced block — the makeRefCompletionSource short-circuits.
-    expect(result === null || (result?.options?.length ?? 0) === 0).toBe(true);
-  });
-
-  it("invokable with non-empty doc (smoke — no throw)", () => {
-    const source = createDbBlockCompletionSource(() => "/notes/x.md");
-    expect(typeof source).toBe("function");
   });
 });
 

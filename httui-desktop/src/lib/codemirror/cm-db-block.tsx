@@ -12,7 +12,7 @@
  * and the public surface stitching.
  *
  * Public exports are preserved exactly (RULE 4): `findDbBlocks`,
- * `createDbBlockExtension`, `createDbBlockCompletionSource`,
+ * `createDbBlockExtension`,
  * `createDbSchemaCompletionSource`, `subscribeToDbPortals`,
  * `getDbPortalVersion`, `getDbWidgetContainers`, `setDbBlockActions`,
  * `setDbBlockErrors`, the `Db*` types, `__internal`, and
@@ -28,7 +28,6 @@ import {
   type Text as CMText,
 } from "@codemirror/state";
 import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
-import type { CompletionSource } from "@codemirror/autocomplete";
 
 import { parseDbFenceInfo, type DbBlockMetadata } from "@/lib/blocks/db-fence";
 import {
@@ -41,7 +40,6 @@ import {
   createFencedBlockExtension,
   FENCE_CLOSE_RE,
   makeFencedScanner,
-  makeRefCompletionSource,
   type PushItem,
 } from "@/lib/codemirror/createFencedBlockExtension";
 
@@ -346,14 +344,6 @@ export function createDbBlockExtension(): Extension {
       ),
     ],
   });
-}
-
-// ───── Autocomplete source — {{ref}} (identical pattern to HTTP) ─────
-
-export function createDbBlockCompletionSource(
-  getFilePath: () => string | undefined,
-): CompletionSource {
-  return makeRefCompletionSource(findDbBlocks, getFilePath);
 }
 
 // ───── Exports for tests ─────

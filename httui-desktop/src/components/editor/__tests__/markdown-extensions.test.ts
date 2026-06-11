@@ -68,16 +68,12 @@ vi.mock("@/lib/codemirror/cm-move-blocks", () => ({
 }));
 vi.mock("@/lib/blocks/cm-references", () => ({
   referenceHighlight: [{ refHighlight: true }],
-  createMarkdownReferenceTooltip: vi.fn(() => ({ refTooltip: true })),
 }));
 
 import {
   wikilinks,
   createWikilinkCompletion,
 } from "@/lib/codemirror/cm-wikilinks";
-import { createDbBlockCompletionSource } from "@/lib/codemirror/cm-db-block";
-import { createHttpBlockCompletionSource } from "@/lib/codemirror/cm-http-block";
-import { createMarkdownReferenceTooltip } from "@/lib/blocks/cm-references";
 import {
   buildExtensions,
   flattenFiles,
@@ -177,7 +173,6 @@ describe("markdown-extensions", () => {
         entriesRef: overrides.entriesRef ?? { current: [folderEntry] },
         handleFileSelectRef: { current: vi.fn() },
         docHeaderHandle: overrides.docHeader ?? null,
-        getActiveVariables: () => ({ FOO: "bar" }),
       };
     }
 
@@ -268,37 +263,6 @@ describe("markdown-extensions", () => {
         .mocked(createWikilinkCompletion)
         .mock.calls.at(-1)![0] as () => Array<{ name: string; path: string }>;
       expect(getFiles().map((f) => f.path)).toContain("folder/leaf.md");
-    });
-
-    it("createDbBlockCompletionSource gets a closure returning the filePath", () => {
-      const params = makeParams();
-      buildExtensions(params);
-      const getter = vi
-        .mocked(createDbBlockCompletionSource)
-        .mock.calls.at(-1)![0] as () => string;
-      expect(getter()).toBe("current.md");
-    });
-
-    it("createHttpBlockCompletionSource gets a closure returning the filePath", () => {
-      const params = makeParams();
-      buildExtensions(params);
-      const getter = vi
-        .mocked(createHttpBlockCompletionSource)
-        .mock.calls.at(-1)![0] as () => string;
-      expect(getter()).toBe("current.md");
-    });
-
-    it("createMarkdownReferenceTooltip receives the filePath and getActiveVariables passthrough", () => {
-      const params = makeParams();
-      buildExtensions(params);
-      const args = vi.mocked(createMarkdownReferenceTooltip).mock.calls.at(-1);
-      expect(args).toBeDefined();
-      const [getFilePath, getEnvVars] = args as [
-        () => string,
-        () => Record<string, string>,
-      ];
-      expect(getFilePath()).toBe("current.md");
-      expect(getEnvVars()).toEqual({ FOO: "bar" });
     });
   });
 });

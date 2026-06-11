@@ -44,11 +44,9 @@ import {
 } from "@/lib/codemirror/cm-wikilinks";
 import { tables } from "@/lib/codemirror/cm-tables";
 import { moveBlocksKeymap } from "@/lib/codemirror/cm-move-blocks";
-import {
-  referenceHighlight,
-  createMarkdownReferenceTooltip,
-} from "@/lib/blocks/cm-references";
+import { referenceHighlight } from "@/lib/blocks/cm-references";
 import { refClickExtension } from "@/lib/blocks/cm-ref-popover";
+import { serverCompletionSource } from "@codemirror/lsp-client";
 
 import type { FileEntry } from "@/lib/tauri/commands";
 import { vimCompartment, docLineNavKeymap } from "./markdown-vim-motions";
@@ -67,9 +65,6 @@ export interface BuildExtensionsParams {
   entriesRef: { readonly current: FileEntry[] };
   handleFileSelectRef: { readonly current: (path: string) => void };
   docHeaderHandle: DocHeaderHandleLike | null;
-  getActiveVariables: () =>
-    | Promise<Record<string, string>>
-    | Record<string, string>;
 }
 
 // Walk the workspace tree and yield every leaf .md file. Used both to
@@ -91,13 +86,7 @@ export function flattenFiles(
 }
 
 export function buildExtensions(params: BuildExtensionsParams) {
-  const {
-    filePath,
-    entriesRef,
-    handleFileSelectRef,
-    docHeaderHandle,
-    getActiveVariables,
-  } = params;
+  const { filePath, entriesRef, handleFileSelectRef, docHeaderHandle } = params;
 
   return [
     vimCompartment.of([]),
@@ -159,20 +148,18 @@ export function buildExtensions(params: BuildExtensionsParams) {
         // returns 1: {{ref}}). Activates only inside that type's
         // fenced body.
         ...blockRegistry.flatMap((m) => m.completionSources(() => filePath)),
+        // Language server refs/env completion. `override` replaces ALL
+        // sources, so the server source must be listed here explicitly;
+        // it returns null in editors without the LSP plugin.
+        serverCompletionSource,
       ],
       icons: false,
       addToOptions: [slashIconOption],
     }),
-    // `{{ref}}` visual highlight + hover tooltip. The tooltip resolves
-    // the reference against blocks above the enclosing fence (DB or
-    // http/e2e) and shows the cached value — or the resolution error.
-    // CM6 tooltips default to `position: fixed`, so the outer Box's
-    // `overflow: hidden` does NOT clip them; we don't need a custom
-    // `tooltips({ parent })` here (and setting one breaks baseTheme
-    // styling, which is scoped to `.cm-editor`).
+    // `{{ref}}` visual highlight; hover and completion are served by
+    // the language server (cm-lsp).
     ...referenceHighlight,
     refClickExtension,
-    createMarkdownReferenceTooltip(() => filePath, getActiveVariables),
     editorTheme,
     EditorView.lineWrapping,
   ];

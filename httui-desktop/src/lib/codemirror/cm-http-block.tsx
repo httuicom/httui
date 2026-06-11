@@ -10,7 +10,7 @@
  * (HTTP includes Mod-Shift-c for copy-as-cURL).
  *
  * Public exports are preserved exactly (RULE 4): `findHttpBlocks`,
- * `createHttpBlockExtension`, `createHttpBlockCompletionSource`,
+ * `createHttpBlockExtension`,
  * `subscribeToHttpPortals`, `getHttpPortalVersion`,
  * `getHttpWidgetContainers`, `setHttpBlockActions`, plus the `Http*`
  * types — all consumed by `HttpFencedPanel`, `block-portal-registry`,
@@ -18,7 +18,6 @@
  */
 
 import type { EditorState } from "@codemirror/state";
-import type { CompletionSource } from "@codemirror/autocomplete";
 import type { Text as CMText } from "@codemirror/state";
 
 import {
@@ -35,7 +34,6 @@ import {
   buildFenceDecorations,
   createFencedBlockExtension,
   makeFencedScanner,
-  makeRefCompletionSource,
   type PushItem,
 } from "@/lib/codemirror/createFencedBlockExtension";
 import { Decoration } from "@codemirror/view";
@@ -319,8 +317,3 @@ export function createHttpBlockExtension() {
  * `{{ref}}` completion inside an HTTP block body — block aliases above the
  * cursor + non-secret env-variable keys.
  */
-export function createHttpBlockCompletionSource(
-  getFilePath: () => string | undefined,
-): CompletionSource {
-  return makeRefCompletionSource(findHttpBlocks, getFilePath);
-}
