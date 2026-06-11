@@ -232,13 +232,49 @@ fn flatten(
 }
 
 fn flatten_blocks(index: &BlockIndex, expanded: &HashSet<String>, out: &mut Vec<TreeNode>) {
+    // The block index is a flat, alphabetically-sorted list of
+    // vault-relative paths, so files sharing a directory are
+    // contiguous — re-deriving directory nodes from the path
+    // prefixes yields them in tree order. (The DOC view gets the
+    // hierarchy for free from `list_workspace`'s nested entries.)
+    let mut seen_dirs: HashSet<String> = HashSet::new();
     for (file_idx, file) in index.files.iter().enumerate() {
         let path = file.display.clone();
+        let segments: Vec<&str> = path.split('/').collect();
+        let mut prefix = String::new();
+        let mut depth = 0usize;
+        let mut hidden = false;
+        for seg in &segments[..segments.len().saturating_sub(1)] {
+            if prefix.is_empty() {
+                prefix = (*seg).to_string();
+            } else {
+                prefix = format!("{prefix}/{seg}");
+            }
+            if !hidden && seen_dirs.insert(prefix.clone()) {
+                out.push(TreeNode {
+                    name: (*seg).to_string(),
+                    path: prefix.clone(),
+                    is_dir: true,
+                    depth,
+                    block: None,
+                });
+            }
+            if !expanded.contains(&prefix) {
+                hidden = true;
+            }
+            depth += 1;
+        }
+        if hidden {
+            continue;
+        }
         out.push(TreeNode {
-            name: file.display.clone(),
+            name: segments
+                .last()
+                .map(|s| (*s).to_string())
+                .unwrap_or(path.clone()),
             path: path.clone(),
             is_dir: false,
-            depth: 0,
+            depth,
             block: None,
         });
         if !expanded.contains(&path) {
@@ -249,7 +285,7 @@ fn flatten_blocks(index: &BlockIndex, expanded: &HashSet<String>, out: &mut Vec<
                 name: block.label(),
                 path: path.clone(),
                 is_dir: false,
-                depth: 1,
+                depth: depth + 1,
                 block: Some(TreeBlockMeta {
                     file_idx,
                     block_idx,
@@ -273,6 +309,96 @@ mod tests {
             fs::create_dir_all(parent).unwrap();
         }
         fs::write(&p, "").unwrap();
+    }
+
+    fn write_block_note(dir: &Path, rel: &str) {
+        let p = dir.join(rel);
+        if let Some(parent) = p.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(&p, "```http alias=a\nGET https://x.com\n```\n").unwrap();
+    }
+
+    fn blocks_tree(vault: &Path) -> FileTree {
+        let mut t = FileTree {
+            block_index: Some(BlockIndex::build(vault)),
+            ..Default::default()
+        };
+        t.refresh(vault);
+        t
+    }
+
+    #[test]
+    fn blocks_tree_renders_directories_as_collapsed_nodes() {
+        let v = TempDir::new().unwrap();
+        write_block_note(v.path(), "root.md");
+        write_block_note(v.path(), "sub/deep/inner.md");
+        let t = blocks_tree(v.path());
+
+        let rows: Vec<(&str, bool, usize)> = t
+            .entries
+            .iter()
+            .map(|e| (e.name.as_str(), e.is_dir, e.depth))
+            .collect();
+        // File at the vault root keeps its short name at depth 0.
+        assert!(rows.contains(&("root.md", false, 0)), "rows: {rows:?}");
+        // The directory chain surfaces as a single collapsed dir node;
+        // nothing inside it leaks out.
+        assert!(rows.contains(&("sub", true, 0)), "rows: {rows:?}");
+        assert!(
+            !rows.iter().any(|(n, ..)| *n == "deep" || *n == "inner.md"),
+            "collapsed dir must hide children: {rows:?}"
+        );
+    }
+
+    #[test]
+    fn blocks_tree_expanding_dirs_reveals_indented_children() {
+        let v = TempDir::new().unwrap();
+        write_block_note(v.path(), "sub/deep/inner.md");
+        let mut t = blocks_tree(v.path());
+        t.expanded.insert("sub".to_string());
+        t.expanded.insert("sub/deep".to_string());
+        t.refresh(v.path());
+
+        let rows: Vec<(&str, bool, usize)> = t
+            .entries
+            .iter()
+            .map(|e| (e.name.as_str(), e.is_dir, e.depth))
+            .collect();
+        assert!(rows.contains(&("sub", true, 0)), "rows: {rows:?}");
+        assert!(rows.contains(&("deep", true, 1)), "rows: {rows:?}");
+        assert!(rows.contains(&("inner.md", false, 2)), "rows: {rows:?}");
+
+        // Expanding the file reveals its block one level deeper, with
+        // the block meta pointing back at the index.
+        t.expanded.insert("sub/deep/inner.md".to_string());
+        t.refresh(v.path());
+        let block_row = t
+            .entries
+            .iter()
+            .find(|e| e.block.is_some())
+            .expect("block row visible");
+        assert_eq!(block_row.depth, 3);
+        assert_eq!(block_row.path, "sub/deep/inner.md");
+    }
+
+    #[test]
+    fn blocks_tree_dir_node_toggles_expansion() {
+        let v = TempDir::new().unwrap();
+        write_block_note(v.path(), "sub/inner.md");
+        let mut t = blocks_tree(v.path());
+        let dir_idx = t
+            .entries
+            .iter()
+            .position(|e| e.is_dir && e.name == "sub")
+            .expect("dir row present");
+        t.selected = dir_idx;
+        assert!(t.toggle_expand(), "dir toggles in block mode");
+        t.refresh(v.path());
+        assert!(
+            t.entries.iter().any(|e| e.name == "inner.md"),
+            "expanded dir reveals its file"
+        );
     }
 
     #[test]
