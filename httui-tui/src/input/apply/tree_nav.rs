@@ -76,8 +76,15 @@ pub(crate) fn apply_tree_nav(app: &mut App, action: Action, _recording: bool) {
                 // populated tab → push a new tab and activate it. This
                 // matches the user's mental model (each Enter on the
                 // sidebar leaves a trail of open tabs without needing a
-                // separate `Ctrl+Enter` chord).
+                // separate `Ctrl+Enter` chord). Re-activating the block
+                // already open is a no-op — resetting the region (or
+                // stacking a duplicate tab) would throw away the
+                // user's place inside the card.
                 if let Some(pane) = app.active_pane_mut() {
+                    if pane.block_selected == Some(target) {
+                        app.vim.enter_normal();
+                        return;
+                    }
                     let active_empty = pane.block_selected.is_none();
                     if active_empty {
                         pane.block_selected = Some(target);

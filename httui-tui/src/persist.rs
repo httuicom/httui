@@ -310,6 +310,9 @@ fn restore_leaf(
     pane.block_region = leaf.region as usize;
     pane.block_row = leaf.row as usize;
     pane.block_col = leaf.col as usize;
+    // The request-tab memory isn't persisted — derive it from the
+    // restored region so the card opens on the tab the focus implies.
+    pane.note_req_tab();
     // Multi-tab restore: drop the default single-empty strip and
     // rebuild from the snapshot, then activate the persisted index.
     // Snapshots from old TUIs leave `tabs` empty — the mirror
@@ -325,6 +328,7 @@ fn restore_leaf(
                 block_region: snap.region as usize,
                 block_row: snap.row as usize,
                 block_col: snap.col as usize,
+                block_req_tab: if snap.region == 2 { 1 } else { 0 },
                 block_edit: None,
                 block_draft: None,
             });
@@ -342,6 +346,7 @@ fn restore_leaf(
             pane.block_region = pulled.block_region;
             pane.block_row = pulled.block_row;
             pane.block_col = pulled.block_col;
+            pane.block_req_tab = pulled.block_req_tab;
             pane.viewport_top = pulled.viewport_top;
         }
     }

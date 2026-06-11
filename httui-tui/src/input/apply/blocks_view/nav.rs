@@ -23,6 +23,17 @@ pub(crate) fn band_neighbor(block_type: &str, region: usize, dir: isize) -> Opti
     }
 }
 
+/// Region to land on when navigation enters the HTTP Request band
+/// without naming a sub-tab: the remembered one (`Headers → 1`,
+/// `Body → 2`). Without this, every band entry would land on Headers
+/// and overwrite the memory right away.
+fn request_band_entry(app: &App) -> usize {
+    match app.active_pane().map(|p| p.block_req_tab) {
+        Some(1) => 2,
+        _ => 1,
+    }
+}
+
 /// Move to the band above/below, landing on its bottom row going up and
 /// its top row going down (vim split-edge feel).
 pub(crate) fn move_band(app: &mut App, dir: isize) {
@@ -30,12 +41,16 @@ pub(crate) fn move_band(app: &mut App, dir: isize) {
         return;
     };
     let region = app.active_pane().map(|p| p.block_region).unwrap_or(0);
-    let Some(target) = band_neighbor(&bt, region, dir) else {
+    let Some(mut target) = band_neighbor(&bt, region, dir) else {
         return;
     };
+    if bt == "http" && target == 1 {
+        target = request_band_entry(app);
+    }
     if let Some(pane) = app.active_pane_mut() {
         pane.block_region = target;
         pane.block_col = 1;
+        pane.note_req_tab();
     }
     let count = active_region_row_count(app);
     if let Some(pane) = app.active_pane_mut() {
@@ -59,6 +74,7 @@ pub(crate) fn cycle_band_subtab(app: &mut App, delta: isize) {
                     pane.block_region = next;
                     pane.block_row = 0;
                     pane.block_col = 1;
+                    pane.note_req_tab();
                 }
             }
             3 => shift_response_subtab(app, delta),
@@ -344,6 +360,13 @@ pub(crate) fn shift_block(app: &mut App, delta: isize) {
 
 pub(crate) fn set_region(app: &mut App, index: usize) {
     let count = active_block_region_count(app);
+    // The digit chord names the BAND, not the sub-tab — entering the
+    // HTTP Request band resolves to the remembered sub-tab's region.
+    let index = if index == 1 && active_block_type(app).as_deref() == Some("http") {
+        request_band_entry(app)
+    } else {
+        index
+    };
     let Some(pane) = app.active_pane_mut() else {
         return;
     };
@@ -354,6 +377,7 @@ pub(crate) fn set_region(app: &mut App, index: usize) {
     pane.block_region = index.min(count - 1);
     pane.block_row = 0;
     pane.block_col = 1;
+    pane.note_req_tab();
 }
 
 pub(crate) fn active_block_region_count(app: &App) -> usize {
@@ -397,3 +421,7 @@ pub(crate) fn jump_target_region(block_type: &str, n: usize) -> usize {
     let idx = n.saturating_sub(1).min(bands.len() - 1);
     bands[idx]
 }
+
+#[cfg(test)]
+#[path = "req_tab_tests.rs"]
+mod req_tab_tests;

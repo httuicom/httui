@@ -22,9 +22,14 @@ pub(super) fn render_http_regions(
 
     // Request region: accent rail + a Headers│Body tab row. The active
     // tab follows the focused region (1=Headers, 2=Body); when focus is
-    // on the URL (0) or Response (3) the region shows Headers, dimmed.
+    // elsewhere (URL, Response) the card keeps showing the last tab
+    // the user visited instead of snapping back to Headers.
     let req_focused = pane_focused && (region == 1 || region == 2);
-    let active_cell = if region == 2 { 1 } else { 0 };
+    let active_cell = match region {
+        1 => 0,
+        2 => 1,
+        _ => pane.block_req_tab.min(1),
+    };
     let inner = region_frame(frame, chunks[0], req_focused);
     if inner.width > 0 && inner.height > 0 {
         let parts = Layout::default()

@@ -34,6 +34,7 @@ pub struct BlockTab {
     pub block_region: usize,
     pub block_row: usize,
     pub block_col: usize,
+    pub block_req_tab: usize,
     pub block_edit: Option<Box<RegionEdit>>,
     pub block_draft: Option<Box<BlockDraft>>,
 }
@@ -48,6 +49,7 @@ impl BlockTab {
             block_region: 0,
             block_row: 0,
             block_col: 1,
+            block_req_tab: 0,
             block_edit: None,
             block_draft: None,
         }
@@ -82,6 +84,7 @@ impl Pane {
             block_region: self.block_region,
             block_row: self.block_row,
             block_col: self.block_col,
+            block_req_tab: self.block_req_tab,
             block_edit: self.block_edit.take(),
             block_draft: self.block_draft.take(),
         }
@@ -95,6 +98,7 @@ impl Pane {
         self.block_region = tab.block_region;
         self.block_row = tab.block_row;
         self.block_col = tab.block_col;
+        self.block_req_tab = tab.block_req_tab;
         self.block_edit = tab.block_edit;
         self.block_draft = tab.block_draft;
     }
@@ -267,6 +271,7 @@ mod tests {
             block_region: 1,
             block_row: 4,
             block_col: 0,
+            block_req_tab: 0,
             block_edit: None,
             block_draft: None,
         };
@@ -292,6 +297,7 @@ mod tests {
             block_region: 5,
             block_row: 0,
             block_col: 0,
+            block_req_tab: 0,
             block_edit: None,
             block_draft: None,
         };
