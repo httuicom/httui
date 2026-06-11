@@ -160,7 +160,9 @@ jobs:
 
   frontend:
     name: Frontend
-    runs-on: ubuntu-latest
+    # arm64 runners are free for public repos and meaningfully faster
+    # than the x64 ubuntu-latest pool — this job is vitest-bound.
+    runs-on: ubuntu-24.04-arm
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     steps:
