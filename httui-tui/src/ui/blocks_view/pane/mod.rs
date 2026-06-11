@@ -319,15 +319,18 @@ fn render_multiline_region(
     }
     let active_edit = pane.block_edit.as_ref().filter(|e| field_matches(&e.field));
     let mut pan: u16 = 0;
+    let mut top: u16 = 0;
     let (text, caret): (String, Option<(u16, u16)>) = if let Some(edit) = active_edit {
         let text = edit.current_text();
         let (row, col) = edit_cursor_row_col(edit);
-        // Stateless pan derived from the caret's line each frame; all
-        // lines of the region shift together (vim `nowrap` feel).
+        // Stateless pan derived from the caret each frame, on both
+        // axes — `follow_x` is axis-agnostic, so it also keeps the
+        // caret's ROW inside a region shorter than the body.
         let line = text.split('\n').nth(row).unwrap_or("");
         let cursor_x = crate::buffer::viewport2d::display_col(line.chars(), col);
         pan = crate::buffer::viewport2d::follow_x(0, inner.width, cursor_x);
-        let cy = inner.y.saturating_add(row as u16);
+        top = crate::buffer::viewport2d::follow_x(0, inner.height, row as u16);
+        let cy = inner.y.saturating_add((row as u16).saturating_sub(top));
         let caret = crate::buffer::viewport2d::project_x(cursor_x, pan, inner.x, inner.width)
             .map(|cx| (cx, cy));
         (text, caret)
@@ -340,10 +343,23 @@ fn render_multiline_region(
     // uses (`ui::sql_highlight::highlight`). HTTP body paints `{{ref}}`
     // as chips in NAV; while editing it stays verbatim so the caret
     // column and the visual-selection overlay map 1:1 to bytes.
+    let looks_like_json = text.trim_start().starts_with(['{', '[']);
     let rendered: Vec<Line<'static>> = if block_type.starts_with("db") {
         crate::ui::sql_highlight::highlight(&text)
             .into_iter()
             .map(Line::from)
+            .collect()
+    } else if looks_like_json {
+        // JSON bodies get the same lexer the DOC view uses; the spans
+        // reproduce the text verbatim, so the caret/overlay byte
+        // mapping holds in EDIT just like the SQL branch above.
+        text.split('\n')
+            .map(|l| {
+                Line::from(crate::ui::blocks::overlay_refs_on_spans(
+                    crate::ui::blocks::http_panel::highlight_json_line(l),
+                    &std::collections::HashSet::new(),
+                ))
+            })
             .collect()
     } else if active_edit.is_some() {
         text.split('\n')
@@ -354,7 +370,7 @@ fn render_multiline_region(
             .map(|l| Line::from(refs_spans(l, false)))
             .collect()
     };
-    frame.render_widget(Paragraph::new(rendered).scroll((0, pan)), inner);
+    frame.render_widget(Paragraph::new(rendered).scroll((top, pan)), inner);
     if let Some((cx, cy)) = caret {
         if cx < inner.x + inner.width && cy < inner.y + inner.height {
             frame.set_cursor_position((cx, cy));
@@ -364,7 +380,7 @@ fn render_multiline_region(
     // paints while EDIT is active and the engine is in Visual /
     // VisualLine on the sub-doc.
     if let (Some(edit), Some(overlay)) = (active_edit, visual_overlay) {
-        crate::ui::overlay_visual_selection(frame, inner, &edit.doc, 0, pan, overlay);
+        crate::ui::overlay_visual_selection(frame, inner, &edit.doc, top, pan, overlay);
     }
     caret
 }
@@ -408,109 +424,5 @@ pub(super) fn paint_picker_overlay(frame: &mut Frame, area: Rect, n: usize) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn multiline_edit_pans_to_keep_caret_visible() {
-        use ratatui::backend::{Backend, TestBackend};
-        use ratatui::Terminal;
-        let sql = format!("SELECT {} AS TAILCOL", "x".repeat(60));
-        let mut doc = crate::buffer::Document::from_markdown(&format!("{sql}\n")).unwrap();
-        // Caret on the line's last char → the stateless pan must bring
-        // the tail into a 40-col region.
-        doc.set_cursor(crate::buffer::Cursor::InProse {
-            segment_idx: 0,
-            offset: sql.chars().count() - 1,
-        });
-        let mut pane = crate::pane::Pane::empty();
-        pane.block_edit = Some(Box::new(crate::app::RegionEdit {
-            field: EditField::DbQuery,
-            doc,
-            sub_mode: crate::app::EditSubMode::Insert,
-        }));
-        let backend = TestBackend::new(40, 4);
-        let mut terminal = Terminal::new(backend).unwrap();
-        terminal
-            .draw(|f| {
-                render_multiline_region(
-                    f,
-                    Rect::new(0, 0, 40, 4),
-                    "db-postgres",
-                    true,
-                    "",
-                    "(no query)",
-                    &pane,
-                    true,
-                    |f| matches!(f, EditField::DbQuery),
-                    None,
-                );
-            })
-            .unwrap();
-        let cur = terminal.backend_mut().get_cursor_position().unwrap();
-        let buf = terminal.backend().buffer().clone();
-        let text: String = (0..4)
-            .flat_map(|y| (0..40).map(move |x| (x, y)))
-            .map(|(x, y)| buf.cell((x, y)).unwrap().symbol().to_string())
-            .collect();
-        assert!(text.contains("TAILCOL"), "tail visible under pan: {text:?}");
-        assert!(cur.x < 40, "caret inside the region, got {}", cur.x);
-    }
-
-    #[test]
-    fn multiline_nav_mode_renders_unpanned() {
-        use ratatui::backend::TestBackend;
-        use ratatui::Terminal;
-        let pane = crate::pane::Pane::empty();
-        let backend = TestBackend::new(40, 3);
-        let mut terminal = Terminal::new(backend).unwrap();
-        terminal
-            .draw(|f| {
-                render_multiline_region(
-                    f,
-                    Rect::new(0, 0, 40, 3),
-                    "db-postgres",
-                    false,
-                    "SELECT HEADCOL FROM t",
-                    "(no query)",
-                    &pane,
-                    true,
-                    |f| matches!(f, EditField::DbQuery),
-                    None,
-                );
-            })
-            .unwrap();
-        let buf = terminal.backend().buffer().clone();
-        let text: String = (0..3)
-            .flat_map(|y| (0..40).map(move |x| (x, y)))
-            .map(|(x, y)| buf.cell((x, y)).unwrap().symbol().to_string())
-            .collect();
-        assert!(text.contains("HEADCOL"), "NAV stays unpanned: {text:?}");
-    }
-
-    #[test]
-    fn refs_spans_chips_a_reference() {
-        let spans = refs_spans("/users/{{id}}", false);
-        let chip = spans
-            .iter()
-            .find(|s| s.content == "{{id}}")
-            .expect("ref chip span");
-        assert_eq!(chip.style, crate::ui::blocks::ref_highlight::normal_style());
-    }
-
-    #[test]
-    fn refs_spans_plain_text_is_a_single_span() {
-        let spans = refs_spans("no refs here", false);
-        assert_eq!(spans.len(), 1);
-        assert_eq!(spans[0].content, "no refs here");
-    }
-
-    #[test]
-    fn refs_spans_underlines_every_span_when_focused() {
-        let spans = refs_spans("a {{b}} c", true);
-        assert!(!spans.is_empty());
-        assert!(spans
-            .iter()
-            .all(|s| s.style.add_modifier.contains(Modifier::UNDERLINED)));
-    }
-}
+#[path = "region_tests.rs"]
+mod tests;

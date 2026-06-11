@@ -19,6 +19,10 @@ use super::{paint_panel_focus_bg, paint_panel_focus_hint, raw_body_text, render_
 mod highlight;
 pub(crate) mod response;
 
+// The BLOCKS view paints HTTP bodies with the same JSON lexer the DOC
+// view uses, so both surfaces colour identically.
+pub(crate) use highlight::highlight_json_line;
+
 pub(super) fn http_header_left_spans(b: &BlockNode, bg: Style) -> Vec<Span<'static>> {
     let alias = b.alias.clone().unwrap_or_else(|| "—".into());
     let method = b
