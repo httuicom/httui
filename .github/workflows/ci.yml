@@ -14,9 +14,66 @@ permissions:
   contents: read
 
 jobs:
+  # Classifies the diff so language-specific jobs can skip entirely on
+  # commits that don't touch them (a TUI-only push shouldn't pay the
+  # full vitest suite, and vice versa). Classification is conservative:
+  # any file that isn't clearly rust-only, frontend-only, or inert
+  # (docs, markdown) turns BOTH areas on. Skipped jobs satisfy required
+  # status checks, so branch protection keeps working.
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: filter
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="origin/${{ github.base_ref }}...HEAD"
+          elif git rev-parse -q --verify "${{ github.event.before }}" >/dev/null 2>&1; then
+            RANGE="${{ github.event.before }}..HEAD"
+          else
+            # Force push or new branch — no usable base; run everything.
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          rust=false
+          frontend=false
+          while IFS= read -r f; do
+            case "$f" in
+              *.md | docs/* | docs-llm/* | LICENSE | .gitignore | httui-web/*)
+                ;;
+              *.rs | *Cargo.toml | Cargo.lock | httui-desktop/src-tauri/* | rust-toolchain*)
+                rust=true ;;
+              httui-desktop/src/* | httui-desktop/index.html | httui-desktop/package.json | \
+              httui-desktop/*.ts | httui-desktop/*.json | httui-sidecar/* | package.json | package-lock.json)
+                frontend=true ;;
+              *)
+                # Unknown territory (workflows, scripts, Makefile...) —
+                # assume it can affect anything.
+                rust=true
+                frontend=true ;;
+            esac
+          done < <(git diff --name-only "$RANGE")
+
+          echo "changed areas: rust=$rust frontend=$frontend"
+          echo "rust=$rust" >> "$GITHUB_OUTPUT"
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+
   rust:
     name: Rust (Linux)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     steps:
       - uses: actions/checkout@v6
 
@@ -81,6 +138,8 @@ jobs:
   rust-macos-smoke:
     name: Rust (macOS smoke)
     runs-on: macos-latest
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     steps:
       - uses: actions/checkout@v6
 
@@ -102,8 +161,13 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     steps:
       - uses: actions/checkout@v6
+        with:
+          # vitest --changed needs history to diff against the PR base.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -129,9 +193,18 @@ jobs:
       # Runs the `unit` project only (jsdom). The `browser` project uses
       # @vitest/browser-playwright and would require installing chromium
       # in CI; skip until browser-test coverage is needed in the gate.
+      # PRs run only the tests whose import graph reaches the diff
+      # (--changed); pushes to main run the full suite as the backstop
+      # for anything the graph scoping might miss.
       - name: vitest (httui-desktop, unit)
         if: ${{ !cancelled() }}
-        run: npm run test --workspace httui-desktop -- --project unit
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm run test --workspace httui-desktop -- --project unit \
+              --changed "origin/${{ github.base_ref }}" --passWithNoTests
+          else
+            npm run test --workspace httui-desktop -- --project unit
+          fi
 
       - name: Build httui-sidecar (smoke)
         if: ${{ !cancelled() }}
@@ -140,51 +213,11 @@ jobs:
   coverage-gate:
     name: Coverage gate (touched files ≥80%)
     runs-on: ubuntu-latest
-    needs: [rust, frontend]
     steps:
       - uses: actions/checkout@v6
         with:
           # Need full history so the script can diff against the base ref.
           fetch-depth: 0
-
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: coverage
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      # Same reason as the rust job — bundle.externalBin gate.
-      - name: Stage bundle binary placeholders
-        run: |
-          triple=$(rustc -vV | sed -n 's|host: ||p')
-          mkdir -p httui-desktop/src-tauri/binaries
-          touch "httui-desktop/src-tauri/binaries/httui-tui-$triple" \
-                "httui-desktop/src-tauri/binaries/httui-$triple" \
-                "httui-desktop/src-tauri/binaries/httui-lsp-$triple"
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install Node dependencies
-        run: npm ci
 
       - name: Resolve base ref
         id: base
@@ -194,6 +227,63 @@ jobs:
           else
             echo "ref=origin/${{ github.event.repository.default_branch }}" >> "$GITHUB_OUTPUT"
           fi
+
+      # Setup below (apt webkit deps, Rust toolchain, npm ci) costs
+      # ~90s but is only needed for the languages the diff actually
+      # touches — skip what the gate won't use.
+      - name: Detect touched code
+        id: detect
+        env:
+          BASE_REF: ${{ steps.base.outputs.ref }}
+        run: |
+          MODE=detect ./scripts/coverage-check.sh | tee detect.out
+          grep -E '^(has_rs|has_fe|needs_webkit)=' detect.out >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux build dependencies
+        if: steps.detect.outputs.needs_webkit == '1'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install Rust toolchain
+        if: steps.detect.outputs.has_rs == '1'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo
+        if: steps.detect.outputs.has_rs == '1'
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: coverage
+
+      - name: Install cargo-llvm-cov
+        if: steps.detect.outputs.has_rs == '1'
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      # Same reason as the rust job — bundle.externalBin gate.
+      - name: Stage bundle binary placeholders
+        if: steps.detect.outputs.has_rs == '1'
+        run: |
+          triple=$(rustc -vV | sed -n 's|host: ||p')
+          mkdir -p httui-desktop/src-tauri/binaries
+          touch "httui-desktop/src-tauri/binaries/httui-tui-$triple" \
+                "httui-desktop/src-tauri/binaries/httui-$triple" \
+                "httui-desktop/src-tauri/binaries/httui-lsp-$triple"
+
+      - uses: actions/setup-node@v6
+        if: steps.detect.outputs.has_fe == '1'
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Node dependencies
+        if: steps.detect.outputs.has_fe == '1'
+        run: npm ci
 
       - name: Size gate (≤600 lines per touched file)
         env:

@@ -9,6 +9,10 @@
 #   scripts/coverage-check.sh                # diff: HEAD~1..HEAD
 #   BASE_REF=origin/main scripts/coverage-check.sh   # diff: origin/main...HEAD
 #   MODE=report scripts/coverage-check.sh    # never exit non-zero
+#   MODE=detect scripts/coverage-check.sh    # print has_rs/has_fe/needs_webkit
+#                                            # key=value lines and exit, so CI
+#                                            # can skip toolchain setup it
+#                                            # won't use
 #
 # Files with `// coverage:exclude file` on line 1 are reported as
 # EXCLUDED and don't count against the gate.
@@ -35,6 +39,16 @@ BASE_REF="${BASE_REF:-}"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
+# detect_emit <has_rs> <has_fe> <needs_webkit>
+# Output is GITHUB_OUTPUT-shaped so CI can pipe it straight into step
+# outputs and gate its setup steps on them.
+detect_emit() {
+    echo "has_rs=$1"
+    echo "has_fe=$2"
+    echo "needs_webkit=$3"
+    exit 0
+}
+
 # ---------- changed file set --------------------------------------------------
 
 DIFF_MODE="${DIFF_MODE:-}"
@@ -49,6 +63,7 @@ else
     fi
 
     if ! git rev-parse --verify HEAD~1 >/dev/null 2>&1 && [ -z "$BASE_REF" ]; then
+        [ "$MODE" = "detect" ] && detect_emit 0 0 0
         echo "coverage-check: only one commit in branch; nothing to check"
         exit 0
     fi
@@ -70,6 +85,7 @@ done < <("${DIFF_CMD[@]}" 2>/dev/null \
     || true)
 
 if [ ${#CHANGED_FILES[@]} -eq 0 ]; then
+    [ "$MODE" = "detect" ] && detect_emit 0 0 0
     echo "coverage-check: no .rs/.ts/.tsx changes; gate skipped"
     exit 0
 fi
@@ -84,11 +100,10 @@ done
 # of an empty array under `set -u` is an "unbound variable" error,
 # which crashed deletion-only commits before reaching this skip.
 if [ ${#KEPT[@]} -eq 0 ]; then
+    [ "$MODE" = "detect" ] && detect_emit 0 0 0
     echo "coverage-check: all touched files were deleted; gate skipped"
     exit 0
 fi
-
-CHANGED_FILES=("${KEPT[@]}")
 
 CHANGED_FILES=("${KEPT[@]}")
 
@@ -100,6 +115,24 @@ for f in "${CHANGED_FILES[@]}"; do
         *.ts | *.tsx) HAS_FE=1 ;;
     esac
 done
+
+if [ "$MODE" = "detect" ]; then
+    # webkit2gtk is only required when cargo-llvm-cov will compile the
+    # Tauri crate: a touched .rs under httui-desktop/src-tauri/, or an
+    # unrecognized crate (which falls back to a workspace-wide run).
+    NEEDS_WEBKIT=0
+    for f in "${CHANGED_FILES[@]}"; do
+        case "$f" in
+            *.rs)
+                case "$f" in
+                    httui-core/* | httui-tui/* | httui-mcp/* | httui-launcher/*) ;;
+                    *) NEEDS_WEBKIT=1 ;;
+                esac
+                ;;
+        esac
+    done
+    detect_emit "$HAS_RS" "$HAS_FE" "$NEEDS_WEBKIT"
+fi
 
 # ---------- run coverage tools ------------------------------------------------
 
@@ -154,8 +187,27 @@ fi
 
 if [ "$HAS_FE" -eq 1 ]; then
     echo "coverage-check: running vitest --coverage ..."
+    # Scope the run to tests whose import graph reaches the diff
+    # (--changed): any test that can execute a touched file imports it
+    # transitively, so per-file numbers match the full run. In staged
+    # mode HEAD covers staged + worktree edits — a superset, fine for
+    # the report-only hook. Global thresholds are meaningless over a
+    # subset — zero them; the per-file check below is the enforcement.
+    FE_CHANGED_REF="$BASE_REF"
+    if [ "$DIFF_MODE" = "staged" ]; then
+        FE_CHANGED_REF="HEAD"
+    fi
+    FE_ARGS=()
+    if [ -n "$FE_CHANGED_REF" ]; then
+        FE_ARGS+=(--changed "$FE_CHANGED_REF" --passWithNoTests
+            --coverage.thresholds.lines=0
+            --coverage.thresholds.functions=0
+            --coverage.thresholds.statements=0
+            --coverage.thresholds.branches=0)
+    fi
     (cd httui-desktop && npm run --silent test -- --project unit --coverage \
-        --coverage.reporter=lcov --coverage.reporter=text-summary >/dev/null)
+        --coverage.reporter=lcov --coverage.reporter=text-summary \
+        ${FE_ARGS[@]+"${FE_ARGS[@]}"} >/dev/null)
 fi
 
 # ---------- per-file lcov parser ---------------------------------------------
