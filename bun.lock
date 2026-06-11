@@ -21,6 +21,7 @@
         "@codemirror/theme-one-dark": "^6.1.3",
         "@dnd-kit/core": "^6.3.1",
         "@emotion/react": "^11.14.0",
+        "@httui/lezer-refs": "https://github.com/httuicom/httui-lang/releases/download/v0.2.2/httui-lezer-refs-0.2.2.tgz",
         "@replit/codemirror-vim": "^6.3.0",
         "@tanstack/react-virtual": "^3.13.24",
         "@tauri-apps/api": "^2.10.1",
@@ -364,6 +365,8 @@
     "@floating-ui/dom": ["@floating-ui/dom@1.7.6", "", { "dependencies": { "@floating-ui/core": "^1.7.5", "@floating-ui/utils": "^0.2.11" } }, "sha512-9gZSAI5XM36880PPMm//9dfiEngYoC6Am2izES1FF406YFsjvyBMmeJ2g4SAju3xWwtuynNRFL2s9hgxpLI5SQ=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.11", "", {}, "sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg=="],
+
+    "@httui/lezer-refs": ["@httui/lezer-refs@https://github.com/httuicom/httui-lang/releases/download/v0.2.2/httui-lezer-refs-0.2.2.tgz", { "dependencies": { "@lezer/common": "^1.2.3", "@lezer/lr": "^1.4.2" } }, "sha512-44f2KrUHp0Tc/oaxNwSXiyyjHcpGjx1y6MD4zzeoMSJvSavHAojNvuBtWM7jow4pvM8595kfTlSQFpqZPZPTkQ=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.2", "", { "dependencies": { "@humanfs/types": "^0.15.0" } }, "sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA=="],
 
