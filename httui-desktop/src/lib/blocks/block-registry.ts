@@ -26,13 +26,9 @@ import type {
 
 import {
   createDbBlockExtension,
-  createDbBlockCompletionSource,
   createDbSchemaCompletionSource,
 } from "@/lib/codemirror/cm-db-block";
-import {
-  createHttpBlockExtension,
-  createHttpBlockCompletionSource,
-} from "@/lib/codemirror/cm-http-block";
+import { createHttpBlockExtension } from "@/lib/codemirror/cm-http-block";
 
 /**
  * Mirror of the slash-command shape lived inline in `cm-slash-commands
@@ -115,12 +111,9 @@ const dbBlock: BlockTypeSpec = {
     },
   ],
   createExtension: createDbBlockExtension,
-  completionSources: (getFilePath) => [
-    // {{ref}} autocomplete — gated to db-* fenced body.
-    createDbBlockCompletionSource(getFilePath),
-    // Schema-aware SQL — same gating; reads from the SchemaCache store.
-    createDbSchemaCompletionSource(),
-  ],
+  // {{ref}} completion moved to the language server; only the
+  // schema-aware SQL source stays local (reads the SchemaCache store).
+  completionSources: () => [createDbSchemaCompletionSource()],
 };
 
 const httpBlock: BlockTypeSpec = {
@@ -171,9 +164,8 @@ const httpBlock: BlockTypeSpec = {
     },
   ],
   createExtension: createHttpBlockExtension,
-  completionSources: (getFilePath) => [
-    createHttpBlockCompletionSource(getFilePath),
-  ],
+  // {{ref}} completion moved to the language server.
+  completionSources: () => [],
 };
 
 /**

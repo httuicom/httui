@@ -5,7 +5,7 @@
 // the language server path stabilizes; the older path is removed once
 // the server is the proven source.
 import type { Extension } from "@codemirror/state";
-import { hoverTooltips, serverCompletion } from "@codemirror/lsp-client";
+import { hoverTooltips } from "@codemirror/lsp-client";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { fileUri, getLspClient } from "@/lib/lsp/client";
 
@@ -15,7 +15,9 @@ export function createLspExtension(filePath: string): Extension[] {
   const client = getLspClient();
   return [
     client.plugin(fileUri(vaultPath, filePath), "markdown"),
-    serverCompletion(),
+    // completion is wired through the editor's autocompletion override
+    // (markdown-extensions.ts) — `serverCompletion()` here would add a
+    // second autocompletion config that the override silences anyway
     hoverTooltips(),
   ];
 }

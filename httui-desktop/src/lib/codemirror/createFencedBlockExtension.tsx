@@ -30,11 +30,6 @@ import {
   type DecorationSet,
   type KeyBinding,
 } from "@codemirror/view";
-import type {
-  CompletionContext,
-  CompletionResult,
-  CompletionSource,
-} from "@codemirror/autocomplete";
 
 import {
   type DecoItem,
@@ -42,9 +37,6 @@ import {
   type PortalEntryOf,
   type WidgetPortalRegistry,
 } from "@/lib/codemirror/widget-portal-registry";
-import { createReferenceCompletionSource } from "@/lib/blocks/cm-autocomplete";
-import { collectBlocksAboveCM } from "@/lib/blocks/document";
-import { useEnvironmentStore } from "@/stores/environment";
 
 // Shared close-fence shape (`\`\`\`+\s*$`) — both block types use this.
 export const FENCE_CLOSE_RE = /^```+\s*$/;
@@ -410,37 +402,3 @@ export function createFencedBlockExtension<
 }
 
 // ───── Ref autocomplete (identical in both block types) ─────
-
-/**
- * Build a `{{ref}}` completion source bound to a specific block-finder.
- * Offers block aliases (from blocks above the cursor) and non-secret env
- * variable keys. Returns null outside any block's body.
- */
-export function makeRefCompletionSource<Block extends FencedBlockBase>(
-  findBlocks: (doc: CMText) => Block[],
-  getFilePath: () => string | undefined,
-): CompletionSource {
-  return async (ctx: CompletionContext): Promise<CompletionResult | null> => {
-    const pos = ctx.pos;
-    const blocks = findBlocks(ctx.state.doc);
-    const inside = blocks.find((b) => pos >= b.bodyFrom && pos <= b.bodyTo);
-    if (!inside) return null;
-
-    const filePath = getFilePath();
-    if (!filePath) return null;
-
-    const contexts = await collectBlocksAboveCM(
-      ctx.state.doc,
-      inside.from,
-      filePath,
-    );
-    const envVars = await useEnvironmentStore.getState().getActiveVariables();
-    const envKeys = Object.keys(envVars);
-
-    const source = createReferenceCompletionSource(
-      () => contexts,
-      () => envKeys,
-    );
-    return source(ctx);
-  };
-}

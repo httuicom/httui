@@ -23,10 +23,10 @@ describe("createLspExtension", () => {
     expect(createLspExtension("notes/a.md")).toEqual([]);
   });
 
-  it("produces the plugin, completion and hover extensions for a vault file", () => {
+  it("produces the plugin and hover extensions for a vault file", () => {
     useWorkspaceStore.setState({ vaultPath: "/tmp/vault" });
     const exts = createLspExtension("notes/a.md");
-    expect(exts.length).toBe(3);
+    expect(exts.length).toBe(2);
     for (const ext of exts) {
       expect(ext).toBeTruthy();
     }

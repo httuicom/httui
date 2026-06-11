@@ -86,27 +86,19 @@ describe("blockRegistry", () => {
     expect(httpExt).toEqual({ httpExt: true });
   });
 
-  it("DB completionSources returns [ref, schema] in that order", () => {
-    const getFilePath = () => "current.md";
+  it("DB completionSources keeps only the schema-aware SQL source", () => {
     const sources = blockRegistry
       .find((m) => m.id === "db")!
-      .completionSources(getFilePath);
-    expect(sources).toHaveLength(2);
-    expect(sources[0]).toMatchObject({ dbRefSource: true });
-    expect(sources[1]).toMatchObject({ dbSchemaSource: true });
-    // The getFilePath getter is forwarded to the ref source.
-    expect(
-      (sources[0] as unknown as { getFilePath: () => string }).getFilePath(),
-    ).toBe("current.md");
+      .completionSources(() => "current.md");
+    expect(sources).toHaveLength(1);
+    expect(sources[0]).toMatchObject({ dbSchemaSource: true });
   });
 
-  it("HTTP completionSources returns only the ref source", () => {
-    const getFilePath = () => "current.md";
+  it("HTTP completionSources is empty — refs complete via the server", () => {
     const sources = blockRegistry
       .find((m) => m.id === "http")!
-      .completionSources(getFilePath);
-    expect(sources).toHaveLength(1);
-    expect(sources[0]).toMatchObject({ httpRefSource: true });
+      .completionSources(() => "current.md");
+    expect(sources).toHaveLength(0);
   });
 });
 
