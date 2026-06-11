@@ -211,6 +211,24 @@ impl App {
         self.set_result_tab(block_id, next);
     }
 
+    /// Auto-pairing applies only where the user is typing CODE: a
+    /// block's raw body in DOC view, or a BLOCKS-view edit field.
+    /// Prose never pairs (apostrophes), and modals own their input.
+    pub fn auto_pairs_active(&self) -> bool {
+        if !self.config.editor.auto_pairs || self.modal.is_some() {
+            return false;
+        }
+        if matches!(self.view, crate::app::AppView::Blocks) {
+            return self
+                .active_pane()
+                .map(|p| p.block_edit.is_some())
+                .unwrap_or(false);
+        }
+        self.document()
+            .map(|d| matches!(d.cursor(), crate::buffer::Cursor::InBlock { .. }))
+            .unwrap_or(false)
+    }
+
     // ----- viewport refresh ----------------------------------------------
 
     /// Re-anchor the viewport so the cursor stays visible after a

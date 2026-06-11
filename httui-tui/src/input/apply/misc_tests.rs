@@ -82,3 +82,106 @@ async fn delete_forward_refreshes_the_viewport() {
     let left = app.active_pane().unwrap().viewport_left;
     assert!(left < 200, "DeleteForward must re-clamp the pan");
 }
+
+// ---- auto-pairs ----------------------------------------------------
+
+/// App whose note holds a db block; cursor parked at the end of the
+/// SQL body line (a code context for auto-pairing).
+async fn app_in_block_body() -> (crate::app::App, TempDir, TempDir) {
+    let data = TempDir::new().unwrap();
+    let vault = TempDir::new().unwrap();
+    std::fs::write(
+        vault.path().join("note.md"),
+        "```db-postgres alias=q connection=c\nSELECT 1 \n```\n",
+    )
+    .unwrap();
+    let pool = init_db(data.path()).await.unwrap();
+    let resolved = ResolvedVault {
+        vault: vault.path().to_path_buf(),
+    };
+    let mut app = crate::app::App::new(Config::default(), resolved, pool);
+    let (seg, off) = {
+        let doc = app.document().expect("note loaded");
+        let seg = doc
+            .segments()
+            .iter()
+            .position(|s| matches!(s, crate::buffer::Segment::Block(_)))
+            .expect("block segment");
+        let raw = match &doc.segments()[seg] {
+            crate::buffer::Segment::Block(b) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        // After the trailing space of "SELECT 1 " — neutral context.
+        (seg, raw.find("SELECT 1 ").unwrap() + "SELECT 1 ".len())
+    };
+    if let Some(doc) = app.document_mut() {
+        doc.set_cursor(Cursor::InBlock {
+            segment_idx: seg,
+            offset: off,
+        });
+    }
+    (app, data, vault)
+}
+
+fn block_raw(app: &crate::app::App) -> String {
+    let doc = app.document().unwrap();
+    doc.segments()
+        .iter()
+        .find_map(|s| match s {
+            crate::buffer::Segment::Block(b) => Some(b.raw.to_string()),
+            _ => None,
+        })
+        .expect("block still parsed")
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_brace_in_block_body_auto_closes() {
+    let (mut app, _d, _v) = app_in_block_body().await;
+    apply_action(&mut app, Action::InsertChar('{'), true);
+    assert!(block_raw(&app).contains("{}"), "pair inserted");
+    let doc = app.document().unwrap();
+    assert_eq!(doc.char_before_cursor(), Some('{'), "caret between pair");
+    assert_eq!(doc.char_at_cursor(), Some('}'));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn typing_closer_over_the_pair_skips_instead_of_duplicating() {
+    let (mut app, _d, _v) = app_in_block_body().await;
+    apply_action(&mut app, Action::InsertChar('{'), true);
+    apply_action(&mut app, Action::InsertChar('}'), true);
+    let raw = block_raw(&app);
+    assert_eq!(raw.matches('}').count(), 1, "no duplicate closer: {raw}");
+    let doc = app.document().unwrap();
+    assert_eq!(doc.char_before_cursor(), Some('}'), "caret stepped over");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn backspace_inside_empty_pair_removes_both_halves() {
+    let (mut app, _d, _v) = app_in_block_body().await;
+    apply_action(&mut app, Action::InsertChar('('), true);
+    apply_action(&mut app, Action::DeleteBackward, true);
+    let raw = block_raw(&app);
+    assert!(!raw.contains('('), "opener gone: {raw}");
+    assert!(!raw.contains(')'), "closer gone too: {raw}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn prose_typing_never_pairs() {
+    let (mut app, _d, _v) = app_with_long_line().await;
+    prime_pane(&mut app, 0);
+    apply_action(&mut app, Action::InsertChar('('), true);
+    apply_action(&mut app, Action::InsertChar('\''), true);
+    let doc = app.document().unwrap();
+    let text = doc.to_markdown();
+    assert!(!text.contains(')'), "prose must not auto-close: {text}");
+    assert_eq!(text.matches('\'').count(), 1, "apostrophe stays single");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn auto_pairs_off_disables_pairing_in_code() {
+    let (mut app, _d, _v) = app_in_block_body().await;
+    app.config.editor.auto_pairs = false;
+    apply_action(&mut app, Action::InsertChar('{'), true);
+    let raw = block_raw(&app);
+    assert!(!raw.contains('}'), "no closer with the toggle off: {raw}");
+}

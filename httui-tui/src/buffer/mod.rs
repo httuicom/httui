@@ -12,6 +12,7 @@
 // not yet consumed; epic 19/21 will pick them up.
 #![allow(dead_code)]
 
+pub mod autopairs;
 pub mod block;
 pub mod cursor;
 pub mod document;

@@ -170,6 +170,68 @@ impl Document {
         }
     }
 
+    /// Char under the cursor (the one a forward delete would remove),
+    /// or `None` at end-of-text / in a result row.
+    pub fn char_at_cursor(&self) -> Option<char> {
+        let (rope, offset) = self.cursor_rope()?;
+        (offset < rope.len_chars()).then(|| rope.char(offset))
+    }
+
+    /// Char immediately before the cursor, or `None` at the start.
+    pub fn char_before_cursor(&self) -> Option<char> {
+        let (rope, offset) = self.cursor_rope()?;
+        let off = offset.min(rope.len_chars());
+        (off > 0).then(|| rope.char(off - 1))
+    }
+
+    /// Step the cursor one char right without mutating text (used by
+    /// auto-pair skip-over). Clamped at end-of-text.
+    pub fn advance_cursor_char(&mut self) {
+        let Some((rope, offset)) = self.cursor_rope() else {
+            return;
+        };
+        if offset >= rope.len_chars() {
+            return;
+        }
+        match self.cursor {
+            Cursor::InProse { segment_idx, .. } => {
+                self.cursor = Cursor::InProse {
+                    segment_idx,
+                    offset: offset + 1,
+                };
+            }
+            Cursor::InBlock { segment_idx, .. } => {
+                self.cursor = Cursor::InBlock {
+                    segment_idx,
+                    offset: offset + 1,
+                };
+            }
+            Cursor::InBlockResult { .. } => {}
+        }
+    }
+
+    /// Rope + char offset the cursor points into, for either prose or
+    /// block-raw segments.
+    fn cursor_rope(&self) -> Option<(&Rope, usize)> {
+        match self.cursor {
+            Cursor::InProse {
+                segment_idx,
+                offset,
+            } => match self.segments.get(segment_idx) {
+                Some(Segment::Prose(rope)) => Some((rope, offset)),
+                _ => None,
+            },
+            Cursor::InBlock {
+                segment_idx,
+                offset,
+            } => match self.segments.get(segment_idx) {
+                Some(Segment::Block(b)) => Some((&b.raw, offset)),
+                _ => None,
+            },
+            Cursor::InBlockResult { .. } => None,
+        }
+    }
+
     /// Read a substring (in chars) from a prose segment. Out-of-bounds
     /// indices are clamped. Returns an empty string for non-prose
     /// segments or invalid indices.
@@ -229,6 +291,79 @@ mod tests {
     use super::Document;
     use crate::buffer::cursor::Cursor;
     use crate::buffer::segment::Segment;
+
+    #[test]
+    fn cursor_peeks_read_around_the_caret_in_prose() {
+        let mut d = Document::from_markdown("ab\n").unwrap();
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 1,
+        });
+        assert_eq!(d.char_before_cursor(), Some('a'));
+        assert_eq!(d.char_at_cursor(), Some('b'));
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        assert_eq!(d.char_before_cursor(), None);
+    }
+
+    #[test]
+    fn cursor_peeks_read_block_raw_text() {
+        let mut d = Document::from_markdown("```http alias=h\nGET https://x.com\n```\n").unwrap();
+        let seg = d
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .unwrap();
+        let raw = match &d.segments()[seg] {
+            Segment::Block(b) => b.raw.to_string(),
+            _ => unreachable!(),
+        };
+        let off = raw.find("GET").unwrap();
+        d.set_cursor(Cursor::InBlock {
+            segment_idx: seg,
+            offset: off,
+        });
+        assert_eq!(d.char_at_cursor(), Some('G'));
+        assert_eq!(d.char_before_cursor(), Some('\n'));
+    }
+
+    #[test]
+    fn advance_cursor_char_steps_right_and_clamps_at_end() {
+        let mut d = Document::from_markdown("ab\n").unwrap();
+        d.set_cursor(Cursor::InProse {
+            segment_idx: 0,
+            offset: 0,
+        });
+        d.advance_cursor_char();
+        assert_eq!(d.char_before_cursor(), Some('a'));
+        // Walk to the rope end — further advances are no-ops.
+        for _ in 0..10 {
+            d.advance_cursor_char();
+        }
+        assert_eq!(d.char_at_cursor(), None);
+        let before = d.cursor();
+        d.advance_cursor_char();
+        assert_eq!(d.cursor(), before, "clamped at end-of-text");
+    }
+
+    #[test]
+    fn cursor_peeks_in_result_rows_are_none() {
+        let mut d = Document::from_markdown("```db-postgres alias=q connection=c\nSELECT 1\n```\n")
+            .unwrap();
+        let seg = d
+            .segments()
+            .iter()
+            .position(|s| matches!(s, Segment::Block(_)))
+            .unwrap();
+        d.set_cursor(crate::buffer::cursor::Cursor::InBlockResult {
+            segment_idx: seg,
+            row: 0,
+        });
+        assert_eq!(d.char_at_cursor(), None);
+        assert_eq!(d.char_before_cursor(), None);
+    }
 
     #[test]
     fn delete_char_at_cursor_in_prose_removes_under_cursor() {
