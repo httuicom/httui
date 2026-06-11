@@ -8,19 +8,21 @@
 # workflow. Pass a target triple as $1 to cross-compile; with no
 # argument the host triple is detected via rustc.
 #
-# httui-lsp is an OCaml binary released by httuicom/httui-lang; it is
-# downloaded at the version pinned below. Set HTTUI_LSP_BUNDLE_BIN to a
-# local build (e.g. httui-lang/_build/default/bin/httui-lsp/httui_lsp.exe)
-# to skip the download. Windows targets skip the server entirely — the
-# desktop degrades gracefully without it.
+# httui-lsp is downloaded from the httui-lang release pinned in
+# httui-desktop/src-tauri/Cargo.toml; HTTUI_LSP_BUNDLE_BIN overrides
+# with a local build. Windows targets skip it.
 
 set -euo pipefail
 
-# Pinned httui-lang release providing the httui-lsp assets.
-HTTUI_LANG_VERSION="0.1.0"
-
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="$REPO_ROOT/httui-desktop/src-tauri/binaries"
+
+HTTUI_LANG_VERSION="$(sed -n 's/^lang-version *= *"\(.*\)"/\1/p' \
+  "$REPO_ROOT/httui-desktop/src-tauri/Cargo.toml")"
+if [[ -z "$HTTUI_LANG_VERSION" ]]; then
+  echo "error: lang-version not found in httui-desktop/src-tauri/Cargo.toml" >&2
+  exit 1
+fi
 
 TARGET="${1:-}"
 if [[ -z "$TARGET" ]]; then
