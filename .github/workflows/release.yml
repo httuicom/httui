@@ -144,7 +144,7 @@ jobs:
         run: |
           cd httui-sidecar && bun install && bun run build
 
-      - name: Stage TUI + launcher binaries for the bundle
+      - name: Stage TUI + launcher + language server binaries for the bundle
         shell: bash
         run: |
           # tauri.conf.json → bundle.externalBin expects pre-built
