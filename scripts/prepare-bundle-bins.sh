@@ -10,7 +10,7 @@
 #
 # httui-lsp is downloaded from the httui-lang release pinned in
 # httui-desktop/src-tauri/Cargo.toml; HTTUI_LSP_BUNDLE_BIN overrides
-# with a local build. Windows targets skip it.
+# with a local build.
 
 set -euo pipefail
 
@@ -62,27 +62,34 @@ cp "$SRC_DIR/httui$SUFFIX"     "$OUT_DIR/httui-$TARGET$SUFFIX"
 # non-executable and `httui` in $PATH errors with "Permission denied".
 chmod +x "$OUT_DIR/httui-tui-$TARGET$SUFFIX" "$OUT_DIR/httui-$TARGET$SUFFIX"
 
-if [[ "$TARGET" == *windows* ]]; then
-  echo "skipping httui-lsp: no Windows build yet (desktop degrades gracefully)"
+LSP_DEST="$OUT_DIR/httui-lsp-$TARGET$SUFFIX"
+# rm first: dune outputs are read-only and block in-place overwrite.
+rm -f "$LSP_DEST"
+if [[ -n "${HTTUI_LSP_BUNDLE_BIN:-}" ]]; then
+  echo "staging httui-lsp from HTTUI_LSP_BUNDLE_BIN: $HTTUI_LSP_BUNDLE_BIN"
+  cp "$HTTUI_LSP_BUNDLE_BIN" "$LSP_DEST"
 else
-  LSP_DEST="$OUT_DIR/httui-lsp-$TARGET"
-  # rm first: dune outputs are read-only and block in-place overwrite.
-  rm -f "$LSP_DEST"
-  if [[ -n "${HTTUI_LSP_BUNDLE_BIN:-}" ]]; then
-    echo "staging httui-lsp from HTTUI_LSP_BUNDLE_BIN: $HTTUI_LSP_BUNDLE_BIN"
-    cp "$HTTUI_LSP_BUNDLE_BIN" "$LSP_DEST"
-  else
-    LSP_URL="https://github.com/httuicom/httui-lang/releases/download/v${HTTUI_LANG_VERSION}/httui-lsp-${TARGET}"
-    echo "downloading httui-lsp ${HTTUI_LANG_VERSION} for $TARGET"
-    # -f: a missing asset must fail the release, never ship without lsp.
-    curl -fL --retry 3 -o "$LSP_DEST" "$LSP_URL"
-  fi
-  chmod 755 "$LSP_DEST"
+  LSP_URL="https://github.com/httuicom/httui-lang/releases/download/v${HTTUI_LANG_VERSION}/httui-lsp-${TARGET}${SUFFIX}"
+  echo "downloading httui-lsp ${HTTUI_LANG_VERSION} for $TARGET"
+  # -f: a missing asset must fail the release, never ship without lsp.
+  curl -fL --retry 3 -o "$LSP_DEST" "$LSP_URL"
+fi
+chmod 755 "$LSP_DEST"
+
+if [[ "$TARGET" == *windows* ]]; then
+  # httui-lsp links sqlite3 dynamically on Windows; the dll is bundled
+  # as a resource so it lands next to the exe, where the loader looks.
+  DLL_DEST="$OUT_DIR/libsqlite3-0.dll"
+  rm -f "$DLL_DEST"
+  echo "downloading libsqlite3-0.dll (httui-lsp runtime dependency)"
+  curl -fL --retry 3 -o "$DLL_DEST" \
+    "https://github.com/httuicom/httui-lang/releases/download/v${HTTUI_LANG_VERSION}/libsqlite3-0.dll"
 fi
 
 echo "staged:"
 echo "  $OUT_DIR/httui-tui-$TARGET$SUFFIX"
 echo "  $OUT_DIR/httui-$TARGET$SUFFIX"
-if [[ "$TARGET" != *windows* ]]; then
-  echo "  $OUT_DIR/httui-lsp-$TARGET"
+echo "  $LSP_DEST"
+if [[ "$TARGET" == *windows* ]]; then
+  echo "  $OUT_DIR/libsqlite3-0.dll"
 fi

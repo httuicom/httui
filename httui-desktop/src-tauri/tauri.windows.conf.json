@@ -1,6 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
-    "externalBin": ["binaries/httui-tui", "binaries/httui"]
+    "resources": {
+      "binaries/libsqlite3-0.dll": "libsqlite3-0.dll"
+    }
   }
 }

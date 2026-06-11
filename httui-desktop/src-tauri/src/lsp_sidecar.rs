@@ -41,7 +41,7 @@ fn resolve_binary_from(
         }
     }
     if let Some(dir) = exe_dir {
-        let sibling = dir.join("httui-lsp");
+        let sibling = dir.join(format!("httui-lsp{}", std::env::consts::EXE_SUFFIX));
         if sibling.is_file() {
             return sibling.to_string_lossy().into_owned();
         }
@@ -161,8 +161,9 @@ mod tests {
     #[test]
     fn resolution_prefers_override_then_sibling_then_path() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("httui-lsp"), "").unwrap();
-        let sibling = dir.path().join("httui-lsp").to_string_lossy().into_owned();
+        let name = format!("httui-lsp{}", std::env::consts::EXE_SUFFIX);
+        std::fs::write(dir.path().join(&name), "").unwrap();
+        let sibling = dir.path().join(&name).to_string_lossy().into_owned();
 
         assert_eq!(
             resolve_binary_from(Some("/x/lsp".into()), Some(dir.path().into())),
