@@ -17,13 +17,36 @@ struct Running {
 
 static STATE: Mutex<Option<Running>> = Mutex::new(None);
 
-/// `HTTUI_LSP_BIN` overrides for development; otherwise the launcher
-/// convention applies (binary on PATH, shipped next to the app).
+/// `HTTUI_LSP_BIN` > bundled sibling > PATH. Debug builds skip the
+/// sibling: tauri-build copies staged binaries/ into target/debug/,
+/// which may be stale next to the dev PATH symlink.
 fn resolve_binary() -> String {
-    match std::env::var("HTTUI_LSP_BIN") {
-        Ok(p) if !p.is_empty() => p,
-        _ => "httui-lsp".to_string(),
+    let exe_dir = if cfg!(debug_assertions) {
+        None
+    } else {
+        std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+    };
+    resolve_binary_from(std::env::var("HTTUI_LSP_BIN").ok(), exe_dir)
+}
+
+fn resolve_binary_from(
+    env_override: Option<String>,
+    exe_dir: Option<std::path::PathBuf>,
+) -> String {
+    if let Some(p) = env_override {
+        if !p.is_empty() {
+            return p;
+        }
     }
+    if let Some(dir) = exe_dir {
+        let sibling = dir.join("httui-lsp");
+        if sibling.is_file() {
+            return sibling.to_string_lossy().into_owned();
+        }
+    }
+    "httui-lsp".to_string()
 }
 
 /// Wrap a JSON message in LSP Content-Length framing.
@@ -133,6 +156,30 @@ mod tests {
     fn read_framed_handles_eof_mid_body() {
         let mut input = Cursor::new(b"Content-Length: 10\r\n\r\nab".to_vec());
         assert_eq!(read_framed(&mut input), None);
+    }
+
+    #[test]
+    fn resolution_prefers_override_then_sibling_then_path() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("httui-lsp"), "").unwrap();
+        let sibling = dir.path().join("httui-lsp").to_string_lossy().into_owned();
+
+        assert_eq!(
+            resolve_binary_from(Some("/x/lsp".into()), Some(dir.path().into())),
+            "/x/lsp",
+            "explicit override wins over an existing sibling"
+        );
+        assert_eq!(
+            resolve_binary_from(Some(String::new()), Some(dir.path().into())),
+            sibling,
+            "empty override is ignored"
+        );
+        assert_eq!(
+            resolve_binary_from(None, Some(dir.path().join("missing"))),
+            "httui-lsp",
+            "no sibling file falls back to PATH"
+        );
+        assert_eq!(resolve_binary_from(None, None), "httui-lsp");
     }
 
     // env-var handling is asserted inside the round-trip test below:

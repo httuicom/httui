@@ -53,7 +53,7 @@
       "icons/icon.ico"
     ],
     "resources": ["resources/claude-sidecar.mjs"],
-    "externalBin": ["binaries/httui-tui", "binaries/httui"],
+    "externalBin": ["binaries/httui-tui", "binaries/httui", "binaries/httui-lsp"],
     "macOS": {
       "entitlements": "Entitlements.plist",
       "minimumSystemVersion": "10.15"
