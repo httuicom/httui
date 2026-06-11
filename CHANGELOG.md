@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Post-0.4.4 work lands here.
+Post-0.4.5 work lands here.
+
+## [0.4.5] - 2026-06-11
+
+### Added
+
+- **TUI**: JSON request bodies are syntax-highlighted in the BLOCKS view — keys, strings, numbers, booleans and punctuation get the same colours the desktop response viewer uses, with `{{ref}}` chips painted on top. Applies while browsing and while editing.
+
+### Fixed
+
+- **TUI**: editing a body or SQL query taller than its BLOCKS-view region now scrolls vertically with the caret instead of clipping at the region's bottom — same cursor-follow behaviour the horizontal axis gained in 0.4.4.
 
 ## [0.4.4] - 2026-06-11
 
