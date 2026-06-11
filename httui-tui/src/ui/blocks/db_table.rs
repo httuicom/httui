@@ -38,6 +38,7 @@ pub(super) fn render_db_inner(
     _names: &ConnectionNames,
     result_tab: crate::app::ResultPanelTab,
     selected: bool,
+    body_left: u16,
 ) {
     if inner.width == 0 || inner.height == 0 {
         return;
@@ -103,12 +104,16 @@ pub(super) fn render_db_inner(
                 }
             }
         }
+        // Pan only the raw editable SQL (cursor-on); off-cursor the
+        // formatted view stays at column zero like the rest of the card.
+        let sql_left = if selected { body_left } else { 0 };
         let sql_para = Paragraph::new(
             sql_lines_styled
                 .into_iter()
                 .map(Line::from)
                 .collect::<Vec<_>>(),
-        );
+        )
+        .scroll((0, sql_left));
         frame.render_widget(sql_para, chunks[idx]);
         idx += 1;
     }

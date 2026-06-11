@@ -11,7 +11,7 @@ use crate::buffer::layout::layout_document;
 use crate::buffer::Document;
 use crate::pane::{Pane, TabState};
 
-use super::{clamp_viewport, cursor_y, App};
+use super::{clamp_viewport, cursor_y, follow_cursor_x, App};
 
 impl App {
     // ----- pane accessors --------------------------------------------------
@@ -225,6 +225,7 @@ impl App {
         let layouts = layout_document(doc, 80);
         let cursor_y = cursor_y(doc, &layouts);
         pane.viewport_top = clamp_viewport(pane.viewport_top, pane.viewport_height, cursor_y);
+        pane.viewport_left = follow_cursor_x(doc, pane.viewport_left, pane.viewport_width);
     }
 }
 

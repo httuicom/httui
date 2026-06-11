@@ -17,8 +17,11 @@ use ropey::Rope;
 
 /// Render prose visible inside `area`, starting at line `top_line` of
 /// the rope (relative to the rope, not the document). Lines past the
-/// rope are simply not drawn.
-pub fn render_prose(frame: &mut Frame, area: Rect, rope: &Rope, top_line: usize) {
+/// rope are simply not drawn. `left` pans all lines that many display
+/// columns; the skip happens at paint time (`Paragraph::scroll`) so
+/// the highlighters always see the full line — markdown detection is
+/// start-of-line sensitive.
+pub fn render_prose(frame: &mut Frame, area: Rect, rope: &Rope, top_line: usize, left: u16) {
     let mut lines = Vec::with_capacity(area.height as usize);
     let total = rope.len_lines();
     for off in 0..area.height as usize {
@@ -30,7 +33,7 @@ pub fn render_prose(frame: &mut Frame, area: Rect, rope: &Rope, top_line: usize)
         let trimmed_nl = raw.trim_end_matches('\n');
         lines.push(highlight_line(trimmed_nl));
     }
-    frame.render_widget(Paragraph::new(lines), area);
+    frame.render_widget(Paragraph::new(lines).scroll((0, left)), area);
 }
 
 /// Convert one line of markdown text to styled spans.

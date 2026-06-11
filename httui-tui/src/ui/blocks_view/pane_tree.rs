@@ -42,6 +42,7 @@ fn render_inner(
     match node {
         PaneNode::Leaf(leaf) => {
             leaf.viewport_height = area.height;
+            leaf.viewport_width = area.width;
             let is_focused = matches!(focused_path, Some(p) if p.is_empty());
             let leaf_overlay = if is_focused { ctx.visual_overlay } else { None };
             let leaf_running = if is_focused {

@@ -12,6 +12,7 @@
 use ratatui::{layout::Rect, Frame};
 use ropey::Rope;
 
+use crate::buffer::viewport2d::{display_col, project_x};
 use crate::buffer::Cursor;
 
 pub fn render_prose_cursor(
@@ -20,6 +21,7 @@ pub fn render_prose_cursor(
     rope: &Rope,
     cursor: Cursor,
     rope_top_line: usize,
+    left: u16,
 ) {
     let Cursor::InProse { offset, .. } = cursor else {
         return;
@@ -33,34 +35,38 @@ pub fn render_prose_cursor(
     if row_in_area >= area.height {
         return;
     }
-    if col_idx as u16 >= area.width {
+    let cursor_x = display_col(rope.line(line_idx).chars(), col_idx);
+    let Some(x) = project_x(cursor_x, left, area.x, area.width) else {
         return;
-    }
-    let x = area.x + col_idx as u16;
+    };
     let y = area.y + row_in_area;
     frame.set_cursor_position((x, y));
 }
 
 /// Park the terminal cursor inside a focused block at the requested
-/// body `(line, col)` — `line` is body-relative (line 0 = first
-/// body row), `col` is the char column inside that line. Out-of-
-/// area positions clamp to the visible region.
+/// body row — `line` is body-relative (line 0 = first body row),
+/// `cursor_x` the display column inside that line, `left` the
+/// horizontal pan of the body text. A cursor outside the panned
+/// window hides instead of clamping (a clamped caret lies about its
+/// column).
 ///
 /// Card layout: top border → header bar → fence header → body →
 /// fence closer → footer bar → bottom border. Body starts at
 /// `area.y + 3` (border + chrome header + fence header) and the
 /// first body cell is one column right of the left border.
-pub fn render_inblock_cursor(frame: &mut Frame, area: Rect, line: usize, col: usize) {
+pub fn render_inblock_cursor(frame: &mut Frame, area: Rect, line: usize, cursor_x: u16, left: u16) {
     if area.width <= 1 || area.height <= 4 {
         return;
     }
-    let max_x = area.x.saturating_add(area.width.saturating_sub(2));
     let max_y = area.y.saturating_add(area.height.saturating_sub(3));
-    let x = area
-        .x
-        .saturating_add(1)
-        .saturating_add(col as u16)
-        .min(max_x);
+    let Some(x) = project_x(
+        cursor_x,
+        left,
+        area.x.saturating_add(1),
+        area.width.saturating_sub(2),
+    ) else {
+        return;
+    };
     let y = area
         .y
         .saturating_add(3)
