@@ -296,3 +296,111 @@ fn format_cell_translates_each_json_kind() {
     assert_eq!(format_cell(&json!([1, 2])), "[…]");
     assert_eq!(format_cell(&json!({"k": 1})), "{…}");
 }
+
+// ---- render_db_inner panel -----------------------------------------
+
+fn paint_inner(b: &BlockNode, tab: crate::app::ResultPanelTab, selected: bool) -> String {
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    let backend = TestBackend::new(60, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+    let names: crate::ui::blocks::ConnectionNames = std::collections::HashMap::new();
+    let mut vt: u16 = 0;
+    terminal
+        .draw(|f| {
+            render_db_inner(
+                f,
+                ratatui::layout::Rect::new(0, 0, 60, 24),
+                b,
+                Some(0),
+                Some(&mut vt),
+                &names,
+                tab,
+                selected,
+                0,
+            );
+        })
+        .unwrap();
+    let buf = terminal.backend().buffer().clone();
+    (0..24u16)
+        .flat_map(|y| (0..60u16).map(move |x| (x, y)))
+        .map(|(x, y)| buf.cell((x, y)).unwrap().symbol().to_string())
+        .collect()
+}
+
+#[test]
+fn render_db_inner_paints_table_panel_with_tab_bar() {
+    let b = select_block_with_rows(5);
+    let text = paint_inner(&b, crate::app::ResultPanelTab::Result, true);
+    assert!(text.contains("id"), "column header visible: {text:?}");
+    assert!(text.contains("Result"), "tab bar visible");
+}
+
+#[test]
+fn render_db_inner_renders_every_result_tab() {
+    let b = select_block_with_rows(3);
+    for tab in [
+        crate::app::ResultPanelTab::Messages,
+        crate::app::ResultPanelTab::Plan,
+        crate::app::ResultPanelTab::Stats,
+        // DB has no Raw — must fall back to Stats, not panic.
+        crate::app::ResultPanelTab::Raw,
+    ] {
+        let _ = paint_inner(&b, tab, true);
+    }
+}
+
+#[test]
+fn render_db_inner_multi_statement_paints_subtabs() {
+    let b = db_block(Some(json!({
+        "stats": {"elapsed_ms": 1},
+        "results": [
+            {
+                "kind": "select",
+                "columns": [{"name": "id", "type": "int"}],
+                "rows": [{"id": 1}],
+                "has_more": false,
+            },
+            {"kind": "mutation", "rows_affected": 2},
+        ],
+    })));
+    let text = paint_inner(&b, crate::app::ResultPanelTab::Result, true);
+    assert!(text.contains("id"), "first statement table painted");
+}
+
+#[test]
+fn render_db_inner_highlights_the_error_line() {
+    let mut b = db_block(Some(json!({
+        "stats": {"elapsed_ms": 1},
+        "results": [{"kind": "error", "message": "boom", "line": 1, "column": 2}],
+    })));
+    b.state = ExecutionState::Error("boom".into());
+    // Painting with an error result exercises the error-line bg and
+    // the error panel branch without panicking.
+    let _ = paint_inner(&b, crate::app::ResultPanelTab::Result, true);
+}
+
+#[test]
+fn render_db_inner_zero_area_is_a_noop() {
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    let b = select_block_with_rows(2);
+    let backend = TestBackend::new(10, 4);
+    let mut terminal = Terminal::new(backend).unwrap();
+    let names: crate::ui::blocks::ConnectionNames = std::collections::HashMap::new();
+    terminal
+        .draw(|f| {
+            render_db_inner(
+                f,
+                ratatui::layout::Rect::new(0, 0, 0, 0),
+                &b,
+                None,
+                None,
+                &names,
+                crate::app::ResultPanelTab::Result,
+                false,
+                0,
+            );
+        })
+        .unwrap();
+}
