@@ -97,6 +97,16 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      # Dependency compilation dominates the release build (~20 min on
+      # Windows from a cold target dir). The action keys by OS; the two
+      # macOS targets share a key but their artifacts live in disjoint
+      # target/<triple>/ subdirs, so they coexist in one cache entry.
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release
+          cache-on-failure: true
+
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
