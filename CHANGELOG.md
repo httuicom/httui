@@ -7,7 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Post-0.4.3 work lands here.
+Post-0.4.4 work lands here.
+
+## [0.4.4] - 2026-06-11
+
+### Added
+
+- **Desktop**: LSP-powered editor intelligence for `{{refs}}`. The bundled `httui-lsp` language server ([#78](https://github.com/httuicom/httui/pull/78)) now drives diagnostics, typed hovers with live value previews, and field completion inside HTTP/DB blocks ([#76](https://github.com/httuicom/httui/pull/76), [#77](https://github.com/httuicom/httui/pull/77), [#82](https://github.com/httuicom/httui/pull/82)). The ref grammar gains `{{$prev}}` and numeric path segments (`{{q.rows.0.id}}`) via httui-lang 0.2.1 ([#80](https://github.com/httuicom/httui/pull/80), [#81](https://github.com/httuicom/httui/pull/81)).
+- **TUI**: horizontal scrolling follows the cursor. Long prose lines, request URLs and SQL pan the viewport instead of letting the caret walk off-screen — in the markdown editor, inside block bodies, in BLOCKS-view edit fields, and while typing in insert mode.
+- **TUI**: IDE-style auto-closing pairs when typing code. `{`, `(`, `[` and quotes auto-close with the caret in between, typing the closer skips over it, and backspace inside an empty pair removes both. Applies only to block bodies and BLOCKS-view edit fields (prose is untouched); disable with `editor.auto_pairs = false` in `config.toml`.
+
+### Changed
+
+- **Desktop**: `{{ref}}` highlighting paints on first render via a lezer grammar — no more flash of unstyled text while the LSP warms up ([#83](https://github.com/httuicom/httui/pull/83)).
+- **TUI**: the DB result table fills the available height of the BLOCKS-view result region instead of capping at 10 rows.
+- **TUI**: the BLOCKS-view sidebar renders folders as a real tree — expandable directory nodes with indented children — instead of a flat list of paths.
+
+### Fixed
+
+- **TUI**: the Request card remembers its Headers/Body sub-tab. Leaving the card (or committing an edit with Esc) no longer snaps it back to Headers, and re-entering the band lands on the tab you left open. Re-activating the already-open block from the sidebar keeps your place instead of resetting it.
+- **TUI**: sidebar tree expansion persists across sessions — folders and files you left open are re-opened on the next launch.
 
 ## [0.4.3] - 2026-06-08
 
