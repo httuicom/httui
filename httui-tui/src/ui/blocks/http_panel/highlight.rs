@@ -260,7 +260,7 @@ pub(super) fn highlight_xml_line(line: &str) -> Vec<Span<'static>> {
 /// across lines (multi-line escape sequences) are rare in
 /// pretty-printed JSON; if they happen, the second half just
 /// renders default.
-pub(super) fn highlight_json_line(line: &str) -> Vec<Span<'static>> {
+pub(crate) fn highlight_json_line(line: &str) -> Vec<Span<'static>> {
     let mut spans: Vec<Span<'static>> = Vec::new();
     let key_style = Style::default().fg(Color::Cyan);
     let str_style = Style::default().fg(Color::Green);

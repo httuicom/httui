@@ -267,7 +267,7 @@ fn raw_body_text(b: &BlockNode) -> String {
 // the `{{`/`}}` pair. Overlay positionally: reconstruct the line,
 // project span styles onto a per-byte map, then stamp ref ranges on
 // top and collapse runs back into spans.
-fn overlay_refs_on_spans(
+pub(crate) fn overlay_refs_on_spans(
     spans: Vec<Span<'static>>,
     error_refs: &std::collections::HashSet<String>,
 ) -> Vec<Span<'static>> {
