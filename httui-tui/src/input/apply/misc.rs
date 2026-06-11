@@ -213,10 +213,36 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
             }
         }
         Action::InsertChar(c) => {
+            use crate::buffer::autopairs::{self, PairOutcome};
+            let auto = app.auto_pairs_active();
+            let mut typed = true;
             if let Some(doc) = app.document_mut() {
-                doc.insert_char_at_cursor(c);
+                let outcome = if auto {
+                    autopairs::on_insert(c, doc.char_before_cursor(), doc.char_at_cursor())
+                } else {
+                    PairOutcome::Plain
+                };
+                match outcome {
+                    PairOutcome::Skip => {
+                        // Step over the closer instead of duplicating
+                        // it. Not recorded in the insert session — on
+                        // `.` replay the pairing re-creates the closer,
+                        // so replaying the skip would double-advance.
+                        doc.advance_cursor_char();
+                        typed = false;
+                    }
+                    PairOutcome::Pair(closer) => {
+                        doc.insert_char_at_cursor(c);
+                        let between = doc.cursor();
+                        doc.insert_char_at_cursor(closer);
+                        doc.set_cursor(between);
+                    }
+                    PairOutcome::Plain => doc.insert_char_at_cursor(c),
+                }
             }
-            app.vim.insert_session.push_char(c);
+            if typed {
+                app.vim.insert_session.push_char(c);
+            }
             // Typing past the pane edge must pan the viewport like a
             // motion would — without this the caret walks off-screen
             // until the next motion refreshes.
@@ -230,8 +256,17 @@ pub(crate) fn apply_misc(app: &mut App, action: Action, recording: bool) {
             app.refresh_viewport_for_cursor();
         }
         Action::DeleteBackward => {
+            let auto = app.auto_pairs_active();
             if let Some(doc) = app.document_mut() {
+                let empty_pair = auto
+                    && crate::buffer::autopairs::deletes_pair(
+                        doc.char_before_cursor(),
+                        doc.char_at_cursor(),
+                    );
                 doc.delete_char_before_cursor();
+                if empty_pair {
+                    doc.delete_char_at_cursor();
+                }
             }
             app.vim.insert_session.pop_char();
             app.refresh_viewport_for_cursor();

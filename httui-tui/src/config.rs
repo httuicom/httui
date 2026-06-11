@@ -92,6 +92,14 @@ pub struct EditorConfig {
     /// for the accepted grammar.
     #[serde(default = "default_toggle_mode_key")]
     pub toggle_mode_key: String,
+    /// Auto-close brackets and quotes while typing inside code (block
+    /// bodies, BLOCKS-view edit fields). Prose is never auto-paired.
+    #[serde(default = "default_auto_pairs")]
+    pub auto_pairs: bool,
+}
+
+fn default_auto_pairs() -> bool {
+    true
 }
 
 impl Default for EditorConfig {
@@ -99,6 +107,7 @@ impl Default for EditorConfig {
         Self {
             mode: EditorMode::default(),
             toggle_mode_key: default_toggle_mode_key(),
+            auto_pairs: default_auto_pairs(),
         }
     }
 }
