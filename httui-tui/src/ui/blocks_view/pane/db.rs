@@ -130,11 +130,15 @@ fn render_db_result_region(
         ResultPanelTab::Result => {
             ctx.result_viewport_top.entry(viewport_key).or_insert(0);
             let selected_row = if focused { Some(pane.block_row) } else { None };
+            // Fill the region: every row the rect can hold minus the
+            // table's own header row.
+            let max_rows = chunks[1].height.saturating_sub(1).max(1) as usize;
             if let Some((table, viewport_selected)) =
                 crate::ui::blocks::db_table::build_result_table(
                     &block_node,
                     selected_row,
                     ctx.result_viewport_top.get_mut(&viewport_key),
+                    max_rows,
                 )
             {
                 let mut state = ratatui::widgets::TableState::default();
