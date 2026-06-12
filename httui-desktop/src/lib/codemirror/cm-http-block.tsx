@@ -23,7 +23,6 @@ import type { Text as CMText } from "@codemirror/state";
 import {
   parseHttpFenceInfo,
   type HttpBlockMetadata,
-  type HttpMethod,
 } from "@/lib/blocks/http-fence";
 import {
   WidgetPortalRegistry,
@@ -64,16 +63,6 @@ export type HttpPortalEntry = PortalEntryOf<
 >;
 
 const HTTP_OPEN_RE = /^```http(.*)$/;
-
-const HTTP_METHODS: ReadonlySet<string> = new Set([
-  "GET",
-  "POST",
-  "PUT",
-  "PATCH",
-  "DELETE",
-  "HEAD",
-  "OPTIONS",
-]);
 
 // ───── Scanner ─────
 
@@ -158,40 +147,6 @@ const HttpFormPortalWidget = registry.slotWidget(
 
 // ───── HTTP-specific body decoration ─────
 
-/**
- * Find the offset range of the METHOD token on the first non-blank,
- * non-comment line of the body, so we can decorate it with a method-colored
- * mark. Returns null if no recognizable method is found.
- */
-function findMethodRange(
-  state: EditorState,
-  block: HttpFencedBlock,
-): { from: number; to: number; method: HttpMethod } | null {
-  if (block.body.length === 0) return null;
-  const firstBodyLine = state.doc.lineAt(block.bodyFrom).number;
-  const lastBodyLine = state.doc.lineAt(block.bodyTo).number;
-  for (let n = firstBodyLine; n <= lastBodyLine; n++) {
-    const line = state.doc.line(n);
-    const text = line.text;
-    const trimmed = text.trim();
-    if (trimmed === "" || trimmed.startsWith("#")) continue;
-    const m = trimmed.match(/^([A-Z]+)(?=\s|$)/);
-    if (!m) return null;
-    if (!HTTP_METHODS.has(m[1])) return null;
-    const indent = text.indexOf(m[1]);
-    return {
-      from: line.from + indent,
-      to: line.from + indent + m[1].length,
-      method: m[1] as HttpMethod,
-    };
-  }
-  return null;
-}
-
-function methodClass(method: HttpMethod): string {
-  return `cm-http-method cm-http-method-${method.toLowerCase()}`;
-}
-
 function decorateHttpBody(
   state: EditorState,
   block: HttpFencedBlock,
@@ -216,7 +171,9 @@ function decorateHttpBody(
   }
   if (block.body.length === 0) return;
 
-  // Raw body line classes + method coloring + per-line syntax classification.
+  // Layout line classes only (line numbering, padding, edit state).
+  // Syntax coloring comes from the @httui/lezer-http language injected
+  // through markdown `codeLanguages`.
   const firstBodyLine = state.doc.lineAt(block.bodyFrom).number;
   const lastBodyLine = state.doc.lineAt(block.bodyTo).number;
   for (let n = firstBodyLine; n <= lastBodyLine; n++) {
@@ -226,65 +183,11 @@ function decorateHttpBody(
     if (n === firstBodyLine) classes.push("cm-http-body-line-first");
     if (n === lastBodyLine) classes.push("cm-http-body-line-last");
 
-    // Per-line syntax classification — overrides the generic markdown
-    // highlighter (which colors `?`/`#`/`-` lines unpredictably) with
-    // semantics that match the HTTP-message format. Order:
-    //   1. comment + desc:  → cm-http-line-desc
-    //   2. comment generic  → cm-http-line-comment
-    //   3. query continuation (`^[?&]`) → cm-http-line-query
-    //   4. header (`Key: Value`)        → cm-http-line-header
-    //   5. body (after first blank)     → cm-http-line-body
-    const text = line.text;
-    const trimmed = text.trim();
-    if (trimmed.startsWith("# desc:")) {
-      classes.push("cm-http-line-desc");
-    } else if (trimmed.startsWith("#")) {
-      classes.push("cm-http-line-comment");
-    } else if (/^\s*[?&]/.test(text)) {
-      classes.push("cm-http-line-query");
-    } else if (n > firstBodyLine && /^\s*[A-Za-z][\w-]*:/.test(text)) {
-      // First body line is `METHOD URL` — never a header. From the second
-      // body line on, a `Key:` start signals a header (until the first
-      // blank line; we don't track that here, but `cm-http-line-body`
-      // overrides for body lines below).
-      classes.push("cm-http-line-header");
-    }
-
     push({
       from: line.from,
       to: line.from,
       deco: Decoration.line({ class: classes.join(" ") }),
       order: 0,
-    });
-
-    // Mark the header KEY (everything before the first `:`) on header lines
-    // so CSS can color it independently from the value.
-    if (
-      n > firstBodyLine &&
-      !trimmed.startsWith("#") &&
-      /^\s*[A-Za-z][\w-]*:/.test(text)
-    ) {
-      const colonIdx = text.indexOf(":");
-      if (colonIdx > 0) {
-        const indent = text.length - text.trimStart().length;
-        push({
-          from: line.from + indent,
-          to: line.from + colonIdx,
-          deco: Decoration.mark({ class: "cm-http-header-key" }),
-          order: 2,
-        });
-      }
-    }
-  }
-
-  // Method coloring on the first request line.
-  const methodRange = findMethodRange(state, block);
-  if (methodRange) {
-    push({
-      from: methodRange.from,
-      to: methodRange.to,
-      deco: Decoration.mark({ class: methodClass(methodRange.method) }),
-      order: 2,
     });
   }
 }
