@@ -23,7 +23,7 @@ import {
   parseHttpMessageBody,
   type HttpKVRow,
   type HttpMessageParsed,
-} from "../http-fence";
+} from "../http-message";
 import { parseDbFenceInfo } from "../db-fence";
 
 // `__dirname` doesn't exist in ESM/vitest — derive the fixtures dir

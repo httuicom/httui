@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 
 import { useHttpCacheHydrate } from "../useHttpCacheHydrate";
-import type { HttpMessageParsed } from "@/lib/blocks/http-fence";
+import type { HttpMessageParsed } from "@/lib/blocks/http-message";
 
 const getBlockResultMock = vi.fn();
 vi.mock("@/lib/tauri/commands", () => ({

@@ -23,7 +23,7 @@ import type { Text as CMText } from "@codemirror/state";
 import {
   parseHttpFenceInfo,
   type HttpBlockMetadata,
-} from "@/lib/blocks/http-fence";
+} from "@/lib/blocks/http-message";
 import {
   WidgetPortalRegistry,
   type FencedBlockBase,

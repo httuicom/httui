@@ -25,7 +25,7 @@ vi.mock("../HttpInlineEditors", () => ({
 
 import { Provider as ChakraProvider } from "@/components/ui/provider";
 import { HttpBodyByMode } from "../HttpFormTables";
-import type { HttpMessageParsed } from "@/lib/blocks/http-fence";
+import type { HttpMessageParsed } from "@/lib/blocks/http-message";
 
 function rmount(ui: React.ReactElement) {
   return render(<ChakraProvider>{ui}</ChakraProvider>);

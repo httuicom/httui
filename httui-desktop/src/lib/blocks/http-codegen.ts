@@ -15,7 +15,10 @@
  *    (`encodeURIComponent`).
  */
 
-import { stringifyHttpMessageBody, type HttpMessageParsed } from "./http-fence";
+import {
+  stringifyHttpMessageBody,
+  type HttpMessageParsed,
+} from "./http-message";
 
 function enabledKV(rows: HttpMessageParsed["headers"]) {
   return rows.filter((r) => r.enabled && r.key.length > 0);

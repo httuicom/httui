@@ -6,7 +6,7 @@
  * panel module.
  */
 
-import type { HttpMethod } from "@/lib/blocks/http-fence";
+import type { HttpMethod } from "@/lib/blocks/http-message";
 
 // Canonical union lives in blocks/execution-state; re-exported so the
 // HTTP sub-components keep importing it unchanged from "./shared".

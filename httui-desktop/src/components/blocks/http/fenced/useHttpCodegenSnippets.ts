@@ -32,7 +32,7 @@ import {
   toHttpFile,
   toPython,
 } from "@/lib/blocks/http-codegen";
-import type { HttpMessageParsed } from "@/lib/blocks/http-fence";
+import type { HttpMessageParsed } from "@/lib/blocks/http-message";
 import type { SendAsFormat } from "./shared";
 
 interface UseHttpCodegenSnippetsParams {

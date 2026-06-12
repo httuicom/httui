@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
 import { useHttpCodegenSnippets } from "../useHttpCodegenSnippets";
-import type { HttpMessageParsed } from "@/lib/blocks/http-fence";
+import type { HttpMessageParsed } from "@/lib/blocks/http-message";
 
 // ── Mocks (every external dep) ─────────────────────────────────
 

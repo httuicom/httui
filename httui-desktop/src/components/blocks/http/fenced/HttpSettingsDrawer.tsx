@@ -14,7 +14,7 @@ import { LuTrash2, LuX } from "react-icons/lu";
 import type {
   HttpBlockMetadata,
   HttpDisplayMode,
-} from "@/lib/blocks/http-fence";
+} from "@/lib/blocks/http-message";
 import type {
   BlockExample,
   HistoryEntry,

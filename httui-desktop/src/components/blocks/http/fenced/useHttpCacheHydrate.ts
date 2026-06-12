@@ -18,7 +18,7 @@ import {
 } from "@/lib/tauri/streamedExecution";
 import { computeHttpCacheHash } from "@/lib/blocks/hash";
 import { useEnvironmentStore } from "@/stores/environment";
-import type { HttpMessageParsed } from "@/lib/blocks/http-fence";
+import type { HttpMessageParsed } from "@/lib/blocks/http-message";
 import { MUTATION_METHODS } from "./shared";
 
 interface UseHttpCacheHydrateParams {

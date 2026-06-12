@@ -6,7 +6,7 @@ import {
   toHTTPie,
   toHttpFile,
 } from "../http-codegen";
-import type { HttpMessageParsed } from "../http-fence";
+import type { HttpMessageParsed } from "../http-message";
 
 const GET_SIMPLE: HttpMessageParsed = {
   method: "GET",

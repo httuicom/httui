@@ -6,7 +6,7 @@ import {
   isValidHeaderName,
   buildExecutorParams,
 } from "../http-request-builder";
-import type { HttpMessageParsed } from "@/lib/blocks/http-fence";
+import type { HttpMessageParsed } from "@/lib/blocks/http-message";
 import type { HttpResponseFull } from "@/lib/tauri/streamedExecution";
 
 const baseParsed = (
