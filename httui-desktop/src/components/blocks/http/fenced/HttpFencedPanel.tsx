@@ -29,15 +29,17 @@ import {
   type HttpPortalEntry,
 } from "@/lib/codemirror/cm-http-block";
 import {
-  deriveBodyMode,
-  isCompatibleSwitch,
-  setContentTypeForMode,
   stringifyHttpFenceInfo,
   stringifyHttpMessageBody,
   type HttpBlockMetadata,
-  type HttpBodyMode,
   type HttpMessageParsed,
-} from "@/lib/blocks/http-fence";
+} from "@/lib/blocks/http-message";
+import {
+  deriveBodyMode,
+  isCompatibleSwitch,
+  setContentTypeForMode,
+  type HttpBodyMode,
+} from "@/lib/blocks/http-body-modes";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { useBlockSettings } from "./useBlockSettings";
 import {

@@ -7,7 +7,7 @@ import type {
   HistoryEntry,
   HttpBlockSettings,
 } from "@/lib/tauri/commands";
-import type { HttpBlockMetadata } from "@/lib/blocks/http-fence";
+import type { HttpBlockMetadata } from "@/lib/blocks/http-message";
 
 const mkMetadata = (
   over: Partial<HttpBlockMetadata> = {},

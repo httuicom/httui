@@ -47,7 +47,7 @@ vi.mock("../HttpInlineEditors", () => ({
 
 import { Provider as ChakraProvider } from "@/components/ui/provider";
 import { HttpBodyByMode } from "../HttpFormTables";
-import type { HttpMessageParsed } from "@/lib/blocks/http-fence";
+import type { HttpMessageParsed } from "@/lib/blocks/http-message";
 
 function rmount(ui: React.ReactElement) {
   return render(<ChakraProvider>{ui}</ChakraProvider>);
@@ -432,7 +432,7 @@ describe("BinaryFilePicker", () => {
     await user.click(screen.getByRole("button", { name: /Choose…/ }));
     expect(onPickFile).toHaveBeenCalled();
     // Exact serialization is owned by buildBinaryFileBody (lives in
-    // http-fence and has its own tests). Here we just assert onCommit
+    // http-body-modes and has its own tests). Here we just assert onCommit
     // fired with the path embedded somewhere in the resulting string.
     expect(onCommit).toHaveBeenCalled();
     expect(String(onCommit.mock.calls[0][0])).toContain("/abs/path/file.bin");

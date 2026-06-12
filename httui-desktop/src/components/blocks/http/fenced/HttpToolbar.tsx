@@ -10,7 +10,8 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { LuPlay, LuSettings, LuSquare } from "react-icons/lu";
-import type { HttpBodyMode, HttpMethod } from "@/lib/blocks/http-fence";
+import type { HttpMethod } from "@/lib/blocks/http-message";
+import type { HttpBodyMode } from "@/lib/blocks/http-body-modes";
 import { METHOD_COLORS, type ExecutionState } from "./shared";
 
 interface HttpToolbarProps {

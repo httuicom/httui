@@ -9,7 +9,7 @@ import type {
   HttpKVRow,
   HttpMessageParsed,
   HttpMethod,
-} from "@/lib/blocks/http-fence";
+} from "@/lib/blocks/http-message";
 
 // Replace the CM6 inline editor with a plain controlled input that calls
 // `onCommit` on blur — keeps tests free of CodeMirror in jsdom.

@@ -6,7 +6,7 @@ import {
   parseMultipartBody,
   stringifyMultipartBody,
   type MultipartPart,
-} from "../http-fence";
+} from "../http-body-modes";
 
 describe("inferContentType", () => {
   it("recognises common image types", () => {

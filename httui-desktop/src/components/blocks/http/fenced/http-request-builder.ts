@@ -9,10 +9,12 @@
 
 import {
   parseHttpMessageBody,
+  type HttpMessageParsed,
+} from "@/lib/blocks/http-message";
+import {
   parseLegacyHttpBody,
   legacyToHttpMessage,
-  type HttpMessageParsed,
-} from "@/lib/blocks/http-fence";
+} from "@/lib/blocks/http-legacy";
 import type { HttpBlockSettings } from "@/lib/tauri/commands";
 import type { HttpResponseFull } from "@/lib/tauri/streamedExecution";
 

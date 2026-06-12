@@ -20,16 +20,16 @@ import {
 } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 
+import { type HttpMessageParsed } from "@/lib/blocks/http-message";
 import {
   buildBinaryFileBody,
   isBinaryFileBody,
   parseMultipartBody,
   stringifyMultipartBody,
   type HttpBodyMode,
-  type HttpMessageParsed,
   type MultipartPart,
   type MultipartPartKind,
-} from "@/lib/blocks/http-fence";
+} from "@/lib/blocks/http-body-modes";
 import type { BlockContext } from "@/lib/blocks/references";
 import type { EnvKeyInfo } from "@/lib/blocks/cm-autocomplete";
 

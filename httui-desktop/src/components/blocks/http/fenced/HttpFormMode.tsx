@@ -10,11 +10,8 @@ import {
 } from "react";
 import type { EnvKeyInfo } from "@/lib/blocks/cm-autocomplete";
 import type { BlockContext } from "@/lib/blocks/references";
-import type {
-  HttpBodyMode,
-  HttpKVRow,
-  HttpMessageParsed,
-} from "@/lib/blocks/http-fence";
+import type { HttpKVRow, HttpMessageParsed } from "@/lib/blocks/http-message";
+import type { HttpBodyMode } from "@/lib/blocks/http-body-modes";
 
 export type RefsGetters = {
   getBlocks: () => BlockContext[];

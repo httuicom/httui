@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import userEvent from "@testing-library/user-event";
 import { HttpToolbar } from "@/components/blocks/http/fenced/HttpToolbar";
-import type { HttpBodyMode, HttpMethod } from "@/lib/blocks/http-fence";
+import type { HttpMethod } from "@/lib/blocks/http-message";
+import type { HttpBodyMode } from "@/lib/blocks/http-body-modes";
 import type { ExecutionState } from "@/components/blocks/http/fenced/shared";
 
 const baseProps = {
