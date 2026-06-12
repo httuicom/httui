@@ -392,13 +392,6 @@ export const editorTheme = EditorView.theme(
       position: "relative",
       counterIncrement: "http-line",
       color: "var(--chakra-colors-fg)",
-      "& .tok-heading, & .tok-heading1, & .tok-heading2, & .tok-list, & .tok-strong, & .tok-emphasis, & .ͼ8, & .ͼ9, & .ͼa, & .ͼb, & .ͼc, & .ͼd, & .ͼe, & .ͼf":
-        {
-          color: "inherit",
-          fontWeight: "inherit",
-          fontStyle: "normal",
-          textDecoration: "none",
-        },
     },
     ".cm-http-body-line::before": {
       content: "counter(http-line)",
@@ -417,34 +410,6 @@ export const editorTheme = EditorView.theme(
       pointerEvents: "none",
     },
     ".cm-http-body-line-first": { counterReset: "http-line" },
-    // Method coloring on the first request line — Fuji oklch palette.
-    ".cm-http-method": { fontWeight: 600 },
-    ".cm-http-method-get": { color: "var(--chakra-colors-method-get)" },
-    ".cm-http-method-post": { color: "var(--chakra-colors-method-post)" },
-    ".cm-http-method-put": { color: "var(--chakra-colors-method-put)" },
-    ".cm-http-method-patch": { color: "var(--chakra-colors-method-patch)" },
-    ".cm-http-method-delete": { color: "var(--chakra-colors-method-delete)" },
-    ".cm-http-method-head": { color: "var(--chakra-colors-method-head)" },
-    ".cm-http-method-options": { color: "var(--chakra-colors-method-options)" },
-    ".cm-http-line-comment": {
-      color: "var(--chakra-colors-fg-muted)",
-      opacity: 0.7,
-    },
-    ".cm-http-line-desc": {
-      color: "var(--chakra-colors-teal-500)",
-      fontStyle: "italic",
-      opacity: 0.85,
-    },
-    ".cm-http-line-query": {
-      color: "var(--chakra-colors-cyan-600)",
-    },
-    ".cm-http-line-header": {
-      color: "var(--chakra-colors-fg)",
-    },
-    ".cm-http-header-key": {
-      color: "var(--chakra-colors-purple-500)",
-      fontWeight: 500,
-    },
     ".cm-http-fence-line": {
       color: "var(--chakra-colors-fg-muted)",
       fontFamily: "var(--chakra-fonts-mono)",

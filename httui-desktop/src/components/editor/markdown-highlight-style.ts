@@ -12,6 +12,7 @@
 import { LanguageDescription } from "@codemirror/language";
 import { HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
+import { httpTags } from "@httui/lezer-http";
 
 export const dbSqlLanguages: LanguageDescription[] = [
   "db",
@@ -107,6 +108,40 @@ export const markdownHighlightStyle = HighlightStyle.define([
   },
   { tag: tags.heading, fontWeight: "600" },
   { tag: tags.invalid, color: "var(--chakra-colors-red-500)" },
+
+  // ```http fence body (@httui/lezer-http via codeLanguages). Colors
+  // mirror the pre-grammar decoration path: per-method Fuji palette,
+  // purple header keys, plain values, dimmed comments/disabled rows.
+  { tag: httpTags.method, fontWeight: "600", color: "var(--chakra-colors-fg)" },
+  { tag: httpTags.methodGet, color: "var(--chakra-colors-method-get)" },
+  { tag: httpTags.methodPost, color: "var(--chakra-colors-method-post)" },
+  { tag: httpTags.methodPut, color: "var(--chakra-colors-method-put)" },
+  { tag: httpTags.methodPatch, color: "var(--chakra-colors-method-patch)" },
+  { tag: httpTags.methodDelete, color: "var(--chakra-colors-method-delete)" },
+  { tag: httpTags.methodHead, color: "var(--chakra-colors-method-head)" },
+  {
+    tag: httpTags.methodOptions,
+    color: "var(--chakra-colors-method-options)",
+  },
+  { tag: httpTags.url, color: "var(--chakra-colors-fg)" },
+  {
+    tag: httpTags.headerName,
+    color: "var(--chakra-colors-purple-500)",
+    fontWeight: "500",
+  },
+  { tag: httpTags.headerValue, color: "var(--chakra-colors-fg)" },
+  { tag: httpTags.queryLine, color: "var(--chakra-colors-cyan-600)" },
+  {
+    tag: httpTags.descLine,
+    color: "var(--chakra-colors-teal-500)",
+    fontStyle: "italic",
+    opacity: "0.85",
+  },
+  {
+    tag: [httpTags.commentLine, httpTags.disabledLine],
+    color: "var(--chakra-colors-fg-muted)",
+    opacity: "0.7",
+  },
 ]);
 
 // Static CSS for the editor container — @uiw/react-codemirror wraps the

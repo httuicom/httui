@@ -54,6 +54,7 @@ import {
   dbSqlLanguages,
   markdownHighlightStyle,
 } from "./markdown-highlight-style";
+import { httpLanguages } from "./http-language";
 
 export interface DocHeaderHandleLike {
   extension: import("@codemirror/state").Extension;
@@ -92,7 +93,7 @@ export function buildExtensions(params: BuildExtensionsParams) {
     vimCompartment.of([]),
     markdown({
       base: markdownLanguage,
-      codeLanguages: [...dbSqlLanguages, ...cmLanguages],
+      codeLanguages: [...dbSqlLanguages, ...httpLanguages, ...cmLanguages],
     }),
     syntaxHighlighting(markdownHighlightStyle),
     bracketMatching(),
