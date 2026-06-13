@@ -15,7 +15,7 @@ documentation.workspace = true
 
 [package.metadata.httui]
 # Read by scripts/prepare-bundle-bins.sh.
-lang-version = "0.2.6"
+lang-version = "0.2.7"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
