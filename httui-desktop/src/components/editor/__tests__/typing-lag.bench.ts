@@ -35,7 +35,11 @@ function synthDoc(nBlocks: number, linesPerBlock: number): string {
           ? `GET https://api.example.com/items?parent={{req${n - 2 > 0 ? n - 2 : 1}.response.body.id}}`
           : "GET https://api.example.com/items?page=1",
       );
-      out.push("Authorization: Bearer {{TOKEN}}", "Content-Type: application/json", "");
+      out.push(
+        "Authorization: Bearer {{TOKEN}}",
+        "Content-Type: application/json",
+        "",
+      );
       out.push('{"page": 1}', "```", "");
     } else {
       out.push(`\`\`\`db-postgres alias=q${n}`);
