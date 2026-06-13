@@ -32,7 +32,7 @@ function parseRow(line: string): string[] | null {
   return match[1].split("|").map((cell) => cell.trim());
 }
 
-function findTables(doc: {
+export function findTables(doc: {
   lines: number;
   line(n: number): { from: number; to: number; text: string };
 }): TableRange[] {
@@ -73,7 +73,7 @@ function findTables(doc: {
 
 // ── Table formatting (align columns with spaces) ────────────────────────────
 
-function formatTable(
+export function formatTable(
   doc: EditorState["doc"],
   table: TableRange,
 ): string | null {
@@ -306,7 +306,18 @@ const tableField = StateField.define<DecorationSet>({
       return buildTableDecorations(tr.state, view);
     }
     if (tr.docChanged) {
-      return buildTableDecorations(tr.state);
+      // A table row must start with `|`, so an edit can only create a
+      // table by inserting one. With no table present and no `|`
+      // inserted, map the (empty) decorations forward instead of
+      // rescanning every line — the common case in a large prose doc.
+      const mapped = decos.map(tr.changes);
+      if (mapped.size > 0) return buildTableDecorations(tr.state);
+      let mightStartTable = false;
+      tr.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
+        if (!mightStartTable && inserted.toString().includes("|"))
+          mightStartTable = true;
+      });
+      return mightStartTable ? buildTableDecorations(tr.state) : mapped;
     }
     return decos;
   },
@@ -315,7 +326,7 @@ const tableField = StateField.define<DecorationSet>({
 
 // ── Arrow key navigation into tables ─────────────────────────────────────────
 
-function findTableAtBoundary(
+export function findTableAtBoundary(
   doc: EditorState["doc"],
   lineNum: number,
   direction: "down" | "up",

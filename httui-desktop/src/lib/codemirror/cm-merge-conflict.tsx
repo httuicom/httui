@@ -181,7 +181,20 @@ const conflictField = StateField.define<DecorationSet>({
     return buildDecorations(state.doc);
   },
   update(deco, tr) {
-    return tr.docChanged ? buildDecorations(tr.state.doc) : deco;
+    if (!tr.docChanged) return deco;
+    // A conflict region only exists once a `<<<<<<<` marker line does,
+    // so the only edits that can create one insert a `<`. When the doc
+    // has no conflict and this edit inserts none, map the (empty)
+    // decorations forward instead of rescanning every line — the common
+    // case in a large document with no merge in progress.
+    const mapped = deco.map(tr.changes);
+    if (mapped.size > 0) return buildDecorations(tr.state.doc);
+    let mightStartConflict = false;
+    tr.changes.iterChanges((_fromA, _toA, _fromB, _toB, inserted) => {
+      if (!mightStartConflict && inserted.toString().includes("<"))
+        mightStartConflict = true;
+    });
+    return mightStartConflict ? buildDecorations(tr.state.doc) : mapped;
   },
   provide: (f) => EditorView.decorations.from(f),
 });
