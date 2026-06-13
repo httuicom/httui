@@ -124,4 +124,32 @@ describe("mergeConflict extension", () => {
     ).dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
     expect(view.dom.querySelector(".cm-conflict-toolbar")).toBeNull();
   });
+
+  // The docChanged early-out skips the full rescan when no conflict is
+  // present and the edit inserts no `<`; these assert it stays correct
+  // across every transition (a wrong skip would drop a real conflict).
+  it("stays clean when editing prose with no marker char", () => {
+    mount("# title\n\nsome body text here\nmore lines\n");
+    view.dispatch({
+      changes: { from: view.state.doc.length, insert: " word" },
+    });
+    expect(view.dom.querySelector(".cm-conflict-marker")).toBeNull();
+  });
+
+  it("decorates a conflict pasted into a clean doc", () => {
+    mount("# title\n\nbody\n");
+    view.dispatch({
+      changes: { from: view.state.doc.length, insert: "\n" + CONFLICT },
+    });
+    expect(view.dom.querySelectorAll(".cm-conflict-marker")).toHaveLength(2);
+    expect(view.dom.querySelector(".cm-conflict-toolbar")).toBeTruthy();
+  });
+
+  it("keeps decorating after an edit while a conflict is present", () => {
+    mount(CONFLICT);
+    // edit the surrounding prose (no marker char) — the conflict must
+    // remain decorated, not be dropped by the early-out
+    view.dispatch({ changes: { from: 0, insert: "x" } });
+    expect(view.dom.querySelectorAll(".cm-conflict-marker")).toHaveLength(2);
+  });
 });
