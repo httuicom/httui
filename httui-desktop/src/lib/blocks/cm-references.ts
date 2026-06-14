@@ -12,8 +12,10 @@ import {
 } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
 import { parser } from "@httui/lezer-refs";
+import { isSecretEnvKey } from "./secret-env-keys";
 
 const refMark = Decoration.mark({ class: "cm-reference-highlight" });
+const secretNameMark = Decoration.mark({ class: "cm-ref-name cm-ref-secret" });
 const tokenMarks: Record<string, Decoration> = {
   Identifier: Decoration.mark({ class: "cm-ref-name" }),
   Prev: Decoration.mark({ class: "cm-ref-prev" }),
@@ -32,11 +34,19 @@ function buildDeco(view: EditorView): DecorationSet {
         } else if (node.name === "Identifier") {
           // only the ref head (alias/env name) — path identifiers keep
           // the base highlight
-          if (node.node.parent?.name === "RefBody") {
+          const body = node.node.parent;
+          if (body?.name === "RefBody") {
+            // a bare `{{KEY}}` (no path) whose head matches a secret env
+            // var gets the secret class so keychain-backed vars read
+            // differently
+            const name = text.slice(node.from, node.to);
+            const bare = !text.slice(body.from, body.to).includes(".");
             builder.add(
               from + node.from,
               from + node.to,
-              tokenMarks.Identifier,
+              bare && isSecretEnvKey(name)
+                ? secretNameMark
+                : tokenMarks.Identifier,
             );
           }
         } else if (node.name in tokenMarks) {
@@ -78,6 +88,13 @@ const referenceHighlightTheme = EditorView.baseTheme({
   },
   ".cm-ref-index": {
     opacity: "0.8",
+  },
+  // keychain-backed env var: amber-ish tint + dotted underline to read
+  // as "sensitive", distinct from the purple ref highlight
+  ".cm-ref-secret": {
+    color: "var(--chakra-colors-amber-500, rgb(217, 119, 6))",
+    textDecoration: "underline dotted",
+    textUnderlineOffset: "2px",
   },
   ".cm-ref-tooltip": {
     fontFamily: "var(--chakra-fonts-mono)",
