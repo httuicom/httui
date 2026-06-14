@@ -22,6 +22,7 @@ import { useEditorSession } from "@/hooks/useEditorSession";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSidebarResize } from "@/hooks/useSidebarResize";
 import { useSessionPersistence } from "@/hooks/useSessionPersistence";
+import { useSecretEnvKeysSync } from "@/hooks/useSecretEnvKeysSync";
 import { WorkspaceContext } from "@/contexts/WorkspaceContext";
 import { useAutoUpdate } from "@/hooks/useAutoUpdate";
 import { ChatPanel } from "@/components/chat/ChatPanel";
@@ -75,6 +76,7 @@ export function AppShell() {
   useAutoUpdate();
   useSessionPersistence();
   usePendingSecretsScan();
+  useSecretEnvKeysSync();
   const {
     sidebarWidth,
     isResizing: isSidebarResizing,
