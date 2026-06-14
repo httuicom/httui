@@ -5,6 +5,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import { referenceHighlight } from "../cm-references";
+import { setSecretEnvKeys } from "../secret-env-keys";
 
 function mount(doc: string) {
   const parent = document.createElement("div");
@@ -50,5 +51,33 @@ describe("referenceHighlight", () => {
     const view = mount("plain { not a ref }");
     expect(view.dom.querySelectorAll(".cm-reference-highlight").length).toBe(0);
     view.destroy();
+  });
+
+  describe("secret env var marking", () => {
+    it("marks a bare {{KEY}} whose key is a secret env var", () => {
+      setSecretEnvKeys(["TOKEN"]);
+      const view = mount("Authorization: Bearer {{TOKEN}}");
+      expect(view.dom.querySelectorAll(".cm-ref-secret").length).toBe(1);
+      view.destroy();
+      setSecretEnvKeys([]);
+    });
+
+    it("does not mark a non-secret bare key", () => {
+      setSecretEnvKeys(["TOKEN"]);
+      const view = mount("{{BASE_URL}}");
+      expect(view.dom.querySelectorAll(".cm-ref-secret").length).toBe(0);
+      view.destroy();
+      setSecretEnvKeys([]);
+    });
+
+    it("does not mark a ref that has a path (block ref, not env var)", () => {
+      setSecretEnvKeys(["TOKEN"]);
+      // even if a path head collides with a secret key name, a dotted ref
+      // is a block reference, not the env var
+      const view = mount("{{TOKEN.body.id}}");
+      expect(view.dom.querySelectorAll(".cm-ref-secret").length).toBe(0);
+      view.destroy();
+      setSecretEnvKeys([]);
+    });
   });
 });

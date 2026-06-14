@@ -82,6 +82,9 @@ vi.mock("@/hooks/useSessionPersistence", () => ({
 vi.mock("@/hooks/useAutoUpdate", () => ({
   useAutoUpdate: vi.fn(),
 }));
+vi.mock("@/hooks/useSecretEnvKeysSync", () => ({
+  useSecretEnvKeysSync: vi.fn(),
+}));
 
 import { AppShell } from "@/components/layout/AppShell";
 import { useWorkspaceStore } from "@/stores/workspace";
