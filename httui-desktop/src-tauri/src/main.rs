@@ -308,6 +308,31 @@ fn main() {
             let app_data_dir =
                 httui_core::paths::default_data_dir().expect("failed to resolve data dir");
 
+            // Persist a crash log before the default hook prints to
+            // stderr, so the in-app Crashes panel can surface the panic
+            // after a restart. Best-effort — write_crash never panics.
+            {
+                let crashes = httui_core::crash_log::crashes_dir()
+                    .unwrap_or_else(|_| app_data_dir.join("crashes"));
+                let default_hook = std::panic::take_hook();
+                std::panic::set_hook(Box::new(move |info| {
+                    let payload = info
+                        .payload()
+                        .downcast_ref::<&str>()
+                        .map(|s| s.to_string())
+                        .or_else(|| info.payload().downcast_ref::<String>().cloned())
+                        .unwrap_or_else(|| "unknown panic".to_string());
+                    let location = info
+                        .location()
+                        .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+                        .unwrap_or_default();
+                    let backtrace = std::backtrace::Backtrace::force_capture();
+                    let body = format!("{location}\n{payload}\n\n{backtrace}");
+                    httui_core::crash_log::write_crash(&crashes, "desktop", &body);
+                    default_hook(info);
+                }));
+            }
+
             match httui_core::paths::migrate_legacy_data(&app_data_dir) {
                 Ok(httui_core::paths::MigrationOutcome::Migrated { from }) => {
                     eprintln!(
@@ -513,6 +538,9 @@ fn main() {
             httui_notes::commands::settings::record_feature_usage,
             httui_notes::commands::settings::get_feature_usage,
             httui_notes::commands::settings::clear_feature_usage,
+            httui_notes::commands::settings::list_crash_logs,
+            httui_notes::commands::settings::read_crash_log,
+            httui_notes::commands::settings::clear_crash_logs,
             force_reload_file,
             query_internal_db,
             httui_notes::lsp_sidecar::lsp_start,

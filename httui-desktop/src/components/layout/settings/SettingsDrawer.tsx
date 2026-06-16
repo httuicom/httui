@@ -17,6 +17,7 @@ import {
   LuInfo,
   LuPalette,
   LuChartBar,
+  LuTriangleAlert,
 } from "react-icons/lu";
 import { useSettingsStore } from "@/stores/settings";
 import { AuditSection } from "./AuditSection";
@@ -26,6 +27,7 @@ import { ShortcutsSection } from "./ShortcutsSection";
 import { ThemeSection } from "./ThemeSection";
 import { AboutSection } from "./AboutSection";
 import { UsageSection } from "./UsageSection";
+import { CrashesSection } from "./CrashesSection";
 
 type SettingsTab =
   | "general"
@@ -33,6 +35,7 @@ type SettingsTab =
   | "editor"
   | "shortcuts"
   | "usage"
+  | "crashes"
   | "audit"
   | "about";
 
@@ -72,6 +75,12 @@ const TABS: TabDef[] = [
     id: "usage",
     label: "Usage",
     icon: <LuChartBar size={14} />,
+    group: "advanced",
+  },
+  {
+    id: "crashes",
+    label: "Crashes",
+    icon: <LuTriangleAlert size={14} />,
     group: "advanced",
   },
   {
@@ -191,6 +200,7 @@ export function SettingsDrawer() {
             {activeTab === "editor" && <EditorSection />}
             {activeTab === "shortcuts" && <ShortcutsSection />}
             {activeTab === "usage" && <UsageSection />}
+            {activeTab === "crashes" && <CrashesSection />}
             {activeTab === "audit" && <AuditSection />}
             {activeTab === "about" && <AboutSection />}
           </Box>
