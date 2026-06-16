@@ -17,7 +17,7 @@ path = "src/main.rs"
 [dependencies]
 httui-core = { git = "https://github.com/httuicom/httui-core", rev = "6e2f97db9f3201d931c59fe1c4da93904355f73f" }
 ropey = "1"
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "tls-rustls"] }
+sqlx = { version = "0.9", features = ["sqlite", "runtime-tokio", "tls-rustls"] }
 ratatui = "0.29"
 crossterm = { version = "0.28", features = ["event-stream"] }
 tokio = { version = "1", features = ["full"] }
