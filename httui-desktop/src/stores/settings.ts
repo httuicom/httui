@@ -54,6 +54,10 @@ interface SettingsState {
   /** Opt-in to pre-release auto-updates. */
   autoUpdateIncludePrereleases: boolean;
 
+  /** Opt-in to local feature-usage tracking (counts only, never leaves
+   * the machine). Off by default. */
+  telemetryEnabled: boolean;
+
   // Actions
   openSettings: () => void;
   closeSettings: () => void;
@@ -74,6 +78,7 @@ interface SettingsState {
   setGitCommitTemplate: (template: string) => void;
   setMvpMigrationDismissed: (dismissed: boolean) => void;
   setAutoUpdateIncludePrereleases: (include: boolean) => void;
+  setTelemetryEnabled: (enabled: boolean) => void;
   loadSettings: () => Promise<void>;
 }
 
@@ -123,6 +128,7 @@ export const useSettingsStore = create<SettingsState>()(
       gitCommitTemplate: "",
       mvpMigrationDismissed: false,
       autoUpdateIncludePrereleases: false,
+      telemetryEnabled: false,
 
       openSettings: () => set({ settingsOpen: true }),
       closeSettings: () => set({ settingsOpen: false }),
@@ -230,6 +236,14 @@ export const useSettingsStore = create<SettingsState>()(
         })).catch(() => {});
       },
 
+      setTelemetryEnabled: (enabled) => {
+        set({ telemetryEnabled: enabled });
+        patchUiPrefs((ui) => ({
+          ...ui,
+          telemetry_enabled: enabled,
+        })).catch(() => {});
+      },
+
       loadSettings: async () => {
         const file = await getUserConfig();
         const ui = file.ui;
@@ -271,6 +285,7 @@ export const useSettingsStore = create<SettingsState>()(
           mvpMigrationDismissed: ui.mvp_migration_dismissed ?? false,
           autoUpdateIncludePrereleases:
             ui.auto_update_include_prereleases ?? false,
+          telemetryEnabled: ui.telemetry_enabled ?? false,
           loaded: true,
         });
       },

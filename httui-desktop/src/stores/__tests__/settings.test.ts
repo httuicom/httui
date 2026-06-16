@@ -437,4 +437,36 @@ describe("settingsStore", () => {
       );
     });
   });
+
+  describe("telemetryEnabled", () => {
+    it("defaults to false (opt-in)", () => {
+      expect(useSettingsStore.getState().telemetryEnabled).toBe(false);
+    });
+
+    it("setTelemetryEnabled(true) updates state and persists", async () => {
+      const read = mockUserConfig();
+
+      useSettingsStore.getState().setTelemetryEnabled(true);
+
+      expect(useSettingsStore.getState().telemetryEnabled).toBe(true);
+      await flushPersist();
+      expect(read().ui.telemetry_enabled).toBe(true);
+    });
+
+    it("loadSettings hydrates from ui.telemetry_enabled", async () => {
+      mockUserConfig({ telemetry_enabled: true });
+
+      await useSettingsStore.getState().loadSettings();
+
+      expect(useSettingsStore.getState().telemetryEnabled).toBe(true);
+    });
+
+    it("falls back to false when the key is omitted", async () => {
+      mockUserConfig({ telemetry_enabled: undefined });
+
+      await useSettingsStore.getState().loadSettings();
+
+      expect(useSettingsStore.getState().telemetryEnabled).toBe(false);
+    });
+  });
 });

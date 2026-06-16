@@ -139,7 +139,7 @@ dependencies = [
  "objc2-foundation",
  "parking_lot",
  "percent-encoding",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
  "x11rb",
 ]
 
@@ -1195,7 +1195,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1405,7 +1405,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2292,6 +2292,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "httui-core"
+version = "0.1.0"
+source = "git+https://github.com/httuicom/httui-core?rev=c331047ae6812125653633f651a7cdb05ad79d41#c331047ae6812125653633f651a7cdb05ad79d41"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "dirs",
+ "futures-util",
+ "keyring",
+ "once_cell",
+ "percent-encoding",
+ "regex",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-util",
+ "toml 1.1.2+spec-1.1.0",
+ "trash",
+ "uuid",
+]
+
+[[package]]
 name = "httui-launcher"
 version = "0.1.0"
 
@@ -2301,7 +2328,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "httui-core",
+ "httui-core 0.1.0 (git+https://github.com/httuicom/httui-core?rev=6e2f97db9f3201d931c59fe1c4da93904355f73f)",
  "rmcp",
  "schemars 1.2.1",
  "serde",
@@ -2319,7 +2346,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "hmac 0.13.0",
- "httui-core",
+ "httui-core 0.1.0 (git+https://github.com/httuicom/httui-core?rev=c331047ae6812125653633f651a7cdb05ad79d41)",
  "image",
  "notify",
  "regex",
@@ -2351,7 +2378,7 @@ dependencies = [
  "clap",
  "crossterm",
  "futures",
- "httui-core",
+ "httui-core 0.1.0 (git+https://github.com/httuicom/httui-core?rev=6e2f97db9f3201d931c59fe1c4da93904355f73f)",
  "notify",
  "ratatui",
  "ropey",
@@ -3345,7 +3372,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4322,7 +4349,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.60.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4850,7 +4877,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4907,7 +4934,7 @@ dependencies = [
  "security-framework 3.7.0",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6419,7 +6446,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -7541,7 +7568,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
