@@ -12,6 +12,7 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import type { DbResponse } from "@/components/blocks/db/types";
 import { normalizeDbResponse } from "@/components/blocks/db/types";
 import { useConnectionSessionOverrideStore } from "@/stores/connectionSessionOverride";
+import { recordFeatureUsage } from "@/lib/tauri/telemetry";
 
 /**
  * Merge any session-scoped host:port override for this run's connection
@@ -84,6 +85,7 @@ export async function executeDbStreamed(
     channel.onmessage = (chunk) => {
       switch (chunk.kind) {
         case "complete":
+          recordFeatureUsage("db_block_run");
           resolve({
             status: "success",
             response: normalizeDbResponse(chunk),
@@ -264,6 +266,7 @@ export async function executeHttpStreamed(
           options.onProgress?.(chunk.offset + chunk.bytes.length);
           break;
         case "complete":
+          recordFeatureUsage("http_block_run");
           resolve({
             status: "success",
             response: normalizeHttpResponse(chunk),

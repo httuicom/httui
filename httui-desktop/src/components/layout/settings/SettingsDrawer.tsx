@@ -16,6 +16,7 @@ import {
   LuKeyboard,
   LuInfo,
   LuPalette,
+  LuChartBar,
 } from "react-icons/lu";
 import { useSettingsStore } from "@/stores/settings";
 import { AuditSection } from "./AuditSection";
@@ -24,12 +25,14 @@ import { EditorSection } from "./EditorSection";
 import { ShortcutsSection } from "./ShortcutsSection";
 import { ThemeSection } from "./ThemeSection";
 import { AboutSection } from "./AboutSection";
+import { UsageSection } from "./UsageSection";
 
 type SettingsTab =
   | "general"
   | "theme"
   | "editor"
   | "shortcuts"
+  | "usage"
   | "audit"
   | "about";
 
@@ -64,6 +67,12 @@ const TABS: TabDef[] = [
     label: "Shortcuts",
     icon: <LuKeyboard size={14} />,
     group: "settings",
+  },
+  {
+    id: "usage",
+    label: "Usage",
+    icon: <LuChartBar size={14} />,
+    group: "advanced",
   },
   {
     id: "audit",
@@ -181,6 +190,7 @@ export function SettingsDrawer() {
             {activeTab === "theme" && <ThemeSection />}
             {activeTab === "editor" && <EditorSection />}
             {activeTab === "shortcuts" && <ShortcutsSection />}
+            {activeTab === "usage" && <UsageSection />}
             {activeTab === "audit" && <AuditSection />}
             {activeTab === "about" && <AboutSection />}
           </Box>

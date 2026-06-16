@@ -73,6 +73,8 @@ export interface UserUiPrefs {
   mvp_migration_dismissed: boolean;
   /** Opt-in to pre-release auto-updates (`-rc`/`-beta`/`-alpha`). V12. */
   auto_update_include_prereleases?: boolean;
+  /** Opt-in to local feature-usage tracking (counts only, on-machine). */
+  telemetry_enabled?: boolean;
 }
 
 /** `[secrets]` section. */
