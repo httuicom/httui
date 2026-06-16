@@ -20,6 +20,9 @@ vi.mock("../ShortcutsSection", () => ({
 vi.mock("../UsageSection", () => ({
   UsageSection: () => <div data-testid="section-usage" />,
 }));
+vi.mock("../CrashesSection", () => ({
+  CrashesSection: () => <div data-testid="section-crashes" />,
+}));
 vi.mock("../AuditSection", () => ({
   AuditSection: () => <div data-testid="section-audit" />,
 }));
@@ -57,6 +60,13 @@ describe("SettingsDrawer", () => {
     await user.click(screen.getByText("Usage"));
     expect(screen.getByTestId("section-usage")).toBeTruthy();
     expect(screen.queryByTestId("section-general")).toBeNull();
+  });
+
+  it("switches to the Crashes tab on click", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsDrawer />);
+    await user.click(screen.getByText("Crashes"));
+    expect(screen.getByTestId("section-crashes")).toBeTruthy();
   });
 
   it("switches to the Audit tab on click", async () => {

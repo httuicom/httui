@@ -2267,7 +2267,7 @@ checksum = "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
 [[package]]
 name = "httui-core"
 version = "0.1.0"
-source = "git+https://github.com/httuicom/httui-core?rev=6e2f97db9f3201d931c59fe1c4da93904355f73f#6e2f97db9f3201d931c59fe1c4da93904355f73f"
+source = "git+https://github.com/httuicom/httui-core?rev=3a36cc75e9bc1f5e15e0220332272225d6f7690e#3a36cc75e9bc1f5e15e0220332272225d6f7690e"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2294,7 +2294,7 @@ dependencies = [
 [[package]]
 name = "httui-core"
 version = "0.1.0"
-source = "git+https://github.com/httuicom/httui-core?rev=c331047ae6812125653633f651a7cdb05ad79d41#c331047ae6812125653633f651a7cdb05ad79d41"
+source = "git+https://github.com/httuicom/httui-core?rev=6e2f97db9f3201d931c59fe1c4da93904355f73f#6e2f97db9f3201d931c59fe1c4da93904355f73f"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2346,7 +2346,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "hmac 0.13.0",
- "httui-core 0.1.0 (git+https://github.com/httuicom/httui-core?rev=c331047ae6812125653633f651a7cdb05ad79d41)",
+ "httui-core 0.1.0 (git+https://github.com/httuicom/httui-core?rev=3a36cc75e9bc1f5e15e0220332272225d6f7690e)",
  "image",
  "notify",
  "regex",

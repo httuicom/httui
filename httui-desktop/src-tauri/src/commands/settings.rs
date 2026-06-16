@@ -6,6 +6,7 @@ use sqlx::sqlite::SqlitePool;
 use tauri::State;
 
 use httui_core::config;
+use httui_core::crash_log::{self, CrashLog};
 use httui_core::db::feature_usage::{self, FeatureUsage};
 
 /// Read a single key from the `app_config` table.
@@ -64,4 +65,25 @@ pub async fn get_feature_usage(
 #[tauri::command]
 pub async fn clear_feature_usage(pool: State<'_, SqlitePool>) -> Result<(), String> {
     feature_usage::clear_feature_usage(&pool).await
+}
+
+/// List local crash logs newest-first. Powers the Crashes settings panel.
+#[tauri::command]
+pub fn list_crash_logs() -> Result<Vec<CrashLog>, String> {
+    let dir = crash_log::crashes_dir().map_err(|e| e.to_string())?;
+    Ok(crash_log::list_crashes(&dir))
+}
+
+/// Read one crash log's full body by file name.
+#[tauri::command]
+pub fn read_crash_log(name: String) -> Result<String, String> {
+    let dir = crash_log::crashes_dir().map_err(|e| e.to_string())?;
+    crash_log::read_crash(&dir, &name).map_err(|e| e.to_string())
+}
+
+/// Delete every local crash log. Backs the panel's clear control.
+#[tauri::command]
+pub fn clear_crash_logs() -> Result<(), String> {
+    let dir = crash_log::crashes_dir().map_err(|e| e.to_string())?;
+    crash_log::clear_crashes(&dir).map_err(|e| e.to_string())
 }

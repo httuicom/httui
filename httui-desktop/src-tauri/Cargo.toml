@@ -21,7 +21,7 @@ lang-version = "0.2.7"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-httui-core = { git = "https://github.com/httuicom/httui-core", rev = "c331047ae6812125653633f651a7cdb05ad79d41" }
+httui-core = { git = "https://github.com/httuicom/httui-core", rev = "3a36cc75e9bc1f5e15e0220332272225d6f7690e" }
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
